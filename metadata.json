@@ -1,0 +1,5 @@
+{
+  "name": "Reporte de Servicio",
+  "description": "A consolidated management system for security units, patrol cars, and fixed-point security personnel with real-time editing and report generation.",
+  "requestFramePermissions": []
+}

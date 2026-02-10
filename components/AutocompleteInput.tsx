@@ -1,0 +1,113 @@
+
+import React, { useState, useEffect, useRef } from 'react';
+
+interface AutocompleteInputProps {
+  value: string;
+  onChange: (val: string) => void;
+  onBlur?: () => void;
+  placeholder: string;
+  suggestions: string[];
+  autoFocus?: boolean;
+  className?: string;
+}
+
+const AutocompleteInput: React.FC<AutocompleteInputProps> = ({ 
+  value, 
+  onChange, 
+  onBlur, 
+  placeholder, 
+  suggestions, 
+  autoFocus,
+  className = "" 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [filtered, setFiltered] = useState<string[]>([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (value.length > 0) {
+      const matches = suggestions.filter(s => 
+        s.toLowerCase().includes(value.toLowerCase())
+      );
+      setFiltered(matches.slice(0, 10));
+    } else {
+      setFiltered([]);
+    }
+  }, [value, suggestions]);
+
+  const handleSelect = (name: string) => {
+    onChange(name);
+    setIsOpen(false);
+    if (onBlur) onBlur();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setIsOpen(true);
+      setActiveIndex(prev => (prev + 1) % (filtered.length || 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setIsOpen(true);
+      setActiveIndex(prev => (prev - 1 + (filtered.length || 1)) % (filtered.length || 1));
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && filtered[activeIndex]) {
+        handleSelect(filtered[activeIndex]);
+      } else {
+        setIsOpen(false);
+        if (onBlur) onBlur();
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <input
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setIsOpen(true)}
+        onBlur={(e) => {
+          if (containerRef.current && containerRef.current.contains(e.relatedTarget as Node)) {
+            return;
+          }
+          setTimeout(() => {
+            setIsOpen(false);
+            if (onBlur) onBlur();
+          }, 150);
+        }}
+        placeholder={placeholder}
+        className={`w-full border border-slate-300 bg-white rounded px-2 py-1 text-[11px] font-medium h-[28px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm text-slate-800 ${className}`}
+      />
+      {isOpen && filtered.length > 0 && (
+        <div className="absolute z-[1000] mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-2xl max-h-[200px] overflow-y-auto ring-1 ring-black ring-opacity-5">
+          {filtered.map((name, idx) => (
+            <div
+              key={idx}
+              tabIndex={-1}
+              onMouseEnter={() => setActiveIndex(idx)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleSelect(name);
+              }}
+              className={`px-3 py-2 text-[10px] font-medium cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${
+                activeIndex === idx ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50'
+              }`}
+            >
+              {name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AutocompleteInput;
