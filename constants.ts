@@ -2,13 +2,13 @@
 import { UnitData, UnitStatus, Sector } from './types';
 
 export const SECTORS: Sector[] = [
-  'SECTOR 1A', 'SECTOR 1B', 
-  'SECTOR 2A', 'SECTOR 2B', 
-  'SECTOR 3', 'SECTOR 4', 
-  'SECTOR 5', 'SECTOR 6', 
-  'SECTOR 7', 'SECTOR 8', 
-  'SECTOR 9A', 'SECTOR 9B', 
-  'RESCATE', 
+  'SECTOR 1A', 'SECTOR 1B',
+  'SECTOR 2A', 'SECTOR 2B',
+  'SECTOR 3', 'SECTOR 4',
+  'SECTOR 5', 'SECTOR 6',
+  'SECTOR 7', 'SECTOR 8',
+  'SECTOR 9A', 'SECTOR 9B',
+  'RESCATE',
   'GIR'
 ];
 
@@ -412,3 +412,68 @@ export const INITIAL_UNITS: UnitData[] = [
     mechanics: 'Operativo',
   }
 ];
+
+// Sector-specific data mapping
+export const SECTOR_DATA: Record<Sector, UnitData[]> = {
+  'SECTOR 1A': INITIAL_UNITS,
+  'SECTOR 1B': [
+    { id: 'M-19', type: 'CHOFER', personnel1: 'Beltrán O., Jorge', personnel2: 'Villalobos K., M.', plate: 'VBN-334', indicative: 'IC-408', radio: 'T-10023', status: UnitStatus.ACTIVE, reason: 'Patrullaje Int.', km: '8000 / 8300 / 300 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 4.0', expense: 'S/ 75.00', parts: '6', quadrant: '02', mechanics: 'Operativo' },
+    { id: 'L-21', type: 'MOTO', personnel1: 'Espichán R., Luis', plate: 'KWA-223', indicative: '', radio: 'T-11002', status: UnitStatus.ACTIVE, reason: 'Recorrido Urb.', km: '4500 / 4650 / 150 / 10', hours: '07:00 - 19:00', fuel: 'G-95 / 1.7', expense: 'S/ 31.00', parts: '3', quadrant: '03', mechanics: 'Operativo' },
+    { id: 'P-01', type: 'SERENO', personnel1: 'Cárdenas H., Raúl', plate: 'PE-1001', indicative: '', radio: 'T-99283', status: UnitStatus.ACTIVE, reason: 'Punto Fijo', km: '0 / 0 / 0', hours: '08:00 - 20:00', fuel: 'N/A / 0', expense: 'S/ 0.00', parts: '2', quadrant: '04', mechanics: 'Operativo' },
+  ],
+  'SECTOR 2A': [
+    { id: 'M-20', type: 'CHOFER', personnel1: 'Sánchez M., Lucía', personnel2: 'Alvarez P., Roberto', plate: 'KJH-556', indicative: 'IC-409', radio: 'T-44012', status: UnitStatus.ACTIVE, reason: 'Apoyo Operativo', km: '9500 / 9750 / 250 / 30', hours: '07:00 - 19:00', fuel: 'G-95 / 3.8', expense: 'S/ 70.00', parts: '8', quadrant: '05', mechanics: 'Operativo' },
+    { id: 'M-21', type: 'CHOFER', personnel1: 'Caceres G., Fernando', personnel2: 'Dávila M., Sonia', plate: 'LKO-998', indicative: 'IC-410', radio: 'T-44015', status: UnitStatus.ACTIVE, reason: 'Patrullaje Int.', km: '11000 / 11200 / 200 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 4.2', expense: 'S/ 78.00', parts: '5', quadrant: '06', mechanics: 'Operativo' },
+    { id: 'P-04', type: 'SERENO', personnel1: 'Gomez Chavez, R.', plate: 'PE-3033', indicative: '', radio: 'T-55111', status: UnitStatus.ACTIVE, reason: 'Vigilancia Parque', km: '0 / 0 / 0', hours: '08:00 - 20:00', fuel: 'N/A / 0', expense: 'S/ 0.00', parts: '1', quadrant: '07', mechanics: 'Operativo' },
+  ],
+  'SECTOR 2B': [
+    { id: 'M-13', type: 'CHOFER', personnel1: 'Torres Ruiz, Manuel', personnel2: 'Soto Mayor, Luis', plate: 'EUJ-821', indicative: 'IC-402', radio: 'T-66432', status: UnitStatus.ACTIVE, reason: 'Patrullaje Int.', km: '13000 / 13400 / 400 / 50', hours: '07:00 - 19:00', fuel: 'G-95 / 5.0', expense: 'S/ 92.00', parts: '10', quadrant: '08', mechanics: 'Operativo' },
+    { id: 'L-17', type: 'MOTO', personnel1: 'Quispe M., Jhon', plate: 'KWA-001', indicative: '', radio: 'T-77123', status: UnitStatus.ACTIVE, reason: 'Patrullaje Moto', km: '5500 / 5680 / 180 / 22', hours: '07:00 - 19:00', fuel: 'G-95 / 2.2', expense: 'S/ 40.00', parts: '7', quadrant: '09', mechanics: 'Operativo' },
+  ],
+  'SECTOR 3': [
+    { id: 'M-14', type: 'CHOFER', personnel1: 'López Vega, Ricardo', personnel2: 'García Salas, Pedro', plate: 'FGH-102', indicative: 'IC-403', radio: 'T-88211', status: UnitStatus.ACTIVE, reason: 'Patrullaje Int.', km: '10000 / 10350 / 350 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 4.5', expense: 'S/ 83.00', parts: '9', quadrant: '10', mechanics: 'Operativo' },
+    { id: 'L-18', type: 'MOTO', personnel1: 'Huamaní R., S.', plate: 'SUZ-222', indicative: '', radio: 'T-66432', status: UnitStatus.ACTIVE, reason: 'Recorrido Urb.', km: '7200 / 7350 / 150 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 1.5', expense: 'S/ 28.00', parts: '2', quadrant: '11', mechanics: 'Operativo' },
+    { id: 'P-05', type: 'SERENO', personnel1: 'Salazar F., Ana', plate: 'PE-4044', indicative: '', radio: 'T-33221', status: UnitStatus.ACTIVE, reason: 'Vigilancia Colegio', km: '0 / 0 / 0', hours: '08:00 - 20:00', fuel: 'N/A / 0', expense: 'S/ 0.00', parts: '4', quadrant: '12', mechanics: 'Operativo' },
+  ],
+  'SECTOR 4': [
+    { id: 'M-15', type: 'CHOFER', personnel1: 'Vargas J., Mario', personnel2: 'Castro P., Elena', plate: 'ABC-123', indicative: 'IC-404', radio: 'T-99283', status: UnitStatus.ACTIVE, reason: 'Patrullaje Int.', km: '20100 / 20300 / 200 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 4.0', expense: 'S/ 70.00', parts: '5', quadrant: '13', mechanics: 'Operativo' },
+    { id: 'L-19', type: 'MOTO', personnel1: 'Villalobos K., M.', plate: 'YAM-554', indicative: '', radio: 'T-55111', status: UnitStatus.ACTIVE, reason: 'Patrullaje Sector', km: '3100 / 3250 / 150 / 12', hours: '07:00 - 19:00', fuel: 'G-95 / 1.6', expense: 'S/ 30.00', parts: '4', quadrant: '14', mechanics: 'Operativo' },
+    { id: 'P-06', type: 'SERENO', personnel1: 'Beltrán O., Jorge', plate: 'PE-5055', indicative: '', radio: 'T-11002', status: UnitStatus.ACTIVE, reason: 'Punto Fijo', km: '0 / 0 / 0', hours: '08:00 - 20:00', fuel: 'N/A / 0', expense: 'S/ 0.00', parts: '6', quadrant: '15', mechanics: 'Operativo' },
+  ],
+  'SECTOR 5': [
+    { id: 'M-16', type: 'CHOFER', personnel1: 'Paredes C., Alberto', personnel2: 'Mendoza T., Franco', plate: 'XYZ-987', indicative: 'IC-405', radio: 'T-88211', status: UnitStatus.ACTIVE, reason: 'Apoyo Operativo', km: '11000 / 11200 / 200 / 110', hours: '07:00 - 19:00', fuel: 'G-95 / 3.5', expense: 'S/ 65.00', parts: '10', quadrant: '16', mechanics: 'Operativo' },
+    { id: 'L-15', type: 'MOTO', personnel1: 'Vidal Hipolito, J.', plate: 'HON-452', indicative: '', radio: 'T-44012', status: UnitStatus.ACTIVE, reason: 'Recorrido Urb.', km: '8900 / 9100 / 200 / 15', hours: '07:00 - 19:00', fuel: 'G-95 / 2.0', expense: 'S/ 35.00', parts: '5', quadrant: '17', mechanics: 'Operativo' },
+  ],
+  'SECTOR 6': [
+    { id: 'M-17', type: 'CHOFER', personnel1: 'Caja Quiroz, Carlos', personnel2: 'Ramos L., Hugo', plate: 'PLQ-456', indicative: 'IC-406', radio: 'T-77123', status: UnitStatus.ACTIVE, reason: 'Patrullaje Int.', km: '5400 / 5600 / 200 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 4.2', expense: 'S/ 78.00', parts: '3', quadrant: '18', mechanics: 'Operativo' },
+    { id: 'L-16', type: 'MOTO', personnel1: 'Gomez Chavez, R.', plate: 'YAM-789', indicative: '', radio: 'T-44015', status: UnitStatus.ACTIVE, reason: 'Apoyo Operativo', km: '12400 / 12550 / 150 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 1.8', expense: 'S/ 32.00', parts: '3', quadrant: '19', mechanics: 'Operativo' },
+    { id: 'P-07', type: 'SERENO', personnel1: 'Dávila M., Sonia', plate: 'PE-6066', indicative: '', radio: 'T-99281', status: UnitStatus.ACTIVE, reason: 'Ronda Pie', km: '0 / 0 / 0', hours: '08:00 - 20:00', fuel: 'N/A / 0', expense: 'S/ 0.00', parts: '3', quadrant: '20', mechanics: 'Operativo' },
+  ],
+  'SECTOR 7': [
+    { id: 'M-18', type: 'CHOFER', personnel1: 'Alvarez P., Roberto', personnel2: 'SOT. Ramirez, Victor', plate: 'TRX-112', indicative: 'IC-407', radio: 'T-66432', status: UnitStatus.OFF, reason: 'Mantenimiento', km: '9800 / 9800 / 0 / 0', hours: '00:00 - 00:00', fuel: '-- / 0', expense: 'S/ 0.00', parts: '0', quadrant: '21', mechanics: 'Taller' },
+    { id: 'L-20', type: 'MOTO', personnel1: 'Caceres G., Fernando', plate: 'HON-112', indicative: '', radio: 'T-33221', status: UnitStatus.CHECKIN, reason: 'Relevo', km: '6700 / 6700 / 0 / 0', hours: '19:00 - 07:00', fuel: '-- / 0', expense: 'S/ 0.00', parts: '0', quadrant: '22', mechanics: 'Operativo' },
+    { id: 'P-02', type: 'SERENO', personnel1: 'Sánchez M., Lucía', plate: 'PE-1093', indicative: '', radio: 'T-10023', status: UnitStatus.ACTIVE, reason: 'Punto Fijo', km: '0 / 0 / 0', hours: '08:00 - 20:00', fuel: 'N/A / 0', expense: 'S/ 0.00', parts: '1', quadrant: '23', mechanics: 'Operativo' },
+  ],
+  'SECTOR 8': [
+    { id: 'M-19', type: 'CHOFER', personnel1: 'Torres Ruiz, Manuel', personnel2: 'Soto Mayor, Luis', plate: 'VBN-334', indicative: 'IC-408', radio: 'T-10023', status: UnitStatus.ACTIVE, reason: 'Patrullaje Int.', km: '7500 / 7800 / 300 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 4.3', expense: 'S/ 80.00', parts: '7', quadrant: '24', mechanics: 'Operativo' },
+    { id: 'P-03', type: 'SERENO', personnel1: 'Espichán R., Luis', plate: 'PE-2022', indicative: '', radio: 'T-10025', status: UnitStatus.ACTIVE, reason: 'Vigilancia Parque', km: '0 / 0 / 0', hours: '08:00 - 20:00', fuel: 'N/A / 0', expense: 'S/ 0.00', parts: '2', quadrant: '25', mechanics: 'Operativo' },
+  ],
+  'SECTOR 9A': [
+    { id: 'M-20', type: 'CHOFER', personnel1: 'López Vega, Ricardo', personnel2: 'García Salas, Pedro', plate: 'KJH-556', indicative: 'IC-409', radio: 'T-44012', status: UnitStatus.ACTIVE, reason: 'Patrullaje Int.', km: '9000 / 9250 / 250 / 25', hours: '07:00 - 19:00', fuel: 'G-95 / 4.0', expense: 'S/ 74.00', parts: '6', quadrant: '26', mechanics: 'Operativo' },
+    { id: 'L-21', type: 'MOTO', personnel1: 'Quispe M., Jhon', plate: 'KWA-223', indicative: '', radio: 'T-11002', status: UnitStatus.ACTIVE, reason: 'Recorrido Urb.', km: '4000 / 4150 / 150 / 8', hours: '07:00 - 19:00', fuel: 'G-95 / 1.6', expense: 'S/ 29.00', parts: '4', quadrant: '27', mechanics: 'Operativo' },
+  ],
+  'SECTOR 9B': [
+    { id: 'M-21', type: 'CHOFER', personnel1: 'Vargas J., Mario', personnel2: 'Castro P., Elena', plate: 'LKO-998', indicative: 'IC-410', radio: 'T-44015', status: UnitStatus.ACTIVE, reason: 'Apoyo Operativo', km: '10500 / 10700 / 200 / 0', hours: '07:00 - 19:00', fuel: 'G-95 / 3.9', expense: 'S/ 72.00', parts: '8', quadrant: '28', mechanics: 'Operativo' },
+    { id: 'P-08', type: 'SERENO', personnel1: 'Cárdenas H., Raúl', plate: 'PE-7077', indicative: '', radio: 'T-99282', status: UnitStatus.OFF, reason: 'Descanso', km: '0 / 0 / 0', hours: '00:00 - 00:00', fuel: 'N/A / 0', expense: 'S/ 0.00', parts: '0', quadrant: '29', mechanics: 'Operativo' },
+  ],
+  'RESCATE': [
+    { id: 'M-13', type: 'CHOFER', personnel1: 'Paredes C., Alberto', personnel2: 'Mendoza T., Franco', plate: 'EUJ-821', indicative: 'IC-15', radio: 'T-99281', status: UnitStatus.ACTIVE, reason: 'Emergencias', km: '15000 / 15200 / 200 / 0', hours: '00:00 - 24:00', fuel: 'G-95 / 5.5', expense: 'S/ 102.00', parts: '15', quadrant: '30', mechanics: 'Operativo' },
+    { id: 'M-14', type: 'CHOFER', personnel1: 'Alvarez P., Roberto', personnel2: 'SOT. Ramirez, Victor', plate: 'FGH-102', indicative: 'IC-16', radio: 'T-99282', status: UnitStatus.ACTIVE, reason: 'Rescate', km: '12000 / 12300 / 300 / 40', hours: '00:00 - 24:00', fuel: 'G-95 / 5.0', expense: 'S/ 93.00', parts: '12', quadrant: '31', mechanics: 'Operativo' },
+  ],
+  'GIR': [
+    { id: 'M-15', type: 'CHOFER', personnel1: 'Caja Quiroz, Carlos', personnel2: 'Ramos L., Hugo', plate: 'ABC-123', indicative: 'S-01', radio: 'T-99283', status: UnitStatus.ACTIVE, reason: 'Intervención', km: '18000 / 18500 / 500 / 60', hours: '00:00 - 24:00', fuel: 'G-95 / 6.0', expense: 'S/ 111.00', parts: '20', quadrant: '32', mechanics: 'Operativo' },
+    { id: 'M-16', type: 'CHOFER', personnel1: 'Torres Ruiz, Manuel', personnel2: 'Soto Mayor, Luis', plate: 'XYZ-987', indicative: 'S-02', radio: 'T-88211', status: UnitStatus.ACTIVE, reason: 'Operativo Especial', km: '14000 / 14400 / 400 / 50', hours: '00:00 - 24:00', fuel: 'G-95 / 5.2', expense: 'S/ 96.00', parts: '18', quadrant: '33', mechanics: 'Operativo' },
+    { id: 'L-15', type: 'MOTO', personnel1: 'Vidal Hipolito, J.', plate: 'HON-452', indicative: 'S-03', radio: 'T-44012', status: UnitStatus.ACTIVE, reason: 'Apoyo GIR', km: '9000 / 9200 / 200 / 20', hours: '00:00 - 24:00', fuel: 'G-95 / 2.5', expense: 'S/ 46.00', parts: '10', quadrant: '34', mechanics: 'Operativo' },
+  ],
+};
+

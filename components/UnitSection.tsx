@@ -6,7 +6,7 @@ interface UnitSectionProps {
   title: string;
   type: 'CHOFER' | 'MOTO' | 'SERENO';
   icon: string;
-  badge: string; 
+  badge: string;
   partesTotal: number;
   units: UnitData[];
   allUnits: UnitData[];
@@ -18,20 +18,20 @@ interface UnitSectionProps {
   editingId: string | null;
 }
 
-const UnitSection: React.FC<UnitSectionProps> = ({ 
-  title, 
+const UnitSection: React.FC<UnitSectionProps> = ({
+  title,
   type,
-  icon, 
-  badge, 
+  icon,
+  badge,
   partesTotal,
-  units, 
+  units,
   allUnits,
-  onEdit, 
-  onSave, 
-  onCancel, 
+  onEdit,
+  onSave,
+  onCancel,
   onAdd,
   onDelete,
-  editingId 
+  editingId
 }) => {
   // Configuración de colores claros según el tipo (Actualizado MOTO a Violeta)
   const colorConfig = {
@@ -69,7 +69,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
             Acumulado Partes: {partesTotal}
           </span>
         </div>
-        <button 
+        <button
           onClick={() => onAdd(type)}
           className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-black hover:opacity-70 group transition-all`}
         >
@@ -81,12 +81,12 @@ const UnitSection: React.FC<UnitSectionProps> = ({
         {units.length === 0 ? (
           <div className="text-center py-8 text-slate-300 text-[10px] italic font-black uppercase tracking-widest">No hay registros en esta sección</div>
         ) : (
-          units.map(unit => (
-            <UnitCard 
-              key={unit.id}
+          units.map((unit, index) => (
+            <UnitCard
+              key={unit.id || `new-${index}`}
               unit={unit}
               allUnits={allUnits}
-              isEditing={editingId === unit.id}
+              isEditing={editingId !== null && (editingId === unit.id || (unit.id === '' && editingId.startsWith('N-')))}
               onEdit={() => onEdit(unit.id)}
               onSave={onSave}
               onCancel={() => onCancel(unit.id)}

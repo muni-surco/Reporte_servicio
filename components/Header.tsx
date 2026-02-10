@@ -17,15 +17,15 @@ interface HeaderProps {
   currentView: ViewMode;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
-  settings, 
-  totalPartes, 
-  onSaveSettings, 
+const Header: React.FC<HeaderProps> = ({
+  settings,
+  totalPartes,
+  onSaveSettings,
   onGlobalSave,
   onGeneratePDF,
   onRefresh,
   isSaving,
-  currentSector, 
+  currentSector,
   onSectorChange,
   currentView
 }) => {
@@ -102,7 +102,7 @@ const Header: React.FC<HeaderProps> = ({
           <div className="flex flex-col min-w-[200px] shrink-0">
             {isDashboard ? (
               <div className="relative group/sector flex items-center">
-                <select 
+                <select
                   value={currentSector}
                   onChange={(e) => onSectorChange(e.target.value as Sector)}
                   className="appearance-none bg-transparent text-3xl font-black text-[#002d5a] tracking-tighter uppercase leading-none pr-10 focus:outline-none cursor-pointer hover:text-[#004b93] transition-colors"
@@ -119,9 +119,9 @@ const Header: React.FC<HeaderProps> = ({
               </h2>
             )}
           </div>
-          
+
           <div className="h-10 w-px bg-slate-200 shrink-0"></div>
-          
+
           <div className="flex gap-8 items-center flex-1 min-w-0">
             {/* FECHA */}
             <div className="flex-shrink-0">
@@ -140,7 +140,7 @@ const Header: React.FC<HeaderProps> = ({
               <span className={isDashboard ? infoLabelStyle : reportLabelStyle}>TURNO</span>
               {isDashboard ? (
                 editingField === 'turno' ? (
-                  <select 
+                  <select
                     autoFocus
                     value={tempSettings.turno}
                     onChange={(e) => updateTempField('turno', e.target.value)}
@@ -166,7 +166,7 @@ const Header: React.FC<HeaderProps> = ({
               <span className={isDashboard ? infoLabelStyle : reportLabelStyle}>{isDashboard ? 'OPERADOR' : 'PERMANENCIA'}</span>
               {isDashboard ? (
                 editingField === 'operador' ? (
-                  <AutocompleteInput 
+                  <AutocompleteInput
                     autoFocus
                     value={tempSettings.operador}
                     onChange={(v) => updateTempField('operador', v)}
@@ -189,7 +189,7 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="flex-1 min-w-[130px] max-w-[180px]">
                   <span className={infoLabelStyle}>SUPERVISOR</span>
                   {editingField === 'supervisor' ? (
-                    <AutocompleteInput 
+                    <AutocompleteInput
                       autoFocus
                       value={tempSettings.supervisor}
                       onChange={(v) => updateTempField('supervisor', v)}
@@ -207,7 +207,7 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="flex-1 min-w-[130px] max-w-[180px]">
                   <span className={infoLabelStyle}>PERMANENCIA</span>
                   {editingField === 'permanencia' ? (
-                    <AutocompleteInput 
+                    <AutocompleteInput
                       autoFocus
                       value={tempSettings.permanencia}
                       onChange={(v) => updateTempField('permanencia', v)}
@@ -248,30 +248,30 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        <div className="ml-4 flex items-center gap-2 pr-4 shrink-0">
+        <div className="ml-4 flex items-center gap-2 pr-4 shrink-0" data-html2canvas-ignore>
           {isDashboard ? (
             <>
-              <button 
+              <button
                 onClick={onGlobalSave}
                 disabled={isSaving}
                 className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 <span className={`material-symbols-outlined text-[16px] ${isSaving ? 'animate-spin' : ''}`}>
                   {isSaving ? 'sync' : 'save'}
-                </span> 
+                </span>
                 {isSaving ? 'GUARDANDO...' : 'GUARDAR'}
               </button>
-              <button 
+              <button
                 onClick={onGeneratePDF}
                 className="bg-[#00a19b] hover:bg-[#007a75] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#00a19b]/20 transition-all active:scale-95 group"
               >
-                <span className="material-symbols-outlined text-[16px]">description</span> 
+                <span className="material-symbols-outlined text-[16px]">description</span>
                 REPORTE
               </button>
             </>
           ) : (
             <>
-              <button 
+              <button
                 onClick={handleRefreshClick}
                 disabled={isRefreshing}
                 className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}

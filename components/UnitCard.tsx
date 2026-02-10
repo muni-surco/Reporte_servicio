@@ -17,7 +17,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
   const [formData, setFormData] = useState<UnitData>(unit);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  
+
   const [kmStart, setKmStart] = useState('');
   const [kmEnd, setKmEnd] = useState('');
   const [kmDiff, setKmDiff] = useState('0');
@@ -43,13 +43,10 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
       const fuelParts = unit.fuel.split('/').map(p => p.trim());
       setFuelType(fuelParts[0] || '');
       setFuelQty(fuelParts[1] || '0');
-      
-      if (unit.id.startsWith('NUEVO-')) {
-        setFormData(prev => ({ ...prev, id: '' }));
-      } else {
-        setFormData(unit);
-      }
-      
+
+      // Always set formData to unit, ID field will be empty for new units
+      setFormData(unit);
+
       setErrors({});
     }
   }, [isEditing, unit.id, unit.km, unit.hours, unit.fuel]);
@@ -59,7 +56,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
     const end = parseFloat(kmEnd) || 0;
     const diff = end >= start ? (end - start).toFixed(1) : '0';
     setKmDiff(diff);
-    
+
     setFormData(prev => ({
       ...prev,
       km: `${kmStart || '0'} / ${kmEnd || '0'} / ${diff} / ${kmRecarga || '0'}`,
@@ -89,7 +86,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
     const isIdDuplicate = allUnits.some(u => u.id === formData.id && u.id !== unit.id);
 
     const newErrors: Record<string, boolean> = {
-      id: !formData.id || formData.id.trim() === '' || formData.id.startsWith('NUEVO-') || isIdDuplicate,
+      id: !formData.id || formData.id.trim() === '' || isIdDuplicate,
       personnel1: !formData.personnel1 || formData.personnel1.trim() === '',
       radio: !formData.radio || formData.radio.trim() === '',
       quadrant: !formData.quadrant || formData.quadrant.trim() === '' || isNaN(Number(formData.quadrant)),
@@ -121,7 +118,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
   const isMoto = unit.type === 'MOTO';
   const isSereno = unit.type === 'SERENO';
   const hasPersonnel2 = isChofer;
-  const hasPlate = true; 
+  const hasPlate = true;
   const hasIndicative = isChofer;
   const hasKmRecarga = isChofer || isMoto;
 
@@ -151,17 +148,17 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
           </div>
           <h3 className="text-lg font-medium text-slate-900 mb-2">¿Confirmar eliminación?</h3>
           <p className="text-slate-500 text-sm mb-6">
-            Está a punto de eliminar la unidad <span className="font-medium text-slate-800">{unit.id}</span>. 
+            Está a punto de eliminar la unidad <span className="font-medium text-slate-800">{unit.id}</span>.
             Esta acción no se puede deshacer.
           </p>
           <div className="flex w-full gap-3">
-            <button 
+            <button
               onClick={() => setShowDeleteModal(false)}
               className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium text-xs hover:bg-slate-200 transition-colors"
             >
               CANCELAR
             </button>
-            <button 
+            <button
               onClick={() => { onDelete(unit.id); setShowDeleteModal(false); }}
               className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium text-xs hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95"
             >
@@ -174,34 +171,34 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
   );
 
   if (isEditing) {
-    const isNew = unit.id.startsWith('NUEVO-');
+    const isNew = unit.id === '';
     const labelStyleEdit = "text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
     return (
       <div className={`border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg ${typeConfig.borderLeft} border-l-4`}>
         <div className={`grid grid-cols-12 gap-3 ${!isSereno ? 'pb-3 mb-3 border-b border-blue-100' : ''}`}>
           <div className="col-span-1">
             <label className={labelStyleEdit}>ID {errors.id && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput 
-              value={formData.id} 
+            <AutocompleteInput
+              value={formData.id}
               onChange={(val) => {
                 setFormData(prev => ({ ...prev, id: val }));
                 setErrors(prev => ({ ...prev, id: false }));
-              }} 
-              suggestions={VEHICLES.map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))} 
+              }}
+              suggestions={VEHICLES.map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
               placeholder="M-00"
               className={errors.id ? errorInputStyle : ''}
             />
           </div>
-          
+
           <div className={isSereno || isMoto ? 'col-span-3' : 'col-span-2'}>
             <label className={labelStyleEdit}>{isSereno ? 'Sereno' : isMoto ? 'Motorizado' : 'Chofer'} {errors.personnel1 && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput 
-              value={formData.personnel1} 
+            <AutocompleteInput
+              value={formData.personnel1}
               onChange={(val) => {
                 setFormData(prev => ({ ...prev, personnel1: val }));
                 setErrors(prev => ({ ...prev, personnel1: false }));
-              }} 
-              suggestions={PERSONNEL_NAMES} 
+              }}
+              suggestions={PERSONNEL_NAMES}
               placeholder="Nombre..."
               className={errors.personnel1 ? errorInputStyle : ''}
             />
@@ -210,11 +207,11 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
           {hasPersonnel2 && (
             <div className="col-span-2">
               <label className={labelStyleEdit}>Copiloto</label>
-              <AutocompleteInput 
-                value={formData.personnel2 || ''} 
-                onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))} 
-                suggestions={PERSONNEL_NAMES} 
-                placeholder="Nombre..." 
+              <AutocompleteInput
+                value={formData.personnel2 || ''}
+                onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))}
+                suggestions={PERSONNEL_NAMES}
+                placeholder="Nombre..."
               />
             </div>
           )}
@@ -232,25 +229,25 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
           {hasPlate && (
             <div className="col-span-1">
               <label className={labelStyleEdit}>Placa</label>
-              <input 
-                name="plate" 
-                value={formData.plate} 
-                onChange={handleChange} 
+              <input
+                name="plate"
+                value={formData.plate}
+                onChange={handleChange}
                 readOnly={isChofer || isMoto}
-                className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-100 text-slate-500' : ''}`} 
+                className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-100 text-slate-500' : ''}`}
               />
             </div>
           )}
 
           <div className="col-span-1">
             <label className={labelStyleEdit}>Radio {errors.radio && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput 
-              value={formData.radio} 
+            <AutocompleteInput
+              value={formData.radio}
               onChange={(val) => {
                 setFormData(prev => ({ ...prev, radio: val }));
                 setErrors(prev => ({ ...prev, radio: false }));
-              }} 
-              suggestions={RADIOS} 
+              }}
+              suggestions={RADIOS}
               placeholder="T-00000"
               className={errors.radio ? errorInputStyle : ''}
             />
@@ -258,12 +255,12 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
           <div className="col-span-1">
             <label className={labelStyleEdit}>Cuad.</label>
-            <input 
+            <input
               type="number"
-              name="quadrant" 
-              value={formData.quadrant} 
-              onChange={handleChange} 
-              className={inputStyle('quadrant')} 
+              name="quadrant"
+              value={formData.quadrant}
+              onChange={handleChange}
+              className={inputStyle('quadrant')}
             />
           </div>
 
@@ -336,16 +333,16 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
   return (
     <>
       {showDeleteModal && <DeleteConfirmationModal />}
-      
+
       <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden border-l-[5px] ${typeConfig.borderLeft}`}>
         {/* Grid principal optimizado para lectura de ancho completo */}
         <div className={`grid items-center gap-4 ${isSereno ? 'grid-cols-[48px_2fr_1fr_80px_80px_60px_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_80px_80px_1.2fr_1fr_1.2fr_60px_1.5fr_64px]'}`}>
-          
+
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
-             <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-black text-[11px] shadow-sm`}>
-               {unit.id}
-             </div>
+            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-black text-[11px] shadow-sm`}>
+              {unit.id}
+            </div>
           </div>
 
           {/* Columna Personal Principal y Copiloto */}
