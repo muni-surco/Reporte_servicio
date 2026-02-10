@@ -15,6 +15,8 @@ interface HeaderProps {
   currentSector: Sector;
   onSectorChange: (sector: Sector) => void;
   currentView: ViewMode;
+  selectedDate: string;
+  onDateChange: (date: string) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -27,7 +29,9 @@ const Header: React.FC<HeaderProps> = ({
   isSaving,
   currentSector,
   onSectorChange,
-  currentView
+  currentView,
+  selectedDate,
+  onDateChange
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
@@ -126,39 +130,32 @@ const Header: React.FC<HeaderProps> = ({
             {/* FECHA */}
             <div className="flex-shrink-0">
               <span className={isDashboard ? infoLabelStyle : reportLabelStyle}>FECHA</span>
-              {isDashboard ? (
-                <div className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1 min-h-[28px] flex items-center">
-                  <p className="text-[11px] font-medium text-slate-500 leading-none">{currentDate}</p>
-                </div>
-              ) : (
-                <p className={reportValueStyle}>{currentDate}</p>
-              )}
+              <div className="relative group/date">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => onDateChange(e.target.value)}
+                  className="appearance-none bg-slate-50 border border-slate-200 rounded-md px-3 py-1 text-[11px] font-medium text-slate-700 leading-none focus:outline-none focus:border-[#004b93] focus:ring-1 focus:ring-[#004b93] transition-all cursor-pointer"
+                />
+              </div>
             </div>
 
             {/* TURNO */}
             <div className="flex-shrink-0 min-w-[85px]">
               <span className={isDashboard ? infoLabelStyle : reportLabelStyle}>TURNO</span>
-              {isDashboard ? (
-                editingField === 'turno' ? (
-                  <select
-                    autoFocus
-                    value={tempSettings.turno}
-                    onChange={(e) => updateTempField('turno', e.target.value)}
-                    onBlur={handleBlur}
-                    className="w-full border-2 border-[#004b93] bg-white rounded-md px-1 py-0.5 text-[11px] font-medium h-[28px] focus:outline-none shadow-md"
-                  >
-                    <option value="MAÑANA">MAÑANA</option>
-                    <option value="TARDE">TARDE</option>
-                    <option value="NOCHE">NOCHE</option>
-                  </select>
-                ) : (
-                  <div className={displayBoxStyle} onClick={() => setEditingField('turno')}>
-                    <p className={infoValueStyle}>{settings.turno || '--'}</p>
-                  </div>
-                )
-              ) : (
-                <p className={reportValueStyle}>{settings.turno || '--'}</p>
-              )}
+              <div className="relative group/turno">
+                <select
+                  value={settings.turno}
+                  onChange={(e) => updateTempField('turno', e.target.value)}
+                  onBlur={handleBlur}
+                  className="appearance-none bg-slate-50 border border-slate-200 rounded-md px-3 py-1 pr-8 text-[11px] font-medium text-slate-700 leading-none focus:outline-none focus:border-[#004b93] focus:ring-1 focus:ring-[#004b93] transition-all cursor-pointer w-full"
+                >
+                  <option value="MAÑANA">MAÑANA</option>
+                  <option value="TARDE">TARDE</option>
+                  <option value="NOCHE">NOCHE</option>
+                </select>
+                <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[14px] text-slate-400 pointer-events-none">expand_more</span>
+              </div>
             </div>
 
             {/* OPERADOR / PERMANENCIA */}

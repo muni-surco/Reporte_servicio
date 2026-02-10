@@ -86,7 +86,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
               key={unit.id || `new-${index}`}
               unit={unit}
               allUnits={allUnits}
-              isEditing={editingId !== null && (editingId === unit.id || (unit.id === '' && editingId.startsWith('N-')))}
+              isEditing={editingId !== null && (editingId === unit.id || (unit.id === '' && editingId.startsWith('NEW-')))}
               onEdit={() => onEdit(unit.id)}
               onSave={onSave}
               onCancel={() => onCancel(unit.id)}

@@ -118,7 +118,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
   const isMoto = unit.type === 'MOTO';
   const isSereno = unit.type === 'SERENO';
   const hasPersonnel2 = isChofer;
-  const hasPlate = true;
+  const hasPlate = !isSereno;
   const hasIndicative = isChofer;
   const hasKmRecarga = isChofer || isMoto;
 
@@ -336,7 +336,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
       <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden border-l-[5px] ${typeConfig.borderLeft}`}>
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-4 ${isSereno ? 'grid-cols-[48px_2fr_1fr_80px_80px_60px_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_80px_80px_1.2fr_1fr_1.2fr_60px_1.5fr_64px]'}`}>
+        <div className={`grid items-center gap-4 ${isSereno ? 'grid-cols-[48px_2fr_1fr_80px_60px_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_80px_80px_1.2fr_1fr_1.2fr_60px_1.5fr_64px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
@@ -376,10 +376,12 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
           </div>
 
           {/* Columna Placa */}
-          <div className="border-r border-slate-100 px-2 text-center">
-            <label className={labelStyle}>Placa</label>
-            <div className="text-[10px] font-black text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">{unit.plate || '--'}</div>
-          </div>
+          {hasPlate && (
+            <div className="border-r border-slate-100 px-2 text-center">
+              <label className={labelStyle}>Placa</label>
+              <div className="text-[10px] font-black text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">{unit.plate || '--'}</div>
+            </div>
+          )}
 
           {/* Columna Estado */}
           <div className="border-r border-slate-100 px-2 text-center">

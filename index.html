@@ -66,6 +66,42 @@
         .border-left-chofer {
             border-left: 5px solid #004b93 !important;
         }
+
+        /* Print styles */
+        @media print {
+
+            aside,
+            footer,
+            button,
+            .no-print,
+            select {
+                display: none !important;
+            }
+
+            main {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            .overflow-y-auto {
+                overflow: visible !important;
+                height: auto !important;
+            }
+
+            #report-content {
+                padding: 0 !important;
+            }
+
+            body,
+            main,
+            #root,
+            #report-content {
+                background: white !important;
+            }
+        }
     </style>
 </head>
 
