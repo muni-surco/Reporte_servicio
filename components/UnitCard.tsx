@@ -11,9 +11,10 @@ interface UnitCardProps {
   onSave: (updated: UnitData) => void;
   onCancel: () => void;
   onDelete: (id: string) => void;
+  mobileData?: { id: string; plate: string; radio?: string; quadrant?: string; }[];
 }
 
-const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete }) => {
+const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete, mobileData }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -67,12 +68,22 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
   useEffect(() => {
     if (isEditing && (unit.type === 'CHOFER' || unit.type === 'MOTO' || unit.type === 'SERENO')) {
-      const found = VEHICLES.find(v => v.id === formData.id);
+      const dataSource: { id: string; plate: string; radio?: string; quadrant?: string; }[] =
+        mobileData && mobileData.length > 0 ? mobileData : VEHICLES;
+
+      const found = dataSource.find(v => v.id === formData.id);
+
       if (found) {
-        setFormData(prev => ({ ...prev, plate: found.plate }));
+        setFormData(prev => ({
+          ...prev,
+          plate: found.plate,
+          // Only update if found has value, otherwise keep existing
+          radio: found.radio || prev.radio,
+          quadrant: found.quadrant || prev.quadrant
+        }));
       }
     }
-  }, [formData.id, isEditing, unit.type]);
+  }, [formData.id, isEditing, unit.type, mobileData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -109,9 +120,15 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
   const infoValueStyle = "text-[11px] font-bold text-slate-800 truncate leading-tight uppercase";
 
   const badgeColors = {
-    [UnitStatus.ACTIVE]: "bg-green-100 text-green-700 border-green-200",
-    [UnitStatus.OFF]: "bg-red-100 text-red-700 border-red-200",
-    [UnitStatus.CHECKIN]: "bg-blue-100 text-blue-700 border-blue-200"
+    [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
+    [UnitStatus.EXPLANADA]: "bg-blue-100 text-blue-700 border-blue-200",
+    [UnitStatus.APOYO_OTRA_AREA]: "bg-blue-100 text-blue-700 border-blue-200",
+    [UnitStatus.MAESTRANZA]: "bg-red-100 text-red-700 border-red-200",
+    [UnitStatus.TALLER_PARTICULAR]: "bg-red-100 text-red-700 border-red-200",
+    [UnitStatus.CHOFER_SIN_MOVIL]: "bg-red-100 text-red-700 border-red-200",
+    [UnitStatus.EN_PC_X_DESPERFECTOS]: "bg-red-100 text-red-700 border-red-200",
+    [UnitStatus.OPERATIVA_SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
+    [UnitStatus.OPERATIVA_SIN_CHOFER]: "bg-amber-100 text-amber-700 border-amber-200"
   };
 
   const isChofer = unit.type === 'CHOFER';
@@ -184,7 +201,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
                 setFormData(prev => ({ ...prev, id: val }));
                 setErrors(prev => ({ ...prev, id: false }));
               }}
-              suggestions={VEHICLES.map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
+              suggestions={(mobileData && mobileData.length > 0 ? mobileData : VEHICLES).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
               placeholder="M-00"
               className={errors.id ? errorInputStyle : ''}
             />
@@ -247,7 +264,8 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
                 setFormData(prev => ({ ...prev, radio: val }));
                 setErrors(prev => ({ ...prev, radio: false }));
               }}
-              suggestions={RADIOS}
+              // Dynamically build radio list from mobileData if available, otherwise empty (since we cleared RADIOS)
+              suggestions={mobileData ? Array.from(new Set(mobileData.map(d => d.radio).filter(r => r))) as string[] : []}
               placeholder="T-00000"
               className={errors.radio ? errorInputStyle : ''}
             />
@@ -255,11 +273,17 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
           <div className="col-span-1">
             <label className={labelStyleEdit}>Cuad.</label>
-            <input
-              type="number"
-              name="quadrant"
+            {/* Use Autocomplete for Quadrant if data available, or just keeping it simple. 
+                User said "use CUADRANTE column". 
+                If we want to OFFER suggestions, we can. 
+                But updating the 'quadrant' field automatically on ID change is sufficient for "using" it.
+                I'll switch to AutocompleteInput to show available quadrants too. 
+            */}
+            <AutocompleteInput
               value={formData.quadrant}
-              onChange={handleChange}
+              onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
+              suggestions={mobileData ? Array.from(new Set(mobileData.map(d => d.quadrant).filter(q => q))) as string[] : []}
+              placeholder="00"
               className={inputStyle('quadrant')}
             />
           </div>

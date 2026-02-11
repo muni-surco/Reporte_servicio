@@ -108,6 +108,50 @@ function getShiftData(dateStr, shift) {
 }
 
 /**
+ * Fetches mobile reference data (id, plate, radio, quadrant) from "DATA" sheet.
+ */
+function getMobileData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('DATA');
+  
+  if (!sheet) {
+    return [];
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  
+  // Find column indices (case-insensitive)
+  const headers = data[0].map(h => String(h).toLowerCase());
+  const movilIdx = headers.indexOf('movil');
+  const placaIdx = headers.indexOf('placa');
+  const radioIdx = headers.indexOf('radio');
+  const cuadranteIdx = headers.indexOf('cuadrante');
+  const sectorIdx = headers.indexOf('sector');
+  
+  if (movilIdx === -1) {
+    return [];
+  }
+  
+  const mobileData = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[movilIdx]) {
+      mobileData.push({
+        id: String(row[movilIdx]),
+        plate: placaIdx !== -1 ? String(row[placaIdx] || '') : '',
+        radio: radioIdx !== -1 ? String(row[radioIdx] || '') : '',
+        quadrant: cuadranteIdx !== -1 ? String(row[cuadranteIdx] || '') : '',
+        // Sector might be used in frontend to filter, or just passed for reference
+        sector: sectorIdx !== -1 ? String(row[sectorIdx] || '') : '' 
+      });
+    }
+  }
+  
+  return mobileData;
+}
+
+/**
  * Saves all units and settings for a specific date and shift.
  */
 function saveShiftData(dateStr, shift, settings, units) {

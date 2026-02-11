@@ -1,8 +1,14 @@
 
 export enum UnitStatus {
-  ACTIVE = 'ACTIVO',
-  OFF = 'FUERA',
-  CHECKIN = 'CHECK-IN'
+  APOYO_OTRA_AREA = 'APOYO A OTRA AREA',
+  MAESTRANZA = 'MAESTRANZA',
+  EN_PC_X_DESPERFECTOS = 'EN PC x DESPERFECTOS',
+  EXPLANADA = 'EXPLANADA',
+  CHOFER_SIN_MOVIL = 'CHOFER SIN MOVIL',
+  OPERATIVA_SIN_DOCUMENTOS = 'OPERATIVA SIN DOCUMENTOS',
+  PATRULLANDO = 'PATRULLANDO',
+  OPERATIVA_SIN_CHOFER = 'OPERATIVA SIN CHOFER',
+  TALLER_PARTICULAR = 'TALLER PARTICULAR'
 }
 
 export type Sector =
@@ -51,4 +57,11 @@ export interface AppSettings {
 export interface AppData {
   units: UnitData[];
   settings: AppSettings;
+}
+
+export interface MobileReference {
+  id: string;
+  plate: string;
+  radio?: string;
+  quadrant?: string;
 }

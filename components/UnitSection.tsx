@@ -16,6 +16,7 @@ interface UnitSectionProps {
   onAdd: (type: 'CHOFER' | 'MOTO' | 'SERENO') => void;
   onDelete: (id: string) => void;
   editingId: string | null;
+  mobileData?: { id: string; plate: string; }[];
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -31,7 +32,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   onCancel,
   onAdd,
   onDelete,
-  editingId
+  editingId,
+  mobileData
 }) => {
   // Configuración de colores claros según el tipo (Actualizado MOTO a Violeta)
   const colorConfig = {
@@ -91,6 +93,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
               onSave={onSave}
               onCancel={() => onCancel(unit.id)}
               onDelete={() => onDelete(unit.id)}
+              mobileData={mobileData}
             />
           ))
         )}

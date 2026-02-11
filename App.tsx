@@ -6,8 +6,8 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
-import { UnitData, AppSettings, UnitStatus, Sector, ViewMode } from './types';
-import { SECTORS, SECTOR_DATA } from './constants';
+import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference } from './types';
+import { SECTORS, SECTOR_DATA, VEHICLES } from './constants';
 
 declare const google: any;
 
@@ -36,6 +36,7 @@ const App: React.FC = () => {
     ipServidor: '10.20.0.1',
     version: 'v2.5.0-PRO'
   });
+  const [mobileData, setMobileData] = useState<MobileReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -45,6 +46,30 @@ const App: React.FC = () => {
   useEffect(() => {
     loadData(selectedDate, settings.turno);
   }, [selectedDate, settings.turno, currentSector]);
+
+  // Load Reference Data (Mobile/Placa)
+  useEffect(() => {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((data: MobileReference[]) => {
+          if (data && data.length > 0) {
+            setMobileData(data);
+          } else {
+            console.warn('No mobile data found in GAS, setting empty list');
+            setMobileData([]);
+          }
+        })
+        .withFailureHandler((err: any) => {
+          console.error('Failed to get mobile data', err);
+          setMobileData([]);
+        })
+        .getMobileData();
+    } else {
+      // Mock for local dev - empty to force testing "real" data behavior or lack thereof
+      console.log('MOCK: No GAS environment, setting empty mobile data');
+      setMobileData([]);
+    }
+  }, []);
 
   const loadData = (dateStr: string, shift: string) => {
     setLoading(true);
@@ -149,7 +174,7 @@ const App: React.FC = () => {
       plate: '',
       indicative: '',
       radio: '',
-      status: UnitStatus.CHECKIN,
+      status: UnitStatus.PATRULLANDO,
       reason: '',
       km: '0 / 0 / 0',
       hours: '--:-- - --:--',
@@ -233,6 +258,7 @@ const App: React.FC = () => {
                 allUnits={units}
                 editingId={editingId}
                 onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                mobileData={mobileData}
               />
               <UnitSection
                 title="MOTORIZADOS" type="MOTO" icon="moped"
@@ -242,6 +268,7 @@ const App: React.FC = () => {
                 allUnits={units}
                 editingId={editingId}
                 onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                mobileData={mobileData}
               />
               <UnitSection
                 title="SERENOS" type="SERENO" icon="hail"
@@ -251,6 +278,7 @@ const App: React.FC = () => {
                 allUnits={units}
                 editingId={editingId}
                 onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                mobileData={mobileData}
               />
             </>
           ) : (
@@ -268,7 +296,7 @@ const App: React.FC = () => {
             />
           )}
         </div>
-        <Footer settings={settings} activeCount={units.filter(u => u.status === 'ACTIVO').length} personnelCount={units.length} />
+        <Footer settings={settings} activeCount={units.filter(u => u.status === UnitStatus.PATRULLANDO).length} personnelCount={units.length} />
       </main>
     </div>
   );
