@@ -64,4 +64,5 @@ export interface MobileReference {
   plate: string;
   radio?: string;
   quadrant?: string;
+  sector?: string;
 }

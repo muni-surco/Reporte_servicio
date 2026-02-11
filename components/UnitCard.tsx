@@ -11,7 +11,7 @@ interface UnitCardProps {
   onSave: (updated: UnitData) => void;
   onCancel: () => void;
   onDelete: (id: string) => void;
-  mobileData?: { id: string; plate: string; radio?: string; quadrant?: string; }[];
+  mobileData?: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[];
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete, mobileData }) => {
@@ -68,7 +68,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
   useEffect(() => {
     if (isEditing && (unit.type === 'CHOFER' || unit.type === 'MOTO' || unit.type === 'SERENO')) {
-      const dataSource: { id: string; plate: string; radio?: string; quadrant?: string; }[] =
+      const dataSource: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[] =
         mobileData && mobileData.length > 0 ? mobileData : VEHICLES;
 
       const found = dataSource.find(v => v.id === formData.id);
@@ -76,10 +76,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
       if (found) {
         setFormData(prev => ({
           ...prev,
-          plate: found.plate,
-          // Only update if found has value, otherwise keep existing
-          radio: found.radio || prev.radio,
-          quadrant: found.quadrant || prev.quadrant
+          plate: found.plate
         }));
       }
     }
@@ -97,10 +94,10 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
     const isIdDuplicate = allUnits.some(u => u.id === formData.id && u.id !== unit.id);
 
     const newErrors: Record<string, boolean> = {
-      id: !formData.id || formData.id.trim() === '' || isIdDuplicate,
-      personnel1: !formData.personnel1 || formData.personnel1.trim() === '',
-      radio: !formData.radio || formData.radio.trim() === '',
-      quadrant: !formData.quadrant || formData.quadrant.trim() === '' || isNaN(Number(formData.quadrant)),
+      id: !formData.id || String(formData.id).trim() === '' || isIdDuplicate || String(formData.id).startsWith('NEW-'),
+      personnel1: !formData.personnel1 || String(formData.personnel1).trim() === '',
+      radio: !formData.radio || String(formData.radio).trim() === '',
+      quadrant: !formData.quadrant || String(formData.quadrant).trim() === '',
     };
 
     setErrors(newErrors);
@@ -188,7 +185,8 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
   );
 
   if (isEditing) {
-    const isNew = unit.id === '';
+    const idStr = String(formData.id);
+    const isNew = idStr === '' || idStr.startsWith('NEW-');
     const labelStyleEdit = "text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
     return (
       <div className={`border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg ${typeConfig.borderLeft} border-l-4`}>
@@ -196,7 +194,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
           <div className="col-span-1">
             <label className={labelStyleEdit}>ID {errors.id && <span className="text-red-600 font-bold ml-1">*</span>}</label>
             <AutocompleteInput
-              value={formData.id}
+              value={String(formData.id).startsWith('NEW-') ? '' : String(formData.id)}
               onChange={(val) => {
                 setFormData(prev => ({ ...prev, id: val }));
                 setErrors(prev => ({ ...prev, id: false }));
@@ -264,8 +262,11 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
                 setFormData(prev => ({ ...prev, radio: val }));
                 setErrors(prev => ({ ...prev, radio: false }));
               }}
-              // Dynamically build radio list from mobileData if available, otherwise empty (since we cleared RADIOS)
-              suggestions={mobileData ? Array.from(new Set(mobileData.map(d => d.radio).filter(r => r))) as string[] : []}
+              // Dynamically build radio list from mobileData and RADIOS constant
+              suggestions={Array.from(new Set([
+                ...RADIOS,
+                ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])
+              ])) as string[]}
               placeholder="T-00000"
               className={errors.radio ? errorInputStyle : ''}
             />
@@ -282,7 +283,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
             <AutocompleteInput
               value={formData.quadrant}
               onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
-              suggestions={mobileData ? Array.from(new Set(mobileData.map(d => d.quadrant).filter(q => q))) as string[] : []}
+              suggestions={mobileData ? Array.from(new Set(mobileData.filter(d => d.sector === formData.sector).map(d => d.quadrant).filter(q => q))) as string[] : []}
               placeholder="00"
               className={inputStyle('quadrant')}
             />
@@ -360,7 +361,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
       <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden border-l-[5px] ${typeConfig.borderLeft}`}>
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-4 ${isSereno ? 'grid-cols-[48px_2fr_1fr_80px_60px_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_80px_80px_1.2fr_1fr_1.2fr_60px_1.5fr_64px]'}`}>
+        <div className={`grid items-center gap-4 ${isSereno ? 'grid-cols-[48px_2fr_minmax(100px,1fr)_auto_min-content_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_auto_auto_1.2fr_1fr_1.2fr_min-content_1.5fr_64px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
@@ -401,16 +402,16 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
           {/* Columna Placa */}
           {hasPlate && (
-            <div className="border-r border-slate-100 px-2 text-center">
+            <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
               <label className={labelStyle}>Placa</label>
               <div className="text-[10px] font-black text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">{unit.plate || '--'}</div>
             </div>
           )}
 
           {/* Columna Estado */}
-          <div className="border-r border-slate-100 px-2 text-center">
+          <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
             <label className={labelStyle}>Estado</label>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black border uppercase inline-block ${badgeColors[unit.status]}`}>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black border uppercase inline-block whitespace-nowrap ${badgeColors[unit.status]}`}>
               {unit.status}
             </span>
           </div>

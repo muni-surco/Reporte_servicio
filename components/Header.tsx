@@ -97,11 +97,6 @@ const Header: React.FC<HeaderProps> = ({
     <header className="bg-white border-b border-slate-200 shadow-sm z-20 sticky top-0 backdrop-blur-md">
       <div className="px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-6 flex-1 min-w-0">
-          <div className="flex items-center gap-3 pr-4 border-r border-slate-100 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-[#004b93] flex items-center justify-center text-white shadow-md">
-              <span className="text-[24px] font-black">C4</span>
-            </div>
-          </div>
 
           <div className="flex flex-col min-w-[200px] shrink-0">
             {isDashboard ? (
@@ -109,7 +104,7 @@ const Header: React.FC<HeaderProps> = ({
                 <select
                   value={currentSector}
                   onChange={(e) => onSectorChange(e.target.value as Sector)}
-                  className="appearance-none bg-transparent text-3xl font-black text-[#002d5a] tracking-tighter uppercase leading-none pr-10 focus:outline-none cursor-pointer hover:text-[#004b93] transition-colors"
+                  className="appearance-none bg-transparent text-2xl font-black text-[#002d5a] tracking-tighter uppercase leading-none pr-10 focus:outline-none cursor-pointer hover:text-[#004b93] transition-colors"
                 >
                   {SECTORS.map(s => (
                     <option key={s} value={s}>{s}</option>
@@ -118,7 +113,7 @@ const Header: React.FC<HeaderProps> = ({
                 <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-[28px] text-[#004b93] pointer-events-none group-hover/sector:scale-110 transition-transform">expand_more</span>
               </div>
             ) : (
-              <h2 className="text-3xl font-black text-[#002d5a] tracking-tighter uppercase leading-none">
+              <h2 className="text-2xl font-black text-[#002d5a] tracking-tighter uppercase leading-none">
                 REPORTE INTEGRADO MSS
               </h2>
             )}
@@ -135,7 +130,7 @@ const Header: React.FC<HeaderProps> = ({
                   type="date"
                   value={selectedDate}
                   onChange={(e) => onDateChange(e.target.value)}
-                  className="appearance-none bg-slate-50 border border-slate-200 rounded-md px-3 py-1 text-[11px] font-medium text-slate-700 leading-none focus:outline-none focus:border-[#004b93] focus:ring-1 focus:ring-[#004b93] transition-all cursor-pointer"
+                  className="appearance-none min-h-[28px] bg-slate-50 border border-slate-200 rounded-md px-3 py-1 text-[11px] font-medium text-slate-700 leading-none focus:outline-none focus:border-[#004b93] focus:ring-1 focus:ring-[#004b93] transition-all cursor-pointer"
                 />
               </div>
             </div>
@@ -148,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({
                   value={settings.turno}
                   onChange={(e) => updateTempField('turno', e.target.value)}
                   onBlur={handleBlur}
-                  className="appearance-none bg-slate-50 border border-slate-200 rounded-md px-3 py-1 pr-8 text-[11px] font-medium text-slate-700 leading-none focus:outline-none focus:border-[#004b93] focus:ring-1 focus:ring-[#004b93] transition-all cursor-pointer w-full"
+                  className="appearance-none min-h-[28px] bg-slate-50 border border-slate-200 rounded-md px-3 py-1 pr-8 text-[11px] font-medium text-slate-700 leading-none focus:outline-none focus:border-[#004b93] focus:ring-1 focus:ring-[#004b93] transition-all cursor-pointer w-full"
                 >
                   <option value="MAÑANA">MAÑANA</option>
                   <option value="TARDE">TARDE</option>

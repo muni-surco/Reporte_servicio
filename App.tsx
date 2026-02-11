@@ -128,16 +128,8 @@ const App: React.FC = () => {
     const unitWithSector = { ...updatedUnit, sector: currentSector };
     let newUnits: UnitData[];
 
-    // Check if we are updating a newly created unit (with empty ID in state)
-    const hasEmptyId = units.some(u => u.id === '');
-
-    if (hasEmptyId && updatedUnit.id !== '') {
-      // Transition from empty ID to real ID
-      newUnits = units.map(u => u.id === '' ? unitWithSector : u);
-    } else {
-      // Regular update
-      newUnits = units.map(u => u.id === updatedUnit.id ? unitWithSector : u);
-    }
+    // Find the unit we are saving (it might have an old ID if it was NEW-...)
+    newUnits = units.map(u => (u.id === updatedUnit.id || u.id === editingId) ? unitWithSector : u);
 
     setUnits(newUnits);
     setEditingId(null);
@@ -165,8 +157,9 @@ const App: React.FC = () => {
   };
 
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {
+    const tempId = `NEW-${Date.now()}`;
     const newUnit: UnitData = {
-      id: '',
+      id: tempId,
       sector: currentSector,
       type,
       personnel1: '',
@@ -181,12 +174,12 @@ const App: React.FC = () => {
       fuel: '-- / --',
       expense: 'S/ 0.00',
       parts: '0',
-      quadrant: '0',
+      quadrant: '',
       mechanics: 'Operativo',
     };
 
     setUnits(prev => [newUnit, ...prev]);
-    setEditingId(`NEW-${Date.now()}`);
+    setEditingId(tempId);
   };
 
   const handleDeleteUnit = (id: string) => {
@@ -196,9 +189,9 @@ const App: React.FC = () => {
   };
 
   const handleCancel = () => {
-    // If canceling a new unit (id is empty), remove it
-    if (units.some(u => u.id === '')) {
-      setUnits(prev => prev.filter(u => u.id !== ''));
+    // If canceling a new unit, remove it from state
+    if (editingId && editingId.startsWith('NEW-')) {
+      setUnits(prev => prev.filter(u => u.id !== editingId));
     }
     setEditingId(null);
   };
