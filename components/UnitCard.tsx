@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UnitData, UnitStatus } from '../types';
 import AutocompleteInput from './AutocompleteInput';
-import { PERSONNEL_NAMES, VEHICLES, RADIOS, FUEL_TYPES, SECTORS, INDICATIVES } from '../constants';
+import { PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../constants';
 
 interface UnitCardProps {
   unit: UnitData;
@@ -12,9 +12,14 @@ interface UnitCardProps {
   onCancel: () => void;
   onDelete: (id: string) => void;
   mobileData?: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[];
+  statusOptions?: string[];
+  indicativeOptions?: string[];
 }
 
-const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete, mobileData }) => {
+const UnitCard: React.FC<UnitCardProps> = ({
+  unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete, mobileData,
+  statusOptions, indicativeOptions
+}) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -29,6 +34,10 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
   const [fuelType, setFuelType] = useState('');
   const [fuelQty, setFuelQty] = useState('');
+
+  // Use provided status options or fallback to constants
+  const activeStatusOptions = statusOptions && statusOptions.length > 0 ? statusOptions : Object.values(UnitStatus);
+  const activeIndicativeOptions = indicativeOptions || [];
 
   useEffect(() => {
     if (isEditing) {
@@ -68,9 +77,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
   useEffect(() => {
     if (isEditing && (unit.type === 'CHOFER' || unit.type === 'MOTO' || unit.type === 'SERENO')) {
-      const dataSource: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[] =
-        mobileData && mobileData.length > 0 ? mobileData : VEHICLES;
-
+      const dataSource = mobileData || [];
       const found = dataSource.find(v => v.id === formData.id);
 
       if (found) {
@@ -152,6 +159,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
     }
   }[unit.type];
 
+  // (Modal logic omitted for brevity as it is unchanged)
   const DeleteConfirmationModal = () => (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)}></div>
@@ -199,7 +207,7 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
                 setFormData(prev => ({ ...prev, id: val }));
                 setErrors(prev => ({ ...prev, id: false }));
               }}
-              suggestions={(mobileData && mobileData.length > 0 ? mobileData : VEHICLES).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
+              suggestions={(mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
               placeholder="M-00"
               className={errors.id ? errorInputStyle : ''}
             />
@@ -234,9 +242,18 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
           {hasIndicative && (
             <div className="col-span-1">
               <label className={labelStyleEdit}>Indic.</label>
-              <select name="indicative" value={formData.indicative} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[11px]`}>
+              <select
+                name="indicative"
+                value={formData.indicative || ''}
+                onChange={handleChange}
+                className={`${inputStyle('indicative')} py-0 text-[11px]`}
+              >
                 <option value="">--</option>
-                {INDICATIVES.map(i => <option key={i} value={i}>{i}</option>)}
+                {/* Add current value if not in options to avoid hidden state */}
+                {formData.indicative && !activeIndicativeOptions.includes(formData.indicative) && (
+                  <option value={formData.indicative}>{formData.indicative}</option>
+                )}
+                {activeIndicativeOptions.map(i => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
           )}
@@ -298,8 +315,18 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
             <>
               <div className="col-span-1">
                 <label className={labelStyleEdit}>Estado</label>
-                <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0`}>
-                  {Object.values(UnitStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  className={`${inputStyle('status')} py-0`}
+                >
+                  <option value="">--</option>
+                  {/* Add current value if not in options */}
+                  {formData.status && !activeStatusOptions.includes(formData.status) && (
+                    <option value={formData.status}>{formData.status}</option>
+                  )}
+                  {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="col-span-1">
@@ -314,8 +341,18 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
           <div className="grid grid-cols-12 gap-3 pb-3">
             <div className="col-span-1">
               <label className={labelStyleEdit}>Estado</label>
-              <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0`}>
-                {Object.values(UnitStatus).map(s => <option key={s} value={s}>{s}</option>)}
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className={`${inputStyle('status')} py-0`}
+              >
+                <option value="">--</option>
+                {/* Add current value if not in options */}
+                {formData.status && !activeStatusOptions.includes(formData.status) && (
+                  <option value={formData.status}>{formData.status}</option>
+                )}
+                {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div className="col-span-3 grid grid-cols-3 gap-1">

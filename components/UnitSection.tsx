@@ -12,11 +12,13 @@ interface UnitSectionProps {
   allUnits: UnitData[];
   onEdit: (id: string) => void;
   onSave: (unit: UnitData) => void;
-  onCancel: (id: string) => void;
+  onCancel: () => void;
   onAdd: (type: 'CHOFER' | 'MOTO' | 'SERENO') => void;
   onDelete: (id: string) => void;
   editingId: string | null;
-  mobileData?: { id: string; plate: string; }[];
+  mobileData?: { id: string; plate: string; }[]; // Original type
+  statusOptions?: string[];
+  indicativeOptions?: string[];
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -33,7 +35,9 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   onAdd,
   onDelete,
   editingId,
-  mobileData
+  mobileData,
+  statusOptions,
+  indicativeOptions
 }) => {
   // Configuración de colores claros según el tipo (Actualizado MOTO a Violeta)
   const colorConfig = {
@@ -91,9 +95,11 @@ const UnitSection: React.FC<UnitSectionProps> = ({
               isEditing={editingId !== null && (editingId === unit.id || (unit.id === '' && editingId.startsWith('NEW-')))}
               onEdit={() => onEdit(unit.id)}
               onSave={onSave}
-              onCancel={() => onCancel(unit.id)}
+              onCancel={() => onCancel()}
               onDelete={() => onDelete(unit.id)}
               mobileData={mobileData}
+              statusOptions={statusOptions}
+              indicativeOptions={indicativeOptions}
             />
           ))
         )}

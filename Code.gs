@@ -140,47 +140,63 @@ function getShiftData(dateStr, shift, sector) {
 }
 
 /**
- * Fetches mobile reference data (id, plate, radio, quadrant) from "DATA" sheet.
+ * Fetches mobile reference data (id, plate, radio, quadrant) PLUS unique list of Indicatives and Statuses from "DATA" sheet.
  */
 function getMobileData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('DATA');
   
   if (!sheet) {
-    return [];
+    return { mobiles: [], indicatives: [], statuses: [] };
   }
   
   const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
+  if (data.length < 2) return { mobiles: [], indicatives: [], statuses: [] };
   
   // Find column indices (case-insensitive)
-  const headers = data[0].map(h => String(h).toLowerCase());
+  const headers = data[0].map(h => String(h).toLowerCase().trim());
   const movilIdx = headers.indexOf('movil');
   const placaIdx = headers.indexOf('placa');
   const radioIdx = headers.indexOf('radio');
   const cuadranteIdx = headers.indexOf('cuadrante');
   const sectorIdx = headers.indexOf('sector');
-  
-  if (movilIdx === -1) {
-    return [];
-  }
+  const indicativoIdx = headers.indexOf('indicativo'); // New
+  const estadoIdx = headers.indexOf('estado'); // New
   
   const mobileData = [];
+  const indicativesSet = new Set();
+  const statusesSet = new Set();
+
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (row[movilIdx]) {
+    
+    // Collect Mobile Data
+    if (movilIdx !== -1 && row[movilIdx]) {
       mobileData.push({
         id: String(row[movilIdx]),
         plate: placaIdx !== -1 ? String(row[placaIdx] || '') : '',
         radio: radioIdx !== -1 ? String(row[radioIdx] || '') : '',
         quadrant: cuadranteIdx !== -1 ? String(row[cuadranteIdx] || '') : '',
-        // Sector might be used in frontend to filter, or just passed for reference
         sector: sectorIdx !== -1 ? String(row[sectorIdx] || '') : '' 
       });
     }
+
+    // Collect Unique Indicatives
+    if (indicativoIdx !== -1 && row[indicativoIdx]) {
+      indicativesSet.add(String(row[indicativoIdx]).trim());
+    }
+
+    // Collect Unique Statuses
+    if (estadoIdx !== -1 && row[estadoIdx]) {
+      statusesSet.add(String(row[estadoIdx]).trim());
+    }
   }
   
-  return mobileData;
+  return {
+    mobiles: mobileData,
+    indicatives: Array.from(indicativesSet).sort(),
+    statuses: Array.from(statusesSet).sort()
+  };
 }
 
 /**

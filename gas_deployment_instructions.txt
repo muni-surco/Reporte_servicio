@@ -16,10 +16,9 @@ Copia TODO el contenido del siguiente archivo generado:
 
 ## 3. Configuración Inicial
 Si es la primera vez que ejecutas el script:
-1. En el editor de GAS, selecciona la función `initialSetup`.
-2. Ejecútala para crear las hojas `SHIFT_SETTINGS` y `UNIT_DATA`.
+1. En el editor de GAS, selecciona la función `initialSetup` y ejecútala.
 
-## 4. Notas Importantes (Vista Reporte Integrado)
-- **CORREGIDO:** Ahora la vista "Visualización Global" (Reporte) muestra correctamente el OPERADOR y SUPERVISOR específicos de cada sector, en lugar de repetir el del sector actual.
-- **Permanencia:** Sigue siendo compartida por todo el turno.
-- **Cambio en Backend:** La función `getShiftData` ahora devuelve `allSectorSettings`. Es CRÍTICO actualizar `Code.gs` para que esto funcione.
+## 4. Notas Importantes
+- **DINÁMICO:** Ahora los campos **Indicativo** y **Estado** también sugieren valores basados en lo que existe en la hoja "DATA" (columnas `indicativo` y `estado`).
+- Si esas columnas están vacías, no habrá sugerencias pero podrás escribir libremente.
+- **Vehículos:** Siguen dependiendo de la hoja "DATA".

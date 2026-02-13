@@ -7,7 +7,7 @@ import Footer from './components/Footer';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference } from './types';
-import { SECTORS, VEHICLES } from './constants';
+import { SECTORS } from './constants';
 
 declare const google: any;
 
@@ -45,20 +45,30 @@ const App: React.FC = () => {
   // New state for all sector settings
   const [sectorSettingsMap, setSectorSettingsMap] = useState<Record<string, AppSettings>>({});
 
+  // New Reference Data States
+  // Keep only mobile array here
+  const [indicativeOptions, setIndicativeOptions] = useState<string[]>([]);
+  const [statusOptions, setStatusOptions] = useState<string[]>([]);
+
   // Sync with GAS
   useEffect(() => {
     loadData(selectedDate, settings.turno);
   }, [selectedDate, settings.turno, currentSector]);
 
-  // Load Reference Data (Mobile/Placa)
+  // Load Reference Data (Mobile/Placa/Indicativo/Estado)
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: MobileReference[]) => {
-          if (data && data.length > 0) {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[] } | MobileReference[]) => {
+          // Handle both old array format (fallback) and new object format
+          if (Array.isArray(data)) {
             setMobileData(data);
+          } else if (data && data.mobiles) {
+            setMobileData(data.mobiles);
+            if (data.indicatives) setIndicativeOptions(data.indicatives);
+            if (data.statuses) setStatusOptions(data.statuses);
           } else {
-            console.warn('No mobile data found in GAS, setting empty list');
+            console.warn('No mobile data found or invalid format');
             setMobileData([]);
           }
         })
@@ -68,9 +78,11 @@ const App: React.FC = () => {
         })
         .getMobileData();
     } else {
-      // Mock for local dev - empty to force testing "real" data behavior or lack thereof
+      // Mock for local dev
       console.log('MOCK: No GAS environment, setting empty mobile data');
       setMobileData([]);
+      // Mock some statuses for testing if needed
+      setStatusOptions(Object.values(UnitStatus));
     }
   }, []);
 
@@ -289,6 +301,8 @@ const App: React.FC = () => {
                 editingId={editingId}
                 onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
                 mobileData={mobileData}
+                statusOptions={statusOptions}
+                indicativeOptions={indicativeOptions}
               />
               <UnitSection
                 title="MOTORIZADOS" type="MOTO" icon="moped"
@@ -299,6 +313,8 @@ const App: React.FC = () => {
                 editingId={editingId}
                 onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
                 mobileData={mobileData}
+                statusOptions={statusOptions}
+                indicativeOptions={indicativeOptions}
               />
               <UnitSection
                 title="SERENOS" type="SERENO" icon="hail"
@@ -309,6 +325,8 @@ const App: React.FC = () => {
                 editingId={editingId}
                 onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
                 mobileData={mobileData}
+                statusOptions={statusOptions}
+                indicativeOptions={indicativeOptions}
               />
             </>
           ) : (
