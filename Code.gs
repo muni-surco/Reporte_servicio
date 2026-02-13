@@ -44,6 +44,7 @@ function initialSetup() {
 function getShiftData(dateStr, shift, sector) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
+
   // 1. Get Settings
   const settingsSheet = ss.getSheetByName('SHIFT_SETTINGS');
   let shiftSettings = {
@@ -53,34 +54,53 @@ function getShiftData(dateStr, shift, sector) {
     nombrePuesto: sector || 'SECTOR 1A',
     permanencia: ''
   };
+  
+  // Store settings for ALL sectors to support the Integrated Report view
+  const allSectorSettings = {};
 
   if (settingsSheet) {
     const settingsRows = settingsSheet.getDataRange().getValues();
     let commonPermanencia = '';
 
-    // First pass: find common permanencia and specific sector settings
+    // First pass: find common permanencia and collect all sector settings
     for (let i = 1; i < settingsRows.length; i++) {
       const row = settingsRows[i];
       if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
         // Capture permanencia from any row of this shift found
         if (row[5]) commonPermanencia = row[5];
+        
+        const sectorName = row[2];
+        if (sectorName) {
+           allSectorSettings[sectorName] = {
+            turno: row[1],
+            operador: row[3],
+            supervisor: row[4],
+            nombrePuesto: sectorName,
+            permanencia: row[5]
+          };
+        }
 
-        // Check if this row is for the requested sector
-        if (row[2] === sector) {
+        // Check if this row is for the requested sector (for single view compatibility)
+        if (sectorName === sector) {
           shiftSettings = {
             turno: row[1],
             operador: row[3],
             supervisor: row[4],
             nombrePuesto: row[2],
-            permanencia: row[5] // Will be overwritten by common if empty, but usually same
+            permanencia: row[5]
           };
         }
       }
     }
     
-    // If specific sector had no permanencia but another sector did, use the common one
-    if (!shiftSettings.permanencia && commonPermanencia) {
-      shiftSettings.permanencia = commonPermanencia;
+    // Propagate common permanencia if missing in specific sectors
+    if (commonPermanencia) {
+      if (!shiftSettings.permanencia) shiftSettings.permanencia = commonPermanencia;
+      Object.keys(allSectorSettings).forEach(key => {
+        if (!allSectorSettings[key].permanencia) {
+          allSectorSettings[key].permanencia = commonPermanencia;
+        }
+      });
     }
   }
 
@@ -92,16 +112,6 @@ function getShiftData(dateStr, shift, sector) {
     const dataRows = dataSheet.getDataRange().getValues();
     for (let i = 1; i < dataRows.length; i++) {
       const row = dataRows[i];
-      // Filter by Date, Shift AND Sector for units? 
-      // The prompt says "cada sector... tiene su propio operador". 
-      // Ideally unit data is also filtered by sector, or we return all and frontend filters.
-      // Current frontend logic filters units by sector in UI, but requests all for the shift?
-      // Re-reading App.tsx: loadData fetches, then setUnits(data.units). 
-      // Then strict filtering happens in UI or passing "currentSector" to filter.
-      // To be safe and efficient, let's keep returning ALL units for the shift, 
-      // so the "Visualización Global" works without multiple calls. 
-      // Only SETTINGS need strict sector filtering per the user request.
-      
       if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
         allUnits.push({
           id: row[3],
@@ -126,7 +136,7 @@ function getShiftData(dateStr, shift, sector) {
     }
   }
 
-  return { settings: shiftSettings, units: allUnits };
+  return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
 }
 
 /**

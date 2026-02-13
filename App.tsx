@@ -42,6 +42,9 @@ const App: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const lastSavedRef = useRef<string>('');
 
+  // New state for all sector settings
+  const [sectorSettingsMap, setSectorSettingsMap] = useState<Record<string, AppSettings>>({});
+
   // Sync with GAS
   useEffect(() => {
     loadData(selectedDate, settings.turno);
@@ -75,8 +78,13 @@ const App: React.FC = () => {
     setLoading(true);
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { settings: AppSettings, units: UnitData[] }) => {
+        .withSuccessHandler((data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] }) => {
           setUnits(data.units);
+
+          if (data.allSectorSettings) {
+            setSectorSettingsMap(data.allSectorSettings);
+          }
+
           // Only update settings if we got a valid response (which we should, with at least sector name)
           // The backend ensures 'nombrePuesto' is the requested sector if found, or defaults.
           setSettings(prev => ({
@@ -111,6 +119,11 @@ const App: React.FC = () => {
           setSaving(false);
           if (res.success) {
             lastSavedRef.current = dataStr;
+            // Update local sector settings map immediately for responsive UI
+            setSectorSettingsMap(prev => ({
+              ...prev,
+              [newSettings.nombrePuesto || 'SECTOR 1A']: newSettings
+            }));
           } else {
             console.error('GAS Save Error:', res.error);
             alert('Error al guardar: ' + res.error);
@@ -128,7 +141,13 @@ const App: React.FC = () => {
 
   const handleSectorChange = (sector: Sector) => {
     setCurrentSector(sector);
-    setSettings(prev => ({ ...prev, nombrePuesto: sector }));
+    // When changing sector, see if we have specific settings for it loaded, otherwise default
+    const specificSettings = sectorSettingsMap[sector];
+    if (specificSettings) {
+      setSettings(prev => ({ ...specificSettings, turno: prev.turno })); // Keep turno just in case
+    } else {
+      setSettings(prev => ({ ...prev, nombrePuesto: sector, operador: '', supervisor: '' }));
+    }
   };
 
   const handleSave = (updatedUnit: UnitData) => {
@@ -146,11 +165,22 @@ const App: React.FC = () => {
   const currentSectorUnits = units.filter(u => u.sector === currentSector || !u.sector);
 
   // Grouping for VisualizationView
+  // Use 'sectorSettingsMap' to get correct Operator/Supervisor per sector
   const allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
   SECTORS.forEach(s => {
+    // If we have specific settings (operator/supervisor) for this sector, use them.
+    // Otherwise fallback to current settings but overridden sector name (less accurate but safe fallback)
+    // Actually, if missing, it should probably be empty strings rather than copying current sector's op
+    const sectorSpecificSettings = sectorSettingsMap[s] || {
+      ...settings,
+      nombrePuesto: s,
+      operador: '',
+      supervisor: ''
+    };
+
     allSectorsData[s] = {
       units: units.filter(u => u.sector === s),
-      settings: { ...settings, nombrePuesto: s }
+      settings: sectorSpecificSettings
     };
   });
 
@@ -283,15 +313,7 @@ const App: React.FC = () => {
             </>
           ) : (
             <VisualizationView
-              allSectorsData={Object.fromEntries(
-                SECTORS.map(sector => [
-                  sector,
-                  {
-                    units: units.filter(u => u.sector === sector),
-                    settings: { ...settings, nombrePuesto: sector }
-                  }
-                ])
-              )}
+              allSectorsData={allSectorsData}
               settings={settings}
             />
           )}

@@ -1,0 +1,25 @@
+# Instrucciones de Despliegue en Google Apps Script (GAS)
+
+## 1. Archivos del Backend
+Copia el contenido del siguiente archivo local al editor de GAS:
+
+- **Local:** `Reporte_servicio/Code.gs`
+- **GAS:** Archivo `Code.gs` (o el nombre que tenga tu script principal).
+
+## 2. Archivos del Frontend
+El proyecto ha sido compilado en un solo archivo HTML para compatibilidad con GAS.
+
+Copia TODO el contenido del siguiente archivo generado:
+
+- **Local:** `Reporte_servicio/dist/index.html`
+- **GAS:** Crea un archivo llamado `index.html` y pega el código.
+
+## 3. Configuración Inicial
+Si es la primera vez que ejecutas el script:
+1. En el editor de GAS, selecciona la función `initialSetup`.
+2. Ejecútala para crear las hojas `SHIFT_SETTINGS` y `UNIT_DATA`.
+
+## 4. Notas Importantes (Vista Reporte Integrado)
+- **CORREGIDO:** Ahora la vista "Visualización Global" (Reporte) muestra correctamente el OPERADOR y SUPERVISOR específicos de cada sector, en lugar de repetir el del sector actual.
+- **Permanencia:** Sigue siendo compartida por todo el turno.
+- **Cambio en Backend:** La función `getShiftData` ahora devuelve `allSectorSettings`. Es CRÍTICO actualizar `Code.gs` para que esto funcione.
