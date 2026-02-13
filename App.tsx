@@ -7,7 +7,7 @@ import Footer from './components/Footer';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference } from './types';
-import { SECTORS, SECTOR_DATA, VEHICLES } from './constants';
+import { SECTORS, VEHICLES } from './constants';
 
 declare const google: any;
 
@@ -77,16 +77,23 @@ const App: React.FC = () => {
       google.script.run
         .withSuccessHandler((data: { settings: AppSettings, units: UnitData[] }) => {
           setUnits(data.units);
-          setSettings(prev => ({ ...prev, ...data.settings }));
+          // Only update settings if we got a valid response (which we should, with at least sector name)
+          // The backend ensures 'nombrePuesto' is the requested sector if found, or defaults.
+          setSettings(prev => ({
+            ...prev,
+            ...data.settings,
+            // Ensure turno/date are consistent if backend returned defaults
+            turno: shift
+          }));
           setLoading(false);
           lastSavedRef.current = JSON.stringify(data);
         })
-        .getShiftData(dateStr, shift);
+        .getShiftData(dateStr, shift, currentSector);
     } else {
       // Mock for local dev
-      console.log('MOCK: Loading data for', dateStr, shift);
+      console.log('MOCK: Loading data for', dateStr, shift, currentSector);
       setTimeout(() => {
-        setUnits(SECTOR_DATA[currentSector as keyof typeof SECTOR_DATA] || []);
+        setUnits([]);
         setLoading(false);
       }, 500);
     }
@@ -280,7 +287,7 @@ const App: React.FC = () => {
                 SECTORS.map(sector => [
                   sector,
                   {
-                    units: SECTOR_DATA[sector],
+                    units: units.filter(u => u.sector === sector),
                     settings: { ...settings, nombrePuesto: sector }
                   }
                 ])

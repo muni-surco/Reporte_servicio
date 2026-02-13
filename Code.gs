@@ -39,9 +39,9 @@ function initialSetup() {
 }
 
 /**
- * Fetches all units and settings for a specific date and shift.
+ * Fetches all units and settings for a specific date, shift and sector.
  */
-function getShiftData(dateStr, shift) {
+function getShiftData(dateStr, shift, sector) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
   // 1. Get Settings
@@ -50,25 +50,37 @@ function getShiftData(dateStr, shift) {
     turno: shift,
     operador: '',
     supervisor: '',
-    nombrePuesto: 'SECTOR 1A',
+    nombrePuesto: sector || 'SECTOR 1A',
     permanencia: ''
   };
 
   if (settingsSheet) {
     const settingsRows = settingsSheet.getDataRange().getValues();
+    let commonPermanencia = '';
+
+    // First pass: find common permanencia and specific sector settings
     for (let i = 1; i < settingsRows.length; i++) {
       const row = settingsRows[i];
-      // Format row[0] as date string for comparison
       if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
-        shiftSettings = {
-          turno: row[1],
-          operador: row[3],
-          supervisor: row[4],
-          nombrePuesto: row[2],
-          permanencia: row[5]
-        };
-        break;
+        // Capture permanencia from any row of this shift found
+        if (row[5]) commonPermanencia = row[5];
+
+        // Check if this row is for the requested sector
+        if (row[2] === sector) {
+          shiftSettings = {
+            turno: row[1],
+            operador: row[3],
+            supervisor: row[4],
+            nombrePuesto: row[2],
+            permanencia: row[5] // Will be overwritten by common if empty, but usually same
+          };
+        }
       }
+    }
+    
+    // If specific sector had no permanencia but another sector did, use the common one
+    if (!shiftSettings.permanencia && commonPermanencia) {
+      shiftSettings.permanencia = commonPermanencia;
     }
   }
 
@@ -80,6 +92,16 @@ function getShiftData(dateStr, shift) {
     const dataRows = dataSheet.getDataRange().getValues();
     for (let i = 1; i < dataRows.length; i++) {
       const row = dataRows[i];
+      // Filter by Date, Shift AND Sector for units? 
+      // The prompt says "cada sector... tiene su propio operador". 
+      // Ideally unit data is also filtered by sector, or we return all and frontend filters.
+      // Current frontend logic filters units by sector in UI, but requests all for the shift?
+      // Re-reading App.tsx: loadData fetches, then setUnits(data.units). 
+      // Then strict filtering happens in UI or passing "currentSector" to filter.
+      // To be safe and efficient, let's keep returning ALL units for the shift, 
+      // so the "Visualización Global" works without multiple calls. 
+      // Only SETTINGS need strict sector filtering per the user request.
+      
       if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
         allUnits.push({
           id: row[3],
@@ -167,22 +189,44 @@ function saveShiftData(dateStr, shift, settings, units) {
       return { success: false, error: 'No se encontró la hoja SHIFT_SETTINGS. Por favor ejecuta la función initialSetup desde el editor de código.' };
     }
 
+    const targetSector = settings.nombrePuesto || 'SECTOR 1A';
     const settingsRows = settingsSheet.getDataRange().getValues();
     let settingsFoundIdx = -1;
+    let rowsToUpdatePermanencia = [];
 
     for (let i = 1; i < settingsRows.length; i++) {
       const row = settingsRows[i];
-      if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
-        settingsFoundIdx = i + 1;
-        break;
+      const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
+      
+      if (rowDate === dateStr && row[1] === shift) {
+        // Collect all rows for this shift to update permanencia later
+        rowsToUpdatePermanencia.push(i + 1);
+
+        // Check if this is the specific sector row
+        if (row[2] === targetSector) {
+          settingsFoundIdx = i + 1;
+        }
       }
     }
 
-    const settingsValues = [dateStr, shift, settings.nombrePuesto || 'SECTOR 1A', settings.operador, settings.supervisor, settings.permanencia];
+    const settingsValues = [dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia];
+    
     if (settingsFoundIdx > -1) {
+      // Update specific sector row
       settingsSheet.getRange(settingsFoundIdx, 1, 1, settingsValues.length).setValues([settingsValues]);
     } else {
+      // Create new row for this sector
       settingsSheet.appendRow(settingsValues);
+      // Add this new row index to permanencia update list (though it already has the value)
+      rowsToUpdatePermanencia.push(settingsSheet.getLastRow());
+    }
+
+    // Update Permanencia for ALL other sectors in this shift
+    if (rowsToUpdatePermanencia.length > 0) {
+      rowsToUpdatePermanencia.forEach(rowIndex => {
+         // Column 6 is PERMANENCIA
+         settingsSheet.getRange(rowIndex, 6).setValue(settings.permanencia);
+      });
     }
 
     // 2. Update Units
@@ -193,18 +237,28 @@ function saveShiftData(dateStr, shift, settings, units) {
 
     const dataRows = dataSheet.getDataRange().getValues();
     
-    // Filter out existing rows for this date/shift
+    // Filter out existing rows for this date/shift AND SECTOR (Only replace units of this sector)
+    // IMPORTANT: Previous logic deleted ALL units for the shift. Now we must only delete units for CURRENT SECTOR.
     for (let i = dataRows.length - 1; i >= 1; i--) {
       const row = dataRows[i];
-      if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
+      if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && 
+          row[1] === shift && 
+          row[2] === targetSector) {
         dataSheet.deleteRow(i + 1);
       }
     }
 
-    // Add new units
-    if (units.length > 0) {
-      const newRows = units.map(u => [
-        dateStr, shift, settings.nombrePuesto || 'N/A',
+    // Add new units (filtered by current sector just in case, though frontend should send only relevant ones or all with sector field)
+    // The frontend sends 'units' array. We should filter this array to only include units of 'targetSector' to be safe,
+    // OR assume 'units' contains only what needs to be saved.
+    // However, App.tsx logic suggests 'units' state might contain ALL units.
+    // Let's filter 'units' to only save those belonging to 'targetSector'.
+    
+    const unitsToSave = units.filter(u => u.sector === targetSector);
+
+    if (unitsToSave.length > 0) {
+      const newRows = unitsToSave.map(u => [
+        dateStr, shift, targetSector,
         u.id, u.type, u.personnel1, u.personnel2, u.plate, u.indicative, u.radio,
         u.status, u.reason, u.km, u.hours, u.fuel, u.expense, u.parts, u.quadrant, u.mechanics
       ]);
