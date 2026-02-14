@@ -9,16 +9,18 @@ interface AutocompleteInputProps {
   suggestions: string[];
   autoFocus?: boolean;
   className?: string;
+  error?: boolean;
 }
 
-const AutocompleteInput: React.FC<AutocompleteInputProps> = ({ 
-  value, 
-  onChange, 
-  onBlur, 
-  placeholder, 
-  suggestions, 
+const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
+  value,
+  onChange,
+  onBlur,
+  placeholder,
+  suggestions,
   autoFocus,
-  className = "" 
+  className = "",
+  error
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filtered, setFiltered] = useState<string[]>([]);
@@ -27,7 +29,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 
   useEffect(() => {
     if (value.length > 0) {
-      const matches = suggestions.filter(s => 
+      const matches = suggestions.filter(s =>
         s.toLowerCase().includes(value.toLowerCase())
       );
       setFiltered(matches.slice(0, 10));
@@ -84,10 +86,10 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
           }, 150);
         }}
         placeholder={placeholder}
-        className={`w-full border border-slate-300 bg-white rounded px-2 py-1 text-[11px] font-medium h-[28px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm text-slate-800 ${className}`}
+        className={`w-full border ${error ? 'border-red-600 ring-1 ring-red-100' : 'border-slate-300'} bg-white rounded px-2 py-1 text-[11px] font-medium h-[28px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm text-slate-800 ${className}`}
       />
       {isOpen && filtered.length > 0 && (
-        <div className="absolute z-[1000] mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-2xl max-h-[200px] overflow-y-auto ring-1 ring-black ring-opacity-5">
+        <div className="absolute z-[9999] mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-2xl max-h-[200px] overflow-y-auto ring-1 ring-black ring-opacity-5">
           {filtered.map((name, idx) => (
             <div
               key={idx}
@@ -97,9 +99,8 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
                 e.preventDefault();
                 handleSelect(name);
               }}
-              className={`px-3 py-2 text-[10px] font-medium cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${
-                activeIndex === idx ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50'
-              }`}
+              className={`px-3 py-2 text-[10px] font-medium cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${activeIndex === idx ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50'
+                }`}
             >
               {name}
             </div>

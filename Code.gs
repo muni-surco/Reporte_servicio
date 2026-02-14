@@ -192,10 +192,34 @@ function getMobileData() {
     }
   }
   
+  
+  // Fetch External Personnel Data
+  const EXTERNAL_SS_ID = '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ';
+  const personnelSet = new Set();
+  try {
+    const extSS = SpreadsheetApp.openById(EXTERNAL_SS_ID);
+    const extSheet = extSS.getSheets()[0]; // Assumes first sheet
+    const extData = extSheet.getDataRange().getValues();
+    if (extData.length > 1) {
+      const extHeaders = extData[0].map(h => String(h).toLowerCase().trim());
+      const nameIdx = extHeaders.indexOf('apellidos_nombres');
+      if (nameIdx !== -1) {
+        for (let i = 1; i < extData.length; i++) {
+          if (extData[i][nameIdx]) {
+            personnelSet.add(String(extData[i][nameIdx]).trim());
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error fetching external personnel:', e);
+  }
+
   return {
     mobiles: mobileData,
     indicatives: Array.from(indicativesSet).sort(),
-    statuses: Array.from(statusesSet).sort()
+    statuses: Array.from(statusesSet).sort(),
+    personnel: Array.from(personnelSet).sort()
   };
 }
 

@@ -26,7 +26,7 @@ const App: React.FC = () => {
   const [units, setUnits] = useState<UnitData[]>([]);
   const [currentSector, setCurrentSector] = useState<Sector>('SECTOR 1A');
   const [currentView, setCurrentView] = useState<ViewMode>('DASHBOARD');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toLocaleDateString('en-CA'));
   const [settings, setSettings] = useState<AppSettings>({
     nombrePuesto: 'SECTOR 1A',
     operador: '',
@@ -49,6 +49,7 @@ const App: React.FC = () => {
   // Keep only mobile array here
   const [indicativeOptions, setIndicativeOptions] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
+  const [personnelOptions, setPersonnelOptions] = useState<string[]>([]);
 
   // Sync with GAS
   useEffect(() => {
@@ -59,18 +60,11 @@ const App: React.FC = () => {
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[] } | MobileReference[]) => {
-          // Handle both old array format (fallback) and new object format
-          if (Array.isArray(data)) {
-            setMobileData(data);
-          } else if (data && data.mobiles) {
-            setMobileData(data.mobiles);
-            if (data.indicatives) setIndicativeOptions(data.indicatives);
-            if (data.statuses) setStatusOptions(data.statuses);
-          } else {
-            console.warn('No mobile data found or invalid format');
-            setMobileData([]);
-          }
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[] }) => {
+          setMobileData(data.mobiles);
+          setIndicativeOptions(data.indicatives);
+          setStatusOptions(data.statuses);
+          if (data.personnel) setPersonnelOptions(data.personnel);
         })
         .withFailureHandler((err: any) => {
           console.error('Failed to get mobile data', err);
@@ -266,7 +260,7 @@ const App: React.FC = () => {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#002d5a] text-white">
         <div className="w-12 h-12 border-4 border-[#00a19b] border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-[10px] font-black tracking-[0.2em] animate-pulse uppercase">Cargando Sector...</p>
+        <p className="text-[10px] font-black tracking-[0.2em] animate-pulse uppercase">Cargando Sectores...</p>
       </div>
     );
   }
@@ -288,12 +282,13 @@ const App: React.FC = () => {
           currentView={currentView}
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
+          personnelOptions={personnelOptions}
         />
         <div className="flex-1 overflow-y-auto scroll-smooth p-4 lg:p-6" id="report-content">
           {currentView === 'DASHBOARD' ? (
             <>
               <UnitSection
-                title="CHOFERES" type="CHOFER" icon="minor_crash"
+                title="CHOFERES" type="CHOFER" icon="person"
                 badge={currentSectorUnits.filter(u => u.type === 'CHOFER').length.toString()}
                 partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'CHOFER'))}
                 units={currentSectorUnits.filter(u => u.type === 'CHOFER')}
@@ -303,6 +298,7 @@ const App: React.FC = () => {
                 mobileData={mobileData}
                 statusOptions={statusOptions}
                 indicativeOptions={indicativeOptions}
+                personnelOptions={personnelOptions}
               />
               <UnitSection
                 title="MOTORIZADOS" type="MOTO" icon="moped"
@@ -315,6 +311,7 @@ const App: React.FC = () => {
                 mobileData={mobileData}
                 statusOptions={statusOptions}
                 indicativeOptions={indicativeOptions}
+                personnelOptions={personnelOptions}
               />
               <UnitSection
                 title="SERENOS" type="SERENO" icon="hail"
@@ -327,6 +324,7 @@ const App: React.FC = () => {
                 mobileData={mobileData}
                 statusOptions={statusOptions}
                 indicativeOptions={indicativeOptions}
+                personnelOptions={personnelOptions}
               />
             </>
           ) : (

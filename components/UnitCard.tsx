@@ -14,11 +14,12 @@ interface UnitCardProps {
   mobileData?: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[];
   statusOptions?: string[];
   indicativeOptions?: string[];
+  personnelOptions?: string[];
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete, mobileData,
-  statusOptions, indicativeOptions
+  statusOptions, indicativeOptions, personnelOptions
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -38,6 +39,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   // Use provided status options or fallback to constants
   const activeStatusOptions = statusOptions && statusOptions.length > 0 ? statusOptions : Object.values(UnitStatus);
   const activeIndicativeOptions = indicativeOptions || [];
+  const activePersonnelOptions = personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES;
 
   useEffect(() => {
     if (isEditing) {
@@ -197,7 +199,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const isNew = idStr === '' || idStr.startsWith('NEW-');
     const labelStyleEdit = "text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
     return (
-      <div className={`border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg ${typeConfig.borderLeft} border-l-4`}>
+      <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg ${typeConfig.borderLeft} border-l-4`}>
         <div className={`grid grid-cols-12 gap-3 ${!isSereno ? 'pb-3 mb-3 border-b border-blue-100' : ''}`}>
           <div className="col-span-1">
             <label className={labelStyleEdit}>ID {errors.id && <span className="text-red-600 font-bold ml-1">*</span>}</label>
@@ -221,9 +223,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 setFormData(prev => ({ ...prev, personnel1: val }));
                 setErrors(prev => ({ ...prev, personnel1: false }));
               }}
-              suggestions={PERSONNEL_NAMES}
-              placeholder="Nombre..."
-              className={errors.personnel1 ? errorInputStyle : ''}
+              suggestions={activePersonnelOptions}
+              placeholder="Nombre Personal..."
+              error={errors.personnel1}
             />
           </div>
 
@@ -233,8 +235,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <AutocompleteInput
                 value={formData.personnel2 || ''}
                 onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))}
-                suggestions={PERSONNEL_NAMES}
-                placeholder="Nombre..."
+                suggestions={activePersonnelOptions}
+                placeholder="Nombre Copiloto..."
               />
             </div>
           )}

@@ -17,6 +17,7 @@ interface HeaderProps {
   currentView: ViewMode;
   selectedDate: string;
   onDateChange: (date: string) => void;
+  personnelOptions?: string[];
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -31,7 +32,8 @@ const Header: React.FC<HeaderProps> = ({
   onSectorChange,
   currentView,
   selectedDate,
-  onDateChange
+  onDateChange,
+  personnelOptions
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
@@ -164,7 +166,7 @@ const Header: React.FC<HeaderProps> = ({
                     onChange={(v) => updateTempField('operador', v)}
                     onBlur={handleBlur}
                     placeholder="Nombre Operador..."
-                    suggestions={PERSONNEL_NAMES}
+                    suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES}
                   />
                 ) : (
                   <div className={displayBoxStyle} onClick={() => setEditingField('operador')}>
@@ -187,7 +189,7 @@ const Header: React.FC<HeaderProps> = ({
                       onChange={(v) => updateTempField('supervisor', v)}
                       onBlur={handleBlur}
                       placeholder="Nombre Supervisor..."
-                      suggestions={PERSONNEL_NAMES}
+                      suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES}
                     />
                   ) : (
                     <div className={displayBoxStyle} onClick={() => setEditingField('supervisor')}>
@@ -205,7 +207,7 @@ const Header: React.FC<HeaderProps> = ({
                       onChange={(v) => updateTempField('permanencia', v)}
                       onBlur={handleBlur}
                       placeholder="Nombre..."
-                      suggestions={PERSONNEL_NAMES}
+                      suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES}
                     />
                   ) : (
                     <div className={displayBoxStyle} onClick={() => setEditingField('permanencia')}>
