@@ -20,6 +20,7 @@ interface UnitSectionProps {
   statusOptions?: string[];
   indicativeOptions?: string[];
   personnelOptions?: string[];
+  quadrantOptions?: string[];
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -39,7 +40,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   mobileData,
   statusOptions,
   indicativeOptions,
-  personnelOptions
+  personnelOptions,
+  quadrantOptions
 }) => {
   // Configuración de colores claros según el tipo (Actualizado MOTO a Violeta)
   const colorConfig = {
@@ -65,7 +67,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-5">
-      <div className={`${colorConfig.bgHeader} px-4 py-2.5 border-b ${colorConfig.borderHeader} flex items-center justify-between sticky top-0 z-10 backdrop-blur-sm rounded-t-xl`}>
+      <div className={`${colorConfig.bgHeader} px-4 py-2.5 border-b ${colorConfig.borderHeader} flex items-center justify-between rounded-t-xl`}>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className={`material-symbols-outlined ${colorConfig.textAccent} text-[20px]`}>{icon}</span>
@@ -103,6 +105,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
               statusOptions={statusOptions}
               indicativeOptions={indicativeOptions}
               personnelOptions={personnelOptions}
+              quadrantOptions={quadrantOptions}
             />
           ))
         )}

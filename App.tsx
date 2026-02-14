@@ -7,7 +7,7 @@ import Footer from './components/Footer';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference } from './types';
-import { SECTORS } from './constants';
+import { SECTORS, SECTOR_DATA } from './constants';
 
 declare const google: any;
 
@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [indicativeOptions, setIndicativeOptions] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
   const [personnelOptions, setPersonnelOptions] = useState<string[]>([]);
+  const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
 
   // Sync with GAS
   useEffect(() => {
@@ -60,11 +61,12 @@ const App: React.FC = () => {
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[] }) => {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], quadrants?: string[] }) => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
           if (data.personnel) setPersonnelOptions(data.personnel);
+          if (data.quadrants) setQuadrantOptions(data.quadrants);
         })
         .withFailureHandler((err: any) => {
           console.error('Failed to get mobile data', err);
@@ -85,7 +87,36 @@ const App: React.FC = () => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler((data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] }) => {
-          setUnits(data.units);
+          // 1. Migrate legacy data: units without a sector are assigned to 'SECTOR 1A'
+          const incomingUnits = (data.units || []).map(u => ({
+            ...u,
+            sector: (u.sector || '').trim().toUpperCase() === '' ? 'SECTOR 1A' : u.sector
+          }));
+
+          console.log('GAS Data (Migrated):', incomingUnits);
+          const currentSectorNormalized = currentSector.trim().toUpperCase();
+
+          // 2. Separate units of the current sector from others
+          const otherSectorsUnits = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() !== currentSectorNormalized);
+          const currentSectorUnitsFound = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() === currentSectorNormalized);
+
+          console.log(`Units found for ${currentSectorNormalized}:`, currentSectorUnitsFound.length);
+
+          // 3. Granular loading: check by type within current sector
+          const defaults = SECTOR_DATA[currentSector] || [];
+          const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
+          let sectorUnitsToUse = [...currentSectorUnitsFound];
+
+          typesToLoad.forEach(type => {
+            const hasType = currentSectorUnitsFound.some(u => u.type === type);
+            if (!hasType) {
+              console.log(`Loading granular default for type ${type} in ${currentSectorNormalized}`);
+              const typeDefaults = defaults.filter(d => d.type === type).map(d => ({ ...d, sector: currentSector }));
+              sectorUnitsToUse = [...sectorUnitsToUse, ...typeDefaults];
+            }
+          });
+
+          setUnits([...otherSectorsUnits, ...sectorUnitsToUse]);
 
           if (data.allSectorSettings) {
             setSectorSettingsMap(data.allSectorSettings);
@@ -168,7 +199,11 @@ const App: React.FC = () => {
     persistData(settings, newUnits);
   };
 
-  const currentSectorUnits = units.filter(u => u.sector === currentSector || !u.sector);
+  const currentSectorUnits = units.filter(u => {
+    const uSector = (u.sector || '').trim().toUpperCase();
+    const currSector = currentSector.trim().toUpperCase();
+    return uSector === currSector;
+  });
 
   // Grouping for VisualizationView
   // Use 'sectorSettingsMap' to get correct Operator/Supervisor per sector
@@ -299,6 +334,7 @@ const App: React.FC = () => {
                 statusOptions={statusOptions}
                 indicativeOptions={indicativeOptions}
                 personnelOptions={personnelOptions}
+                quadrantOptions={quadrantOptions}
               />
               <UnitSection
                 title="MOTORIZADOS" type="MOTO" icon="moped"
@@ -312,6 +348,7 @@ const App: React.FC = () => {
                 statusOptions={statusOptions}
                 indicativeOptions={indicativeOptions}
                 personnelOptions={personnelOptions}
+                quadrantOptions={quadrantOptions}
               />
               <UnitSection
                 title="SERENOS" type="SERENO" icon="hail"

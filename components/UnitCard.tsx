@@ -15,11 +15,12 @@ interface UnitCardProps {
   statusOptions?: string[];
   indicativeOptions?: string[];
   personnelOptions?: string[];
+  quadrantOptions?: string[];
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete, mobileData,
-  statusOptions, indicativeOptions, personnelOptions
+  statusOptions, indicativeOptions, personnelOptions, quadrantOptions
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -40,6 +41,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const activeStatusOptions = statusOptions && statusOptions.length > 0 ? statusOptions : Object.values(UnitStatus);
   const activeIndicativeOptions = indicativeOptions || [];
   const activePersonnelOptions = personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES;
+  const activeQuadrantOptions = quadrantOptions && quadrantOptions.length > 0 ? quadrantOptions : (mobileData ? Array.from(new Set(mobileData.map(d => d.quadrant).filter(q => q))) as string[] : []);
 
   useEffect(() => {
     if (isEditing) {
@@ -302,7 +304,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <AutocompleteInput
               value={formData.quadrant}
               onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
-              suggestions={mobileData ? Array.from(new Set(mobileData.filter(d => d.sector === formData.sector).map(d => d.quadrant).filter(q => q))) as string[] : []}
+              suggestions={activeQuadrantOptions}
               placeholder="00"
               className={inputStyle('quadrant')}
             />

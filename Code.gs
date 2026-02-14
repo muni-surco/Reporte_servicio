@@ -147,11 +147,12 @@ function getMobileData() {
   const sheet = ss.getSheetByName('DATA');
   
   if (!sheet) {
-    return { mobiles: [], indicatives: [], statuses: [] };
+    console.error('Sheet DATA not found');
+    return { mobiles: [], indicatives: [], statuses: [], personnel: [], quadrants: [] };
   }
   
   const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return { mobiles: [], indicatives: [], statuses: [] };
+  if (data.length < 2) return { mobiles: [], indicatives: [], statuses: [], personnel: [], quadrants: [] };
   
   // Find column indices (case-insensitive)
   const headers = data[0].map(h => String(h).toLowerCase().trim());
@@ -166,6 +167,7 @@ function getMobileData() {
   const mobileData = [];
   const indicativesSet = new Set();
   const statusesSet = new Set();
+  const quadrantsSet = new Set();
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -189,6 +191,11 @@ function getMobileData() {
     // Collect Unique Statuses
     if (estadoIdx !== -1 && row[estadoIdx]) {
       statusesSet.add(String(row[estadoIdx]).trim());
+    }
+
+    // Collect Unique Quadrants
+    if (cuadranteIdx !== -1 && row[cuadranteIdx]) {
+      quadrantsSet.add(String(row[cuadranteIdx]).trim());
     }
   }
   
@@ -219,7 +226,8 @@ function getMobileData() {
     mobiles: mobileData,
     indicatives: Array.from(indicativesSet).sort(),
     statuses: Array.from(statusesSet).sort(),
-    personnel: Array.from(personnelSet).sort()
+    personnel: Array.from(personnelSet).sort(),
+    quadrants: Array.from(quadrantsSet).sort()
   };
 }
 
