@@ -210,8 +210,6 @@ const App: React.FC = () => {
   const allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
   SECTORS.forEach(s => {
     // If we have specific settings (operator/supervisor) for this sector, use them.
-    // Otherwise fallback to current settings but overridden sector name (less accurate but safe fallback)
-    // Actually, if missing, it should probably be empty strings rather than copying current sector's op
     const sectorSpecificSettings = sectorSettingsMap[s] || {
       ...settings,
       nombrePuesto: s,
@@ -219,8 +217,31 @@ const App: React.FC = () => {
       supervisor: ''
     };
 
+    // Filter existing units
+    let sectorUnits = units.filter(u => u.sector === s);
+
+    // If no units found for this sector at all, use definitions from SECTOR_DATA
+    if (sectorUnits.length === 0) {
+      const defaults = SECTOR_DATA[s] || [];
+      sectorUnits = defaults.map(d => ({ ...d, sector: s }));
+    } else {
+      // If some units exist but maybe some types are missing, we could do more granular defaults here too
+      // but for 'VisualizationView' (Integrated Report), just showing what DB has OR defaults is usually enough.
+      // However, to be consistent with 'loadData', let's check types.
+      const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
+      const defaults = SECTOR_DATA[s] || [];
+
+      typesToLoad.forEach(type => {
+        const hasType = sectorUnits.some(u => u.type === type);
+        if (!hasType) {
+          const typeDefaults = defaults.filter(d => d.type === type).map(d => ({ ...d, sector: s }));
+          sectorUnits = [...sectorUnits, ...typeDefaults];
+        }
+      });
+    }
+
     allSectorsData[s] = {
-      units: units.filter(u => u.sector === s),
+      units: sectorUnits,
       settings: sectorSpecificSettings
     };
   });
@@ -336,38 +357,43 @@ const App: React.FC = () => {
                 personnelOptions={personnelOptions}
                 quadrantOptions={quadrantOptions}
               />
-              <UnitSection
-                title="MOTORIZADOS" type="MOTO" icon="moped"
-                badge={currentSectorUnits.filter(u => u.type === 'MOTO').length.toString()}
-                partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'MOTO'))}
-                units={currentSectorUnits.filter(u => u.type === 'MOTO')}
-                allUnits={units}
-                editingId={editingId}
-                onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
-                mobileData={mobileData}
-                statusOptions={statusOptions}
-                indicativeOptions={indicativeOptions}
-                personnelOptions={personnelOptions}
-                quadrantOptions={quadrantOptions}
-              />
-              <UnitSection
-                title="SERENOS" type="SERENO" icon="hail"
-                badge={currentSectorUnits.filter(u => u.type === 'SERENO').length.toString()}
-                partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'SERENO'))}
-                units={currentSectorUnits.filter(u => u.type === 'SERENO')}
-                allUnits={units}
-                editingId={editingId}
-                onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
-                mobileData={mobileData}
-                statusOptions={statusOptions}
-                indicativeOptions={indicativeOptions}
-                personnelOptions={personnelOptions}
-              />
+              {currentSector !== 'RESCATE' && (
+                <>
+                  <UnitSection
+                    title="MOTORIZADOS" type="MOTO" icon="moped"
+                    badge={currentSectorUnits.filter(u => u.type === 'MOTO').length.toString()}
+                    partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'MOTO'))}
+                    units={currentSectorUnits.filter(u => u.type === 'MOTO')}
+                    allUnits={units}
+                    editingId={editingId}
+                    onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                    mobileData={mobileData}
+                    statusOptions={statusOptions}
+                    indicativeOptions={indicativeOptions}
+                    personnelOptions={personnelOptions}
+                    quadrantOptions={quadrantOptions}
+                  />
+                  <UnitSection
+                    title="SERENOS" type="SERENO" icon="hail"
+                    badge={currentSectorUnits.filter(u => u.type === 'SERENO').length.toString()}
+                    partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'SERENO'))}
+                    units={currentSectorUnits.filter(u => u.type === 'SERENO')}
+                    allUnits={units}
+                    editingId={editingId}
+                    onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                    mobileData={mobileData}
+                    statusOptions={statusOptions}
+                    indicativeOptions={indicativeOptions}
+                    personnelOptions={personnelOptions}
+                  />
+                </>
+              )}
             </>
           ) : (
             <VisualizationView
               allSectorsData={allSectorsData}
               settings={settings}
+              mobileData={mobileData}
             />
           )}
         </div>

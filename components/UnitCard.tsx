@@ -87,7 +87,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
       if (found) {
         setFormData(prev => ({
           ...prev,
-          plate: found.plate
+          plate: found.plate || prev.plate,
+          // Only auto-fill radio and quadrant if they are currently empty or equal to '--'
+          radio: (!prev.radio || prev.radio === '--') ? (found.radio || prev.radio) : prev.radio,
+          quadrant: (!prev.quadrant || prev.quadrant === '--') ? (found.quadrant || prev.quadrant) : prev.quadrant
         }));
       }
     }
@@ -108,7 +111,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       id: !formData.id || String(formData.id).trim() === '' || isIdDuplicate || String(formData.id).startsWith('NEW-'),
       personnel1: !formData.personnel1 || String(formData.personnel1).trim() === '',
       radio: !formData.radio || String(formData.radio).trim() === '',
-      quadrant: !formData.quadrant || String(formData.quadrant).trim() === '',
+      quadrant: !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
     };
 
     setErrors(newErrors);
@@ -139,13 +142,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
     [UnitStatus.OPERATIVA_SIN_CHOFER]: "bg-amber-100 text-amber-700 border-amber-200"
   };
 
+  const isRescate = unit.sector === 'RESCATE';
   const isChofer = unit.type === 'CHOFER';
   const isMoto = unit.type === 'MOTO';
   const isSereno = unit.type === 'SERENO';
   const hasPersonnel2 = isChofer;
   const hasPlate = !isSereno;
   const hasIndicative = isChofer;
-  const hasKmRecarga = isChofer || isMoto;
+  const hasKmRecarga = (isChofer || isMoto) && !isRescate;
 
   // Configuración de estilo según tipo (Actualizado MOTO a Violeta)
   const typeConfig = {
@@ -293,22 +297,18 @@ const UnitCard: React.FC<UnitCardProps> = ({
             />
           </div>
 
-          <div className="col-span-1">
-            <label className={labelStyleEdit}>Cuad.</label>
-            {/* Use Autocomplete for Quadrant if data available, or just keeping it simple. 
-                User said "use CUADRANTE column". 
-                If we want to OFFER suggestions, we can. 
-                But updating the 'quadrant' field automatically on ID change is sufficient for "using" it.
-                I'll switch to AutocompleteInput to show available quadrants too. 
-            */}
-            <AutocompleteInput
-              value={formData.quadrant}
-              onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
-              suggestions={activeQuadrantOptions}
-              placeholder="00"
-              className={inputStyle('quadrant')}
-            />
-          </div>
+          {!isRescate && (
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Cuad.</label>
+              <AutocompleteInput
+                value={formData.quadrant}
+                onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
+                suggestions={activeQuadrantOptions}
+                placeholder="00"
+                className={inputStyle('quadrant')}
+              />
+            </div>
+          )}
 
           <div className={isSereno ? 'col-span-2' : 'col-span-1'}>
             <label className={labelStyleEdit}>Motivo</label>
@@ -427,25 +427,33 @@ const UnitCard: React.FC<UnitCardProps> = ({
           <div className="flex gap-4 border-r border-slate-100 px-2 min-w-0">
             <div className="flex flex-col flex-1 text-center">
               <label className={labelStyle}>Radio</label>
-              <div className={`${infoValueStyle} text-slate-800`}>{unit.radio || '--'}</div>
+              <div className={`${infoValueStyle} text-slate-800`}>
+                {unit.radio || (mobileData?.find(m => m.id === unit.id)?.radio) || '--'}
+              </div>
             </div>
-            {!isSereno && (
+            {unit.indicative && (
               <div className="flex flex-col flex-1 text-center">
                 <label className={labelStyle}>Indicativo</label>
-                <div className={infoValueStyle}>{unit.indicative || '--'}</div>
+                <div className={infoValueStyle}>{unit.indicative}</div>
               </div>
             )}
-            <div className="flex flex-col flex-1 text-center">
-              <label className={labelStyle}>Cuadrante</label>
-              <div className={infoValueStyle}>{unit.quadrant || '--'}</div>
-            </div>
+            {!isRescate && (
+              <div className="flex flex-col flex-1 text-center">
+                <label className={labelStyle}>Cuadrante</label>
+                <div className={infoValueStyle}>
+                  {unit.quadrant || (mobileData?.find(m => m.id === unit.id)?.quadrant) || '--'}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Columna Placa */}
           {hasPlate && (
             <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
               <label className={labelStyle}>Placa</label>
-              <div className="text-[10px] font-black text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">{unit.plate || '--'}</div>
+              <div className="text-[10px] font-black text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">
+                {unit.plate || (mobileData?.find(m => m.id === unit.id)?.plate) || '--'}
+              </div>
             </div>
           )}
 
