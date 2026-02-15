@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// Eliminados imports de jspdf y autotable para usar CDN
+
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -303,13 +303,120 @@ const App: React.FC = () => {
   };
 
   const handleGeneratePDF = () => {
-    // Switch to visualization view first
-    setCurrentView('VISUALIZATION');
+    // Generar el reporte PDF programáticamente usando versiones de CDN
+    const { jsPDF } = (window as any).jspdf;
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
 
-    // Small delay to allow view switch to render before printing
-    setTimeout(() => {
-      window.print();
-    }, 500);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 10;
+
+    // Encabezado Principal
+    doc.setFontSize(18);
+    doc.setTextColor(0, 45, 90); // #002d5a
+    doc.setFont('helvetica', 'bold');
+    doc.text('REPORTE INTEGRADO DE SERVICIO MSS', pageWidth / 2, 15, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`FECHA: ${selectedDate}`, margin, 25);
+    doc.text(`TURNO: ${settings.turno}`, 55, 25);
+    doc.text(`PERMANENCIA: ${settings.permanencia || '--'}`, 90, 25);
+    doc.text(`GENERADO EL: ${new Date().toLocaleString()}`, pageWidth - margin, 25, { align: 'right' });
+
+    let finalY = 32;
+
+    // Usar allSectorsData que ya está calculado para la vista
+    Object.entries(allSectorsData).forEach(([sectorName, data]) => {
+      if (!data.units || data.units.length === 0) return;
+
+      // Verificar espacio para el siguiente sector (Título + Header de Tabla (aprox 20mm))
+      if (finalY > doc.internal.pageSize.getHeight() - 30) {
+        doc.addPage();
+        finalY = 15;
+      }
+
+      // Título de Sector
+      doc.setFillColor(0, 75, 147); // #004b93
+      doc.rect(margin, finalY, pageWidth - (margin * 2), 8, 'F');
+
+      doc.setTextColor(255);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(sectorName, margin + 3, finalY + 5.5);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`OPERADOR: ${data.settings.operador || 'NO ASIGNADO'}`, margin + 80, finalY + 5.5);
+      doc.text(`SUPERVISOR: ${data.settings.supervisor || 'NO ASIGNADO'}`, margin + 180, finalY + 5.5);
+
+      finalY += 8;
+
+      const body = data.units.map(u => {
+        const ref = mobileData.find(m => m.id === u.id);
+        const displayRadio = u.radio || ref?.radio || '--';
+        const displayQuadrant = u.quadrant || ref?.quadrant || '--';
+        const displayPlate = u.plate || ref?.plate || '--';
+        const displayPersonnel = u.personnel2 ? `${u.personnel1} / ${u.personnel2}` : u.personnel1;
+
+        // Formatear KM: Inicio / Fin / Recorrido / Recarga
+        const kmParts = (u.km || '0 / 0 / 0 / 0').split('/').map(p => p.trim());
+        const displayKM = `${kmParts[0]} / ${kmParts[1]} / ${kmParts[2]}${kmParts[3] && kmParts[3] !== '0' ? ' (R:' + kmParts[3] + ')' : ''}`;
+
+        // Combustible y Gasto
+        const fuelType = (u.fuel || '--').split('/')[0]?.trim() || '--';
+        const displayFuel = `${fuelType} | ${u.expense || 'S/ 0.00'}`;
+
+        // Estado y Motivo
+        const displayStatus = u.reason ? `${u.status}\n(${u.reason})` : u.status;
+
+        return [
+          u.id,
+          displayPersonnel,
+          displayPlate,
+          u.indicative || '--',
+          displayRadio,
+          displayStatus,
+          displayKM,
+          u.hours || '--:--',
+          displayFuel,
+          u.parts || '0',
+          sectorName === 'RESCATE' ? '--' : displayQuadrant
+        ];
+      });
+
+      (doc as any).autoTable({
+        startY: finalY,
+        head: [['UNI', 'PERSONAL / COP.', 'PLACA', 'IND.', 'RADIO', 'ESTADO / MOTIVO', 'KM (I/F/T/R)', 'HORARIO', 'COMB / GASTO', 'P.', 'CUAD.']],
+        body: body,
+        theme: 'grid',
+        headStyles: { fillColor: [0, 45, 90], textColor: 255, fontSize: 7, fontStyle: 'bold' },
+        styles: { fontSize: 6.5, cellPadding: 1, overflow: 'linebreak' },
+        columnStyles: {
+          0: { cellWidth: 12 }, // UNI
+          1: { cellWidth: 'auto' }, // PERSONAL
+          2: { cellWidth: 18 }, // PLACA
+          3: { cellWidth: 12 }, // IND
+          4: { cellWidth: 15 }, // RADIO
+          5: { cellWidth: 35 }, // ESTADO/MOTIVO
+          6: { cellWidth: 35 }, // KM
+          7: { cellWidth: 20 }, // HORARIO
+          8: { cellWidth: 25 }, // COMB/GASTO
+          9: { cellWidth: 8 },  // P
+          10: { cellWidth: 15 } // CUAD
+        },
+        margin: { left: margin, right: margin },
+      });
+
+      finalY = (doc as any).lastAutoTable.finalY + 10;
+    });
+
+    const fileName = `Reporte_MSS_${selectedDate}_${settings.turno}.pdf`;
+    doc.save(fileName);
   };
 
   if (loading) {

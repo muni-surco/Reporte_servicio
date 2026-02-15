@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UnitData, UnitStatus } from '../types';
 import AutocompleteInput from './AutocompleteInput';
+import MultiSelectAutocomplete from './MultiSelectAutocomplete';
 import { PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../constants';
 
 interface UnitCardProps {
@@ -267,7 +268,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           )}
 
           {hasPlate && (
-            <div className="col-span-1">
+            <div className="col-span-2">
               <label className={labelStyleEdit}>Placa</label>
               <input
                 name="plate"
@@ -298,14 +299,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
           </div>
 
           {!isRescate && (
-            <div className="col-span-1">
+            <div className="col-span-2">
               <label className={labelStyleEdit}>Cuad.</label>
-              <AutocompleteInput
+              <MultiSelectAutocomplete
                 value={formData.quadrant}
                 onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
                 suggestions={activeQuadrantOptions}
-                placeholder="00"
-                className={inputStyle('quadrant')}
+                placeholder="Seleccionar..."
+                error={errors.quadrant}
               />
             </div>
           )}
