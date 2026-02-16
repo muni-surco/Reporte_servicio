@@ -89,8 +89,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         setFormData(prev => ({
           ...prev,
           plate: found.plate || prev.plate,
-          // Only auto-fill radio and quadrant if they are currently empty or equal to '--'
-          radio: (!prev.radio || prev.radio === '--') ? (found.radio || prev.radio) : prev.radio,
+          // Only auto-fill quadrant if currently empty or '--'. Radio is now left blank by default.
           quadrant: (!prev.quadrant || prev.quadrant === '--') ? (found.quadrant || prev.quadrant) : prev.quadrant
         }));
       }
@@ -293,7 +292,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 ...RADIOS,
                 ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])
               ])) as string[]}
-              placeholder="T-00000"
+              placeholder="20000"
               className={errors.radio ? errorInputStyle : ''}
             />
           </div>
@@ -429,7 +428,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <div className="flex flex-col flex-1 text-center">
               <label className={labelStyle}>Radio</label>
               <div className={`${infoValueStyle} text-slate-800`}>
-                {unit.radio || (mobileData?.find(m => m.id === unit.id)?.radio) || '--'}
+                {unit.radio || ''}
               </div>
             </div>
             {unit.indicative && (
@@ -461,7 +460,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {/* Columna Estado */}
           <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
             <label className={labelStyle}>Estado</label>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black border uppercase inline-block whitespace-nowrap ${badgeColors[unit.status]}`}>
+            <span className={`px-1.5 rounded text-[10px] font-black border uppercase inline-block whitespace-nowrap ${badgeColors[unit.status]}`}>
               {unit.status}
             </span>
           </div>
@@ -519,8 +518,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna Acciones */}
           <div className="text-right flex justify-end gap-1">
-            <button onClick={onEdit} title="Editar" className="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-1.5 rounded-lg transition-all"><span className="material-symbols-outlined text-[16px]">edit</span></button>
-            <button onClick={() => setShowDeleteModal(true)} title="Eliminar" className="text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 p-1.5 rounded-lg transition-all"><span className="material-symbols-outlined text-[16px]">delete</span></button>
+            <button onClick={onEdit} title="Editar" className="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 px-2 rounded-lg transition-all"><span className="material-symbols-outlined text-[16px] mt-1">edit</span></button>
+            <button onClick={() => setShowDeleteModal(true)} title="Eliminar" className="text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 px-2 rounded-lg transition-all"><span className="material-symbols-outlined text-[16px] mt-1">delete</span></button>
           </div>
         </div>
       </div>

@@ -138,7 +138,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                         <td className={cellStyle}>{person.sector_id}</td>
                                         <td className={cellStyle}>{person.rol_operativo}</td>
                                         <td className={cellStyle}>
-                                            <span className={`px-2 py-0.5 rounded text-[11px] font-black border uppercase ${person.estado.toUpperCase() === 'ACTIVO'
+                                            <span className={`px-2 rounded text-[11px] font-black border uppercase ${person.estado.toUpperCase() === 'ACTIVO'
                                                 ? 'bg-green-100 text-green-700 border-green-200'
                                                 : 'bg-red-100 text-red-700 border-red-200'
                                                 }`}>

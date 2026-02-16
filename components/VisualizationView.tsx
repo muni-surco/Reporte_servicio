@@ -139,7 +139,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                     <span className="material-symbols-outlined text-[18px]">minor_crash</span>
                     CHOFERES
                   </div>
-                  <span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{choferes.length}</span>
+                  <span className="bg-blue-600 text-white px-2 rounded-full text-[10px] shadow-sm">{choferes.length}</span>
                 </div>
                 <div className="flex flex-col divide-y divide-slate-100 bg-white">
                   {choferes.map(u => renderCompactUnit(u, 'CHOFER'))}
@@ -156,7 +156,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                         <span className="material-symbols-outlined text-[18px]">moped</span>
                         MOTORIZADOS
                       </div>
-                      <span className="bg-violet-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{motos.length}</span>
+                      <span className="bg-violet-600 text-white px-2 rounded-full text-[10px] shadow-sm">{motos.length}</span>
                     </div>
                     <div className="flex flex-col divide-y divide-slate-100 bg-white">
                       {motos.map(u => renderCompactUnit(u, 'MOTO'))}
@@ -171,7 +171,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                         <span className="material-symbols-outlined text-[18px]">hail</span>
                         SERENOS
                       </div>
-                      <span className="bg-teal-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{serenos.length}</span>
+                      <span className="bg-teal-600 text-white px-2 rounded-full text-[10px] shadow-sm">{serenos.length}</span>
                     </div>
                     <div className="flex flex-col divide-y divide-slate-100 bg-white">
                       {serenos.map(u => renderCompactUnit(u, 'SERENO'))}

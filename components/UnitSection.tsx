@@ -72,10 +72,10 @@ const UnitSection: React.FC<UnitSectionProps> = ({
           <div className="flex items-center gap-1.5">
             <span className={`material-symbols-outlined ${colorConfig.textAccent} text-[20px]`}>{icon}</span>
             <h2 className="text-[12px] font-black text-slate-800 uppercase tracking-tighter">
-              {title} <span className={`${colorConfig.badgeBg} text-white px-1.5 py-0.5 rounded text-[10px] ml-1 shadow-sm`}>{badge}</span>
+              {title} <span className={`${colorConfig.badgeBg} text-white px-1.5 rounded text-[10px] ml-1 shadow-sm`}>{badge}</span>
             </h2>
           </div>
-          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">
+          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">
             Acumulado Partes: {partesTotal}
           </span>
         </div>
