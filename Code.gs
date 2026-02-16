@@ -232,6 +232,60 @@ function getMobileData() {
 }
 
 /**
+ * Fetches the full list of personnel from the external spreadsheet.
+ */
+function getPersonnelList() {
+  const EXTERNAL_SS_ID = '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ';
+  try {
+    const extSS = SpreadsheetApp.openById(EXTERNAL_SS_ID);
+    const extSheet = extSS.getSheets()[0]; // Assumes first sheet
+    const data = extSheet.getDataRange().getValues();
+    if (data.length < 2) return [];
+
+    const headers = data[0].map(h => String(h).toLowerCase().trim());
+    
+    // Mapping keys to indices
+    const fieldIndices = {
+      n: headers.indexOf('n'),
+      dni: headers.indexOf('dni'),
+      apellidos_nombres: headers.indexOf('apellidos_nombres'),
+      regimen_laboral: headers.indexOf('regimen_laboral'),
+      codigo_interno: headers.indexOf('codigo_interno'),
+      sector_id: headers.indexOf('sector_id'),
+      rol_operativo: headers.indexOf('rol_operativo'),
+      estado: headers.indexOf('estado'),
+      correo: headers.indexOf('correo'),
+      telefono: headers.indexOf('telefono'),
+      rol_sistema: headers.indexOf('rol_sistema'),
+      persona_id: headers.indexOf('persona_id'),
+      pin_operativo: headers.indexOf('pin_operativo'),
+      fecha_alta: headers.indexOf('fecha_alta'),
+      fecha_baja: headers.indexOf('fecha_baja')
+    };
+
+    const personnelList = [];
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const person = {};
+      Object.keys(fieldIndices).forEach(key => {
+        const idx = fieldIndices[key];
+        let val = idx !== -1 ? row[idx] : '';
+        // Format dates if they are Date objects
+        if (val instanceof Date) {
+          val = Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        }
+        person[key] = String(val || '');
+      });
+      personnelList.push(person);
+    }
+    return personnelList;
+  } catch (e) {
+    console.error('Error in getPersonnelList:', e);
+    return [];
+  }
+}
+
+/**
  * Saves all units and settings for a specific date and shift.
  */
 function saveShiftData(dateStr, shift, settings, units) {

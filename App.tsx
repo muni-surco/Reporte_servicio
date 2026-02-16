@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 // Eliminados imports de jspdf y autotable para usar CDN
 
 import Sidebar from './components/Sidebar';
@@ -6,7 +6,8 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
-import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference } from './types';
+import PersonnelView from './components/PersonnelView';
+import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData } from './types';
 import { SECTORS, SECTOR_DATA } from './constants';
 
 declare const google: any;
@@ -51,6 +52,8 @@ const App: React.FC = () => {
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
   const [personnelOptions, setPersonnelOptions] = useState<string[]>([]);
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
+  const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
+  const [loadingPersonnel, setLoadingPersonnel] = useState(false);
 
   // Sync with GAS
   useEffect(() => {
@@ -81,6 +84,32 @@ const App: React.FC = () => {
       setStatusOptions(Object.values(UnitStatus));
     }
   }, []);
+
+  // Load Personnel Data if in that view
+  useEffect(() => {
+    if (currentView === 'PERSONNEL' && personnelList.length === 0) {
+      loadPersonnel();
+    }
+  }, [currentView]);
+
+  const loadPersonnel = () => {
+    setLoadingPersonnel(true);
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((data: PersonnelData[]) => {
+          setPersonnelList(data);
+          setLoadingPersonnel(false);
+        })
+        .withFailureHandler((err: any) => {
+          console.error('Failed to get personnel list', err);
+          setLoadingPersonnel(false);
+        })
+        .getPersonnelList();
+    } else {
+      console.log('MOCK: No GAS environment, setting empty personnel list');
+      setLoadingPersonnel(false);
+    }
+  };
 
   const loadData = (dateStr: string, shift: string) => {
     setLoading(true);
@@ -419,6 +448,14 @@ const App: React.FC = () => {
     doc.save(fileName);
   };
 
+  const personnelStats = useMemo(() => {
+    return {
+      total: personnelList.length,
+      activos: personnelList.filter(p => p.estado.toUpperCase() === 'ACTIVO').length,
+      inactivos: personnelList.filter(p => ['CESADO', 'INACTIVO'].includes(p.estado.toUpperCase())).length,
+    };
+  }, [personnelList]);
+
   if (loading) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-[#002d5a] text-white">
@@ -438,7 +475,7 @@ const App: React.FC = () => {
           onSaveSettings={handleSaveSettings}
           onGlobalSave={handleGlobalSave}
           onGeneratePDF={handleGeneratePDF}
-          onRefresh={() => loadData(selectedDate, settings.turno)}
+          onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno)}
           isSaving={saving}
           currentSector={currentSector}
           onSectorChange={handleSectorChange}
@@ -446,9 +483,10 @@ const App: React.FC = () => {
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
           personnelOptions={personnelOptions}
+          personnelStats={personnelStats}
         />
         <div className="flex-1 overflow-y-auto scroll-smooth p-4 lg:p-6" id="report-content">
-          {currentView === 'DASHBOARD' ? (
+          {currentView === 'DASHBOARD' && (
             <>
               <UnitSection
                 title="CHOFERES" type="CHOFER" icon="person"
@@ -496,11 +534,21 @@ const App: React.FC = () => {
                 </>
               )}
             </>
-          ) : (
+          )}
+
+          {currentView === 'VISUALIZATION' && (
             <VisualizationView
               allSectorsData={allSectorsData}
               settings={settings}
               mobileData={mobileData}
+            />
+          )}
+
+          {currentView === 'PERSONNEL' && (
+            <PersonnelView
+              data={personnelList}
+              onRefresh={loadPersonnel}
+              isLoading={loadingPersonnel}
             />
           )}
         </div>
