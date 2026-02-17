@@ -28,9 +28,11 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (value.length > 0) {
+    const val = String(value || '');
+    if (val.length > 0) {
+      const search = val.toLowerCase();
       const matches = suggestions.filter(s =>
-        s.toLowerCase().includes(value.toLowerCase())
+        String(s || '').toLowerCase().includes(search)
       );
       setFiltered(matches.slice(0, 10));
     } else {

@@ -92,7 +92,7 @@ const Header: React.FC<HeaderProps> = ({
 
   // Estilos para Vista de Reporte (Labels grandes)
   const reportLabelStyle = "text-[10px] font-black text-slate-400 uppercase tracking-widest block leading-none mb-1";
-  const reportValueStyle = "text-[18px] font-black text-[#002d5a] leading-none uppercase tracking-tight";
+  const reportValueStyle = "text-[16px] font-black text-[#002d5a] leading-none uppercase tracking-tight";
 
   const getSectorCode = (sectorName: string) => {
     return sectorName.toUpperCase().replace('SECTOR ', '').trim();

@@ -24,12 +24,13 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
     const [activeIndex, setActiveIndex] = useState(-1);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Parse current selected values
-    const selectedValues = value ? value.split(',').map(v => v.trim()).filter(Boolean) : [];
+    // Parse current selected values - Ensure value is a string before splitting
+    const selectedValues = value ? String(value).split(',').map(v => v.trim()).filter(Boolean) : [];
 
     useEffect(() => {
+        const lowerCaseSearchTerm = String(searchTerm).toLowerCase();
         const matches = suggestions.filter(s =>
-            s.toLowerCase().includes(searchTerm.toLowerCase()) &&
+            String(s).toLowerCase().includes(lowerCaseSearchTerm) &&
             !selectedValues.includes(s)
         );
         setFiltered(matches.slice(0, 15));
@@ -86,14 +87,14 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
                 {selectedValues.map(v => (
                     <span
                         key={v}
-                        className="flex items-center gap-1 bg-blue-100 text-[#004b93] text-[9px] font-black px-1.5 rounded uppercase border border-blue-200"
+                        className="flex items-center gap-1 bg-blue-100 text-[#004b93] text-[9px] font-black px-1.5 py-0.5 rounded uppercase border border-blue-200 leading-none"
                     >
-                        {v}
+                        <span className="translate-y-[0.5px]">{v}</span>
                         <button
                             onClick={(e) => { e.stopPropagation(); removeValue(v); }}
-                            className="hover:text-red-600 transition-colors"
+                            className="hover:text-red-600 transition-colors flex items-center"
                         >
-                            <span className="material-symbols-outlined text-[12px] leading-none">close</span>
+                            <span className="material-symbols-outlined text-[11px] leading-none">close</span>
                         </button>
                     </span>
                 ))}

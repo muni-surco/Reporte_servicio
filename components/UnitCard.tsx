@@ -46,16 +46,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
   useEffect(() => {
     if (isEditing) {
-      const kmParts = unit.km.split('/').map(p => p.trim());
+      const kmParts = String(unit.km || '').split('/').map(p => p.trim());
       setKmStart(kmParts[0] || '0');
       setKmEnd(kmParts[1] || '0');
       setKmRecarga(kmParts[3] || '0');
 
-      const hourParts = unit.hours.split('-').map(p => p.trim());
+      const hourParts = String(unit.hours || '').split('-').map(p => p.trim());
       setHourStart(hourParts[0] || '');
       setHourEnd(hourParts[1] || '');
 
-      const fuelParts = unit.fuel.split('/').map(p => p.trim());
+      const fuelParts = String(unit.fuel || '').split('/').map(p => p.trim());
       setFuelType(fuelParts[0] || '');
       setFuelQty(fuelParts[1] || '0');
 
@@ -379,7 +379,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 </select>
               </div>
               <div><label className={labelStyleEdit}>CANT.</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} /></div>
-              <div><label className={labelStyleEdit}>GASTO (S/)</label><input type="number" step="0.01" value={formData.expense.replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
+              <div><label className={labelStyleEdit}>GASTO (S/)</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
             </div>
             <div className="col-span-2">
               <label className={labelStyleEdit}>PARTES/INTERV.</label>
@@ -471,11 +471,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <div className="border-r border-slate-100 px-2 text-center">
                 <label className={labelStyle}>KM (Inicio/Fin/Recorrido)</label>
                 <div className="flex items-center justify-center gap-1 text-[10px] font-bold">
-                  <span className="text-slate-400">{unit.km.split('/')[0] || '0'}</span>
+                  <span className="text-slate-400">{String(unit.km || '').split('/')[0] || '0'}</span>
                   <span className="text-slate-200">/</span>
-                  <span className="text-slate-400">{unit.km.split('/')[1] || '0'}</span>
+                  <span className="text-slate-400">{String(unit.km || '').split('/')[1] || '0'}</span>
                   <span className="text-slate-200">/</span>
-                  <span className="text-slate-900 font-black">{unit.km.split('/')[2] || '0'}</span>
+                  <span className="text-slate-900 font-black">{String(unit.km || '').split('/')[2] || '0'}</span>
                 </div>
               </div>
 
@@ -490,9 +490,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 <label className={labelStyle}>Combustible</label>
                 <div className="flex items-center justify-center gap-1 text-[10px] font-bold">
                   <div className="flex items-center gap-1 text-slate-500">
-                    <span>{unit.fuel.split('/')[0] || '--'}</span>
-                    {hasKmRecarga && unit.km.split('/')[3] && unit.km.split('/')[3].trim() !== '0' && (
-                      <span className="text-amber-600 text-[10px] font-black" title="Recarga">(R:{unit.km.split('/')[3].trim()})</span>
+                    <span>{String(unit.fuel || '').split('/')[0] || '--'}</span>
+                    {hasKmRecarga && String(unit.km || '').split('/')[3] && String(unit.km || '').split('/')[3].trim() !== '0' && (
+                      <span className="text-amber-600 text-[10px] font-black" title="Recarga">(R:{String(unit.km || '').split('/')[3].trim()})</span>
                     )}
                   </div>
                   <span className="text-slate-200">|</span>

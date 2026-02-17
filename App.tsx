@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import Footer from './components/Footer';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import PersonnelView from './components/PersonnelView';
@@ -119,7 +118,23 @@ const App: React.FC = () => {
           // 1. Migrate legacy data: units without a sector are assigned to 'SECTOR 1A'
           const incomingUnits = (data.units || []).map(u => ({
             ...u,
-            sector: (u.sector || '').trim().toUpperCase() === '' ? 'SECTOR 1A' : u.sector
+            id: String(u.id || ''),
+            sector: (u.sector || '').trim().toUpperCase() === '' ? 'SECTOR 1A' : u.sector,
+            type: u.type as any,
+            personnel1: String(u.personnel1 || ''),
+            personnel2: String(u.personnel2 || ''),
+            plate: String(u.plate || ''),
+            indicative: String(u.indicative || ''),
+            radio: String(u.radio || ''),
+            status: (u.status || UnitStatus.PATRULLANDO) as any,
+            reason: String(u.reason || ''),
+            km: String(u.km || '0 / 0 / 0'),
+            hours: String(u.hours || '--:-- - --:--'),
+            fuel: String(u.fuel || '-- / --'),
+            expense: String(u.expense || 'S/ 0.00'),
+            parts: String(u.parts || '0'),
+            quadrant: String(u.quadrant || ''),
+            mechanics: String(u.mechanics || 'Operativo')
           }));
 
           console.log('GAS Data (Migrated):', incomingUnits);
@@ -552,7 +567,6 @@ const App: React.FC = () => {
             />
           )}
         </div>
-        <Footer settings={settings} activeCount={units.filter(u => u.status === UnitStatus.PATRULLANDO).length} personnelCount={units.length} />
       </main>
     </div>
   );
