@@ -200,16 +200,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
 
     return (
         <div className="p-8 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
-            <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-black text-[#002d5a] uppercase tracking-tight mb-2">
-                        Estadísticas Operativas
-                    </h1>
-                    <p className="text-slate-500 text-sm font-medium">
-                        Resumen consolidado de vehículos y personal en servicio
-                    </p>
-                </div>
-
+            <div className="w-full mx-auto">
                 {/* NUEVA SECCIÓN: Alertas y Excepciones */}
                 {alerts.length > 0 && (
                     <div className="mb-6 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
