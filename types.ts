@@ -22,7 +22,7 @@ export type Sector =
   | 'GIR'
   | string;
 
-export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL';
+export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS';
 
 export interface PersonnelData {
   n: string;

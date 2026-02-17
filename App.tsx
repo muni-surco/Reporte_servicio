@@ -6,6 +6,7 @@ import Header from './components/Header';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import PersonnelView from './components/PersonnelView';
+import StatisticsView from './components/StatisticsView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData } from './types';
 import { SECTORS, SECTOR_DATA } from './constants';
 
@@ -565,6 +566,10 @@ const App: React.FC = () => {
               onRefresh={loadPersonnel}
               isLoading={loadingPersonnel}
             />
+          )}
+
+          {currentView === 'STATISTICS' && (
+            <StatisticsView units={units} />
           )}
         </div>
       </main>

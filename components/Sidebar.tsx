@@ -38,6 +38,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           <span className="material-symbols-outlined">description</span>
         </button>
         <button
+          onClick={() => onViewChange('STATISTICS')}
+          title="Estadísticas Operativas"
+          className={`px-3 py-2 rounded-xl transition-all ${currentView === 'STATISTICS' ? 'bg-[#004b93] text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
+        >
+          <span className="material-symbols-outlined">bar_chart</span>
+        </button>
+        <button
           onClick={() => onViewChange('PERSONNEL')}
           title="Gestión de Personal"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'PERSONNEL' ? 'bg-[#004b93] text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
