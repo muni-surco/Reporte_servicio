@@ -389,8 +389,18 @@ const UnitCard: React.FC<UnitCardProps> = ({
         )}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-blue-200/50">
-          <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-black py-2 px-5 rounded-lg hover:bg-slate-50 transition-all">CANCELAR</button>
-          <button onClick={handleValidateAndSave} className="bg-blue-600 text-white text-[10px] font-black py-2 px-5 rounded-lg hover:bg-blue-700 transition-all">{isNew ? 'CREAR UNIDAD' : 'GUARDAR'}</button>
+          <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-black py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
+            CANCELAR
+          </button>
+          <button onClick={handleValidateAndSave} className="bg-blue-600 text-white text-[10px] font-black py-2 px-5 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 group">
+            <lord-icon
+              src="https://cdn.lordicon.com/egiwmiit.json"
+              trigger="hover"
+              colors="primary:#ffffff"
+              style={{ width: '16px', height: '16px' }}>
+            </lord-icon>
+            {isNew ? 'CREAR UNIDAD' : 'GUARDAR'}
+          </button>
         </div>
       </div>
     );
@@ -517,9 +527,23 @@ const UnitCard: React.FC<UnitCardProps> = ({
           </div>
 
           {/* Columna Acciones */}
-          <div className="text-right flex justify-end gap-1">
-            <button onClick={onEdit} title="Editar" className="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 px-2 rounded-lg transition-all"><span className="material-symbols-outlined text-[16px] mt-1">edit</span></button>
-            <button onClick={() => setShowDeleteModal(true)} title="Eliminar" className="text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 px-2 rounded-lg transition-all"><span className="material-symbols-outlined text-[16px] mt-1">delete</span></button>
+          <div className="text-right flex justify-end gap-2">
+            <button onClick={onEdit} title="Editar" className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">
+              <lord-icon
+                src="https://cdn.lordicon.com/puvaffet.json"
+                trigger="hover"
+                colors="primary:#2563eb,secondary:#1d4ed8"
+                style={{ width: '20px', height: '20px' }}>
+              </lord-icon>
+            </button>
+            <button onClick={() => setShowDeleteModal(true)} title="Eliminar" className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">
+              <lord-icon
+                src="https://cdn.lordicon.com/drxwpfop.json"
+                trigger="hover"
+                colors="primary:#dc2626,secondary:#b91c1c"
+                style={{ width: '20px', height: '20px' }}>
+              </lord-icon>
+            </button>
           </div>
         </div>
       </div>

@@ -33,11 +33,11 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     }[type];
 
     const refInfo = mobileData?.find(m => m.id === u.id);
-    const displayRadio = u.radio || refInfo?.radio || '--';
+    const displayRadio = u.radio || '--';
     const displayQuadrant = u.quadrant || refInfo?.quadrant || '--';
 
     return (
-      <div key={u.id} className="flex items-center gap-4 py-3 px-4 hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors group">
+      <div key={u.id} className="flex items-center gap-4 py-3 px-4 hover:bg-blue-50/50 border-b border-slate-100 last:border-0 transition-colors group odd:bg-white even:bg-slate-50/50">
         {/* Indicador de Estado */}
         <div className={`w-3 h-3 rounded-full shrink-0 ${getStatusColor(u.status)} shadow-sm border-2 border-white transition-transform group-hover:scale-125`} title={u.status}></div>
 

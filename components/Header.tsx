@@ -1,3 +1,10 @@
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'lord-icon': any;
+    }
+  }
+}
 
 import React, { useState, useEffect, useRef } from 'react';
 import { AppSettings, Sector, ViewMode } from '../types';
@@ -71,7 +78,7 @@ const Header: React.FC<HeaderProps> = ({
     if (onRefresh) {
       setIsRefreshing(true);
       onRefresh();
-      setTimeout(() => setIsRefreshing(false), 1000);
+      setTimeout(() => setIsRefreshing(false), 1200);
     }
   };
 
@@ -203,7 +210,7 @@ const Header: React.FC<HeaderProps> = ({
                       </div>
                     )
                   ) : (
-                    <p className={reportValueStyle}>{settings.permanencia || '--'}</p>
+                    <div className={reportValueStyle}>{settings.permanencia || '--'}</div>
                   )}
                 </div>
 
@@ -282,7 +289,7 @@ const Header: React.FC<HeaderProps> = ({
               disabled={isRefreshing}
               className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              <span className={`material-symbols-outlined text-[16px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
+              <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>refresh</span>
               {isRefreshing ? 'ACTUALIZANDO...' : 'ACTUALIZAR'}
             </button>
           ) : isDashboard ? (
@@ -292,16 +299,24 @@ const Header: React.FC<HeaderProps> = ({
                 disabled={isSaving}
                 className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                <span className={`material-symbols-outlined text-[16px] ${isSaving ? 'animate-spin' : ''}`}>
-                  {isSaving ? 'sync' : 'save'}
-                </span>
+                <lord-icon
+                  src="https://cdn.lordicon.com/jgnvfzqg.json"
+                  trigger={isSaving ? "loop" : "hover"}
+                  colors="primary:#ffffff"
+                  style={{ width: '20px', height: '20px' }}>
+                </lord-icon>
                 {isSaving ? 'GUARDANDO...' : 'GUARDAR'}
               </button>
               <button
                 onClick={onGeneratePDF}
                 className="bg-[#00a19b] hover:bg-[#007a75] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#00a19b]/20 transition-all active:scale-95 group"
               >
-                <span className="material-symbols-outlined text-[16px]">description</span>
+                <lord-icon
+                  src="https://cdn.lordicon.com/nocovwne.json"
+                  trigger="hover"
+                  colors="primary:#ffffff"
+                  style={{ width: '20px', height: '20px' }}>
+                </lord-icon>
                 REPORTE
               </button>
             </>
@@ -312,7 +327,7 @@ const Header: React.FC<HeaderProps> = ({
                 disabled={isRefreshing}
                 className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                <span className={`material-symbols-outlined text-[16px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
+                <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>refresh</span>
                 {isRefreshing ? 'ACTUALIZANDO...' : 'ACTUALIZAR'}
               </button>
             </>

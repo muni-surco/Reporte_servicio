@@ -83,7 +83,13 @@ const UnitSection: React.FC<UnitSectionProps> = ({
           onClick={() => onAdd(type)}
           className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-black hover:opacity-70 group transition-all`}
         >
-          <span className="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform">add_circle</span> REGISTRAR
+          <lord-icon
+            src="https://cdn.lordicon.com/msetysov.json"
+            trigger="hover"
+            colors={`primary:${colorConfig.textAccent === 'text-blue-700' ? '#1d4ed8' : colorConfig.textAccent === 'text-violet-700' ? '#7c3aed' : '#0f766e'}`}
+            style={{ width: '20px', height: '20px' }}>
+          </lord-icon>
+          REGISTRAR
         </button>
       </div>
 
