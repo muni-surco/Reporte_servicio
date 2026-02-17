@@ -366,7 +366,7 @@ function saveShiftData(dateStr, shift, settings, units) {
     // However, App.tsx logic suggests 'units' state might contain ALL units.
     // Let's filter 'units' to only save those belonging to 'targetSector'.
     
-    const unitsToSave = units.filter(u => u.sector === targetSector);
+    const unitsToSave = units.filter(u => u.sector === targetSector && u.id && !u.id.startsWith('NEW-'));
 
     if (unitsToSave.length > 0) {
       const newRows = unitsToSave.map(u => [

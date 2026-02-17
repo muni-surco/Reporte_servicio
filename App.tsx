@@ -117,7 +117,7 @@ const App: React.FC = () => {
       google.script.run
         .withSuccessHandler((data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] }) => {
           // 1. Migrate legacy data: units without a sector are assigned to 'SECTOR 1A'
-          const incomingUnits = (data.units || []).map(u => ({
+          const incomingUnits: UnitData[] = (data.units || []).map(u => ({
             ...u,
             id: String(u.id || ''),
             sector: (u.sector || '').trim().toUpperCase() === '' ? 'SECTOR 1A' : u.sector,
@@ -190,7 +190,9 @@ const App: React.FC = () => {
   };
 
   const persistData = (newSettings: AppSettings, newUnits: UnitData[]) => {
-    const dataObj = { settings: newSettings, units: newUnits };
+    // Filter out units with temporary or empty IDs before persisting
+    const validUnits = newUnits.filter(u => u.id && !u.id.startsWith('NEW-'));
+    const dataObj = { settings: newSettings, units: validUnits };
     const dataStr = JSON.stringify(dataObj);
     if (dataStr === lastSavedRef.current) return;
 
@@ -322,7 +324,7 @@ const App: React.FC = () => {
       mechanics: 'Operativo',
     };
 
-    setUnits(prev => [newUnit, ...prev]);
+    setUnits(prev => [newUnit, ...prev.filter(u => !u.id.startsWith('NEW-'))]);
     setEditingId(tempId);
   };
 
