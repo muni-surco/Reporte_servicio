@@ -84,7 +84,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
           className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-black hover:opacity-70 group transition-all`}
         >
           <lord-icon
-            src="https://cdn.lordicon.com/msetysov.json"
+            src="https://cdn.lordicon.com/zrkkrrpl.json"
             trigger="hover"
             colors={`primary:${colorConfig.textAccent === 'text-blue-700' ? '#1d4ed8' : colorConfig.textAccent === 'text-violet-700' ? '#7c3aed' : '#0f766e'}`}
             style={{ width: '20px', height: '20px' }}>
