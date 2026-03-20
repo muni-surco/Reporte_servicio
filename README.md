@@ -52,6 +52,20 @@ Reporte_servicio/
    ```
 4. Abrir `http://localhost:5173` en el navegador.
 
+## ☁️ Despliegue en Google Apps Script (GAS)
+
+Este proyecto está optimizado para su despliegue como una Web App en GAS.
+
+### 📋 Pasos para el Despliegue
+
+1.  **Generar el Bundle Único**: Ejecuta `npm run build`. Esto producirá un archivo `dist/index.html` con todos los recursos inlined (estimado ~325KB).
+2.  **Preparar el Servidor**: Copia el código de `Code.gs` en un archivo `.gs` (ej. `Código.gs`) en el editor de Google Apps Script.
+3.  **Preparar la Interfaz**: Crea un archivo HTML llamado `index` en el editor de Google y reemplaza su contenido con el de `dist/index.html`.
+4.  **Publicar**: Haz clic en "Implementar" > "Nueva implementación" > "Aplicación web".
+
+> [!TIP]
+> Dado que GAS no soporta rutas relativas, el build de este proyecto está configurado para incluir todo el CSS y JavaScript directamente dentro del HTML.
+
 ## 📄 Licencia
 
 Este proyecto es de uso exclusivo para la gestión de Seguridad Ciudadana de la Municipalidad de Santiago de Surco.
