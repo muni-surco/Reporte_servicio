@@ -6,6 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Surco - Sistema de Seguridad Ciudadana</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: '#005ea5',
+                            dark: '#003D6B',
+                            light: '#E6EEF5',
+                        },
+                        secondary: {
+                            DEFAULT: '#00C9A7',
+                            dark: '#00A88A',
+                        },
+                        accent: '#F5A623',
+                    }
+                }
+            }
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,100..900;1,100..900&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
@@ -21,9 +41,18 @@
         }
 
         :root {
-            --surco-blue: #004b93;
-            --surco-teal: #00a19b;
-            --surco-navy: #002d5a;
+            /* Brand */
+            --color-primary: #005ea5;
+            --color-primary-dark: #003D6B;
+            --color-primary-light: #E6EEF5;
+            --color-secondary: #00C9A7;
+            --color-secondary-dark: #00A88A;
+            --color-accent: #F5A623;
+
+            /* Surco - Map to Brand */
+            --surco-blue: var(--color-primary);
+            --surco-teal: var(--color-secondary);
+            --surco-navy: var(--color-primary-dark);
         }
 
         body {
@@ -73,7 +102,7 @@
         }
 
         .border-left-chofer {
-            border-left: 5px solid #004b93 !important;
+            border-left: 5px solid var(--color-primary) !important;
         }
 
         /* Print styles */
