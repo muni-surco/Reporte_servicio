@@ -1,24 +1,30 @@
 # Instrucciones de Despliegue en Google Apps Script (GAS)
 
-## 1. Archivos del Backend
+## 1. Archivos del backend
 Copia el contenido del siguiente archivo local al editor de GAS:
 
 - **Local:** `Reporte_servicio/Code.gs`
 - **GAS:** Archivo `Code.gs` (o el nombre que tenga tu script principal).
 
-## 2. Archivos del Frontend
-El proyecto ha sido compilado en un solo archivo HTML para compatibilidad con GAS.
+## 2. Archivos del frontend
+El proyecto se compila en un solo archivo HTML para compatibilidad con GAS.
 
-Copia TODO el contenido del siguiente archivo generado:
+Copia todo el contenido del siguiente archivo generado:
 
 - **Local:** `Reporte_servicio/dist/index.html`
 - **GAS:** Crea un archivo llamado `index.html` y pega el código.
 
-## 3. Configuración Inicial
+## 3. Configuración inicial
 Si es la primera vez que ejecutas el script:
 1. En el editor de GAS, selecciona la función `initialSetup` y ejecútala.
 
-## 4. Notas Importantes
-- **DINÁMICO:** Ahora los campos **Indicativo** y **Estado** también sugieren valores basados en lo que existe en la hoja "DATA" (columnas `indicativo` y `estado`).
-- Si esas columnas están vacías, no habrá sugerencias pero podrás escribir libremente.
-- **Vehículos:** Siguen dependiendo de la hoja "DATA".
+## 4. Configuración externa
+Antes de publicar, revisa las constantes al inicio de `Code.gs`:
+
+- `APP_CONFIG.SHEETS`: nombres de hojas usadas por la aplicación.
+- `APP_CONFIG.EXTERNAL_PERSONNEL_SPREADSHEET_ID`: ID de la hoja externa de personal.
+
+## 5. Notas importantes
+- Los campos **Indicativo** y **Estado** sugieren valores basados en la hoja `DATA`.
+- Si esas columnas están vacías, no habrá sugerencias pero se podrá escribir libremente.
+- Los datos de personal dependen de la hoja externa configurada en `Code.gs`.

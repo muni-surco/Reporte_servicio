@@ -381,13 +381,13 @@ const App: React.FC = () => {
     Object.entries(allSectorsData).forEach(([sectorName, data]) => {
       if (!data.units || data.units.length === 0) return;
 
-      // Verificar espacio para el siguiente sector (Título + Header de Tabla (aprox 20mm))
+      // Verificar espacio para el siguiente sector (Título + header de tabla, aprox. 20 mm)
       if (finalY > doc.internal.pageSize.getHeight() - 30) {
         doc.addPage();
         finalY = 15;
       }
 
-      // Título de Sector
+      // Título de sector
       doc.setFillColor(0, 75, 147); // #004b93
       doc.rect(margin, finalY, pageWidth - (margin * 2), 8, 'F');
 

@@ -43,7 +43,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   personnelOptions,
   quadrantOptions
 }) => {
-  // Configuración de colores claros según el tipo (Actualizado MOTO a Violeta)
+  // Configuración de colores claros según el tipo
   const colorConfig = {
     CHOFER: {
       bgHeader: 'bg-blue-50/80',

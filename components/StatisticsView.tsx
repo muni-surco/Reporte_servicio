@@ -201,7 +201,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
     return (
         <div className="p-8 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
             <div className="w-full mx-auto">
-                {/* NUEVA SECCIÓN: Alertas y Excepciones */}
+                {/* NUEVA SECCIÓN: Alertas y excepciones */}
                 {alerts.length > 0 && (
                     <div className="mb-6 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
@@ -234,7 +234,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                     </div>
                 )}
 
-                {/* NUEVA SECCIÓN: Tasas de Disponibilidad */}
+                {/* NUEVA SECCIÓN: Tasas de disponibilidad */}
                 <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-6 shadow-lg text-white">
                         <div className="flex items-center justify-between mb-3">
@@ -282,7 +282,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                     </div>
                 </div>
 
-                {/* NUEVA SECCIÓN: Estado Operativo de Vehículos */}
+                {/* NUEVA SECCIÓN: Estado operativo de vehículos */}
                 <div className="mb-6 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                     <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-4">
                         <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">
@@ -309,7 +309,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Tabla: Vehículos Patrullando */}
+                    {/* Tabla: Vehículos patrullando */}
                     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                         <div className="bg-gradient-to-r from-[#004b93] to-[#002d5a] px-6 py-4">
                             <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-2">

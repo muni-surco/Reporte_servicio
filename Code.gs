@@ -1,3 +1,34 @@
+const APP_CONFIG = {
+  SHEETS: {
+    settings: 'SHIFT_SETTINGS',
+    unitData: 'UNIT_DATA',
+    referenceData: 'DATA',
+  },
+  EXTERNAL_PERSONNEL_SPREADSHEET_ID: '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ',
+};
+
+function getExternalPersonnelSpreadsheet() {
+  return SpreadsheetApp.openById(APP_CONFIG.EXTERNAL_PERSONNEL_SPREADSHEET_ID);
+}
+
+function normalizeSectorValue(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function toStorageSector(value) {
+  const normalized = normalizeSectorValue(value);
+  if (!normalized) return '';
+  if (normalized === 'RESCATE' || normalized === 'GIR') return normalized;
+  return normalized.replace(/^SECTOR\s+/, '');
+}
+
+function toDisplaySector(value) {
+  const storageSector = toStorageSector(value);
+  if (!storageSector) return '';
+  if (storageSector === 'RESCATE' || storageSector === 'GIR') return storageSector;
+  return `SECTOR ${storageSector}`;
+}
+
 /**
  * INITIAL SETUP: Creates the database structure for historical persistence.
  * Run this function once from the GAS editor.
@@ -6,9 +37,9 @@ function initialSetup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
   // 1. Setup SHIFT_SETTINGS (Operator, Supervisor per Shift/Date)
-  let settingsSheet = ss.getSheetByName('SHIFT_SETTINGS');
+  let settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
   if (!settingsSheet) {
-    settingsSheet = ss.insertSheet('SHIFT_SETTINGS');
+    settingsSheet = ss.insertSheet(APP_CONFIG.SHEETS.settings);
   }
   settingsSheet.clear();
   const settingsHeaders = ['FECHA', 'TURNO', 'SECTOR', 'OPERADOR', 'SUPERVISOR', 'PERMANENCIA'];
@@ -19,9 +50,9 @@ function initialSetup() {
   settingsSheet.setFrozenRows(1);
 
   // 2. Setup UNIT_DATA (The actual unit records per Shift/Date)
-  let dataSheet = ss.getSheetByName('UNIT_DATA');
+  let dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
   if (!dataSheet) {
-    dataSheet = ss.insertSheet('UNIT_DATA');
+    dataSheet = ss.insertSheet(APP_CONFIG.SHEETS.unitData);
   }
   dataSheet.clear();
   const dataHeaders = [
@@ -35,7 +66,9 @@ function initialSetup() {
            .setBackground('#cfe2f3');
   dataSheet.setFrozenRows(1);
 
-  SpreadsheetApp.getUi().alert('Estructura de Base de Datos creada exitosamente. Las hojas SHIFT_SETTINGS y UNIT_DATA están listas.');
+  SpreadsheetApp.getUi().alert(
+    `Estructura de base de datos creada exitosamente. Las hojas ${APP_CONFIG.SHEETS.settings} y ${APP_CONFIG.SHEETS.unitData} están listas.`
+  );
 }
 
 /**
@@ -46,12 +79,12 @@ function getShiftData(dateStr, shift, sector) {
   
 
   // 1. Get Settings
-  const settingsSheet = ss.getSheetByName('SHIFT_SETTINGS');
+  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
   let shiftSettings = {
     turno: shift,
     operador: '',
     supervisor: '',
-    nombrePuesto: sector || 'SECTOR 1A',
+    nombrePuesto: toDisplaySector(sector || '1A'),
     permanencia: ''
   };
   
@@ -69,7 +102,7 @@ function getShiftData(dateStr, shift, sector) {
         // Capture permanencia from any row of this shift found
         if (row[5]) commonPermanencia = row[5];
         
-        const sectorName = row[2];
+        const sectorName = toDisplaySector(row[2]);
         if (sectorName) {
            allSectorSettings[sectorName] = {
             turno: row[1],
@@ -81,12 +114,12 @@ function getShiftData(dateStr, shift, sector) {
         }
 
         // Check if this row is for the requested sector (for single view compatibility)
-        if (sectorName === sector) {
+        if (toStorageSector(sectorName) === toStorageSector(sector)) {
           shiftSettings = {
             turno: row[1],
             operador: row[3],
             supervisor: row[4],
-            nombrePuesto: row[2],
+            nombrePuesto: sectorName,
             permanencia: row[5]
           };
         }
@@ -105,7 +138,7 @@ function getShiftData(dateStr, shift, sector) {
   }
 
   // 2. Get Unit Data
-  const dataSheet = ss.getSheetByName('UNIT_DATA');
+  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
   const allUnits = [];
 
   if (dataSheet) {
@@ -115,7 +148,7 @@ function getShiftData(dateStr, shift, sector) {
       if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
         allUnits.push({
           id: row[3],
-          sector: row[2],
+          sector: toDisplaySector(row[2]),
           type: row[4],
           personnel1: row[5],
           personnel2: row[6],
@@ -144,10 +177,10 @@ function getShiftData(dateStr, shift, sector) {
  */
 function getMobileData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('DATA');
+  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.referenceData);
   
   if (!sheet) {
-    console.error('Sheet DATA not found');
+    console.error(`Sheet ${APP_CONFIG.SHEETS.referenceData} not found`);
     return { mobiles: [], indicatives: [], statuses: [], personnel: [], quadrants: [] };
   }
   
@@ -201,10 +234,9 @@ function getMobileData() {
   
   
   // Fetch External Personnel Data
-  const EXTERNAL_SS_ID = '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ';
   const personnelSet = new Set();
   try {
-    const extSS = SpreadsheetApp.openById(EXTERNAL_SS_ID);
+    const extSS = getExternalPersonnelSpreadsheet();
     const extSheet = extSS.getSheets()[0]; // Assumes first sheet
     const extData = extSheet.getDataRange().getValues();
     if (extData.length > 1) {
@@ -235,9 +267,8 @@ function getMobileData() {
  * Fetches the full list of personnel from the external spreadsheet.
  */
 function getPersonnelList() {
-  const EXTERNAL_SS_ID = '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ';
   try {
-    const extSS = SpreadsheetApp.openById(EXTERNAL_SS_ID);
+    const extSS = getExternalPersonnelSpreadsheet();
     const extSheet = extSS.getSheets()[0]; // Assumes first sheet
     const data = extSheet.getDataRange().getValues();
     if (data.length < 2) return [];
@@ -296,12 +327,12 @@ function saveShiftData(dateStr, shift, settings, units) {
     lock.waitLock(30000); // 30s timeout
 
     // 1. Update Settings
-    const settingsSheet = ss.getSheetByName('SHIFT_SETTINGS');
+    const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
     if (!settingsSheet) {
-      return { success: false, error: 'No se encontró la hoja SHIFT_SETTINGS. Por favor ejecuta la función initialSetup desde el editor de código.' };
+      return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.settings}. Ejecuta la función initialSetup desde el editor de código.` };
     }
 
-    const targetSector = settings.nombrePuesto || 'SECTOR 1A';
+    const targetSector = toStorageSector(settings.nombrePuesto || '1A');
     const settingsRows = settingsSheet.getDataRange().getValues();
     let settingsFoundIdx = -1;
     let rowsToUpdatePermanencia = [];
@@ -315,7 +346,7 @@ function saveShiftData(dateStr, shift, settings, units) {
         rowsToUpdatePermanencia.push(i + 1);
 
         // Check if this is the specific sector row
-        if (row[2] === targetSector) {
+        if (toStorageSector(row[2]) === targetSector) {
           settingsFoundIdx = i + 1;
         }
       }
@@ -342,9 +373,9 @@ function saveShiftData(dateStr, shift, settings, units) {
     }
 
     // 2. Update Units
-    const dataSheet = ss.getSheetByName('UNIT_DATA');
+    const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
     if (!dataSheet) {
-      return { success: false, error: 'No se encontró la hoja UNIT_DATA. Por favor ejecuta la función initialSetup desde el editor de código.' };
+      return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.unitData}. Ejecuta la función initialSetup desde el editor de código.` };
     }
 
     const dataRows = dataSheet.getDataRange().getValues();
@@ -355,7 +386,7 @@ function saveShiftData(dateStr, shift, settings, units) {
       const row = dataRows[i];
       if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && 
           row[1] === shift && 
-          row[2] === targetSector) {
+          toStorageSector(row[2]) === targetSector) {
         dataSheet.deleteRow(i + 1);
       }
     }
@@ -366,7 +397,7 @@ function saveShiftData(dateStr, shift, settings, units) {
     // However, App.tsx logic suggests 'units' state might contain ALL units.
     // Let's filter 'units' to only save those belonging to 'targetSector'.
     
-    const unitsToSave = units.filter(u => u.sector === targetSector && u.id && !u.id.startsWith('NEW-'));
+    const unitsToSave = units.filter(u => toStorageSector(u.sector) === targetSector && u.id && !u.id.startsWith('NEW-'));
 
     if (unitsToSave.length > 0) {
       const newRows = unitsToSave.map(u => [

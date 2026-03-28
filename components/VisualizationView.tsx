@@ -46,7 +46,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           {u.id}
         </span>
 
-        {/* Contenedor de Información */}
+        {/* Contenedor de información */}
         <div className="flex-1 flex items-center justify-between min-w-0 gap-6">
           <p className="text-[11px] font-black text-slate-800 truncate uppercase tracking-tight flex-1">
             {u.personnel1}
@@ -114,7 +114,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
                 <div className="h-8 w-px bg-slate-200 shrink-0"></div>
 
-                {/* ESTADÍSTICAS RÁPIDAS - Sin Partes */}
+                {/* ESTADÍSTICAS RÁPIDAS - Sin partes */}
                 <div className="flex items-center gap-6">
                   <div className="flex flex-col items-center">
                     <span className={infoLabelStyle}>UNIDADES TOTALES</span>

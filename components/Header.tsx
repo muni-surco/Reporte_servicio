@@ -54,12 +54,6 @@ const Header: React.FC<HeaderProps> = ({
     tempSettingsRef.current = settings;
   }, [settings]);
 
-  const currentDate = new Date().toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-
   const handleBlur = () => {
     const currentTemp = tempSettingsRef.current;
     if (JSON.stringify(currentTemp) !== JSON.stringify(settings)) {
