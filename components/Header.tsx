@@ -196,7 +196,7 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
 
                     {/* OPERADOR / PERMANENCIA */}
-                    <div className="flex-shrink-0 min-w-[130px] max-w-[300px] pt-0.5">
+                    <div className="flex-shrink-0 min-w-[100px] max-w-[220px] pt-0.5 transition-all">
                       <span className={isDashboard ? infoLabelStyle : reportLabelStyle}>{isDashboard ? 'OPERADOR' : 'PERMANENCIA'}</span>
                       {isDashboard ? (
                         editingField === 'operador' ? (
@@ -214,7 +214,9 @@ const Header: React.FC<HeaderProps> = ({
                           </div>
                         )
                       ) : (
-                        <div className={reportValueStyle}>{settings.permanencia || '--'}</div>
+                        <div className="text-[13px] font-black text-[#002d5a] leading-tight uppercase tracking-tight line-clamp-2">
+                          {settings.permanencia || '--'}
+                        </div>
                       )}
                     </div>
 
@@ -264,7 +266,7 @@ const Header: React.FC<HeaderProps> = ({
                     )}
 
                     {!isDashboard && !isPersonnel && (
-                      <div className="flex-1 flex flex-col min-w-0 pl-8 border-l border-slate-200 overflow-hidden">
+                      <div className="flex-[3] flex flex-col min-w-0 pl-6 border-l border-slate-200 overflow-hidden">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className={`${infoLabelStyle} text-left mb-0`}>IR A SECTOR</span>
                         </div>
