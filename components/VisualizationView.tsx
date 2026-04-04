@@ -42,25 +42,25 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
         <div className={`w-3 h-3 rounded-full shrink-0 ${getStatusColor(u.status)} shadow-sm border-2 border-white transition-transform group-hover:scale-125`} title={u.status}></div>
 
         {/* ID de Unidad */}
-        <span className={`text-[12px] font-black min-w-[45px] text-center ${idTextColor} uppercase tracking-tighter`}>
+        <span className={`text-[12px] font-bold min-w-[45px] text-center ${idTextColor} uppercase tracking-tighter`}>
           {u.id}
         </span>
 
         {/* Contenedor de información */}
         <div className="flex-1 flex items-center justify-between min-w-0 gap-6">
-          <p className="text-[11px] font-black text-slate-800 truncate uppercase tracking-tight flex-1">
+          <p className="text-[11px] font-bold text-slate-800 truncate uppercase tracking-tight flex-1">
             {u.personnel1}
           </p>
 
           <div className="flex items-center gap-6 shrink-0">
             <div className="flex flex-col items-end min-w-[60px]">
-              <span className="text-[8px] font-black text-slate-400 tracking-tighter uppercase leading-none mb-1">RADIO</span>
+              <span className="text-[8px] font-bold text-slate-400 tracking-tighter uppercase leading-none mb-1">RADIO</span>
               <span className="text-[12px] font-bold text-slate-700 font-mono leading-none">{displayRadio}</span>
             </div>
             {u.sector !== 'RESCATE' && (
               <div className="flex flex-col items-end min-w-[70px] border-l border-slate-200 pl-6">
-                <span className="text-[8px] font-black text-slate-400 tracking-tighter uppercase leading-none mb-1">CUADRANTE</span>
-                <span className="text-[12px] font-black text-slate-900 leading-none">{displayQuadrant}</span>
+                <span className="text-[8px] font-bold text-slate-400 tracking-tighter uppercase leading-none mb-1">CUADRANTE</span>
+                <span className="text-[12px] font-bold text-slate-900 leading-none">{displayQuadrant}</span>
               </div>
             )}
           </div>
@@ -71,8 +71,8 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
   const sectorEntries = Object.entries(allSectorsData) as [string, { units: UnitData[], settings: AppSettings }][];
 
-  const infoLabelStyle = "text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5 block";
-  const infoValueStyle = "text-[12px] font-black text-slate-800 uppercase truncate leading-none";
+  const infoLabelStyle = "text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 block";
+  const infoValueStyle = "text-[12px] font-bold text-slate-800 uppercase truncate leading-none";
 
   return (
     <div className="p-4 flex flex-col gap-6 max-w-[1600px] mx-auto">
@@ -94,7 +94,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 {/* SECTOR */}
                 <div className="flex items-center gap-3 shrink-0 min-w-[140px]">
                   <div className="w-2 h-8 bg-[#004b93] rounded-full shadow-sm shadow-blue-200"></div>
-                  <h2 className="text-[20px] font-black tracking-tighter uppercase text-[#002d5a] leading-none">{sectorName}</h2>
+                  <h2 className="text-[20px] font-bold tracking-tighter uppercase text-[#002d5a] leading-none">{sectorName}</h2>
                 </div>
 
                 <div className="h-8 w-px bg-slate-200 shrink-0"></div>
@@ -118,11 +118,11 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 <div className="flex items-center gap-6">
                   <div className="flex flex-col items-center">
                     <span className={infoLabelStyle}>UNIDADES TOTALES</span>
-                    <span className="text-[20px] font-black text-[#004b93] leading-none">{data.units.length}</span>
+                    <span className="text-[20px] font-bold text-[#004b93] leading-none">{data.units.length}</span>
                   </div>
                   <div className="flex flex-col items-center border-l border-slate-100 pl-6">
                     <span className={infoLabelStyle}>OPERATIVIDAD</span>
-                    <span className="text-[20px] font-black text-green-600 leading-none">
+                    <span className="text-[20px] font-bold text-green-600 leading-none">
                       {Math.round((data.units.filter(u => u.status === UnitStatus.PATRULLANDO).length / (data.units.length || 1)) * 100)}%
                     </span>
                   </div>
@@ -134,7 +134,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
             <div className={`p-4 grid gap-4 ${isRescate ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
               {/* Columna Choferes */}
               <div className={`flex flex-col rounded-xl border border-blue-50 overflow-hidden ${isRescate ? 'w-full' : ''}`}>
-                <div className="text-[12px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-blue-100 font-black">
+                <div className="text-[12px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-blue-100 font-bold">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-[18px]">minor_crash</span>
                     CHOFERES
@@ -143,7 +143,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 </div>
                 <div className="flex flex-col divide-y divide-slate-100 bg-white">
                   {choferes.map(u => renderCompactUnit(u, 'CHOFER'))}
-                  {choferes.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
+                  {choferes.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-bold uppercase tracking-widest">Sin registros</p>}
                 </div>
               </div>
 
@@ -151,7 +151,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 <>
                   {/* Columna Motorizados */}
                   <div className="flex flex-col rounded-xl border border-violet-50 overflow-hidden">
-                    <div className="text-[12px] text-violet-700 bg-violet-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-violet-100 font-black">
+                    <div className="text-[12px] text-violet-700 bg-violet-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-violet-100 font-bold">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-[18px]">moped</span>
                         MOTORIZADOS
@@ -160,13 +160,13 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                     </div>
                     <div className="flex flex-col divide-y divide-slate-100 bg-white">
                       {motos.map(u => renderCompactUnit(u, 'MOTO'))}
-                      {motos.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
+                      {motos.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-bold uppercase tracking-widest">Sin registros</p>}
                     </div>
                   </div>
 
                   {/* Columna Serenos */}
                   <div className="flex flex-col rounded-xl border border-teal-50 overflow-hidden">
-                    <div className="text-[12px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-teal-100 font-black">
+                    <div className="text-[12px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-teal-100 font-bold">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-[18px]">hail</span>
                         SERENOS
@@ -175,7 +175,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                     </div>
                     <div className="flex flex-col divide-y divide-slate-100 bg-white">
                       {serenos.map(u => renderCompactUnit(u, 'SERENO'))}
-                      {serenos.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
+                      {serenos.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-bold uppercase tracking-widest">Sin registros</p>}
                     </div>
                   </div>
                 </>

@@ -88,13 +88,13 @@ const Header: React.FC<HeaderProps> = ({
   const isStatistics = currentView === 'STATISTICS';
 
   // Estilos para Dashboard
-  const infoLabelStyle = "text-[9px] font-black text-[#004b93] uppercase tracking-wider block mb-0.5";
+  const infoLabelStyle = "text-[9px] font-bold text-[#004b93] uppercase tracking-wider block mb-0.5";
   const displayBoxStyle = "bg-white border border-slate-200 rounded-md px-2 py-1 min-h-[28px] flex items-center cursor-pointer hover:border-[#004b93] hover:shadow-sm transition-all group/box";
   const infoValueStyle = "text-[10px] font-medium text-slate-800 leading-none truncate group-hover/box:text-[#004b93]";
 
   // Estilos para Vista de Reporte (Labels grandes)
-  const reportLabelStyle = "text-[10px] font-black text-slate-400 uppercase tracking-widest block leading-none mb-1";
-  const reportValueStyle = "text-[16px] font-black text-[#002d5a] leading-tight uppercase tracking-tight line-clamp-2";
+  const reportLabelStyle = "text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none mb-1";
+  const reportValueStyle = "text-[16px] font-bold text-[#002d5a] leading-tight uppercase tracking-tight line-clamp-2";
 
   const getSectorCode = (sectorName: string) => {
     return sectorName.toUpperCase().replace('SECTOR ', '').trim();
@@ -108,24 +108,24 @@ const Header: React.FC<HeaderProps> = ({
           <div className="flex flex-col shrink-0">
             {isPersonnel ? (
               <div>
-                <h2 className="text-2xl font-black text-[#002d5a] tracking-tighter uppercase leading-none mb-1">
+                <h2 className="text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none mb-1">
                   GESTIÓN DE PERSONAL
                 </h2>
-                <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">Base de datos centralizada</p>
+                <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Base de datos centralizada</p>
               </div>
             ) : isStatistics ? (
               <div>
-                <h2 className="text-2xl font-black text-[#002d5a] tracking-tighter uppercase leading-none mb-1">
+                <h2 className="text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none mb-1">
                   ESTADÍSTICAS OPERATIVAS
                 </h2>
-                <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">Análisis y métricas en tiempo real</p>
+                <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Análisis y métricas en tiempo real</p>
               </div>
             ) : isDashboard ? (
               <div className="relative group/sector flex items-center">
                 <select
                   value={currentSector}
                   onChange={(e) => onSectorChange(e.target.value as Sector)}
-                  className="appearance-none bg-transparent text-2xl font-black text-[#002d5a] tracking-tighter uppercase leading-none pr-10 focus:outline-none cursor-pointer hover:text-[#004b93] transition-colors"
+                  className="appearance-none bg-transparent text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none pr-10 focus:outline-none cursor-pointer hover:text-[#004b93] transition-colors"
                 >
                   {SECTORS.map(s => (
                     <option key={s} value={s}>{s}</option>
@@ -134,7 +134,7 @@ const Header: React.FC<HeaderProps> = ({
                 <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-[28px] text-[#004b93] pointer-events-none group-hover/sector:scale-110 transition-transform">expand_more</span>
               </div>
             ) : (
-              <h2 className="text-2xl font-black text-[#002d5a] tracking-tighter uppercase leading-none">
+              <h2 className="text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none">
                 REPORTE INTEGRADO
               </h2>
             )}
@@ -148,18 +148,18 @@ const Header: React.FC<HeaderProps> = ({
                 {isPersonnel && personnelStats ? (
                   <div className="flex items-center gap-12 bg-slate-50/50 px-6 py-1.5 rounded-xl border border-slate-100 flex-1">
                     <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Personal</span>
-                      <span className="text-xl font-black text-slate-800 leading-none">{personnelStats.total}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total Personal</span>
+                      <span className="text-xl font-bold text-slate-800 leading-none">{personnelStats.total}</span>
                     </div>
                     <div className="w-px h-8 bg-slate-200"></div>
                     <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">Activos</span>
-                      <span className="text-xl font-black text-green-600 leading-none">{personnelStats.activos}</span>
+                      <span className="text-[9px] font-bold text-green-500 uppercase tracking-widest">Activos</span>
+                      <span className="text-xl font-bold text-green-600 leading-none">{personnelStats.activos}</span>
                     </div>
                     <div className="w-px h-8 bg-slate-200"></div>
                     <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Inactivos</span>
-                      <span className="text-xl font-black text-red-600 leading-none">{personnelStats.inactivos}</span>
+                      <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest">Inactivos</span>
+                      <span className="text-xl font-bold text-red-600 leading-none">{personnelStats.inactivos}</span>
                     </div>
                   </div>
                 ) : (
@@ -214,7 +214,7 @@ const Header: React.FC<HeaderProps> = ({
                           </div>
                         )
                       ) : (
-                        <div className="text-[13px] font-black text-[#002d5a] leading-tight uppercase tracking-tight line-clamp-2">
+                        <div className="text-[13px] font-bold text-[#002d5a] leading-tight uppercase tracking-tight line-clamp-2">
                           {settings.permanencia || '--'}
                         </div>
                       )}
@@ -259,8 +259,8 @@ const Header: React.FC<HeaderProps> = ({
                         </div>
 
                         <div className="bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 flex flex-col items-center justify-center min-w-[80px] shadow-sm ml-2 shrink-0">
-                          <span className="text-[7px] font-black text-amber-500 uppercase tracking-widest block leading-none mb-0.5">TOTAL PARTES</span>
-                          <p className="text-sm font-black text-amber-700 leading-none">{totalPartes}</p>
+                          <span className="text-[7px] font-bold text-amber-500 uppercase tracking-widest block leading-none mb-0.5">TOTAL PARTES</span>
+                          <p className="text-sm font-bold text-amber-700 leading-none">{totalPartes}</p>
                         </div>
                       </>
                     )}
@@ -275,7 +275,7 @@ const Header: React.FC<HeaderProps> = ({
                             <button
                               key={sector}
                               onClick={() => scrollToSector(sector)}
-                              className="shrink-0 bg-white border border-slate-200 hover:border-[#004b93] hover:text-[#004b93] text-slate-800 px-2.5 py-1 rounded text-[10px] font-black transition-all whitespace-nowrap uppercase tracking-tighter active:scale-95 shadow-sm min-w-[40px] text-center"
+                              className="shrink-0 bg-white border border-slate-200 hover:border-[#004b93] hover:text-[#004b93] text-slate-800 px-2.5 py-1 rounded text-[10px] font-bold transition-all whitespace-nowrap uppercase tracking-tighter active:scale-95 shadow-sm min-w-[40px] text-center"
                             >
                               {getSectorCode(sector)}
                             </button>
@@ -294,7 +294,7 @@ const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={handleRefreshClick}
                 disabled={isRefreshing}
-                className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>refresh</span>
                 {isRefreshing ? 'ACTUALIZANDO...' : 'ACTUALIZAR'}
@@ -304,7 +304,7 @@ const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={handleRefreshClick}
                   disabled={isRefreshing || isSaving}
-                  className={`bg-[#00a19b]/10 hover:bg-[#00a19b]/20 text-[#00a19b] border border-[#00a19b]/30 px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`bg-[#00a19b]/10 hover:bg-[#00a19b]/20 text-[#00a19b] border border-[#00a19b]/30 px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-all duration-500'}`}>sync</span>
                   {isRefreshing ? 'SINCRONIZANDO...' : 'SINCRONIZAR'}
@@ -312,7 +312,7 @@ const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={onGlobalSave}
                   disabled={isSaving || isRefreshing}
-                  className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   <lord-icon
                     src="https://cdn.lordicon.com/jgnvfzqg.json"
@@ -324,7 +324,7 @@ const Header: React.FC<HeaderProps> = ({
                 </button>
                 <button
                   onClick={onGeneratePDF}
-                  className="bg-slate-800 hover:bg-black text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-slate-200 transition-all active:scale-95 group"
+                  className="bg-slate-800 hover:bg-black text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-slate-200 transition-all active:scale-95 group"
                 >
                   <lord-icon
                     src="https://cdn.lordicon.com/nocovwne.json"
@@ -340,7 +340,7 @@ const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={handleRefreshClick}
                   disabled={isRefreshing}
-                  className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-black text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>refresh</span>
                   {isRefreshing ? 'ACTUALIZANDO...' : 'ACTUALIZAR'}

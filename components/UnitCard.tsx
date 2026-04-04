@@ -125,7 +125,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     onSave(formData);
   };
 
-  const labelStyle = "text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+  const labelStyle = "text-[10px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
   const errorInputStyle = "border-red-500 ring-1 ring-red-500 bg-red-50";
   const inputStyle = (fieldName: string) => `w-full border ${errors[fieldName] ? errorInputStyle : 'border-slate-300 bg-white'} rounded px-2 py-1 text-[12px] font-medium h-[28px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
   const infoValueStyle = "text-[11px] font-bold text-slate-800 truncate leading-tight uppercase";
@@ -203,7 +203,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   if (isEditing) {
     const idStr = String(formData.id);
     const isNew = idStr === '' || idStr.startsWith('NEW-');
-    const labelStyleEdit = "text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+    const labelStyleEdit = "text-[10px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
     return (
       <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg ${typeConfig.borderLeft} border-l-4`}>
         <div className={`grid grid-cols-12 gap-3 ${!isSereno ? 'pb-3 mb-3 border-b border-blue-100' : ''}`}>
@@ -389,10 +389,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
         )}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-blue-200/50">
-          <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-black py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
+          <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
             CANCELAR
           </button>
-          <button onClick={handleValidateAndSave} className="bg-blue-600 text-white text-[10px] font-black py-2 px-5 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 group">
+          <button onClick={handleValidateAndSave} className="bg-blue-600 text-white text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 group">
             <lord-icon
               src="https://cdn.lordicon.com/egiwmiit.json"
               trigger="hover"
@@ -416,7 +416,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
-            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-black text-[11px] shadow-sm`}>
+            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-bold text-[11px] shadow-sm`}>
               {unit.id}
             </div>
           </div>
@@ -427,7 +427,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <div className={infoValueStyle}>{unit.personnel1 || '--'}</div>
             {hasPersonnel2 && unit.personnel2 && (
               <div className="flex items-center gap-1.5 mt-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Cop.</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Cop.</label>
                 <div className="text-[10px] font-bold text-slate-500 truncate uppercase leading-none">{unit.personnel2}</div>
               </div>
             )}
@@ -461,7 +461,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {hasPlate && (
             <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
               <label className={labelStyle}>Placa</label>
-              <div className="text-[10px] font-black text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">
+              <div className="text-[10px] font-bold text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">
                 {unit.plate || (mobileData?.find(m => m.id === unit.id)?.plate) || '--'}
               </div>
             </div>
@@ -470,7 +470,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {/* Columna Estado */}
           <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
             <label className={labelStyle}>Estado</label>
-            <span className={`px-1.5 rounded text-[10px] font-black border uppercase inline-block whitespace-nowrap ${badgeColors[unit.status]}`}>
+            <span className={`px-1.5 rounded text-[10px] font-bold border uppercase inline-block whitespace-nowrap ${badgeColors[unit.status]}`}>
               {unit.status}
             </span>
           </div>
@@ -485,7 +485,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <span className="text-slate-200">/</span>
                   <span className="text-slate-400">{String(unit.km || '').split('/')[1] || '0'}</span>
                   <span className="text-slate-200">/</span>
-                  <span className="text-slate-900 font-black">{String(unit.km || '').split('/')[2] || '0'}</span>
+                  <span className="text-slate-900 font-bold">{String(unit.km || '').split('/')[2] || '0'}</span>
                 </div>
               </div>
 
@@ -502,7 +502,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <div className="flex items-center gap-1 text-slate-500">
                     <span>{String(unit.fuel || '').split('/')[0] || '--'}</span>
                     {hasKmRecarga && String(unit.km || '').split('/')[3] && String(unit.km || '').split('/')[3].trim() !== '0' && (
-                      <span className="text-amber-600 text-[10px] font-black" title="Recarga">(R:{String(unit.km || '').split('/')[3].trim()})</span>
+                      <span className="text-amber-600 text-[10px] font-bold" title="Recarga">(R:{String(unit.km || '').split('/')[3].trim()})</span>
                     )}
                   </div>
                   <span className="text-slate-200">|</span>
@@ -515,7 +515,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {/* Columna Partes con Color Ámbar Suave */}
           <div className="border-r border-slate-100 px-2 text-center">
             <label className={labelStyle}>Partes</label>
-            <div className="w-5 h-5 mx-auto flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-black shadow-sm">
+            <div className="w-5 h-5 mx-auto flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold shadow-sm">
               {unit.parts}
             </div>
           </div>
@@ -523,7 +523,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {/* Columna Motivo */}
           <div className="px-2 min-w-0">
             <label className={labelStyle}>Motivo</label>
-            <div className="text-[10px] font-black text-slate-500 truncate uppercase">{unit.reason || '--'}</div>
+            <div className="text-[10px] font-bold text-slate-500 truncate uppercase">{unit.reason || '--'}</div>
           </div>
 
           {/* Columna Acciones */}
