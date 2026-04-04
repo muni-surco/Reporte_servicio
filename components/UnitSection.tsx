@@ -71,7 +71,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className={`material-symbols-outlined ${colorConfig.textAccent} text-[20px]`}>{icon}</span>
-            <h2 className="text-[12px] font-bold text-slate-800 uppercase tracking-tighter">
+            <h2 className={`text-[13px] font-bold ${colorConfig.textAccent} uppercase tracking-tighter`}>
               {title} <span className={`${colorConfig.badgeBg} text-white px-1.5 rounded text-[10px] ml-1 shadow-sm`}>{badge}</span>
             </h2>
           </div>

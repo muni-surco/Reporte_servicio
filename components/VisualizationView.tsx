@@ -134,7 +134,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
             <div className={`p-4 grid gap-4 ${isRescate ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
               {/* Columna Choferes */}
               <div className={`flex flex-col rounded-xl border border-blue-50 overflow-hidden ${isRescate ? 'w-full' : ''}`}>
-                <div className="text-[12px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-blue-100 font-bold">
+                <div className="text-[13px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-blue-100 font-bold">
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-[18px]">minor_crash</span>
                     CHOFERES
@@ -151,7 +151,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 <>
                   {/* Columna Motorizados */}
                   <div className="flex flex-col rounded-xl border border-violet-50 overflow-hidden">
-                    <div className="text-[12px] text-violet-700 bg-violet-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-violet-100 font-bold">
+                    <div className="text-[13px] text-violet-700 bg-violet-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-violet-100 font-bold">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-[18px]">moped</span>
                         MOTORIZADOS
@@ -166,7 +166,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
                   {/* Columna Serenos */}
                   <div className="flex flex-col rounded-xl border border-teal-50 overflow-hidden">
-                    <div className="text-[12px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-teal-100 font-bold">
+                    <div className="text-[13px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-teal-100 font-bold">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-[18px]">hail</span>
                         SERENOS

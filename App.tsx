@@ -507,7 +507,7 @@ const App: React.FC = () => {
           {currentView === 'DASHBOARD' && (
             <>
               <UnitSection
-                title="CHOFERES" type="CHOFER" icon="person"
+                title="CHOFERES" type="CHOFER" icon="minor_crash"
                 badge={currentSectorUnits.filter(u => u.type === 'CHOFER').length.toString()}
                 partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'CHOFER'))}
                 units={currentSectorUnits.filter(u => u.type === 'CHOFER')}
