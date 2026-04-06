@@ -154,18 +154,18 @@ const UnitCard: React.FC<UnitCardProps> = ({
   // Configuración de estilo según tipo (Actualizado MOTO a Violeta)
   const typeConfig = {
     CHOFER: {
-      borderLeft: 'border-l-blue-500',
+      lineBg: 'bg-blue-500',
       idBadge: 'bg-blue-100 text-blue-700 border-blue-200'
     },
     MOTO: {
-      borderLeft: 'border-l-violet-500',
+      lineBg: 'bg-violet-500',
       idBadge: 'bg-violet-100 text-violet-700 border-violet-200'
     },
     SERENO: {
-      borderLeft: 'border-l-teal-500',
+      lineBg: 'bg-teal-500',
       idBadge: 'bg-teal-100 text-teal-700 border-teal-200'
     }
-  }[unit.type];
+  }[unit.type] || { lineBg: 'bg-slate-500', idBadge: 'bg-slate-100 text-slate-700 border-slate-200' };
 
   // (Modal logic omitted for brevity as it is unchanged)
   const DeleteConfirmationModal = () => (
@@ -190,7 +190,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             </button>
             <button
               onClick={() => { onDelete(unit.id); setShowDeleteModal(false); }}
-              className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium text-xs hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95"
+              className="flex-1 px-4 py-2.5 bg-[#e34242] text-white rounded-xl font-medium text-xs hover:bg-[#c13232] shadow-lg shadow-red-200 transition-all active:scale-95"
             >
               SÍ, ELIMINAR
             </button>
@@ -205,8 +205,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const isNew = idStr === '' || idStr.startsWith('NEW-');
     const labelStyleEdit = "text-[10px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
     return (
-      <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg ${typeConfig.borderLeft} border-l-4`}>
-        <div className={`grid grid-cols-12 gap-3 ${!isSereno ? 'pb-3 mb-3 border-b border-blue-100' : ''}`}>
+      <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg flex items-center gap-4`}>
+        {/* Línea vertical distintiva estilo moderno */}
+        <div className={`w-1.5 h-32 ${typeConfig.lineBg} rounded-full shrink-0 shadow-sm`}></div>
+        
+        <div className="flex-1">
+          <div className={`grid grid-cols-12 gap-3 ${!isSereno ? 'pb-3 mb-3 border-b border-blue-100' : ''}`}>
           <div className="col-span-1">
             <label className={labelStyleEdit}>ID {errors.id && <span className="text-red-600 font-bold ml-1">*</span>}</label>
             <AutocompleteInput
@@ -392,7 +396,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
             CANCELAR
           </button>
-          <button onClick={handleValidateAndSave} className="bg-blue-600 text-white text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 group">
+          <button onClick={handleValidateAndSave} className="bg-[#005cbb] text-white text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group">
             <lord-icon
               src="https://cdn.lordicon.com/egiwmiit.json"
               trigger="hover"
@@ -403,16 +407,20 @@ const UnitCard: React.FC<UnitCardProps> = ({
           </button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <>
       {showDeleteModal && <DeleteConfirmationModal />}
 
-      <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden border-l-[5px] ${typeConfig.borderLeft}`}>
+      <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden flex items-center`}>
+        {/* Línea vertical distintiva estilo moderno */}
+        <div className={`w-1.5 h-10 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
+
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-4 ${isSereno ? 'grid-cols-[48px_2fr_minmax(100px,1fr)_auto_min-content_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_auto_auto_1.2fr_1fr_1.2fr_min-content_1.5fr_64px]'}`}>
+        <div className={`grid items-center gap-4 flex-1 ${isSereno ? 'grid-cols-[48px_2fr_minmax(100px,1fr)_auto_min-content_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_auto_auto_1.2fr_1fr_1.2fr_min-content_1.5fr_64px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">

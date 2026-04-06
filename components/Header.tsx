@@ -312,7 +312,7 @@ const Header: React.FC<HeaderProps> = ({
                 <button
                   onClick={onGlobalSave}
                   disabled={isSaving || isRefreshing}
-                  className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`bg-[#005cbb] hover:bg-[#004a96] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#005cbb]/20 transition-all active:scale-95 group ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   <lord-icon
                     src="https://cdn.lordicon.com/jgnvfzqg.json"
@@ -324,7 +324,7 @@ const Header: React.FC<HeaderProps> = ({
                 </button>
                 <button
                   onClick={onGeneratePDF}
-                  className="bg-slate-800 hover:bg-black text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-slate-200 transition-all active:scale-95 group"
+                  className="bg-[#00c9a7] hover:bg-[#00b093] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#00c9a7]/20 transition-all active:scale-95 group"
                 >
                   <lord-icon
                     src="https://cdn.lordicon.com/nocovwne.json"
