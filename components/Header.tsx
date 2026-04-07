@@ -87,266 +87,167 @@ const Header: React.FC<HeaderProps> = ({
   const isPersonnel = currentView === 'PERSONNEL';
   const isStatistics = currentView === 'STATISTICS';
 
-  // Estilos para Dashboard
-  const infoLabelStyle = "text-[9px] font-bold text-[#004b93] uppercase tracking-wider block mb-0.5";
-  const displayBoxStyle = "bg-white border border-slate-200 rounded-md px-2 py-1 min-h-[28px] flex items-center cursor-pointer hover:border-[#004b93] hover:shadow-sm transition-all group/box";
-  const infoValueStyle = "text-[10px] font-medium text-slate-800 leading-none truncate group-hover/box:text-[#004b93]";
-
-  // Estilos para Vista de Reporte (Labels grandes)
-  const reportLabelStyle = "text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none mb-1";
-  const reportValueStyle = "text-[16px] font-bold text-[#002d5a] leading-tight uppercase tracking-tight line-clamp-2";
+  const labelStyle = "text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5 whitespace-nowrap";
+  const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-2 text-[10px] md:text-[11px] font-bold text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-9 shadow-sm appearance-none flex items-center";
+  const displayBoxStyle = "bg-white border border-slate-200 rounded-lg px-3 py-1 min-h-[36px] flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm";
+  const valueStyle = "text-[10px] md:text-[11px] font-bold text-[#002d5a] leading-none truncate uppercase";
 
   const getSectorCode = (sectorName: string) => {
     return sectorName.toUpperCase().replace('SECTOR ', '').trim();
   };
 
+  // Even smaller buttons for Mobile/Tablet
+  const btnIconStyle = "w-9 h-9 xl:h-auto xl:w-auto p-0 xl:px-4 xl:py-2 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm";
+
   return (
-    <header className="bg-white border-b border-slate-200 shadow-sm z-20 sticky top-0 backdrop-blur-md">
-      <div className="px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-6 flex-1 min-w-0">
-
-          <div className="flex flex-col shrink-0">
-            {isPersonnel ? (
-              <div>
-                <h2 className="text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none mb-1">
-                  GESTIÓN DE PERSONAL
-                </h2>
-                <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Base de datos centralizada</p>
-              </div>
-            ) : isStatistics ? (
-              <div>
-                <h2 className="text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none mb-1">
-                  ESTADÍSTICAS OPERATIVAS
-                </h2>
-                <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Análisis y métricas en tiempo real</p>
-              </div>
-            ) : isDashboard ? (
-              <div className="relative group/sector flex items-center">
-                <select
-                  value={currentSector}
-                  onChange={(e) => onSectorChange(e.target.value as Sector)}
-                  className="appearance-none bg-transparent text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none pr-10 focus:outline-none cursor-pointer hover:text-[#004b93] transition-colors"
-                >
-                  {SECTORS.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-[28px] text-[#004b93] pointer-events-none group-hover/sector:scale-110 transition-transform">expand_more</span>
-              </div>
-            ) : (
-              <h2 className="text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none">
-                REPORTE INTEGRADO
-              </h2>
-            )}
-          </div>
-
-          {!isStatistics && (
-            <>
-              <div className="h-10 w-px bg-slate-200 shrink-0"></div>
-
-              <div className="flex gap-8 items-center flex-1 min-w-0">
-                {isPersonnel && personnelStats ? (
-                  <div className="flex items-center gap-12 bg-slate-50/50 px-6 py-1.5 rounded-xl border border-slate-100 flex-1">
-                    <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total Personal</span>
-                      <span className="text-xl font-bold text-slate-800 leading-none">{personnelStats.total}</span>
-                    </div>
-                    <div className="w-px h-8 bg-slate-200"></div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-bold text-green-500 uppercase tracking-widest">Activos</span>
-                      <span className="text-xl font-bold text-green-600 leading-none">{personnelStats.activos}</span>
-                    </div>
-                    <div className="w-px h-8 bg-slate-200"></div>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest">Inactivos</span>
-                      <span className="text-xl font-bold text-red-600 leading-none">{personnelStats.inactivos}</span>
-                    </div>
+    <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50 backdrop-blur-lg bg-white/95">
+      <div className="max-w-[1920px] mx-auto">
+        <div className="px-4 py-2 flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-6">
+          
+          {/* Logo Section */}
+          <div className="flex items-center justify-between lg:justify-start lg:gap-6 shrink-0">
+            <div className="flex items-center">
+              <div className="flex flex-col min-w-0">
+                {isDashboard ? (
+                  <div className="relative group/sector flex items-center max-w-[200px] md:max-w-none">
+                    <select
+                      value={currentSector}
+                      onChange={(e) => onSectorChange(e.target.value as Sector)}
+                      className="appearance-none bg-transparent text-xl md:text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none pr-8 focus:outline-none cursor-pointer hover:text-primary transition-colors truncate"
+                    >
+                      {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-2xl md:text-3xl text-[#002d5a] pointer-events-none group-hover/sector:scale-110 transition-transform">expand_more</span>
                   </div>
                 ) : (
-                  <div className="flex gap-7 items-start flex-1 min-w-0">
-                    {/* FECHA */}
-                    <div className="flex-shrink-0 pt-0.5">
-                      <span className={isDashboard ? infoLabelStyle : reportLabelStyle}>FECHA</span>
-                      <div className="relative group/date">
-                        <input
-                          type="date"
-                          value={selectedDate}
-                          onChange={(e) => onDateChange(e.target.value)}
-                          className="appearance-none min-h-[28px] bg-slate-50 border border-slate-200 rounded-md px-3 py-1 text-[11px] font-medium text-slate-700 leading-none focus:outline-none focus:border-[#004b93] focus:ring-1 focus:ring-[#004b93] transition-all cursor-pointer"
-                        />
-                      </div>
-                    </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none truncate">
+                    {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : 'REPORTE'}
+                  </h2>
+                )}
+                <span className="text-[8px] md:text-[9px] font-bold text-slate-300 uppercase tracking-widest mt-1 block">Gestión de Seguridad</span>
+              </div>
+            </div>
+          </div>
 
-                    {/* TURNO */}
-                    <div className="flex-shrink-0 min-w-[85px] pt-0.5">
-                      <span className={isDashboard ? infoLabelStyle : reportLabelStyle}>TURNO</span>
-                      <div className="relative group/turno">
-                        <select
-                          value={settings.turno}
-                          onChange={(e) => updateTempField('turno', e.target.value)}
-                          onBlur={handleBlur}
-                          className="appearance-none min-h-[28px] bg-slate-50 border border-slate-200 rounded-md px-3 py-1 pr-8 text-[11px] font-medium text-slate-700 leading-none focus:outline-none focus:border-[#004b93] focus:ring-1 focus:ring-[#004b93] transition-all cursor-pointer w-full"
-                        >
-                          <option value="MAÑANA">MAÑANA</option>
-                          <option value="TARDE">TARDE</option>
-                          <option value="NOCHE">NOCHE</option>
-                        </select>
-                        <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[14px] text-slate-400 pointer-events-none">expand_more</span>
-                      </div>
-                    </div>
+          {/* Info Section */}
+          {!isStatistics && (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-1 lg:border-l lg:border-slate-100 lg:pl-8 min-w-0">
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="flex flex-col w-[110px] md:w-[130px]">
+                  <span className={labelStyle}>FECHA</span>
+                  <input type="date" value={selectedDate} onChange={(e) => onDateChange(e.target.value)} className={inputBaseStyle.replace('shadow-sm appearance-none', 'shadow-sm')} />
+                </div>
+                <div className="flex flex-col w-[85px] md:w-[100px]">
+                  <span className={labelStyle}>TURNO</span>
+                  <div className="relative">
+                    <select value={settings.turno} onChange={(e) => updateTempField('turno', e.target.value)} onBlur={handleBlur} className={`${inputBaseStyle} w-full pr-8`}>
+                      <option value="MAÑANA">MAÑANA</option>
+                      <option value="TARDE">TARDE</option>
+                      <option value="NOCHE">NOCHE</option>
+                    </select>
+                    <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">expand_more</span>
+                  </div>
+                </div>
+              </div>
 
-                    {/* OPERADOR / PERMANENCIA */}
-                    <div className="flex-shrink-0 min-w-[100px] max-w-[220px] pt-0.5 transition-all">
-                      <span className={isDashboard ? infoLabelStyle : reportLabelStyle}>{isDashboard ? 'OPERADOR' : 'PERMANENCIA'}</span>
-                      {isDashboard ? (
-                        editingField === 'operador' ? (
-                          <AutocompleteInput
-                            autoFocus
-                            value={tempSettings.operador}
-                            onChange={(v) => updateTempField('operador', v)}
-                            onBlur={handleBlur}
-                            placeholder="Nombre Operador..."
-                            suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES}
-                          />
-                        ) : (
-                          <div className={displayBoxStyle} onClick={() => setEditingField('operador')}>
-                            <p className={infoValueStyle}>{settings.operador || '--'}</p>
-                          </div>
-                        )
+              <div className="flex flex-wrap items-center gap-3 lg:border-l lg:border-slate-100 lg:pl-6 flex-1 min-w-0">
+                {isPersonnel && personnelStats ? (
+                   <div className="flex items-center gap-6 bg-slate-50/80 px-4 py-1.5 rounded-xl border border-slate-200 h-9">
+                      <div className="text-center">
+                        <span className="text-[7px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Total</span>
+                        <span className="text-[12px] font-bold text-slate-800 leading-none">{personnelStats.total}</span>
+                      </div>
+                      <div className="w-px h-5 bg-slate-200"></div>
+                      <div className="text-center">
+                        <span className="text-[7px] font-bold text-green-500 uppercase block leading-none mb-0.5">Activos</span>
+                        <span className="text-[12px] font-bold text-green-600 leading-none">{personnelStats.activos}</span>
+                      </div>
+                   </div>
+                ) : (
+                  <>
+                    <div className="flex flex-col min-w-[110px] max-w-[170px] flex-1">
+                      <span className={labelStyle}>OPERADOR</span>
+                      {editingField === 'operador' ? (
+                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[10px] font-bold" />
                       ) : (
-                        <div className="text-[13px] font-bold text-[#002d5a] leading-tight uppercase tracking-tight line-clamp-2">
-                          {settings.permanencia || '--'}
-                        </div>
+                        <div className={displayBoxStyle} onClick={() => setEditingField('operador')}><p className={valueStyle}>{settings.operador || '--'}</p></div>
                       )}
                     </div>
+                    <div className="hidden sm:flex flex-col min-w-[110px] max-w-[170px] flex-1">
+                      <span className={labelStyle}>SUPERVISOR</span>
+                      {editingField === 'supervisor' ? (
+                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[10px] font-bold" />
+                      ) : (
+                        <div className={displayBoxStyle} onClick={() => setEditingField('supervisor')}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
+                      )}
+                    </div>
+                    <div className="hidden xl:flex flex-col min-w-[110px] max-w-[170px] flex-1">
+                      <span className={labelStyle}>PERMANENCIA</span>
+                      {editingField === 'permanencia' ? (
+                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[10px] font-bold" />
+                      ) : (
+                        <div className={displayBoxStyle} onClick={() => setEditingField('permanencia')}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
 
-                    {isDashboard && (
-                      <>
-                        <div className="flex-1 min-w-[130px] max-w-[180px]">
-                          <span className={infoLabelStyle}>SUPERVISOR</span>
-                          {editingField === 'supervisor' ? (
-                            <AutocompleteInput
-                              autoFocus
-                              value={tempSettings.supervisor}
-                              onChange={(v) => updateTempField('supervisor', v)}
-                              onBlur={handleBlur}
-                              placeholder="Nombre Supervisor..."
-                              suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES}
-                            />
-                          ) : (
-                            <div className={displayBoxStyle} onClick={() => setEditingField('supervisor')}>
-                              <p className={infoValueStyle}>{settings.supervisor || '--'}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-[130px] max-w-[180px]">
-                          <span className={infoLabelStyle}>PERMANENCIA</span>
-                          {editingField === 'permanencia' ? (
-                            <AutocompleteInput
-                              autoFocus
-                              value={tempSettings.permanencia}
-                              onChange={(v) => updateTempField('permanencia', v)}
-                              onBlur={handleBlur}
-                              placeholder="Nombre..."
-                              suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES}
-                            />
-                          ) : (
-                            <div className={displayBoxStyle} onClick={() => setEditingField('permanencia')}>
-                              <p className={infoValueStyle}>{settings.permanencia || '--'}</p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 flex flex-col items-center justify-center min-w-[80px] shadow-sm ml-2 shrink-0">
-                          <span className="text-[7px] font-bold text-amber-500 uppercase tracking-widest block leading-none mb-0.5">TOTAL PARTES</span>
-                          <p className="text-sm font-bold text-amber-700 leading-none">{totalPartes}</p>
-                        </div>
-                      </>
-                    )}
-
-                    {!isDashboard && !isPersonnel && (
-                      <div className="flex-[3] flex flex-col min-w-0 pl-6 border-l border-slate-200 overflow-hidden">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className={`${infoLabelStyle} text-left mb-0`}>IR A SECTOR</span>
-                        </div>
-                        <div className="flex items-center justify-start gap-1.5 overflow-x-auto no-scrollbar pb-0.5 w-full">
-                          {SECTORS.map((sector) => (
-                            <button
-                              key={sector}
-                              onClick={() => scrollToSector(sector)}
-                              className="shrink-0 bg-white border border-slate-200 hover:border-[#004b93] hover:text-[#004b93] text-slate-800 px-2.5 py-1 rounded text-[10px] font-bold transition-all whitespace-nowrap uppercase tracking-tighter active:scale-95 shadow-sm min-w-[40px] text-center"
-                            >
-                              {getSectorCode(sector)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+              <div className="flex items-center gap-4 ml-auto lg:ml-0">
+                {isDashboard && (
+                  <div className="bg-amber-100/50 px-3 py-1 rounded-xl border border-amber-200 flex flex-col items-center justify-center h-9 shadow-sm shrink-0 min-w-[60px]">
+                    <span className="text-[6px] font-bold text-amber-500 uppercase leading-none mb-0.5 tracking-tighter">PARTES</span>
+                    <p className="text-sm font-bold text-amber-700 leading-none">{totalPartes}</p>
                   </div>
                 )}
               </div>
-            </>
+            </div>
           )}
 
-          <div className="ml-4 flex items-center gap-2 pr-4 shrink-0" data-html2canvas-ignore>
-            {isPersonnel ? (
-              <button
-                onClick={handleRefreshClick}
-                disabled={isRefreshing}
-                className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>refresh</span>
-                {isRefreshing ? 'ACTUALIZANDO...' : 'ACTUALIZAR'}
-              </button>
-            ) : isDashboard ? (
-              <>
-                <button
-                  onClick={handleRefreshClick}
-                  disabled={isRefreshing || isSaving}
-                  className={`bg-[#00a19b]/10 hover:bg-[#00a19b]/20 text-[#00a19b] border border-[#00a19b]/30 px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
+          {/* Action Buttons Area */}
+          <div className="flex items-center gap-2 justify-end shrink-0 border-t border-slate-100 pt-3 lg:border-none lg:pt-0 lg:ml-auto" data-html2canvas-ignore>
+             <div className="flex items-center gap-2 justify-end w-full md:w-auto">
+              {isDashboard ? (
+                <>
+                  <button
+                    onClick={handleRefreshClick}
+                    disabled={isRefreshing || isSaving}
+                    title="Sincronizar"
+                    className={`${btnIconStyle} bg-slate-50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary border border-transparent`}
+                  >
+                    <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>sync</span>
+                    <span className="hidden xl:inline">SINCRONIZAR</span>
+                  </button>
+                  <button
+                    onClick={onGlobalSave}
+                    disabled={isSaving || isRefreshing}
+                    title="Guardar"
+                    className={`${btnIconStyle} bg-primary hover:bg-primary-dark text-white xl:px-6 shadow-blue-100`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">save</span>
+                    <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
+                  </button>
+                  <button
+                    onClick={onGeneratePDF}
+                    title="Reportar"
+                    className={`${btnIconStyle} bg-teal-500 hover:bg-teal-600 text-white xl:px-4 shadow-teal-100`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">description</span>
+                    <span className="hidden xl:inline">REPORTAR</span>
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={handleRefreshClick} 
+                  disabled={isRefreshing} 
+                  title="Actualizar"
+                  className={`w-9 h-9 xl:h-9 xl:w-auto p-0 xl:px-6 bg-primary text-white rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-blue-200 active:scale-95 transition-all`}
                 >
-                  <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-all duration-500'}`}>sync</span>
-                  {isRefreshing ? 'SINCRONIZANDO...' : 'SINCRONIZAR'}
+                  <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
+                  <span className="hidden xl:inline">ACTUALIZAR DATOS</span>
                 </button>
-                <button
-                  onClick={onGlobalSave}
-                  disabled={isSaving || isRefreshing}
-                  className={`bg-[#005cbb] hover:bg-[#004a96] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#005cbb]/20 transition-all active:scale-95 group ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
-                >
-                  <lord-icon
-                    src="https://cdn.lordicon.com/jgnvfzqg.json"
-                    trigger={isSaving ? "loop" : "hover"}
-                    colors="primary:#ffffff"
-                    style={{ width: '20px', height: '20px' }}>
-                  </lord-icon>
-                  {isSaving ? 'GUARDANDO...' : 'GUARDAR'}
-                </button>
-                <button
-                  onClick={onGeneratePDF}
-                  className="bg-[#00c9a7] hover:bg-[#00b093] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#00c9a7]/20 transition-all active:scale-95 group"
-                >
-                  <lord-icon
-                    src="https://cdn.lordicon.com/nocovwne.json"
-                    trigger="hover"
-                    colors="primary:#ffffff"
-                    style={{ width: '20px', height: '20px' }}>
-                  </lord-icon>
-                  REPORTE
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={handleRefreshClick}
-                  disabled={isRefreshing}
-                  className={`bg-[#004b93] hover:bg-[#002d5a] text-white px-4 py-2 rounded-lg font-bold text-[12px] flex items-center gap-1.5 shadow-lg shadow-[#004b93]/20 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70 cursor-not-allowed' : ''}`}
-                >
-                  <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>refresh</span>
-                  {isRefreshing ? 'ACTUALIZANDO...' : 'ACTUALIZAR'}
-                </button>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
