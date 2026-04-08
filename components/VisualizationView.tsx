@@ -34,7 +34,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
     const refInfo = mobileData?.find(m => m.id === u.id);
     const displayRadio = u.radio || '--';
-    const displayQuadrant = u.quadrant || refInfo?.quadrant || '--';
+    const displayQuadrant = u.quadrant || refInfo?.quadrant || '';
 
     return (
       <div key={u.id} className="flex items-center gap-4 py-3 px-4 hover:bg-blue-50/50 border-b border-slate-100 last:border-0 transition-colors group odd:bg-white even:bg-slate-50/50">

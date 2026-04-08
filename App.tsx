@@ -406,8 +406,8 @@ const App: React.FC = () => {
       const body = data.units.map(u => {
         const ref = mobileData.find(m => m.id === u.id);
         const displayRadio = u.radio || '--';
-        const displayQuadrant = u.quadrant || ref?.quadrant || '--';
-        const displayPlate = u.plate || ref?.plate || '--';
+        const displayQuadrant = u.quadrant || ref?.quadrant || '';
+        const displayPlate = ref?.plate || '';
         const displayPersonnel = u.personnel2 ? `${u.personnel1} / ${u.personnel2}` : u.personnel1;
 
         // Formatear KM: Inicio / Fin / Recorrido / Recarga

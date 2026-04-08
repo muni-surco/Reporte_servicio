@@ -5,6 +5,7 @@ const APP_CONFIG = {
     referenceData: 'DATA',
   },
   EXTERNAL_PERSONNEL_SPREADSHEET_ID: '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ',
+  MOBILE_DATA_SPREADSHEET_ID: '11j6Ipd3J6HjUnG91RCliCbjrgzJWhzUwktCgfnAESKU',
 };
 
 function getExternalPersonnelSpreadsheet() {
@@ -173,14 +174,14 @@ function getShiftData(dateStr, shift, sector) {
 }
 
 /**
- * Fetches mobile reference data (id, plate, radio, quadrant) PLUS unique list of Indicatives and Statuses from "DATA" sheet.
+ * Fetches mobile reference data (id, plate, radio, quadrant) PLUS unique list of Indicatives and Statuses from external "DATA" sheet.
  */
 function getMobileData() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.referenceData);
+  const externalSS = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const sheet = externalSS.getSheetByName('DATA');
   
   if (!sheet) {
-    console.error(`Sheet ${APP_CONFIG.SHEETS.referenceData} not found`);
+    console.error('Sheet DATA not found in external spreadsheet');
     return { mobiles: [], indicatives: [], statuses: [], personnel: [], quadrants: [] };
   }
   

@@ -86,12 +86,17 @@ const UnitCard: React.FC<UnitCardProps> = ({
       const found = dataSource.find(v => v.id === formData.id);
 
       if (found) {
-        setFormData(prev => ({
-          ...prev,
-          plate: found.plate || prev.plate,
-          // Only auto-fill quadrant if currently empty or '--'. Radio is now left blank by default.
-          quadrant: (!prev.quadrant || prev.quadrant === '--') ? (found.quadrant || prev.quadrant) : prev.quadrant
-        }));
+        setFormData(prev => {
+          // Si el ID cambió respecto al original (es un cambio de unidad o unidad nueva),
+          // forzamos la placa y el cuadrante de la referencia, incluso si están vacíos.
+          const isIdChanged = formData.id !== unit.id;
+          
+          return {
+            ...prev,
+            plate: found.plate || (isIdChanged ? '' : prev.plate),
+            quadrant: isIdChanged ? (found.quadrant || '') : (prev.quadrant || found.quadrant || '')
+          };
+        });
       }
     }
   }, [formData.id, isEditing, unit.type, mobileData]);
@@ -305,7 +310,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <div className="col-span-2">
               <label className={labelStyleEdit}>Cuad.</label>
               <MultiSelectAutocomplete
-                value={formData.quadrant}
+                value={formData.quadrant || ''}
                 onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
                 suggestions={activeQuadrantOptions}
                 placeholder="Seleccionar..."
@@ -459,7 +464,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <div className="flex flex-col flex-1 text-center">
                 <label className={labelStyle}>Cuadrante</label>
                 <div className={infoValueStyle}>
-                  {unit.quadrant || (mobileData?.find(m => m.id === unit.id)?.quadrant) || '--'}
+                  {unit.quadrant || mobileData?.find(m => m.id === unit.id)?.quadrant || '--'}
                 </div>
               </div>
             )}
@@ -470,7 +475,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
               <label className={labelStyle}>Placa</label>
               <div className="text-[10px] font-bold text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">
-                {unit.plate || (mobileData?.find(m => m.id === unit.id)?.plate) || '--'}
+                {mobileData?.find(m => m.id === unit.id)?.plate || ''}
               </div>
             </div>
           )}
