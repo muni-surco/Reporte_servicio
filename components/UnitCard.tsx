@@ -83,6 +83,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
   useEffect(() => {
     if (isEditing && (unit.type === 'CHOFER' || unit.type === 'MOTO' || unit.type === 'SERENO')) {
       const dataSource = mobileData || [];
+      const unitId = (formData.id || '').toString().toUpperCase();
+      
+      // Skip auto-population for 'RETEN' units (AR-)
+      if (unitId.startsWith('AR-')) return;
+      
       const found = dataSource.find(v => v.id === formData.id);
 
       if (found) {
@@ -243,11 +248,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
             {hasPersonnel2 && (
               <div className="col-span-2">
                 <label className={labelStyleEdit}>Copiloto</label>
-                <AutocompleteInput
+                <input
+                  name="personnel2"
                   value={formData.personnel2 || ''}
-                  onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))}
-                  suggestions={activePersonnelOptions}
-                  placeholder="Copiloto..."
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val !== '' && !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/.test(val)) return;
+                    setFormData(prev => ({ ...prev, personnel2: val }));
+                  }}
+                  className={inputStyle('personnel2')}
+                  placeholder="Nombre..."
                 />
               </div>
             )}
@@ -256,7 +266,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <label className={labelStyleEdit}>Radio</label>
               <AutocompleteInput
                 value={formData.radio}
-                onChange={(val) => { setFormData(prev => ({ ...prev, radio: val })); setErrors(prev => ({ ...prev, radio: false })); }}
+                onChange={(val) => { 
+                  if (val !== '' && !/^\d+$/.test(val)) return;
+                  setFormData(prev => ({ ...prev, radio: val })); 
+                  setErrors(prev => ({ ...prev, radio: false })); 
+                }}
                 suggestions={Array.from(new Set([...RADIOS, ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])])) as string[]}
                 placeholder="20xxx"
               />
@@ -326,7 +340,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <div><label className={labelStyleEdit}>GASTO</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
                   <div><label className={labelStyleEdit}>PARTES</label><input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} /></div>
                 </div>
-                <div className="col-span-2" />
+                <div className="col-span-2">
+                  <label className={labelStyleEdit}>Mecánica Obs</label>
+                  <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Observaciones..." />
+                </div>
               </>
             ) : (
               <>

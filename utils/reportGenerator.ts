@@ -277,12 +277,16 @@ export const generateVehicleReport = (
   const summaryRows = sectors.map(s => {
     const sectorUnits = vehicleUnits.filter(u => (u.sector || '').toUpperCase().includes(s));
     
-    const countInoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
-    const countPatrullando = sectorUnits.filter(u => u.status === 'PATRULLANDO').length;
-    const countReten = sectorUnits.filter(u => u.status === 'RETEN').length;
-    const countSinPatrullar = sectorUnits.filter(u => 
+    // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12)
+    const countReten = sectorUnits.filter(u => (u.id || '').startsWith('AR-')).length;
+    
+    // Regular statuses only for non-AR units
+    const regularUnits = sectorUnits.filter(u => !(u.id || '').startsWith('AR-'));
+    
+    const countInoperativos = regularUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+    const countPatrullando = regularUnits.filter(u => u.status === 'PATRULLANDO').length;
+    const countSinPatrullar = regularUnits.filter(u => 
       u.status !== 'PATRULLANDO' && 
-      u.status !== 'RETEN' && 
       !inoperativeStatuses.includes((u.status || '').toUpperCase()) &&
       u.status !== 'CHOFER SIN MOVIL'
     ).length;
@@ -455,5 +459,158 @@ export const generateVehicleReport = (
 
   const fileName = `REPORTE_VEHICULOS_RENTING_${shift.toUpperCase()}_${date}.pdf`;
   doc.save(fileName);
+};
+
+export const generatePersonnelAbsenceReport = (
+  units: UnitData[],
+  personnel: PersonnelData[],
+  date: string,
+  shift: string
+) => {
+  const doc = new jspdf.jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 10;
+
+  const formatLongDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString('es-ES', { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // Helper to normalize names for perfect matching
+  const normalize = (val: any) => {
+    return (val || '').toString()
+      .trim()
+      .toUpperCase()
+      .replace(/\./g, '') // Remove dots (e.g., SOT. -> SOT)
+      .replace(/\s+/g, ' '); // Normalize spaces
+  };
+
+  // 1. Identify present vs explicitly absent personnel names
+  const presentNames = new Set<string>();
+  const explicitAbsentInUnits = new Set<string>();
+  const nameToSector = new Map<string, string>();
+  
+  units.forEach(u => {
+    const names = [];
+    if (u.personnel1) names.push(normalize(u.personnel1));
+    if (u.personnel2) names.push(normalize(u.personnel2));
+    
+    // Store assigned sector for each person found in units
+    const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
+    names.forEach(name => nameToSector.set(name, sector));
+    
+    // Check status robustly (Falto, FALTO, falto)
+    const status = (u.status || '').toString().trim().toUpperCase();
+    
+    if (status === 'FALTO') {
+      names.forEach(name => explicitAbsentInUnits.add(name));
+    } else {
+      names.forEach(name => presentNames.add(name));
+    }
+  });
+
+  // 2. Filter personnel for "ABSENT"
+  const absents = personnel.filter(p => {
+    const name = normalize(p.apellidos_nombres);
+    
+    // Check spreadsheet status robustly
+    const statusSS = (p.estado || '').toString().trim().toUpperCase();
+    const isExplicitFaltoSS = statusSS === 'FALTO';
+    const isExplicitFaltoUnit = explicitAbsentInUnits.has(name);
+    
+    return isExplicitFaltoSS || isExplicitFaltoUnit;
+  });
+
+  // 3. Define groups based on regId keywords
+  const groupsToDraw = [
+    { id: '276', label: 'PLANILLA D.L. 276' },
+    { id: '728', label: 'PLANILLA D.L. 728' },
+    { id: '1057', label: 'CAS D.L. 1057' },
+    { id: 'OS', label: 'OS' }
+  ];
+
+  let currentY = 10;
+
+  groupsToDraw.forEach((groupInfo, index) => {
+    const regimenAbsents = absents.filter(p => {
+      const reg = (p.regimen_laboral || '').toUpperCase();
+      if (groupInfo.id === 'OS') return reg === 'OS' || reg === 'O.S.' || reg.includes('SERVICIOS');
+      if (groupInfo.id === '1057') return reg.includes('1057') || reg.includes('CAS');
+      return reg.includes(groupInfo.id);
+    });
+
+    // Check if we need a new page
+    if (currentY > 230) {
+      doc.addPage();
+      currentY = 10;
+    }
+
+    // --- Header Section for Group ---
+    doc.setFillColor(38, 70, 83);
+    doc.rect(margin, currentY, pageWidth - (margin * 2), 15, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text('SURCO', margin + 5, currentY + 10);
+    
+    doc.setFontSize(10);
+    doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 10, { align: 'right' });
+
+    // Red Title Bar
+    currentY += 15;
+    doc.setDrawColor(200, 200, 200);
+    doc.setFillColor(150, 0, 0); // Red
+    doc.rect(margin, currentY, pageWidth - (margin * 2), 8, 'F');
+    
+    doc.setFontSize(11);
+    doc.text(`FALTOS ${groupInfo.label}`, margin + 5, currentY + 5.5);
+    doc.text(regimenAbsents.length.toString(), pageWidth - margin - 5, currentY + 5.5, { align: 'right' });
+
+    // --- Table ---
+    const tableData = regimenAbsents.map(p => {
+      const nameNorm = normalize(p.apellidos_nombres);
+      return [
+        p.apellidos_nombres?.toUpperCase() || '',
+        (p.rol_operativo || '').toUpperCase() || '',
+        shift === 'MAÑANA' ? 'M' : shift === 'TARDE' ? 'T' : 'N',
+        nameToSector.get(nameNorm) || '--'
+      ];
+    });
+
+    (doc as any).autoTable({
+      startY: currentY + 8,
+      head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR']],
+      body: tableData,
+      theme: 'grid',
+      styles: { fontSize: 8, fontStyle: 'normal', halign: 'center', cellPadding: 1, textColor: [0, 0, 0], lineWidth: 0.1 },
+      headStyles: { fillColor: [38, 70, 83], textColor: [255, 255, 255], fontStyle: 'bold' },
+      columnStyles: {
+        0: { halign: 'left' },
+        1: { halign: 'center' },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 25 }
+      },
+      margin: { left: margin, right: margin }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+  });
+
+  doc.save(`REPORTE_ASISTENCIA_${shift}_${date}.pdf`);
 };
 

@@ -35,7 +35,7 @@ function toDisplaySector(value) {
  * Run this function once from the GAS editor.
  */
 function initialSetup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   
   // 1. Setup SHIFT_SETTINGS (Operator, Supervisor per Shift/Date)
   let settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
@@ -76,7 +76,7 @@ function initialSetup() {
  * Fetches all units and settings for a specific date, shift and sector.
  */
 function getShiftData(dateStr, shift, sector) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   
 
   // 1. Get Settings
@@ -171,7 +171,12 @@ function getShiftData(dateStr, shift, sector) {
     }
   }
 
-  return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
+  return { 
+    settings: shiftSettings, 
+    allSectorSettings: allSectorSettings, 
+    units: allUnits, 
+    personnelList: getPersonnelList() 
+  };
 }
 
 /**
@@ -273,29 +278,37 @@ function getMobileData() {
 function getPersonnelList() {
   try {
     const extSS = getExternalPersonnelSpreadsheet();
-    const extSheet = extSS.getSheets()[0]; // Assumes first sheet
+    let extSheet = extSS.getSheetByName('Personal');
+    if (!extSheet) {
+      extSheet = extSS.getSheets()[0]; // Fallback to first sheet
+    }
     const data = extSheet.getDataRange().getValues();
     if (data.length < 2) return [];
 
     const headers = data[0].map(h => String(h).toLowerCase().trim());
     
-    // Mapping keys to indices
+    // Mapping keys with fallbacks
+    const findHeader = (target) => {
+      const idx = headers.indexOf(target.toLowerCase());
+      if (idx !== -1) return idx;
+      // Fallbacks for common variations
+      if (target === 'apellidos_nombres') {
+        const alt = headers.findIndex(h => h.includes('nombre') || h.includes('personal') || h.includes('trabajador'));
+        return alt;
+      }
+      if (target === 'regimen_laboral') {
+        const alt = headers.findIndex(h => h.includes('regimen') || h.includes('planilla'));
+        return alt;
+      }
+      return -1;
+    };
+
     const fieldIndices = {
-      n: headers.indexOf('n'),
-      dni: headers.indexOf('dni'),
-      apellidos_nombres: headers.indexOf('apellidos_nombres'),
-      regimen_laboral: headers.indexOf('regimen_laboral'),
-      codigo_interno: headers.indexOf('codigo_interno'),
-      sector_id: headers.indexOf('sector_id'),
-      rol_operativo: headers.indexOf('rol_operativo'),
-      estado: headers.indexOf('estado'),
-      correo: headers.indexOf('correo'),
-      telefono: headers.indexOf('telefono'),
-      rol_sistema: headers.indexOf('rol_sistema'),
-      persona_id: headers.indexOf('persona_id'),
-      pin_operativo: headers.indexOf('pin_operativo'),
-      fecha_alta: headers.indexOf('fecha_alta'),
-      fecha_baja: headers.indexOf('fecha_baja')
+      dni: findHeader('dni'),
+      apellidos_nombres: findHeader('apellidos_nombres'),
+      regimen_laboral: findHeader('regimen_laboral'),
+      estado: findHeader('estado'),
+      rol_operativo: findHeader('rol_operativo')
     };
 
     const personnelList = [];
@@ -324,7 +337,7 @@ function getPersonnelList() {
  * Saves all units and settings for a specific date and shift.
  */
 function saveShiftData(dateStr, shift, settings, units) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   const lock = LockService.getScriptLock();
   
   try {
@@ -384,8 +397,11 @@ function saveShiftData(dateStr, shift, settings, units) {
 
     const dataRows = dataSheet.getDataRange().getValues();
     
-    // Filter out existing rows for this date/shift AND SECTOR (Only replace units of this sector)
-    // IMPORTANT: Previous logic deleted ALL units for the shift. Now we must only delete units for CURRENT SECTOR.
+    // Only replace units of this sector to avoid overwriting other sectors' data during a single sector save
+    const unitsToSave = units.filter(u => u.id && !u.id.startsWith('NEW-'));
+    
+    // However, we only delete and replace rows belonging to the CURRENT sector being edited in the frontend
+    // to allow multi-user editing of different sectors.
     for (let i = dataRows.length - 1; i >= 1; i--) {
       const row = dataRows[i];
       if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && 
@@ -394,17 +410,11 @@ function saveShiftData(dateStr, shift, settings, units) {
         dataSheet.deleteRow(i + 1);
       }
     }
-
-    // Add new units (filtered by current sector just in case, though frontend should send only relevant ones or all with sector field)
-    // The frontend sends 'units' array. We should filter this array to only include units of 'targetSector' to be safe,
-    // OR assume 'units' contains only what needs to be saved.
-    // However, App.tsx logic suggests 'units' state might contain ALL units.
-    // Let's filter 'units' to only save those belonging to 'targetSector'.
     
-    const unitsToSave = units.filter(u => toStorageSector(u.sector) === targetSector && u.id && !u.id.startsWith('NEW-'));
+    const sectorUnits = unitsToSave.filter(u => toStorageSector(u.sector) === targetSector);
 
-    if (unitsToSave.length > 0) {
-      const newRows = unitsToSave.map(u => [
+    if (sectorUnits.length > 0) {
+      const newRows = sectorUnits.map(u => [
         dateStr, shift, targetSector,
         u.id, u.type, u.model || '', u.personnel1, u.personnel2, u.plate, u.indicative, u.radio,
         u.status, u.reason, u.km, u.hours, u.fuel, u.expense, u.parts, u.quadrant, u.mechanics

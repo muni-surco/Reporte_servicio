@@ -52,6 +52,14 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       color: 'teal'
     },
     {
+      id: 'asistencia_regimen',
+      title: 'Reporte de Asistencia por Régimen',
+      subtitle: 'Personal Faltante por Régimen Laboral',
+      description: 'Detalle de personal inasistente agrupado por su régimen laboral: 276, 728, CAS y OS.',
+      icon: <Users className="w-8 h-8 text-rose-600" />,
+      color: 'rose'
+    },
+    {
       id: 'incidencias',
       title: 'Resumen de Incidencias Operativas',
       subtitle: 'Taller y Sin Patrullar',
