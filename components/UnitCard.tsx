@@ -87,14 +87,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
       if (found) {
         setFormData(prev => {
-          // Si el ID cambió respecto al original (es un cambio de unidad o unidad nueva),
-          // forzamos la placa y el cuadrante de la referencia, incluso si están vacíos.
           const isIdChanged = formData.id !== unit.id;
-          
+
           return {
             ...prev,
             plate: found.plate || (isIdChanged ? '' : prev.plate),
             model: found.model || (isIdChanged ? '' : prev.model),
+            // Populate radio if empty or if unit ID just changed
+            radio: isIdChanged ? (found.radio || '') : (prev.radio || found.radio || ''),
             quadrant: isIdChanged ? (found.quadrant || '') : (prev.quadrant || found.quadrant || '')
           };
         });
@@ -145,7 +145,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
     [UnitStatus.CHOFER_SIN_MOVIL]: "bg-red-100 text-red-700 border-red-200",
     [UnitStatus.EN_PC_X_DESPERFECTOS]: "bg-red-100 text-red-700 border-red-200",
     [UnitStatus.OPERATIVA_SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
-    [UnitStatus.OPERATIVA_SIN_CHOFER]: "bg-amber-100 text-amber-700 border-amber-200"
+    [UnitStatus.OPERATIVA_SIN_CHOFER]: "bg-amber-100 text-amber-700 border-amber-200",
+    [UnitStatus.RETEN]: "bg-slate-100 text-slate-700 border-slate-200"
   };
 
   const isRescate = unit.sector === 'RESCATE';
@@ -213,209 +214,149 @@ const UnitCard: React.FC<UnitCardProps> = ({
     return (
       <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg flex items-center gap-4`}>
         {/* Línea vertical distintiva estilo moderno */}
-        <div className={`w-1.5 h-32 ${typeConfig.lineBg} rounded-full shrink-0 shadow-sm`}></div>
-        
-        <div className="flex-1">
-          <div className={`grid grid-cols-12 gap-3 ${!isSereno ? 'pb-3 mb-3 border-b border-blue-100' : ''}`}>
-          <div className="col-span-1">
-            <label className={labelStyleEdit}>ID {errors.id && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput
-              value={String(formData.id).startsWith('NEW-') ? '' : String(formData.id)}
-              onChange={(val) => {
-                setFormData(prev => ({ ...prev, id: val }));
-                setErrors(prev => ({ ...prev, id: false }));
-              }}
-              suggestions={(mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
-              placeholder="M-00"
-              className={errors.id ? errorInputStyle : ''}
-            />
-          </div>
+        <div className={`w-1.5 h-36 ${typeConfig.lineBg} rounded-full shrink-0 shadow-sm`}></div>
 
-          <div className={isSereno || isMoto ? 'col-span-3' : 'col-span-2'}>
-            <label className={labelStyleEdit}>{isSereno ? 'Sereno' : isMoto ? 'Motorizado' : 'Chofer'} {errors.personnel1 && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput
-              value={formData.personnel1}
-              onChange={(val) => {
-                setFormData(prev => ({ ...prev, personnel1: val }));
-                setErrors(prev => ({ ...prev, personnel1: false }));
-              }}
-              suggestions={activePersonnelOptions}
-              placeholder="Nombre Personal..."
-              error={errors.personnel1}
-            />
-          </div>
-
-          {hasPersonnel2 && (
-            <div className="col-span-2">
-              <label className={labelStyleEdit}>Copiloto</label>
+        <div className="flex-1 min-w-0">
+          {/* Línea 1: Identificación, Logística y Estado (Exactamente 12 cols) */}
+          <div className="grid grid-cols-12 gap-1.5 pb-2">
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>ID</label>
               <AutocompleteInput
-                value={formData.personnel2 || ''}
-                onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))}
-                suggestions={activePersonnelOptions}
-                placeholder="Nombre Copiloto..."
+                value={String(formData.id).startsWith('NEW-') ? '' : String(formData.id)}
+                onChange={(val) => { setFormData(prev => ({ ...prev, id: val })); setErrors(prev => ({ ...prev, id: false })); }}
+                suggestions={(mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
+                placeholder="M-01"
               />
             </div>
-          )}
 
-          {hasIndicative && (
+            <div className={hasPersonnel2 ? 'col-span-2' : 'col-span-4'}>
+              <label className={labelStyleEdit}>{isSereno ? 'Personal' : isMoto ? 'Motorizado' : 'Chofer'}</label>
+              <AutocompleteInput
+                value={formData.personnel1}
+                onChange={(val) => { setFormData(prev => ({ ...prev, personnel1: val })); setErrors(prev => ({ ...prev, personnel1: false })); }}
+                suggestions={activePersonnelOptions}
+                placeholder="Nombre..."
+                error={errors.personnel1}
+              />
+            </div>
+
+            {hasPersonnel2 && (
+              <div className="col-span-2">
+                <label className={labelStyleEdit}>Copiloto</label>
+                <AutocompleteInput
+                  value={formData.personnel2 || ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))}
+                  suggestions={activePersonnelOptions}
+                  placeholder="Copiloto..."
+                />
+              </div>
+            )}
+
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Radio</label>
+              <AutocompleteInput
+                value={formData.radio}
+                onChange={(val) => { setFormData(prev => ({ ...prev, radio: val })); setErrors(prev => ({ ...prev, radio: false })); }}
+                suggestions={Array.from(new Set([...RADIOS, ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])])) as string[]}
+                placeholder="20xxx"
+              />
+            </div>
+
             <div className="col-span-1">
               <label className={labelStyleEdit}>Indic.</label>
-              <select
-                name="indicative"
-                value={formData.indicative || ''}
-                onChange={handleChange}
-                className={`${inputStyle('indicative')} py-0 text-[11px]`}
-              >
+              <select name="indicative" value={formData.indicative || ''} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[10px]`}>
                 <option value="">--</option>
-                {/* Add current value if not in options to avoid hidden state */}
-                {formData.indicative && !activeIndicativeOptions.includes(formData.indicative) && (
-                  <option value={formData.indicative}>{formData.indicative}</option>
-                )}
+                {formData.indicative && !activeIndicativeOptions.includes(formData.indicative) && <option value={formData.indicative}>{formData.indicative}</option>}
                 {activeIndicativeOptions.map(i => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
-          )}
 
-          {hasPlate && (
-            <div className="col-span-2">
-              <label className={labelStyleEdit}>Placa</label>
-              <input
-                name="plate"
-                value={formData.plate}
-                onChange={handleChange}
-                readOnly={isChofer || isMoto}
-                className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-100 text-slate-500' : ''}`}
-              />
-            </div>
-          )}
-
-          <div className="col-span-1">
-            <label className={labelStyleEdit}>Radio {errors.radio && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput
-              value={formData.radio}
-              onChange={(val) => {
-                setFormData(prev => ({ ...prev, radio: val }));
-                setErrors(prev => ({ ...prev, radio: false }));
-              }}
-              // Dynamically build radio list from mobileData and RADIOS constant
-              suggestions={Array.from(new Set([
-                ...RADIOS,
-                ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])
-              ])) as string[]}
-              placeholder="20000"
-              className={errors.radio ? errorInputStyle : ''}
-            />
-          </div>
-
-          {!isRescate && (
-            <div className="col-span-2">
+            <div className="col-span-1">
               <label className={labelStyleEdit}>Cuad.</label>
               <MultiSelectAutocomplete
                 value={formData.quadrant || ''}
                 onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
                 suggestions={activeQuadrantOptions}
-                placeholder="Seleccionar..."
-                error={errors.quadrant}
+                placeholder="Selec..."
               />
             </div>
-          )}
 
-          <div className={isSereno ? 'col-span-2' : 'col-span-1'}>
-            <label className={labelStyleEdit}>Motivo</label>
-            <input name="reason" value={formData.reason} onChange={handleChange} className={inputStyle('reason')} />
-          </div>
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Placa</label>
+              <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
+            </div>
 
-          {isSereno && (
-            <>
-              <div className="col-span-1">
-                <label className={labelStyleEdit}>Estado</label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  className={`${inputStyle('status')} py-0`}
-                >
-                  <option value="">--</option>
-                  {/* Add current value if not in options */}
-                  {formData.status && !activeStatusOptions.includes(formData.status) && (
-                    <option value={formData.status}>{formData.status}</option>
-                  )}
-                  {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="col-span-1">
-                <label className={labelStyleEdit}>Partes</label>
-                <input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} />
-              </div>
-            </>
-          )}
-        </div>
-
-        {!isSereno && (
-          <div className="grid grid-cols-12 gap-3 pb-3">
             <div className="col-span-1">
               <label className={labelStyleEdit}>Estado</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className={`${inputStyle('status')} py-0`}
-              >
+              <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0 text-[9px] font-bold`}>
                 <option value="">--</option>
-                {/* Add current value if not in options */}
-                {formData.status && !activeStatusOptions.includes(formData.status) && (
-                  <option value={formData.status}>{formData.status}</option>
-                )}
+                {formData.status && !activeStatusOptions.includes(formData.status) && <option value={formData.status}>{formData.status}</option>}
                 {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div className="col-span-3 grid grid-cols-3 gap-1">
-              <div><label className={labelStyleEdit}>KM INICIO</label><input type="number" value={kmStart} onChange={(e) => setKmStart(e.target.value)} className={inputStyle('kmStart')} /></div>
-              <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>
-              <div><label className={labelStyleEdit}>TOTAL</label><div className="bg-blue-100 border border-blue-200 rounded px-2 py-1 text-[11px] font-medium text-blue-700 h-[28px] flex items-center justify-center">{kmDiff}</div></div>
-            </div>
-            <div className="col-span-2 grid grid-cols-2 gap-1">
-              <div><label className={labelStyleEdit}>INICIO H.</label><input type="time" value={hourStart} onChange={(e) => setHourStart(e.target.value)} className={inputStyle('hourStart')} /></div>
-              <div><label className={labelStyleEdit}>FIN H.</label><input type="time" value={hourEnd} onChange={(e) => setHourEnd(e.target.value)} className={inputStyle('hourEnd')} /></div>
-            </div>
-            <div className={`col-span-${hasKmRecarga ? '4' : '3'} grid grid-cols-${hasKmRecarga ? '4' : '3'} gap-1`}>
-              {hasKmRecarga && (
-                <div><label className={labelStyleEdit}>RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
-              )}
-              <div><label className={labelStyleEdit}>TIPO COMB.</label>
-                <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0`}>
-                  <option value="">--</option>
-                  {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-              </div>
-              <div><label className={labelStyleEdit}>CANT.</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} /></div>
-              <div><label className={labelStyleEdit}>GASTO (S/)</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
-            </div>
+
             <div className="col-span-2">
-              <label className={labelStyleEdit}>PARTES/INTERV.</label>
-              <input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} />
+              <label className={labelStyleEdit}>Motivo</label>
+              <input name="reason" value={formData.reason} onChange={handleChange} className={inputStyle('reason')} placeholder="..." />
             </div>
           </div>
-        )}
 
-        <div className="flex justify-end gap-3 pt-3 border-t border-blue-200/50">
-          <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
-            CANCELAR
-          </button>
-          <button onClick={handleValidateAndSave} className="bg-[#005cbb] text-white text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group">
-            <lord-icon
-              src="https://cdn.lordicon.com/egiwmiit.json"
-              trigger="hover"
-              colors="primary:#ffffff"
-              style={{ width: '16px', height: '16px' }}>
-            </lord-icon>
-            {isNew ? 'CREAR UNIDAD' : 'GUARDAR'}
-          </button>
+          {/* Línea 2: Operatividad Detallada (Exactamente 12 cols o menos) */}
+          <div className="grid grid-cols-12 gap-1.5 pt-0.5">
+            {!isSereno ? (
+              <>
+                <div className="col-span-3 grid grid-cols-3 gap-1">
+                  <div><label className={labelStyleEdit}>KM INICIO</label><input type="number" value={kmStart} onChange={(e) => setKmStart(e.target.value)} className={inputStyle('kmStart')} /></div>
+                  <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>
+                  <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[10px] font-bold text-blue-700 h-[26px] flex items-center justify-center">{kmDiff}</div></div>
+                </div>
+                <div className="col-span-2 grid grid-cols-2 gap-1">
+                  <div><label className={labelStyleEdit}>HORA INICIO</label><input type="time" value={hourStart} onChange={(e) => setHourStart(e.target.value)} className={inputStyle('hourStart')} /></div>
+                  <div><label className={labelStyleEdit}>HORA FIN</label><input type="time" value={hourEnd} onChange={(e) => setHourEnd(e.target.value)} className={inputStyle('hourEnd')} /></div>
+                </div>
+                <div className="col-span-5 grid grid-cols-5 gap-1">
+                  <div><label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
+                  <div><label className={labelStyleEdit}>COMBUSTIBLE</label>
+                    <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[9px] font-bold`}>
+                      <option value="">--</option>
+                      {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div><label className={labelStyleEdit}>CANTIDAD</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} /></div>
+                  <div><label className={labelStyleEdit}>GASTO</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
+                  <div><label className={labelStyleEdit}>PARTES</label><input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} /></div>
+                </div>
+                <div className="col-span-2" />
+              </>
+            ) : (
+              <>
+                <div className="col-span-2">
+                  <label className={labelStyleEdit}>Partes / Intervenciones</label>
+                  <input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} />
+                </div>
+                <div className="col-span-10" />
+              </>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3">
+            <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
+              CANCELAR
+            </button>
+            <button onClick={handleValidateAndSave} className="bg-[#005cbb] text-white text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group">
+              <lord-icon
+                src="https://cdn.lordicon.com/egiwmiit.json"
+                trigger="hover"
+                colors="primary:#ffffff"
+                style={{ width: '16px', height: '16px' }}>
+              </lord-icon>
+              {isNew ? 'CREAR UNIDAD' : 'GUARDAR'}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <>
@@ -449,16 +390,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna Logística Radio/Indicativo/Cuadrante */}
           <div className="flex gap-4 border-r border-slate-100 px-2 min-w-0">
-            <div className="flex flex-col flex-1 text-center">
+            <div className="flex flex-col flex-1 text-center min-w-[50px]">
               <label className={labelStyle}>Radio</label>
               <div className={`${infoValueStyle} text-slate-800`}>
-                {unit.radio || ''}
+                {unit.radio || '--'}
               </div>
             </div>
-            {unit.indicative && (
-              <div className="flex flex-col flex-1 text-center">
-                <label className={labelStyle}>Indicativo</label>
-                <div className={infoValueStyle}>{unit.indicative}</div>
+            {hasIndicative && (
+              <div className="flex flex-col flex-1 text-center min-w-[50px]">
+                <label className={labelStyle}>Indic.</label>
+                <div className={infoValueStyle}>{unit.indicative || '--'}</div>
               </div>
             )}
             {!isRescate && (

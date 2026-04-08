@@ -217,3 +217,243 @@ export const generateMotoReport = (
   const fileName = `REPORTE_MOTOS_${modelFilter.toUpperCase()}_${shift}_${date}.pdf`;
   doc.save(fileName);
 };
+
+export const generateVehicleReport = (
+  units: UnitData[], 
+  settingsMap: Record<string, AppSettings>, 
+  date: string, 
+  shift: string
+) => {
+  const doc = new jspdf.jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 10;
+  
+  // Filter for CHOFER units (Vehicles)
+  const vehicleUnits = units.filter(u => u.type === 'CHOFER');
+
+  const formatLongDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString('es-ES', { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // --- HEADER ---
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('REPORTE NUMÉRICO DE VEHÍCULOS RENTING', pageWidth / 2, 12, { align: 'center' });
+
+  // Shift Box
+  doc.setLineWidth(0.5);
+  doc.rect(margin + 20, 16, pageWidth - (margin * 2) - 40, 12);
+  doc.setFontSize(22);
+  doc.text(shift.toUpperCase(), pageWidth / 2, 25, { align: 'center' });
+
+  // Date
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatLongDate(date), pageWidth / 2, 33, { align: 'center' });
+
+  // --- SUMMARY TABLE (FLOTA VEHICULAR) ---
+  const sectors = [
+    '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'GIR', 'RESCATE'
+  ];
+
+  const inoperativeStatuses = ['MAESTRANZA', 'TALLER PARTICULAR', 'EN PC x DESPERFECTOS', 'TALLER'];
+  
+  const summaryRows = sectors.map(s => {
+    const sectorUnits = vehicleUnits.filter(u => (u.sector || '').toUpperCase().includes(s));
+    
+    const countInoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+    const countPatrullando = sectorUnits.filter(u => u.status === 'PATRULLANDO').length;
+    const countReten = sectorUnits.filter(u => u.status === 'RETEN').length;
+    const countSinPatrullar = sectorUnits.filter(u => 
+      u.status !== 'PATRULLANDO' && 
+      u.status !== 'RETEN' && 
+      !inoperativeStatuses.includes((u.status || '').toUpperCase()) &&
+      u.status !== 'CHOFER SIN MOVIL'
+    ).length;
+
+    const efectivo = countPatrullando + countSinPatrullar;
+
+    return [
+      s,
+      efectivo || '0',
+      countInoperativos || '0',
+      countPatrullando || '0',
+      countSinPatrullar || '0',
+      countReten || '0'
+    ];
+  });
+
+  // Calculate Totals
+  const totals = summaryRows.reduce((acc: number[], curr: any[]) => {
+    acc[0] += Number(curr[1]) || 0;
+    acc[1] += Number(curr[2]) || 0;
+    acc[2] += Number(curr[3]) || 0;
+    acc[3] += Number(curr[4]) || 0;
+    acc[4] += Number(curr[5]) || 0;
+    return acc;
+  }, [0, 0, 0, 0, 0]);
+
+  summaryRows.push([
+    'TOTALES',
+    totals[0].toString(),
+    totals[1].toString(),
+    totals[2].toString(),
+    totals[3].toString(),
+    totals[4].toString()
+  ]);
+
+  (doc as any).autoTable({
+    startY: 38,
+    head: [[
+      { content: 'FLOTA VEHICULAR', colSpan: 6, styles: { halign: 'center', fillColor: [38, 70, 83] } }
+    ], [
+      'SECTORES', 'EFECTIVO', 'INOPERATIVOS', 'PATRULLANDO', 'SIN PATRULLAR', 'RETEN'
+    ]],
+    body: summaryRows,
+    theme: 'grid',
+    styles: { fontSize: 7.5, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1, cellPadding: 1 },
+    headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 7.5 },
+    columnStyles: {
+      0: { cellWidth: 35, fillColor: [240, 240, 240] },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 25 },
+      3: { cellWidth: 25 },
+      4: { cellWidth: 25 },
+      5: { cellWidth: 25 }
+    },
+    didParseCell: function(data: any) {
+      if (data.row.section === 'body') {
+        const isTotalRow = data.row.index === summaryRows.length - 1;
+        
+        if (data.column.index === 1) data.cell.styles.fillColor = [220, 255, 220]; 
+        if (data.column.index === 2) data.cell.styles.fillColor = [255, 200, 200]; 
+        if (data.column.index === 3) data.cell.styles.fillColor = [255, 255, 200]; 
+        if (data.column.index === 4) data.cell.styles.fillColor = [255, 255, 200]; 
+        if (data.column.index === 5) data.cell.styles.fillColor = [255, 230, 230]; 
+
+        if (isTotalRow) {
+          data.cell.styles.fillColor = [38, 70, 83];
+          data.cell.styles.textColor = [255, 255, 255];
+          if (data.column.index === 1) data.cell.styles.fillColor = [40, 167, 69];
+          if (data.column.index === 2) data.cell.styles.fillColor = [220, 53, 69];
+          if (data.column.index === 3) data.cell.styles.fillColor = [255, 193, 7];
+          if (data.column.index === 4) data.cell.styles.fillColor = [255, 193, 7];
+          if (data.column.index === 5) data.cell.styles.fillColor = [220, 160, 160];
+        }
+      }
+    },
+    margin: { left: 15, right: 15 }
+  });
+
+  let finalY = (doc as any).lastAutoTable.finalY + 4;
+
+  // --- CHOFERES SIN CARRO bar ---
+  const choferesSinCarro = vehicleUnits.filter(u => u.status === 'CHOFER SIN MOVIL').length;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setFillColor(38, 70, 83);
+  doc.rect(margin + 10, finalY, 50, 5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.text('CHOFERES SIN CARRO', margin + 12, finalY + 3.8);
+  doc.setDrawColor(0);
+  doc.rect(margin + 60, finalY, 20, 5);
+  doc.setTextColor(0, 0, 0);
+  doc.text(choferesSinCarro.toString(), margin + 70, finalY + 3.8, { align: 'center' });
+
+  finalY += 9;
+
+  // --- PERMANENCIA ---
+  const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setFillColor(38, 70, 83);
+  doc.rect(margin, finalY, 40, 7, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.text(' P E R M A N E N C I A :', margin + 2, finalY + 4.8);
+  
+  doc.setDrawColor(0);
+  doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 4.8);
+
+  finalY += 9;
+
+  // --- DETAILS TABLES ---
+  const inopData = vehicleUnits
+    .filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .map(u => [u.id, u.plate || '', u.reason || u.status]);
+  
+  while (inopData.length < 15) inopData.push(['', '', '']);
+
+  const sinPatrullarData = vehicleUnits
+    .filter(u => 
+      u.status !== 'PATRULLANDO' && 
+      u.status !== 'RETEN' && 
+      !inoperativeStatuses.includes((u.status || '').toUpperCase()) &&
+      u.status !== 'CHOFER SIN MOVIL'
+    )
+    .map(u => [u.id, u.plate || '', u.reason || u.status]);
+    
+  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '']);
+
+  (doc as any).autoTable({
+    startY: finalY,
+    head: [[{ content: 'INOPERATIVOS', colSpan: 3, styles: { halign: 'center', fillColor: [220, 53, 69] } }]],
+    body: inopData,
+    theme: 'grid',
+    styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
+    headStyles: { textColor: [255, 255, 255] },
+    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 15 } },
+    margin: { left: margin },
+    tableWidth: (pageWidth / 2) - margin - 2
+  });
+
+  (doc as any).autoTable({
+    startY: finalY,
+    head: [[{ content: 'SIN PATRULLAR', colSpan: 3, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }]],
+    body: sinPatrullarData,
+    theme: 'grid',
+    styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
+    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 15 } },
+    margin: { left: pageWidth / 2 + 2 },
+    tableWidth: (pageWidth / 2) - margin - 2
+  });
+
+  const previousAutoTable = (doc as any).lastAutoTable;
+  const finalDetailY = Math.max(previousAutoTable ? previousAutoTable.finalY : 0, finalY);
+
+  // --- FOOTER ---
+  const footerY = pageHeight - 20;
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`SUPERVISOR CCO: ${firstSectorSettings.supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${firstSectorSettings.operador || '--'}`, pageWidth - margin, footerY + 3, { align: 'right' });
+
+  // Timestamp
+  const now = new Date();
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+
+  const fileName = `REPORTE_VEHICULOS_RENTING_${shift.toUpperCase()}_${date}.pdf`;
+  doc.save(fileName);
+};
+

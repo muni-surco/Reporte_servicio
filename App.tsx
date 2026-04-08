@@ -6,7 +6,7 @@ import Header from './components/Header';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import ReportGeneratorView from './components/ReportGeneratorView';
-import { generateMotoReport } from './utils/reportGenerator';
+import { generateMotoReport, generateVehicleReport } from './utils/reportGenerator';
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData } from './types';
@@ -307,7 +307,7 @@ const App: React.FC = () => {
 
   const handleGenerateReport = async (type: string, date: string, shift: string) => {
     setIsGeneratingStructuredReport(true);
-    
+
     if (typeof google === 'undefined' || !google.script || !google.script.run) {
       // Mock for local dev
       setTimeout(() => {
@@ -317,6 +317,8 @@ const App: React.FC = () => {
           generateMotoReport(units, sectorSettingsMap, date, shift, 'XTZ150', 'YAMAHA XTZ150');
         } else if (type === 'motos_honda') {
           generateMotoReport(units, sectorSettingsMap, date, shift, 'SAHARA XRE 300', 'HONDA SAHARA XRE 300');
+        } else if (type === 'moviles') {
+          generateVehicleReport(units, sectorSettingsMap, date, shift);
         }
       }, 1000);
       return;
@@ -329,6 +331,8 @@ const App: React.FC = () => {
           generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'XTZ150', 'YAMAHA XTZ150');
         } else if (type === 'motos_honda') {
           generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'SAHARA XRE 300', 'HONDA SAHARA XRE 300');
+        } else if (type === 'moviles') {
+          generateVehicleReport(data.units, data.allSectorSettings || {}, date, shift);
         } else {
           alert(`El reporte de "${type}" se encuentra en desarrollo.`);
         }
@@ -352,7 +356,7 @@ const App: React.FC = () => {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-primary text-white">
         <div className="w-12 h-12 border-4 border-secondary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-[10px] font-bold tracking-[0.2em] animate-pulse uppercase">Cargando Sectores...</p>
+        <p className="text-[14px] font-bold tracking-[0.2em] animate-pulse uppercase">Cargando Datos...</p>
       </div>
     );
   }
@@ -366,7 +370,7 @@ const App: React.FC = () => {
           totalPartes={sumPartes(currentSectorUnits)}
           onSaveSettings={handleSaveSettings}
           onGlobalSave={handleGlobalSave}
-          onGeneratePDF={() => {}}
+          onGeneratePDF={() => setCurrentView('REPORTS')}
           onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno)}
           isSaving={saving}
           currentSector={currentSector}
@@ -377,7 +381,7 @@ const App: React.FC = () => {
           personnelOptions={personnelOptions}
           personnelStats={personnelStats}
         />
-        
+
         <div className="flex-1 overflow-y-auto scroll-smooth p-4 lg:p-6" id="report-content">
           {currentView === 'DASHBOARD' ? (
             <>
@@ -428,13 +432,13 @@ const App: React.FC = () => {
               )}
             </>
           ) : currentView === 'VISUALIZATION' ? (
-            <VisualizationView 
+            <VisualizationView
               allSectorsData={allSectorsData}
               settings={settings}
               mobileData={mobileData}
             />
           ) : currentView === 'REPORTS' ? (
-            <ReportGeneratorView 
+            <ReportGeneratorView
               selectedDate={selectedDate}
               selectedShift={settings.turno}
               onGenerateReport={handleGenerateReport}

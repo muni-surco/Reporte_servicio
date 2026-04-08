@@ -37,9 +37,9 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
     },
     {
       id: 'moviles',
-      title: 'Reporte Numérico de Movilidades',
-      subtitle: 'Camionetas y Autos de Serenazgo',
-      description: 'Resumen ejecutivo de patrulleros y movilidades pesadas en todos los sectores del distrito.',
+      title: 'Reporte Numérico de Vehículos',
+      subtitle: 'FLOTA RENTING (CAMIONETAS/AUTOS)',
+      description: 'Consolidado general de operatividad, patrullaje y personal de toda la flota de vehículos Renting por sector.',
       icon: <FileText className="w-8 h-8 text-indigo-600" />,
       color: 'indigo'
     },
