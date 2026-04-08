@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
+          format: 'iife',
+          name: 'app',
+          inlineDynamicImports: true,
           entryFileNames: 'assets/[name].js',
           chunkFileNames: 'assets/[name].js',
           assetFileNames: 'assets/[name].[ext]',

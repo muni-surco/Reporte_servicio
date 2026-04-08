@@ -22,7 +22,7 @@ export type Sector =
   | 'GIR'
   | string;
 
-export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS';
+export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS';
 
 export interface PersonnelData {
   n: string;
@@ -46,6 +46,7 @@ export interface UnitData {
   id: string;
   sector?: Sector;
   type: 'CHOFER' | 'MOTO' | 'SERENO';
+  model?: string;
   personnel1: string;
   personnel2?: string;
   plate: string;
@@ -80,6 +81,7 @@ export interface AppData {
 export interface MobileReference {
   id: string;
   plate: string;
+  model?: string;
   radio?: string;
   quadrant?: string;
   sector?: string;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UnitData, UnitStatus } from '../types';
+import { UnitData, UnitStatus, MobileReference } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
 import { PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../constants';
@@ -12,7 +12,7 @@ interface UnitCardProps {
   onSave: (updated: UnitData) => void;
   onCancel: () => void;
   onDelete: (id: string) => void;
-  mobileData?: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[];
+  mobileData?: MobileReference[];
   statusOptions?: string[];
   indicativeOptions?: string[];
   personnelOptions?: string[];
@@ -94,6 +94,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           return {
             ...prev,
             plate: found.plate || (isIdChanged ? '' : prev.plate),
+            model: found.model || (isIdChanged ? '' : prev.model),
             quadrant: isIdChanged ? (found.quadrant || '') : (prev.quadrant || found.quadrant || '')
           };
         });

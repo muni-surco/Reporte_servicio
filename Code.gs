@@ -57,7 +57,7 @@ function initialSetup() {
   }
   dataSheet.clear();
   const dataHeaders = [
-    'FECHA', 'TURNO', 'SECTOR', 'ID', 'TIPO', 'PERSONAL_1', 'PERSONAL_2', 
+    'FECHA', 'TURNO', 'SECTOR', 'ID', 'TIPO', 'MODELO', 'PERSONAL_1', 'PERSONAL_2', 
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
     'KM', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS'
   ];
@@ -151,20 +151,21 @@ function getShiftData(dateStr, shift, sector) {
           id: row[3],
           sector: toDisplaySector(row[2]),
           type: row[4],
-          personnel1: row[5],
-          personnel2: row[6],
-          plate: row[7],
-          indicative: row[8],
-          radio: row[9],
-          status: row[10],
-          reason: row[11],
-          km: row[12],
-          hours: row[13],
-          fuel: row[14],
-          expense: row[15],
-          parts: row[16],
-          quadrant: row[17],
-          mechanics: row[18]
+          model: row[5],
+          personnel1: row[6],
+          personnel2: row[7],
+          plate: row[8],
+          indicative: row[9],
+          radio: row[10],
+          status: row[11],
+          reason: row[12],
+          km: row[13],
+          hours: row[14],
+          fuel: row[15],
+          expense: row[16],
+          parts: row[17],
+          quadrant: row[18],
+          mechanics: row[19]
         });
       }
     }
@@ -195,8 +196,9 @@ function getMobileData() {
   const radioIdx = headers.indexOf('radio');
   const cuadranteIdx = headers.indexOf('cuadrante');
   const sectorIdx = headers.indexOf('sector');
-  const indicativoIdx = headers.indexOf('indicativo'); // New
-  const estadoIdx = headers.indexOf('estado'); // New
+  const indicativoIdx = headers.indexOf('indicativo');
+  const estadoIdx = headers.indexOf('estado');
+  const modeloIdx = headers.indexOf('modelo');
   
   const mobileData = [];
   const indicativesSet = new Set();
@@ -211,6 +213,7 @@ function getMobileData() {
       mobileData.push({
         id: String(row[movilIdx]),
         plate: placaIdx !== -1 ? String(row[placaIdx] || '') : '',
+        model: modeloIdx !== -1 ? String(row[modeloIdx] || '') : '',
         radio: radioIdx !== -1 ? String(row[radioIdx] || '') : '',
         quadrant: cuadranteIdx !== -1 ? String(row[cuadranteIdx] || '') : '',
         sector: sectorIdx !== -1 ? String(row[sectorIdx] || '') : '' 
@@ -403,7 +406,7 @@ function saveShiftData(dateStr, shift, settings, units) {
     if (unitsToSave.length > 0) {
       const newRows = unitsToSave.map(u => [
         dateStr, shift, targetSector,
-        u.id, u.type, u.personnel1, u.personnel2, u.plate, u.indicative, u.radio,
+        u.id, u.type, u.model || '', u.personnel1, u.personnel2, u.plate, u.indicative, u.radio,
         u.status, u.reason, u.km, u.hours, u.fuel, u.expense, u.parts, u.quadrant, u.mechanics
       ]);
       dataSheet.getRange(dataSheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);

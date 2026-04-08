@@ -121,7 +121,7 @@ const Header: React.FC<HeaderProps> = ({
                   </div>
                 ) : (
                   <h2 className="text-xl md:text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none truncate">
-                    {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : 'REPORTE'}
+                    {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : 'REPORTE'}
                   </h2>
                 )}
                 <span className="text-[8px] md:text-[9px] font-bold text-slate-300 uppercase tracking-widest mt-1 block">Gestión de Seguridad</span>
@@ -130,7 +130,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Info Section */}
-          {!isStatistics && (
+          {!isStatistics && currentView !== 'REPORTS' && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-1 lg:border-l lg:border-slate-100 lg:pl-8 min-w-0">
               <div className="flex items-center gap-3 shrink-0">
                 <div className="flex flex-col w-[110px] md:w-[130px]">
@@ -205,7 +205,8 @@ const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Action Buttons Area */}
-          <div className="flex items-center gap-2 justify-end shrink-0 border-t border-slate-100 pt-3 lg:border-none lg:pt-0 lg:ml-auto" data-html2canvas-ignore>
+          {currentView !== 'REPORTS' && (
+            <div className="flex items-center gap-2 justify-end shrink-0 border-t border-slate-100 pt-3 lg:border-none lg:pt-0 lg:ml-auto" data-html2canvas-ignore>
              <div className="flex items-center gap-2 justify-end w-full md:w-auto">
               {isDashboard ? (
                 <>
@@ -249,6 +250,7 @@ const Header: React.FC<HeaderProps> = ({
               )}
             </div>
           </div>
+          )}
         </div>
       </div>
     </header>

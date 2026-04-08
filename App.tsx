@@ -5,10 +5,13 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
+import ReportGeneratorView from './components/ReportGeneratorView';
+import { generateMotoReport } from './utils/reportGenerator';
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData } from './types';
 import { SECTORS, SECTOR_DATA } from './constants';
+import { Users, LayoutDashboard, FileText } from 'lucide-react';
 
 declare const google: any;
 
@@ -43,24 +46,20 @@ const App: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const lastSavedRef = useRef<string>('');
 
-  // New state for all sector settings
   const [sectorSettingsMap, setSectorSettingsMap] = useState<Record<string, AppSettings>>({});
 
-  // New Reference Data States
-  // Keep only mobile array here
   const [indicativeOptions, setIndicativeOptions] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
   const [personnelOptions, setPersonnelOptions] = useState<string[]>([]);
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
   const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
   const [loadingPersonnel, setLoadingPersonnel] = useState(false);
+  const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
 
-  // Sync with GAS
   useEffect(() => {
     loadData(selectedDate, settings.turno);
   }, [selectedDate, settings.turno, currentSector]);
 
-  // Load Reference Data (Mobile/Placa/Indicativo/Estado)
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
@@ -77,20 +76,11 @@ const App: React.FC = () => {
         })
         .getMobileData();
     } else {
-      // Mock for local dev
       console.log('MOCK: No GAS environment, setting empty mobile data');
       setMobileData([]);
-      // Mock some statuses for testing if needed
       setStatusOptions(Object.values(UnitStatus));
     }
   }, []);
-
-  // Load Personnel Data if in that view
-  useEffect(() => {
-    if (currentView === 'PERSONNEL' && personnelList.length === 0) {
-      loadPersonnel();
-    }
-  }, [currentView]);
 
   const loadPersonnel = () => {
     setLoadingPersonnel(true);
@@ -116,7 +106,6 @@ const App: React.FC = () => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler((data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] }) => {
-          // 1. Migrate legacy data: units without a sector are assigned to 'SECTOR 1A'
           const incomingUnits: UnitData[] = (data.units || []).map(u => ({
             ...u,
             id: String(u.id || ''),
@@ -135,19 +124,14 @@ const App: React.FC = () => {
             expense: String(u.expense || 'S/ 0.00'),
             parts: String(u.parts || '0'),
             quadrant: String(u.quadrant || ''),
-            mechanics: String(u.mechanics || 'Operativo')
+            mechanics: String(u.mechanics || 'Operativo'),
+            model: String(u.model || '')
           }));
 
-          console.log('GAS Data (Migrated):', incomingUnits);
           const currentSectorNormalized = currentSector.trim().toUpperCase();
-
-          // 2. Separate units of the current sector from others
           const otherSectorsUnits = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() !== currentSectorNormalized);
           const currentSectorUnitsFound = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() === currentSectorNormalized);
 
-          console.log(`Units found for ${currentSectorNormalized}:`, currentSectorUnitsFound.length);
-
-          // 3. Granular loading: check by type within current sector
           const defaults = SECTOR_DATA[currentSector] || [];
           const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
           let sectorUnitsToUse = [...currentSectorUnitsFound];
@@ -155,7 +139,6 @@ const App: React.FC = () => {
           typesToLoad.forEach(type => {
             const hasType = currentSectorUnitsFound.some(u => u.type === type);
             if (!hasType) {
-              console.log(`Loading granular default for type ${type} in ${currentSectorNormalized}`);
               const typeDefaults = defaults.filter(d => d.type === type).map(d => ({ ...d, sector: currentSector }));
               sectorUnitsToUse = [...sectorUnitsToUse, ...typeDefaults];
             }
@@ -167,12 +150,9 @@ const App: React.FC = () => {
             setSectorSettingsMap(data.allSectorSettings);
           }
 
-          // Only update settings if we got a valid response (which we should, with at least sector name)
-          // The backend ensures 'nombrePuesto' is the requested sector if found, or defaults.
           setSettings(prev => ({
             ...prev,
             ...data.settings,
-            // Ensure turno/date are consistent if backend returned defaults
             turno: shift
           }));
           setLoading(false);
@@ -180,8 +160,6 @@ const App: React.FC = () => {
         })
         .getShiftData(dateStr, shift, currentSector);
     } else {
-      // Mock for local dev
-      console.log('MOCK: Loading data for', dateStr, shift, currentSector);
       setTimeout(() => {
         setUnits([]);
         setLoading(false);
@@ -190,7 +168,6 @@ const App: React.FC = () => {
   };
 
   const persistData = (newSettings: AppSettings, newUnits: UnitData[]) => {
-    // Filter out units with temporary or empty IDs before persisting
     const validUnits = newUnits.filter(u => u.id && !u.id.startsWith('NEW-'));
     const dataObj = { settings: newSettings, units: validUnits };
     const dataStr = JSON.stringify(dataObj);
@@ -203,7 +180,6 @@ const App: React.FC = () => {
           setSaving(false);
           if (res.success) {
             lastSavedRef.current = dataStr;
-            // Update local sector settings map immediately for responsive UI
             setSectorSettingsMap(prev => ({
               ...prev,
               [newSettings.nombrePuesto || 'SECTOR 1A']: newSettings
@@ -218,17 +194,15 @@ const App: React.FC = () => {
       setTimeout(() => {
         setSaving(false);
         lastSavedRef.current = dataStr;
-        console.log('MOCK: Data persisted to GAS', dataObj);
       }, 300);
     }
   };
 
   const handleSectorChange = (sector: Sector) => {
     setCurrentSector(sector);
-    // When changing sector, see if we have specific settings for it loaded, otherwise default
     const specificSettings = sectorSettingsMap[sector];
     if (specificSettings) {
-      setSettings(prev => ({ ...specificSettings, turno: prev.turno })); // Keep turno just in case
+      setSettings(prev => ({ ...specificSettings, turno: prev.turno }));
     } else {
       setSettings(prev => ({ ...prev, nombrePuesto: sector, operador: '', supervisor: '' }));
     }
@@ -236,11 +210,7 @@ const App: React.FC = () => {
 
   const handleSave = (updatedUnit: UnitData) => {
     const unitWithSector = { ...updatedUnit, sector: currentSector };
-    let newUnits: UnitData[];
-
-    // Find the unit we are saving (it might have an old ID if it was NEW-...)
-    newUnits = units.map(u => (u.id === updatedUnit.id || u.id === editingId) ? unitWithSector : u);
-
+    let newUnits = units.map(u => (u.id === updatedUnit.id || u.id === editingId) ? unitWithSector : u);
     setUnits(newUnits);
     setEditingId(null);
     persistData(settings, newUnits);
@@ -252,32 +222,21 @@ const App: React.FC = () => {
     return uSector === currSector;
   });
 
-  // Grouping for VisualizationView
-  // Use 'sectorSettingsMap' to get correct Operator/Supervisor per sector
   const allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
   SECTORS.forEach(s => {
-    // If we have specific settings (operator/supervisor) for this sector, use them.
     const sectorSpecificSettings = sectorSettingsMap[s] || {
       ...settings,
       nombrePuesto: s,
       operador: '',
       supervisor: ''
     };
-
-    // Filter existing units
     let sectorUnits = units.filter(u => u.sector === s);
-
-    // If no units found for this sector at all, use definitions from SECTOR_DATA
     if (sectorUnits.length === 0) {
       const defaults = SECTOR_DATA[s] || [];
       sectorUnits = defaults.map(d => ({ ...d, sector: s }));
     } else {
-      // If some units exist but maybe some types are missing, we could do more granular defaults here too
-      // but for 'VisualizationView' (Integrated Report), just showing what DB has OR defaults is usually enough.
-      // However, to be consistent with 'loadData', let's check types.
       const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
       const defaults = SECTOR_DATA[s] || [];
-
       typesToLoad.forEach(type => {
         const hasType = sectorUnits.some(u => u.type === type);
         if (!hasType) {
@@ -286,7 +245,6 @@ const App: React.FC = () => {
         }
       });
     }
-
     allSectorsData[s] = {
       units: sectorUnits,
       settings: sectorSpecificSettings
@@ -323,7 +281,6 @@ const App: React.FC = () => {
       quadrant: '',
       mechanics: 'Operativo',
     };
-
     setUnits(prev => [newUnit, ...prev.filter(u => !u.id.startsWith('NEW-'))]);
     setEditingId(tempId);
   };
@@ -335,7 +292,6 @@ const App: React.FC = () => {
   };
 
   const handleCancel = () => {
-    // If canceling a new unit, remove it from state
     if (editingId && editingId.startsWith('NEW-')) {
       setUnits(prev => prev.filter(u => u.id !== editingId));
     }
@@ -349,121 +305,39 @@ const App: React.FC = () => {
     }, 0);
   };
 
-  const handleGeneratePDF = () => {
-    // Generar el reporte PDF programáticamente usando versiones de CDN
-    const { jsPDF } = (window as any).jspdf;
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
+  const handleGenerateReport = async (type: string, date: string, shift: string) => {
+    setIsGeneratingStructuredReport(true);
+    
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      // Mock for local dev
+      setTimeout(() => {
+        setIsGeneratingStructuredReport(false);
+        console.log(`MOCK: Generando reporte ${type} para ${date} / ${shift}`);
+        if (type === 'motos') {
+          generateMotoReport(units, sectorSettingsMap, date, shift, 'XTZ150', 'YAMAHA XTZ150');
+        } else if (type === 'motos_honda') {
+          generateMotoReport(units, sectorSettingsMap, date, shift, 'SAHARA XRE 300', 'HONDA SAHARA XRE 300');
+        }
+      }, 1000);
+      return;
+    }
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 10;
-
-    // Encabezado Principal
-    doc.setFontSize(18);
-    doc.setTextColor(0, 45, 90); // #002d5a
-    doc.setFont('helvetica', 'bold');
-    doc.text('REPORTE INTEGRADO DE SERVICIO MSS', pageWidth / 2, 15, { align: 'center' });
-
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`FECHA: ${selectedDate}`, margin, 25);
-    doc.text(`TURNO: ${settings.turno}`, 55, 25);
-    doc.text(`PERMANENCIA: ${settings.permanencia || '--'}`, 90, 25);
-    doc.text(`GENERADO EL: ${new Date().toLocaleString()}`, pageWidth - margin, 25, { align: 'right' });
-
-    let finalY = 32;
-
-    // Usar allSectorsData que ya está calculado para la vista
-    Object.entries(allSectorsData).forEach(([sectorName, data]) => {
-      if (!data.units || data.units.length === 0) return;
-
-      // Verificar espacio para el siguiente sector (Título + header de tabla, aprox. 20 mm)
-      if (finalY > doc.internal.pageSize.getHeight() - 30) {
-        doc.addPage();
-        finalY = 15;
-      }
-
-      // Título de sector
-      doc.setFillColor(0, 75, 147); // #004b93
-      doc.rect(margin, finalY, pageWidth - (margin * 2), 8, 'F');
-
-      doc.setTextColor(255);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text(sectorName, margin + 3, finalY + 5.5);
-
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`OPERADOR: ${data.settings.operador || 'NO ASIGNADO'}`, margin + 80, finalY + 5.5);
-      doc.text(`SUPERVISOR: ${data.settings.supervisor || 'NO ASIGNADO'}`, margin + 180, finalY + 5.5);
-
-      finalY += 8;
-
-      const body = data.units.map(u => {
-        const ref = mobileData.find(m => m.id === u.id);
-        const displayRadio = u.radio || '--';
-        const displayQuadrant = u.quadrant || ref?.quadrant || '';
-        const displayPlate = ref?.plate || '';
-        const displayPersonnel = u.personnel2 ? `${u.personnel1} / ${u.personnel2}` : u.personnel1;
-
-        // Formatear KM: Inicio / Fin / Recorrido / Recarga
-        const kmParts = (u.km || '0 / 0 / 0 / 0').split('/').map(p => p.trim());
-        const displayKM = `${kmParts[0]} / ${kmParts[1]} / ${kmParts[2]}${kmParts[3] && kmParts[3] !== '0' ? ' (R:' + kmParts[3] + ')' : ''}`;
-
-        // Combustible y Gasto
-        const fuelType = (u.fuel || '--').split('/')[0]?.trim() || '--';
-        const displayFuel = `${fuelType} | ${u.expense || 'S/ 0.00'}`;
-
-        // Estado y Motivo
-        const displayStatus = u.reason ? `${u.status}\n(${u.reason})` : u.status;
-
-        return [
-          u.id,
-          displayPersonnel,
-          displayPlate,
-          u.indicative || '--',
-          displayRadio,
-          displayStatus,
-          displayKM,
-          u.hours || '--:--',
-          displayFuel,
-          u.parts || '0',
-          sectorName === 'RESCATE' ? '--' : displayQuadrant
-        ];
-      });
-
-      (doc as any).autoTable({
-        startY: finalY,
-        head: [['UNI', 'PERSONAL / COP.', 'PLACA', 'IND.', 'RADIO', 'ESTADO / MOTIVO', 'KM (I/F/T/R)', 'HORARIO', 'COMB / GASTO', 'P.', 'CUAD.']],
-        body: body,
-        theme: 'grid',
-        headStyles: { fillColor: [0, 45, 90], textColor: 255, fontSize: 7, fontStyle: 'bold' },
-        styles: { fontSize: 6.5, cellPadding: 1, overflow: 'linebreak' },
-        columnStyles: {
-          0: { cellWidth: 12 }, // UNI
-          1: { cellWidth: 'auto' }, // PERSONAL
-          2: { cellWidth: 18 }, // PLACA
-          3: { cellWidth: 12 }, // IND
-          4: { cellWidth: 15 }, // RADIO
-          5: { cellWidth: 35 }, // ESTADO/MOTIVO
-          6: { cellWidth: 35 }, // KM
-          7: { cellWidth: 20 }, // HORARIO
-          8: { cellWidth: 25 }, // COMB/GASTO
-          9: { cellWidth: 8 },  // P
-          10: { cellWidth: 15 } // CUAD
-        },
-        margin: { left: margin, right: margin },
-      });
-
-      finalY = (doc as any).lastAutoTable.finalY + 10;
-    });
-
-    const fileName = `Reporte_MSS_${selectedDate}_${settings.turno}.pdf`;
-    doc.save(fileName);
+    google.script.run
+      .withSuccessHandler((data: any) => {
+        setIsGeneratingStructuredReport(false);
+        if (type === 'motos') {
+          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'XTZ150', 'YAMAHA XTZ150');
+        } else if (type === 'motos_honda') {
+          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'SAHARA XRE 300', 'HONDA SAHARA XRE 300');
+        } else {
+          alert(`El reporte de "${type}" se encuentra en desarrollo.`);
+        }
+      })
+      .withFailureHandler((err: any) => {
+        setIsGeneratingStructuredReport(false);
+        alert('Error al obtener datos: ' + err);
+      })
+      .getShiftData(date, shift, 'SECTOR 1A'); // Passing a dummy sector is fine as it returns all units
   };
 
   const personnelStats = useMemo(() => {
@@ -492,7 +366,7 @@ const App: React.FC = () => {
           totalPartes={sumPartes(currentSectorUnits)}
           onSaveSettings={handleSaveSettings}
           onGlobalSave={handleGlobalSave}
-          onGeneratePDF={handleGeneratePDF}
+          onGeneratePDF={() => {}}
           onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno)}
           isSaving={saving}
           currentSector={currentSector}
@@ -503,8 +377,9 @@ const App: React.FC = () => {
           personnelOptions={personnelOptions}
           personnelStats={personnelStats}
         />
+        
         <div className="flex-1 overflow-y-auto scroll-smooth p-4 lg:p-6" id="report-content">
-          {currentView === 'DASHBOARD' && (
+          {currentView === 'DASHBOARD' ? (
             <>
               <UnitSection
                 title="CHOFERES" type="CHOFER" icon="minor_crash"
@@ -552,25 +427,26 @@ const App: React.FC = () => {
                 </>
               )}
             </>
-          )}
-
-          {currentView === 'VISUALIZATION' && (
-            <VisualizationView
+          ) : currentView === 'VISUALIZATION' ? (
+            <VisualizationView 
               allSectorsData={allSectorsData}
               settings={settings}
               mobileData={mobileData}
             />
-          )}
-
-          {currentView === 'PERSONNEL' && (
+          ) : currentView === 'REPORTS' ? (
+            <ReportGeneratorView 
+              selectedDate={selectedDate}
+              selectedShift={settings.turno}
+              onGenerateReport={handleGenerateReport}
+              isGenerating={isGeneratingStructuredReport}
+            />
+          ) : currentView === 'PERSONNEL' ? (
             <PersonnelView
               data={personnelList}
-              onRefresh={loadPersonnel}
               isLoading={loadingPersonnel}
+              onRefresh={loadPersonnel}
             />
-          )}
-
-          {currentView === 'STATISTICS' && (
+          ) : (
             <StatisticsView units={units} />
           )}
         </div>
