@@ -4,29 +4,32 @@
 
 # Reporte de Servicio
 
-Aplicación web para la gestión operativa de unidades de seguridad, personal y reportes integrados por fecha, turno y sector. El frontend está construido con React, TypeScript y Vite, y el backend está pensado para ejecutarse como Web App en Google Apps Script con persistencia en Google Sheets.
+Aplicación web para la gestión operativa de unidades de seguridad, personal y reportes integrados por fecha, turno y sector. El frontend está construido con React, TypeScript y Vite, y se ejecuta como Web App en Google Apps Script con persistencia en Google Sheets.
 
-## Documentación
+## Vistas
 
-Para una descripción de arquitectura, modelo de datos y vistas principales, revisa [Analysis Report](docs/ANALYSIS.md).
+- **Dashboard:** Edición en tiempo real de unidades (Choferes, Motos, Serenos) por sector
+- **Visualización:** Vista consolidada de todos los sectores para el Reporte Integrado
+- **Personal:** Gestión de la base de datos de personal operativo
+- **Estadísticas:** Análisis visual de métricas operativas
 
 ## Ejecutar localmente
 
 **Prerequisites:** Node.js
 
-1. Instala dependencias:
-   `npm install`
-2. Inicia el entorno de desarrollo:
-   `npm run dev`
+```bash
+npm install
+npm run dev
+```
 
-## Build de producción
+## Build para Google Apps Script
 
-Genera una versión empaquetada en un solo archivo HTML, lista para copiar a Google Apps Script:
+Genera una versión empaquetada en un solo archivo HTML:
 
-`npm run build`
+```bash
+npm run build:gas
+```
 
-El artefacto generado queda en `dist/index.html`.
+El artefacto generado queda en `dist/index.html`. Copia el contenido a Google Apps Script.
 
-## Despliegue en Google Apps Script
-
-Sigue las instrucciones de [gas_deployment_instructions.txt](gas_deployment_instructions.txt).
+Más detalles en [docs/ANALYSIS.md](docs/ANALYSIS.md) y [gas_deployment_instructions.txt](gas_deployment_instructions.txt).
