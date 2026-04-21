@@ -263,7 +263,7 @@ const Header: React.FC<HeaderProps> = ({
                       <span className="hidden xl:inline">REPORTAR</span>
                     </button>
                   </>
-                ) : (
+                ) : !isReports ? (
                   <button
                     onClick={handleRefreshClick}
                     disabled={isRefreshing}
@@ -273,7 +273,7 @@ const Header: React.FC<HeaderProps> = ({
                     <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
                     <span className="hidden xl:inline">ACTUALIZAR DATOS</span>
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           )}
