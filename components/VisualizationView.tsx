@@ -84,7 +84,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
   const sectorEntries = Object.entries(allSectorsData) as [string, { units: UnitData[], settings: AppSettings }][];
 
   const infoLabelStyle = "text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 block";
-  const infoValueStyle = "text-[12px] font-bold text-slate-800 uppercase truncate leading-none";
+  const infoValueStyle = "text-[12px] font-bold text-slate-800 uppercase truncate leading-none bg-transparent border-none p-0 cursor-default";
 
   return (
     <div className="p-4 flex flex-col gap-6 max-w-[1600px] mx-auto">
@@ -100,7 +100,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
             id={`sector-${sectorName.replace(/\s+/g, '-')}`}
             className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col transition-all scroll-mt-24 hover:shadow-xl hover:border-blue-200"
           >
-            {/* Cabecera de Sector Unificada */}
+{/* Cabecera de Sector Unificada */}
             <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 px-6 py-4 shrink-0">
               <div className="flex items-center gap-8">
                 {/* SECTOR */}
@@ -121,6 +121,11 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                   <div className="flex flex-col min-w-[180px]">
                     <span className={infoLabelStyle}>SUPERVISOR SECTOR</span>
                     <span className={infoValueStyle}>{data.settings.supervisor || 'NO ASIGNADO'}</span>
+                  </div>
+
+                  <div className="flex flex-col min-w-[180px]">
+                    <span className={infoLabelStyle}>PERMANENCIA</span>
+                    <span className={infoValueStyle}>{data.settings.permanencia || '--'}</span>
                   </div>
                 </div>
 

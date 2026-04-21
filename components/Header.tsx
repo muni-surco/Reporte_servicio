@@ -86,6 +86,8 @@ const Header: React.FC<HeaderProps> = ({
   const isDashboard = currentView === 'DASHBOARD';
   const isPersonnel = currentView === 'PERSONNEL';
   const isStatistics = currentView === 'STATISTICS';
+  const isReports = currentView === 'REPORTS';
+  const isVisualization = currentView === 'VISUALIZATION';
 
   const labelStyle = "text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5 whitespace-nowrap";
   const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-2 text-[10px] md:text-[11px] font-bold text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-9 shadow-sm appearance-none flex items-center";
@@ -130,7 +132,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Info Section */}
-          {!isStatistics && currentView !== 'REPORTS' && (
+          {!isStatistics && !isVisualization && currentView !== 'REPORTS' && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-1 lg:border-l lg:border-slate-100 lg:pl-8 min-w-0">
               <div className="flex items-center gap-3 shrink-0">
                 <div className="flex flex-col w-[110px] md:w-[130px]">
@@ -205,51 +207,75 @@ const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Action Buttons Area */}
-          {currentView !== 'REPORTS' && (
+          {isVisualization ? (
+            <div className="flex items-center gap-2 justify-end shrink-0" data-html2canvas-ignore>
+              <div className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-3 py-1.5 shadow-sm">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SECTORES:</span>
+                {SECTORS.map((sector) => (
+                  <a
+                    key={sector}
+                    href={`#sector-${sector.replace(/\s+/g, '-')}`}
+                    className="px-2 py-1 text-[10px] font-bold uppercase tracking-tighter rounded transition-all hover:bg-blue-600 hover:text-white bg-slate-100 text-slate-600"
+                  >
+                    {getSectorCode(sector)}
+                  </a>
+                ))}
+              </div>
+              <button
+                onClick={handleRefreshClick}
+                disabled={isRefreshing}
+                title="Actualizar"
+                className="px-3 py-1.5 bg-primary text-white rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 shadow-sm hover:bg-primary-dark transition-all"
+              >
+                <span className={`material-symbols-outlined text-[14px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
+                ACTUALIZAR
+              </button>
+            </div>
+          ) : (
             <div className="flex items-center gap-2 justify-end shrink-0 border-t border-slate-100 pt-3 lg:border-none lg:pt-0 lg:ml-auto" data-html2canvas-ignore>
-             <div className="flex items-center gap-2 justify-end w-full md:w-auto">
-              {isDashboard ? (
-                <>
+              <div className="flex items-center gap-2 justify-end w-full md:w-auto">
+                {isDashboard ? (
+                  <>
+                    <button
+                      onClick={handleRefreshClick}
+                      disabled={isRefreshing || isSaving}
+                      title="Sincronizar"
+                      className={`${btnIconStyle} bg-slate-50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary border border-transparent`}
+                    >
+                      <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>sync</span>
+                      <span className="hidden xl:inline">SINCRONIZAR</span>
+                    </button>
+                    <button
+                      onClick={onGlobalSave}
+                      disabled={isSaving || isRefreshing}
+                      title="Guardar"
+                      className={`${btnIconStyle} bg-primary hover:bg-primary-dark text-white xl:px-6 shadow-blue-100`}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">save</span>
+                      <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
+                    </button>
+                    <button
+                      onClick={onGeneratePDF}
+                      title="Reportar"
+                      className={`${btnIconStyle} bg-teal-500 hover:bg-teal-600 text-white xl:px-4 shadow-teal-100`}
+                    >
+                      <span className="material-symbols-outlined text-[18px]">description</span>
+                      <span className="hidden xl:inline">REPORTAR</span>
+                    </button>
+                  </>
+                ) : (
                   <button
                     onClick={handleRefreshClick}
-                    disabled={isRefreshing || isSaving}
-                    title="Sincronizar"
-                    className={`${btnIconStyle} bg-slate-50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary border border-transparent`}
+                    disabled={isRefreshing}
+                    title="Actualizar"
+                    className={`w-9 h-9 xl:h-9 xl:w-auto p-0 xl:px-6 bg-primary text-white rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-blue-200 active:scale-95 transition-all`}
                   >
-                    <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>sync</span>
-                    <span className="hidden xl:inline">SINCRONIZAR</span>
+                    <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
+                    <span className="hidden xl:inline">ACTUALIZAR DATOS</span>
                   </button>
-                  <button
-                    onClick={onGlobalSave}
-                    disabled={isSaving || isRefreshing}
-                    title="Guardar"
-                    className={`${btnIconStyle} bg-primary hover:bg-primary-dark text-white xl:px-6 shadow-blue-100`}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">save</span>
-                    <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
-                  </button>
-                  <button
-                    onClick={onGeneratePDF}
-                    title="Reportar"
-                    className={`${btnIconStyle} bg-teal-500 hover:bg-teal-600 text-white xl:px-4 shadow-teal-100`}
-                  >
-                    <span className="material-symbols-outlined text-[18px]">description</span>
-                    <span className="hidden xl:inline">REPORTAR</span>
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={handleRefreshClick} 
-                  disabled={isRefreshing} 
-                  title="Actualizar"
-                  className={`w-9 h-9 xl:h-9 xl:w-auto p-0 xl:px-6 bg-primary text-white rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-blue-200 active:scale-95 transition-all`}
-                >
-                  <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
-                  <span className="hidden xl:inline">ACTUALIZAR DATOS</span>
-                </button>
-              )}
+                )}
+              </div>
             </div>
-          </div>
           )}
         </div>
       </div>
