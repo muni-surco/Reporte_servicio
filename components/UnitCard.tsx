@@ -98,8 +98,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             ...prev,
             plate: found.plate || (isIdChanged ? '' : prev.plate),
             model: found.model || (isIdChanged ? '' : prev.model),
-            // Populate radio if empty or if unit ID just changed
-            radio: isIdChanged ? (found.radio || '') : (prev.radio || found.radio || ''),
+            radio: prev.radio || found.radio || '',
             quadrant: isIdChanged ? (found.quadrant || '') : (prev.quadrant || found.quadrant || '')
           };
         });
@@ -139,19 +138,37 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const labelStyle = "text-[10px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
   const errorInputStyle = "border-red-500 ring-1 ring-red-500 bg-red-50";
   const inputStyle = (fieldName: string) => `w-full border ${errors[fieldName] ? errorInputStyle : 'border-slate-300 bg-white'} rounded px-2 py-1 text-[12px] font-medium h-[28px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
+  const labelStyleEdit = "text-[9px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+  const errorMsgStyle = "text-[8px] font-medium text-red-600 uppercase leading-tight mt-0.5";
   const infoValueStyle = "text-[11px] font-bold text-slate-800 truncate leading-tight uppercase";
 
-  const badgeColors = {
+  const badgeColors: Record<string, string> = {
     [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
     [UnitStatus.EXPLANADA]: "bg-blue-100 text-blue-700 border-blue-200",
     [UnitStatus.APOYO_OTRA_AREA]: "bg-blue-100 text-blue-700 border-blue-200",
-    [UnitStatus.MAESTRANZA]: "bg-red-100 text-red-700 border-red-200",
-    [UnitStatus.TALLER_PARTICULAR]: "bg-red-100 text-red-700 border-red-200",
-    [UnitStatus.CHOFER_SIN_MOVIL]: "bg-red-100 text-red-700 border-red-200",
-    [UnitStatus.EN_PC_X_DESPERFECTOS]: "bg-red-100 text-red-700 border-red-200",
+    [UnitStatus.RETEN]: "bg-slate-100 text-slate-700 border-slate-200",
     [UnitStatus.OPERATIVA_SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
     [UnitStatus.OPERATIVA_SIN_CHOFER]: "bg-amber-100 text-amber-700 border-amber-200",
-    [UnitStatus.RETEN]: "bg-slate-100 text-slate-700 border-slate-200"
+  };
+
+  const redStatusPatterns = [
+    UnitStatus.MAESTRANZA,
+    UnitStatus.TALLER_PARTICULAR,
+    UnitStatus.CHOFER_SIN_MOVIL,
+    UnitStatus.EN_PC_X_DESPERFECTOS,
+    'DESCANSO COMPENSATORIO',
+    'DESCANSO MEDICO',
+    'DESCANSO MÉDICO',
+    'FALTO',
+    'ONOMASTICO',
+    'ONOMÁSTICO',
+    'PERMISO',
+  ];
+
+  const getBadgeClass = (status: string) => {
+    if (badgeColors[status]) return badgeColors[status];
+    if (redStatusPatterns.includes(status)) return "bg-red-100 text-red-700 border-red-200";
+    return "bg-slate-100 text-slate-700 border-slate-200";
   };
 
   const isRescate = unit.sector === 'RESCATE';
@@ -231,10 +248,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 onChange={(val) => { setFormData(prev => ({ ...prev, id: val })); setErrors(prev => ({ ...prev, id: false })); }}
                 suggestions={(mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
                 placeholder="M-01"
+                error={errors.id}
               />
+              {errors.id && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
-            <div className={hasPersonnel2 ? 'col-span-2' : 'col-span-4'}>
+            <div className="col-span-2">
               <label className={labelStyleEdit}>{isSereno ? 'Personal' : isMoto ? 'Motorizado' : 'Chofer'}</label>
               <AutocompleteInput
                 value={formData.personnel1}
@@ -243,24 +262,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 placeholder="Nombre..."
                 error={errors.personnel1}
               />
+              {errors.personnel1 && <span className={errorMsgStyle}>Requerido</span>}
             </div>
-
-            {hasPersonnel2 && (
-              <div className="col-span-2">
-                <label className={labelStyleEdit}>Copiloto</label>
-                <input
-                  name="personnel2"
-                  value={formData.personnel2 || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val !== '' && !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/.test(val)) return;
-                    setFormData(prev => ({ ...prev, personnel2: val }));
-                  }}
-                  className={inputStyle('personnel2')}
-                  placeholder="Nombre..."
-                />
-              </div>
-            )}
 
             <div className="col-span-1">
               <label className={labelStyleEdit}>Radio</label>
@@ -273,7 +276,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 }}
                 suggestions={Array.from(new Set([...RADIOS, ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])])) as string[]}
                 placeholder="20xxx"
+                error={errors.radio}
               />
+              {errors.radio && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
             <div className="col-span-1">
@@ -292,7 +297,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
                 suggestions={activeQuadrantOptions}
                 placeholder="Selec..."
+                error={errors.quadrant}
               />
+              {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
             <div className="col-span-1">
@@ -309,9 +316,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </select>
             </div>
 
-            <div className="col-span-2">
+            <div className="col-span-1">
               <label className={labelStyleEdit}>Motivo</label>
               <input name="reason" value={formData.reason} onChange={handleChange} className={inputStyle('reason')} placeholder="..." />
+            </div>
+
+            <div className="col-span-3">
+              <label className={labelStyleEdit}>Mecánica Obs</label>
+              <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Observaciones..." />
             </div>
           </div>
 
@@ -328,7 +340,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <div><label className={labelStyleEdit}>HORA INICIO</label><input type="time" value={hourStart} onChange={(e) => setHourStart(e.target.value)} className={inputStyle('hourStart')} /></div>
                   <div><label className={labelStyleEdit}>HORA FIN</label><input type="time" value={hourEnd} onChange={(e) => setHourEnd(e.target.value)} className={inputStyle('hourEnd')} /></div>
                 </div>
-                <div className="col-span-5 grid grid-cols-5 gap-1">
+                <div className="col-span-7 grid grid-cols-5 gap-1">
                   <div><label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
                   <div><label className={labelStyleEdit}>COMBUSTIBLE</label>
                     <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[9px] font-bold`}>
@@ -339,10 +351,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <div><label className={labelStyleEdit}>CANTIDAD</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} /></div>
                   <div><label className={labelStyleEdit}>GASTO</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
                   <div><label className={labelStyleEdit}>PARTES</label><input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} /></div>
-                </div>
-                <div className="col-span-2">
-                  <label className={labelStyleEdit}>Mecánica Obs</label>
-                  <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Observaciones..." />
                 </div>
               </>
             ) : (
@@ -388,7 +396,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
-            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-bold text-[11px] shadow-sm`}>
+            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-bold text-[10px] shadow-sm`}>
               {unit.id}
             </div>
           </div>
@@ -440,9 +448,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
           )}
 
           {/* Columna Estado */}
-          <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
+          <div className="border-r border-slate-100 px-2 text-center w-32 shrink-0">
             <label className={labelStyle}>Estado</label>
-            <span className={`px-1.5 rounded text-[10px] font-bold border uppercase inline-block whitespace-nowrap ${badgeColors[unit.status]}`}>
+            <span className={`px-1.5 rounded text-[10px] font-bold border uppercase inline-block ${getBadgeClass(unit.status)}`} style={{ whiteSpace: 'normal', lineHeight: '1.2' }}>
               {unit.status}
             </span>
           </div>

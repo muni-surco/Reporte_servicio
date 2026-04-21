@@ -9,20 +9,32 @@ interface VisualizationViewProps {
 }
 
 const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings, mobileData }) => {
+  const redStatusPatterns = [
+    UnitStatus.MAESTRANZA,
+    UnitStatus.TALLER_PARTICULAR,
+    UnitStatus.CHOFER_SIN_MOVIL,
+    UnitStatus.EN_PC_X_DESPERFECTOS,
+    'DESCANSO COMPENSATORIO',
+    'DESCANSO MEDICO',
+    'DESCANSO MÉDICO',
+    'FALTO',
+    'ONOMASTICO',
+    'ONOMÁSTICO',
+    'PERMISO',
+  ];
+
+  const amberStatusPatterns = [
+    UnitStatus.OPERATIVA_SIN_DOCUMENTOS,
+    UnitStatus.OPERATIVA_SIN_CHOFER,
+  ];
+
   const getStatusColor = (status: string) => {
-    // ... logic remains same
-    switch (status) {
-      case UnitStatus.PATRULLANDO: return "bg-green-500 ring-2 ring-green-100";
-      case UnitStatus.EXPLANADA:
-      case UnitStatus.APOYO_OTRA_AREA: return "bg-blue-500 ring-2 ring-blue-100";
-      case UnitStatus.MAESTRANZA:
-      case UnitStatus.TALLER_PARTICULAR:
-      case UnitStatus.CHOFER_SIN_MOVIL:
-      case UnitStatus.EN_PC_X_DESPERFECTOS: return "bg-red-600 ring-2 ring-red-100";
-      case UnitStatus.OPERATIVA_SIN_DOCUMENTOS:
-      case UnitStatus.OPERATIVA_SIN_CHOFER: return "bg-amber-500 ring-2 ring-amber-100";
-      default: return "bg-slate-300 ring-2 ring-slate-50";
-    }
+    if (status === UnitStatus.PATRULLANDO) return "bg-green-500 ring-2 ring-green-200";
+    if (status === UnitStatus.EXPLANADA || status === UnitStatus.APOYO_OTRA_AREA) return "bg-blue-500 ring-2 ring-blue-200";
+    if (status === UnitStatus.RETEN) return "bg-slate-400 ring-2 ring-slate-200";
+    if (redStatusPatterns.includes(status)) return "bg-red-500 ring-2 ring-red-200";
+    if (amberStatusPatterns.includes(status)) return "bg-amber-500 ring-2 ring-amber-200";
+    return "bg-slate-300 ring-2 ring-slate-100";
   };
 
   const renderCompactUnit = (u: UnitData, type: string) => {
@@ -39,7 +51,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     return (
       <div key={u.id} className="flex items-center gap-4 py-3 px-4 hover:bg-blue-50/50 border-b border-slate-100 last:border-0 transition-colors group odd:bg-white even:bg-slate-50/50">
         {/* Indicador de Estado */}
-        <div className={`w-3 h-3 rounded-full shrink-0 ${getStatusColor(u.status)} shadow-sm border-2 border-white transition-transform group-hover:scale-125`} title={u.status}></div>
+        <div className={`w-4 h-4 rounded-full shrink-0 ${getStatusColor(u.status)} shadow-sm border border-white transition-transform group-hover:scale-125`} title={u.status}></div>
 
         {/* ID de Unidad */}
         <span className={`text-[12px] font-bold min-w-[45px] text-center ${idTextColor} uppercase tracking-tighter`}>

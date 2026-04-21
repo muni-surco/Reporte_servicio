@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, Download, PieChart, Users, Settings } from 'lucide-react';
+import { Calendar, Clock, FileText, Download, PieChart, Users } from 'lucide-react';
 
 interface ReportGeneratorViewProps {
   selectedDate: string;
@@ -44,28 +44,12 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       color: 'indigo'
     },
     {
-      id: 'personal',
-      title: 'Padrón de Personal por Turno',
-      subtitle: 'Choferes y Serenos',
-      description: 'Listado completo de personal activo, indicativos y puestos asignados para el turno seleccionado.',
-      icon: <Users className="w-8 h-8 text-teal-600" />,
-      color: 'teal'
-    },
-    {
       id: 'asistencia_regimen',
       title: 'Reporte de Asistencia por Régimen',
       subtitle: 'Personal Faltante por Régimen Laboral',
       description: 'Detalle de personal inasistente agrupado por su régimen laboral: 276, 728, CAS y OS.',
       icon: <Users className="w-8 h-8 text-rose-600" />,
       color: 'rose'
-    },
-    {
-      id: 'incidencias',
-      title: 'Resumen de Incidencias Operativas',
-      subtitle: 'Taller y Sin Patrullar',
-      description: 'Detalle técnico de unidades inoperativas y motivos de falta de patrullaje.',
-      icon: <Settings className="w-8 h-8 text-orange-600" />,
-      color: 'orange'
     }
   ];
 
