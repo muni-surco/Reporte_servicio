@@ -158,9 +158,6 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                   )}
                 </button>
                 
-                <div className="text-[11px] font-bold text-slate-400 italic">
-                  v1.0 • Finalizado
-                </div>
               </div>
             </div>
           </div>

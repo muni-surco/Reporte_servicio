@@ -98,7 +98,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
             ...prev,
             plate: found.plate || (isIdChanged ? '' : prev.plate),
             model: found.model || (isIdChanged ? '' : prev.model),
-            radio: prev.radio || found.radio || '',
             quadrant: isIdChanged ? (found.quadrant || '') : (prev.quadrant || found.quadrant || '')
           };
         });
