@@ -90,8 +90,8 @@ const Header: React.FC<HeaderProps> = ({
   const isVisualization = currentView === 'VISUALIZATION';
 
   const labelStyle = "text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-1 whitespace-nowrap leading-none";
-  const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-bold text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-10 shadow-sm appearance-none flex items-center";
-  const displayBoxStyle = "bg-white border border-slate-200 rounded-lg px-3 flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm h-10";
+  const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-bold text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-9 shadow-sm appearance-none flex items-center";
+  const displayBoxStyle = "bg-white border border-slate-200 rounded-lg px-3 flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm h-9";
   const valueStyle = "text-[13px] font-bold text-[#002d5a] leading-none truncate uppercase";
 
   const getSectorCode = (sectorName: string) => {
@@ -99,7 +99,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   // Even smaller buttons for Mobile/Tablet
-  const btnIconStyle = "h-10 px-4 rounded-xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm shrink-0";
+  const btnIconStyle = "h-9 px-4 rounded-xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm shrink-0";
 
   return (
     <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50 backdrop-blur-lg bg-white/95 h-[72px]">
@@ -139,7 +139,7 @@ const Header: React.FC<HeaderProps> = ({
                   <span className={labelStyle}>FECHA</span>
                   <input type="date" value={selectedDate} onChange={(e) => onDateChange(e.target.value)} className={inputBaseStyle.replace('shadow-sm appearance-none', 'shadow-sm')} />
                 </div>
-                <div className="flex flex-col w-[85px] md:w-[100px]">
+                <div className="flex flex-col w-[85px] md:w-[110px]">
                   <span className={labelStyle}>TURNO</span>
                   <div className="relative">
                     <select value={settings.turno} onChange={(e) => updateTempField('turno', e.target.value)} onBlur={handleBlur} className={`${inputBaseStyle} w-full pr-8`}>
@@ -154,14 +154,14 @@ const Header: React.FC<HeaderProps> = ({
 
               <div className="flex flex-wrap items-center gap-3 lg:border-l lg:border-slate-100 lg:pl-6 flex-1 min-w-0">
                 {isPersonnel && personnelStats ? (
-                  <div className="flex items-center gap-6 bg-slate-50/80 px-4 rounded-xl border border-slate-200 h-10">
+                  <div className="flex items-center gap-6 bg-slate-50/80 px-4 rounded-xl border border-slate-200 h-9">
                     <div className="text-center">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none mb-1">Total</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none m-1">Total</span>
                       <span className="text-[13px] font-bold text-slate-800 leading-none">{personnelStats.total}</span>
                     </div>
                     <div className="w-px h-6 bg-slate-200"></div>
                     <div className="text-center">
-                      <span className="text-[10px] font-bold text-green-500 uppercase block leading-none mb-1">Activos</span>
+                      <span className="text-[10px] font-bold text-green-500 uppercase block leading-none m-1">Activos</span>
                       <span className="text-[13px] font-bold text-green-600 leading-none">{personnelStats.activos}</span>
                     </div>
                   </div>
@@ -170,7 +170,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>OPERADOR</span>
                       {editingField === 'operador' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-10 !py-1 text-[13px] font-bold" />
+                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-bold" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('operador')}><p className={valueStyle}>{settings.operador || '--'}</p></div>
                       )}
@@ -178,7 +178,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="hidden sm:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>SUPERVISOR</span>
                       {editingField === 'supervisor' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-10 !py-1 text-[13px] font-bold" />
+                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-bold" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('supervisor')}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
                       )}
@@ -186,7 +186,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>PERMANENCIA</span>
                       {editingField === 'permanencia' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-10 !py-1 text-[13px] font-bold" />
+                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-bold" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('permanencia')}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
                       )}
@@ -197,7 +197,7 @@ const Header: React.FC<HeaderProps> = ({
 
               <div className="flex items-center gap-4 ml-auto lg:ml-0">
                 {isDashboard && (
-                  <div className="bg-amber-100/50 px-3 py-1 rounded-xl border border-amber-200 flex flex-col items-center justify-center h-10 shadow-sm shrink-0 min-w-[60px]">
+                  <div className="bg-amber-100/50 px-3 py-1 rounded-xl border border-amber-200 flex flex-col items-center justify-center h-9 shadow-sm shrink-0 min-w-[60px]">
                     <span className="text-[10px] font-bold text-amber-500 uppercase leading-none mb-0.5 tracking-tighter">PARTES</span>
                     <p className="text-sm font-bold text-amber-700 leading-none">{totalPartes}</p>
                   </div>
@@ -225,7 +225,7 @@ const Header: React.FC<HeaderProps> = ({
                 onClick={handleRefreshClick}
                 disabled={isRefreshing}
                 title="Actualizar"
-                className="h-10 px-4 bg-primary text-white rounded-lg font-bold text-[12px] uppercase tracking-wider flex items-center gap-2 shadow-sm hover:bg-primary-dark transition-all"
+                className="h-9 px-4 bg-primary text-white rounded-lg font-bold text-[12px] uppercase tracking-wider flex items-center gap-2 shadow-sm hover:bg-primary-dark transition-all"
               >
                 <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
                 ACTUALIZAR
@@ -268,7 +268,7 @@ const Header: React.FC<HeaderProps> = ({
                     onClick={handleRefreshClick}
                     disabled={isRefreshing}
                     title="Actualizar"
-                    className="h-10 px-6 bg-primary text-white rounded-xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-blue-200 active:scale-95 transition-all"
+                    className="h-9 px-6 bg-primary text-white rounded-xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-blue-200 active:scale-95 transition-all"
                   >
                     <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
                     <span className="hidden xl:inline">ACTUALIZAR DATOS</span>

@@ -60,11 +60,11 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8 animate-in fade-in duration-500">
-      
+
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
             <Calendar className="w-5 h-5 text-blue-600" />
           </div>
           <div>
@@ -82,7 +82,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                 type="date"
                 value={localDate}
                 onChange={(e) => setLocalDate(e.target.value)}
-                className="pl-10 pr-4 h-10 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer text-sm shadow-sm"
+                className="pl-10 pr-4 h-9 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer text-sm shadow-sm"
               />
             </div>
           </div>
@@ -94,7 +94,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
               <select
                 value={localShift}
                 onChange={(e) => setLocalShift(e.target.value)}
-                className="pl-10 pr-10 h-10 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 appearance-none transition-all cursor-pointer text-sm shadow-sm"
+                className="pl-10 pr-10 h-9 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 appearance-none transition-all cursor-pointer text-sm shadow-sm"
               >
                 <option value="MAÑANA">MAÑANA</option>
                 <option value="TARDE">TARDE</option>
@@ -111,7 +111,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       {/* Report Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {reportTypes.map((report) => (
-          <div 
+          <div
             key={report.id}
             className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 overflow-hidden"
           >
@@ -157,7 +157,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                     </>
                   )}
                 </button>
-                
+
               </div>
             </div>
           </div>
@@ -177,7 +177,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
             </p>
           </div>
         </div>
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-blue-800/30 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-64 h-64 bg-blue-700/20 rounded-full blur-3xl"></div>

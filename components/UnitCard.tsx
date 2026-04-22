@@ -84,10 +84,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
     if (isEditing && (unit.type === 'CHOFER' || unit.type === 'MOTO' || unit.type === 'SERENO')) {
       const dataSource = mobileData || [];
       const unitId = (formData.id || '').toString().toUpperCase();
-      
+
       // Skip auto-population for 'RETEN' units (AR-)
       if (unitId.startsWith('AR-')) return;
-      
+
       const found = dataSource.find(v => v.id === formData.id);
 
       if (found) {
@@ -268,10 +268,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <label className={labelStyleEdit}>Radio</label>
               <AutocompleteInput
                 value={formData.radio}
-                onChange={(val) => { 
+                onChange={(val) => {
                   if (val !== '' && !/^\d+$/.test(val)) return;
-                  setFormData(prev => ({ ...prev, radio: val })); 
-                  setErrors(prev => ({ ...prev, radio: false })); 
+                  setFormData(prev => ({ ...prev, radio: val }));
+                  setErrors(prev => ({ ...prev, radio: false }));
                 }}
                 suggestions={Array.from(new Set([...RADIOS, ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])])) as string[]}
                 placeholder="20xxx"
@@ -388,7 +388,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
       <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden flex items-center`}>
         {/* Línea vertical distintiva estilo moderno */}
-        <div className={`w-1.5 h-10 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
+        <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
         {/* Grid principal optimizado para lectura de ancho completo */}
         <div className={`grid items-center gap-4 flex-1 ${isSereno ? 'grid-cols-[48px_2fr_minmax(100px,1fr)_auto_min-content_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_auto_auto_1.2fr_1fr_1.2fr_min-content_1.5fr_64px]'}`}>
