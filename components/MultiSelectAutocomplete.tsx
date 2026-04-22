@@ -87,7 +87,7 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
                 {selectedValues.map(v => (
                     <span
                         key={v}
-                        className="flex items-center gap-1 bg-blue-100 text-[#004b93] text-[9px] font-bold px-1.5 py-0.5 rounded uppercase border border-blue-200 leading-none"
+                        className="flex items-center gap-1 bg-blue-100 text-[#004b93] text-[9px] font-medium px-1.5 py-0.5 rounded uppercase border border-blue-200 leading-none"
                     >
                         <span className="translate-y-[0.5px]">{v}</span>
                         <button
@@ -113,7 +113,7 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
                         setTimeout(() => setIsOpen(false), 200);
                     }}
                     placeholder={selectedValues.length === 0 ? placeholder : ""}
-                    className="flex-1 min-w-[30px] bg-transparent border-none outline-none text-[11px] font-medium text-slate-800 p-0 h-full"
+                    className="flex-1 min-w-[30px] bg-transparent border-none outline-none text-[11px]  text-slate-800 p-0 h-full"
                 />
             </div>
 
@@ -126,7 +126,7 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
                                 e.preventDefault();
                                 toggleValue(name);
                             }}
-                            className={`px-3 py-1.5 text-[10px] font-bold cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${activeIndex === idx ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50'
+                            className={`px-3 py-1.5 text-[10px] font-medium cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${activeIndex === idx ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50'
                                 }`}
                         >
                             {name}

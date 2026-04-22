@@ -19,7 +19,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   return (
     <aside className="w-[70px] bg-primary h-screen flex-shrink-0 flex flex-col items-center py-6 z-[1030] shadow-2xl no-print">
       <div className="mb-8 bg-secondary p-2 rounded-xl text-white shadow-lg shadow-black/20">
-        <span className="text-2xl font-bold">C4</span>
+        <span className="text-2xl font-medium">C4</span>
       </div>
 
       <nav className="flex flex-col gap-5">
@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       </nav>
 
       <div className="mt-auto flex flex-col items-center gap-4">
-        <div className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center text-[10px] font-bold border border-white/20">
+        <div className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center text-[10px] font-medium border border-white/20">
           MSS
         </div>
       </div>

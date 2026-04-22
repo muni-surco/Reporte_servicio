@@ -68,33 +68,33 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
             <Calendar className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-sm font-black text-slate-800 leading-none">Filtros de Reporte</h2>
-            <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">Seleccione parámetros</p>
+            <h2 className="text-sm font-medium text-slate-800 leading-none">Filtros de Reporte</h2>
+            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Seleccione parámetros</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-col">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1">FECHA</span>
+            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest ml-1 mb-1">FECHA</span>
             <div className="relative group">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none" />
               <input
                 type="date"
                 value={localDate}
                 onChange={(e) => setLocalDate(e.target.value)}
-                className="pl-10 pr-4 h-9 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer text-sm shadow-sm"
+                className="pl-10 pr-4 h-9 bg-slate-50 border border-slate-100 rounded-xl font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer text-sm shadow-sm"
               />
             </div>
           </div>
 
           <div className="flex flex-col">
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1">TURNO</span>
+            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest ml-1 mb-1">TURNO</span>
             <div className="relative group">
               <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none" />
               <select
                 value={localShift}
                 onChange={(e) => setLocalShift(e.target.value)}
-                className="pl-10 pr-10 h-9 bg-slate-50 border border-slate-100 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 appearance-none transition-all cursor-pointer text-sm shadow-sm"
+                className="pl-10 pr-10 h-9 bg-slate-50 border border-slate-100 rounded-xl font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 appearance-none transition-all cursor-pointer text-sm shadow-sm"
               >
                 <option value="MAÑANA">MAÑANA</option>
                 <option value="TARDE">TARDE</option>
@@ -121,13 +121,13 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                   {report.icon}
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full">
-                  <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Formato PDF</span>
+                  <span className="text-[10px] font-medium text-slate-400 tracking-wider uppercase">Formato PDF</span>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-xl font-bold text-slate-800">{report.title}</h3>
-                <p className={`text-sm font-bold text-${report.color}-600/80 mb-2 uppercase tracking-tight`}>{report.subtitle}</p>
+                <h3 className="text-xl font-medium text-slate-800">{report.title}</h3>
+                <p className={`text-sm font-medium text-${report.color}-600/80 mb-2 uppercase tracking-tight`}>{report.subtitle}</p>
                 <p className="text-slate-500 text-sm leading-relaxed">
                   {report.description}
                 </p>
@@ -138,7 +138,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                   onClick={() => handleGenerate(report.id)}
                   disabled={isGenerating}
                   className={`
-                    flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-sm transition-all
+                    flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium text-sm transition-all
                     ${isGenerating && activeReport === report.id
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       : `bg-${report.color}-600 text-white hover:bg-${report.color}-700 shadow-lg shadow-${report.color}-600/20 active:scale-95 hover:-translate-y-0.5`
@@ -171,7 +171,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
             <Calendar className="w-12 h-12 text-blue-300" />
           </div>
           <div className="text-center md:text-left">
-            <h2 className="text-2xl font-black mb-2 tracking-tight">¿Necesitas reportes históricos?</h2>
+            <h2 className="text-2xl font-medium mb-2 tracking-tight">¿Necesitas reportes históricos?</h2>
             <p className="text-blue-100/80 max-w-xl">
               Solo debes cambiar la fecha en la parte superior. El sistema consultará automáticamente la base de datos histórica para generar el consolidado de ese día específico.
             </p>

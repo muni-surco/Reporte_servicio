@@ -71,17 +71,17 @@ const UnitSection: React.FC<UnitSectionProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className={`material-symbols-outlined ${colorConfig.textAccent} text-[20px]`}>{icon}</span>
-            <h2 className={`text-[16px] font-bold ${colorConfig.textAccent} uppercase tracking-tighter`}>
+            <h2 className={`text-[16px] font-medium ${colorConfig.textAccent} uppercase tracking-tighter`}>
               {title} <span className={`${colorConfig.badgeBg} text-white px-1.5 rounded text-[12px] ml-1 shadow-sm`}>{badge}</span>
             </h2>
           </div>
-          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 rounded-full text-[12px] font-bold uppercase tracking-tighter shadow-sm">
+          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 rounded-full text-[12px] font-medium uppercase tracking-tighter shadow-sm">
             Acumulado Partes: {partesTotal}
           </span>
         </div>
         <button
           onClick={() => onAdd(type)}
-          className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-bold hover:opacity-70 group transition-all`}
+          className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-medium hover:opacity-70 group transition-all`}
         >
           <lord-icon
             src="https://cdn.lordicon.com/zrkkrrpl.json"
@@ -95,7 +95,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
 
       <div className="p-3 bg-slate-50/30">
         {units.length === 0 ? (
-          <div className="text-center py-8 text-slate-300 text-[12px] italic font-bold uppercase tracking-widest">No hay registros en esta sección</div>
+          <div className="text-center py-8 text-slate-300 text-[12px] italic font-medium uppercase tracking-widest">No hay registros en esta sección</div>
         ) : (
           units.map((unit, index) => (
             <UnitCard

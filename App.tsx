@@ -360,7 +360,7 @@ const App: React.FC = () => {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-primary text-white">
         <div className="w-12 h-12 border-4 border-secondary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-[14px] font-bold tracking-[0.2em] animate-pulse uppercase">Cargando Datos...</p>
+        <p className="text-[14px] font-medium tracking-[0.2em] animate-pulse uppercase">Cargando Datos...</p>
       </div>
     );
   }
