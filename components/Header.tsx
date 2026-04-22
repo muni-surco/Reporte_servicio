@@ -89,23 +89,23 @@ const Header: React.FC<HeaderProps> = ({
   const isReports = currentView === 'REPORTS';
   const isVisualization = currentView === 'VISUALIZATION';
 
-  const labelStyle = "text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5 whitespace-nowrap";
-  const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-2 text-[10px] md:text-[11px] font-bold text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-9 shadow-sm appearance-none flex items-center";
-  const displayBoxStyle = "bg-white border border-slate-200 rounded-lg px-3 py-1 min-h-[36px] flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm";
-  const valueStyle = "text-[10px] md:text-[11px] font-bold text-[#002d5a] leading-none truncate uppercase";
+  const labelStyle = "text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-1 whitespace-nowrap leading-none";
+  const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-bold text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-10 shadow-sm appearance-none flex items-center";
+  const displayBoxStyle = "bg-white border border-slate-200 rounded-lg px-3 flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm h-10";
+  const valueStyle = "text-[13px] font-bold text-[#002d5a] leading-none truncate uppercase";
 
   const getSectorCode = (sectorName: string) => {
     return sectorName.toUpperCase().replace('SECTOR ', '').trim();
   };
 
   // Even smaller buttons for Mobile/Tablet
-  const btnIconStyle = "w-9 h-9 xl:h-auto xl:w-auto p-0 xl:px-4 xl:py-2 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm";
+  const btnIconStyle = "h-10 px-4 rounded-xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm shrink-0";
 
   return (
-    <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50 backdrop-blur-lg bg-white/95">
-      <div className="max-w-[1920px] mx-auto">
-        <div className="px-4 py-2 flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-6">
-          
+    <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50 backdrop-blur-lg bg-white/95 h-[72px]">
+      <div className="max-w-[1920px] mx-auto h-full">
+        <div className="px-4 h-full flex flex-row items-center justify-between gap-3 lg:gap-6">
+
           {/* Logo Section */}
           <div className="flex items-center justify-between lg:justify-start lg:gap-6 shrink-0">
             <div className="flex items-center">
@@ -115,18 +115,18 @@ const Header: React.FC<HeaderProps> = ({
                     <select
                       value={currentSector}
                       onChange={(e) => onSectorChange(e.target.value as Sector)}
-                      className="appearance-none bg-transparent text-xl md:text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none pr-8 focus:outline-none cursor-pointer hover:text-primary transition-colors truncate"
+                      className="appearance-none bg-transparent text-[24px] font-bold text-[#002d5a] tracking-tighter uppercase leading-none pr-8 focus:outline-none cursor-pointer hover:text-primary transition-colors truncate"
                     >
                       {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                     <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-2xl md:text-3xl text-[#002d5a] pointer-events-none group-hover/sector:scale-110 transition-transform">expand_more</span>
                   </div>
                 ) : (
-                  <h2 className="text-xl md:text-2xl font-bold text-[#002d5a] tracking-tighter uppercase leading-none truncate">
+                  <h2 className="text-[24px] font-bold text-[#002d5a] tracking-tighter uppercase leading-none truncate">
                     {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : 'REPORTE'}
                   </h2>
                 )}
-                <span className="text-[8px] md:text-[9px] font-bold text-slate-300 uppercase tracking-widest mt-1 block">Gestión de Seguridad</span>
+                <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest mt-1 block">Gestión de Seguridad</span>
               </div>
             </div>
           </div>
@@ -135,7 +135,7 @@ const Header: React.FC<HeaderProps> = ({
           {!isStatistics && !isVisualization && currentView !== 'REPORTS' && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-1 lg:border-l lg:border-slate-100 lg:pl-8 min-w-0">
               <div className="flex items-center gap-3 shrink-0">
-                <div className="flex flex-col w-[110px] md:w-[130px]">
+                <div className="flex flex-col w-[110px] md:w-[150px]">
                   <span className={labelStyle}>FECHA</span>
                   <input type="date" value={selectedDate} onChange={(e) => onDateChange(e.target.value)} className={inputBaseStyle.replace('shadow-sm appearance-none', 'shadow-sm')} />
                 </div>
@@ -154,39 +154,39 @@ const Header: React.FC<HeaderProps> = ({
 
               <div className="flex flex-wrap items-center gap-3 lg:border-l lg:border-slate-100 lg:pl-6 flex-1 min-w-0">
                 {isPersonnel && personnelStats ? (
-                   <div className="flex items-center gap-6 bg-slate-50/80 px-4 py-1.5 rounded-xl border border-slate-200 h-9">
-                      <div className="text-center">
-                        <span className="text-[7px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Total</span>
-                        <span className="text-[12px] font-bold text-slate-800 leading-none">{personnelStats.total}</span>
-                      </div>
-                      <div className="w-px h-5 bg-slate-200"></div>
-                      <div className="text-center">
-                        <span className="text-[7px] font-bold text-green-500 uppercase block leading-none mb-0.5">Activos</span>
-                        <span className="text-[12px] font-bold text-green-600 leading-none">{personnelStats.activos}</span>
-                      </div>
-                   </div>
+                  <div className="flex items-center gap-6 bg-slate-50/80 px-4 rounded-xl border border-slate-200 h-10">
+                    <div className="text-center">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none mb-1">Total</span>
+                      <span className="text-[13px] font-bold text-slate-800 leading-none">{personnelStats.total}</span>
+                    </div>
+                    <div className="w-px h-6 bg-slate-200"></div>
+                    <div className="text-center">
+                      <span className="text-[10px] font-bold text-green-500 uppercase block leading-none mb-1">Activos</span>
+                      <span className="text-[13px] font-bold text-green-600 leading-none">{personnelStats.activos}</span>
+                    </div>
+                  </div>
                 ) : (
                   <>
-                    <div className="flex flex-col min-w-[110px] max-w-[170px] flex-1">
+                    <div className="flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>OPERADOR</span>
                       {editingField === 'operador' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[10px] font-bold" />
+                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-10 !py-1 text-[13px] font-bold" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('operador')}><p className={valueStyle}>{settings.operador || '--'}</p></div>
                       )}
                     </div>
-                    <div className="hidden sm:flex flex-col min-w-[110px] max-w-[170px] flex-1">
+                    <div className="hidden sm:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>SUPERVISOR</span>
                       {editingField === 'supervisor' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[10px] font-bold" />
+                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-10 !py-1 text-[13px] font-bold" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('supervisor')}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
                       )}
                     </div>
-                    <div className="hidden xl:flex flex-col min-w-[110px] max-w-[170px] flex-1">
+                    <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>PERMANENCIA</span>
                       {editingField === 'permanencia' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[10px] font-bold" />
+                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-10 !py-1 text-[13px] font-bold" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('permanencia')}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
                       )}
@@ -197,8 +197,8 @@ const Header: React.FC<HeaderProps> = ({
 
               <div className="flex items-center gap-4 ml-auto lg:ml-0">
                 {isDashboard && (
-                  <div className="bg-amber-100/50 px-3 py-1 rounded-xl border border-amber-200 flex flex-col items-center justify-center h-9 shadow-sm shrink-0 min-w-[60px]">
-                    <span className="text-[6px] font-bold text-amber-500 uppercase leading-none mb-0.5 tracking-tighter">PARTES</span>
+                  <div className="bg-amber-100/50 px-3 py-1 rounded-xl border border-amber-200 flex flex-col items-center justify-center h-10 shadow-sm shrink-0 min-w-[60px]">
+                    <span className="text-[10px] font-bold text-amber-500 uppercase leading-none mb-0.5 tracking-tighter">PARTES</span>
                     <p className="text-sm font-bold text-amber-700 leading-none">{totalPartes}</p>
                   </div>
                 )}
@@ -210,12 +210,12 @@ const Header: React.FC<HeaderProps> = ({
           {isVisualization ? (
             <div className="flex items-center gap-2 justify-end shrink-0" data-html2canvas-ignore>
               <div className="flex items-center gap-2 bg-white rounded-lg border border-slate-200 px-3 py-1.5 shadow-sm">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SECTORES:</span>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">SECTORES:</span>
                 {SECTORS.map((sector) => (
                   <a
                     key={sector}
                     href={`#sector-${sector.replace(/\s+/g, '-')}`}
-                    className="px-2 py-1 text-[10px] font-bold uppercase tracking-tighter rounded transition-all hover:bg-blue-600 hover:text-white bg-slate-100 text-slate-600"
+                    className="px-2 py-1 text-[12px] font-bold uppercase tracking-tighter rounded transition-all hover:bg-blue-600 hover:text-white bg-slate-100 text-slate-600"
                   >
                     {getSectorCode(sector)}
                   </a>
@@ -225,14 +225,14 @@ const Header: React.FC<HeaderProps> = ({
                 onClick={handleRefreshClick}
                 disabled={isRefreshing}
                 title="Actualizar"
-                className="px-3 py-1.5 bg-primary text-white rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 shadow-sm hover:bg-primary-dark transition-all"
+                className="h-10 px-4 bg-primary text-white rounded-lg font-bold text-[12px] uppercase tracking-wider flex items-center gap-2 shadow-sm hover:bg-primary-dark transition-all"
               >
-                <span className={`material-symbols-outlined text-[14px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
+                <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
                 ACTUALIZAR
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 justify-end shrink-0 border-t border-slate-100 pt-3 lg:border-none lg:pt-0 lg:ml-auto" data-html2canvas-ignore>
+            <div className="flex items-center gap-2 justify-end shrink-0 lg:ml-auto" data-html2canvas-ignore>
               <div className="flex items-center gap-2 justify-end w-full md:w-auto">
                 {isDashboard ? (
                   <>
@@ -268,7 +268,7 @@ const Header: React.FC<HeaderProps> = ({
                     onClick={handleRefreshClick}
                     disabled={isRefreshing}
                     title="Actualizar"
-                    className={`w-9 h-9 xl:h-9 xl:w-auto p-0 xl:px-6 bg-primary text-white rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-blue-200 active:scale-95 transition-all`}
+                    className="h-10 px-6 bg-primary text-white rounded-xl font-bold text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-blue-200 active:scale-95 transition-all"
                   >
                     <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
                     <span className="hidden xl:inline">ACTUALIZAR DATOS</span>

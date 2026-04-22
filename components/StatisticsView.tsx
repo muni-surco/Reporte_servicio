@@ -205,7 +205,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                 {alerts.length > 0 && (
                     <div className="mb-6 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                         <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
-                            <h2 className="text-xl font-bold text-white uppercase tracking-tight flex items-center gap-2">
+                            <h2 className="text-[16px] font-bold text-white uppercase tracking-tight flex items-center gap-2">
                                 <span className="material-symbols-outlined">notification_important</span>
                                 Alertas y Excepciones
                             </h2>
@@ -221,7 +221,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                                         >
                                             <span className="material-symbols-outlined text-3xl">{alertStyle.icon}</span>
                                             <div className="flex-1">
-                                                <p className="font-bold text-sm">{alert.message}</p>
+                                                <p className="font-bold text-[13px]">{alert.message}</p>
                                                 {alert.count !== undefined && (
                                                     <p className="text-2xl font-bold mt-1">{alert.count}</p>
                                                 )}
@@ -240,12 +240,12 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                         <div className="flex items-center justify-between mb-3">
                             <span className="material-symbols-outlined text-5xl opacity-30">speed</span>
                             <div className="text-right">
-                                <p className="text-emerald-100 text-xs font-bold uppercase tracking-wider">Disponibilidad</p>
+                                <p className="text-emerald-100 text-[11px] font-bold uppercase tracking-wider">Disponibilidad</p>
                                 <p className="text-5xl font-bold mt-1">{availabilityRates.vehicleAvailability.toFixed(1)}%</p>
                             </div>
                         </div>
                         <div className="border-t border-emerald-400 pt-3 mt-3">
-                            <p className="text-emerald-100 text-xs font-medium">
+                            <p className="text-emerald-100 text-[13px] font-medium">
                                 {availabilityRates.patrollingVehicles} de {availabilityRates.totalVehicles} vehículos patrullando
                             </p>
                         </div>
@@ -255,12 +255,12 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                         <div className="flex items-center justify-between mb-3">
                             <span className="material-symbols-outlined text-5xl opacity-30">groups</span>
                             <div className="text-right">
-                                <p className="text-purple-100 text-xs font-bold uppercase tracking-wider">Ratio Personal/Vehículo</p>
+                                <p className="text-purple-100 text-[11px] font-bold uppercase tracking-wider">Ratio Personal/Vehículo</p>
                                 <p className="text-5xl font-bold mt-1">{availabilityRates.personnelVehicleRatio.toFixed(1)}</p>
                             </div>
                         </div>
                         <div className="border-t border-purple-400 pt-3 mt-3">
-                            <p className="text-purple-100 text-xs font-medium">
+                            <p className="text-purple-100 text-[13px] font-medium">
                                 {availabilityRates.totalPersonnel} efectivos / {availabilityRates.patrollingVehicles} vehículos
                             </p>
                         </div>
@@ -270,12 +270,12 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                         <div className="flex items-center justify-between mb-3">
                             <span className="material-symbols-outlined text-5xl opacity-30">local_police</span>
                             <div className="text-right">
-                                <p className="text-cyan-100 text-xs font-bold uppercase tracking-wider">Cobertura Total</p>
+                                <p className="text-cyan-100 text-[11px] font-bold uppercase tracking-wider">Cobertura Total</p>
                                 <p className="text-5xl font-bold mt-1">{SECTORS.length}</p>
                             </div>
                         </div>
                         <div className="border-t border-cyan-400 pt-3 mt-3">
-                            <p className="text-cyan-100 text-xs font-medium">
+                            <p className="text-cyan-100 text-[13px] font-medium">
                                 Sectores activos en el sistema
                             </p>
                         </div>
@@ -285,7 +285,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                 {/* NUEVA SECCIÓN: Estado operativo de vehículos */}
                 <div className="mb-6 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                     <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-4">
-                        <h2 className="text-xl font-bold text-white uppercase tracking-tight flex items-center gap-2">
+                        <h2 className="text-[16px] font-bold text-white uppercase tracking-tight flex items-center gap-2">
                             <span className="material-symbols-outlined">analytics</span>
                             Estado Operativo de Vehículos
                         </h2>
@@ -301,7 +301,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                                         className={`${getStatusColor(status)} border-2 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-all hover:scale-105`}
                                     >
                                         <p className="text-3xl font-bold mb-1">{count}</p>
-                                        <p className="text-[10px] font-bold uppercase leading-tight">{status}</p>
+                                        <p className="text-[11px] font-bold uppercase leading-tight">{status}</p>
                                     </div>
                                 ))}
                         </div>
@@ -312,7 +312,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                     {/* Tabla: Vehículos patrullando */}
                     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                         <div className="bg-gradient-to-r from-[#004b93] to-[#002d5a] px-6 py-4">
-                            <h2 className="text-xl font-bold text-white uppercase tracking-tight flex items-center gap-2">
+                            <h2 className="text-[16px] font-bold text-white uppercase tracking-tight flex items-center gap-2">
                                 <span className="material-symbols-outlined">local_shipping</span>
                                 Vehículos Patrullando
                             </h2>
@@ -321,9 +321,9 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                             <table className="w-full">
                                 <thead>
                                     <tr className="bg-slate-800 text-white">
-                                        <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider border-r border-slate-700"></th>
-                                        <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-slate-700">Carros</th>
-                                        <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider">Motos</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider border-r border-slate-700"></th>
+                                        <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider border-r border-slate-700">Carros</th>
+                                        <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider">Motos</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -332,13 +332,13 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                                             key={sector}
                                             className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50 transition-colors border-b border-slate-200`}
                                         >
-                                            <td className="px-4 py-2.5 text-sm font-bold text-slate-700 border-r border-slate-200">{sector}</td>
-                                            <td className="px-4 py-2.5 text-center text-sm font-bold text-slate-800 border-r border-slate-200">{patrollingStats[sector]?.carros || 0}</td>
-                                            <td className="px-4 py-2.5 text-center text-sm font-bold text-slate-800">{patrollingStats[sector]?.motos || 0}</td>
+                                            <td className="px-4 py-2.5 text-left text-[13px] font-bold text-slate-700 border-r border-slate-200">{sector}</td>
+                                            <td className="px-4 py-2.5 text-center text-[13px] font-bold text-slate-800 border-r border-slate-200">{patrollingStats[sector]?.carros || 0}</td>
+                                            <td className="px-4 py-2.5 text-center text-[13px] font-bold text-slate-800">{patrollingStats[sector]?.motos || 0}</td>
                                         </tr>
                                     ))}
                                     <tr className="bg-slate-100 border-t-2 border-slate-300">
-                                        <td className="px-4 py-3 text-sm font-bold text-slate-900 uppercase border-r border-slate-300">Total</td>
+                                        <td className="px-4 py-3 text-[13px] font-bold text-slate-900 uppercase border-r border-slate-300">Total</td>
                                         <td className="px-4 py-3 text-center text-lg font-bold text-[#004b93] border-r border-slate-300">{totalCarros}</td>
                                         <td className="px-4 py-3 text-center text-lg font-bold text-[#004b93]">{totalMotos}</td>
                                     </tr>
@@ -350,7 +350,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                     {/* Tabla: Personal Presente */}
                     <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                         <div className="bg-gradient-to-r from-[#00a19b] to-[#007a75] px-6 py-4">
-                            <h2 className="text-xl font-bold text-white uppercase tracking-tight flex items-center gap-2">
+                            <h2 className="text-[16px] font-bold text-white uppercase tracking-tight flex items-center gap-2">
                                 <span className="material-symbols-outlined">groups</span>
                                 Personal Presente
                             </h2>
@@ -359,11 +359,11 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                             <table className="w-full">
                                 <thead>
                                     <tr className="bg-slate-800 text-white">
-                                        <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider border-r border-slate-700"></th>
-                                        <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-slate-700">Choferes</th>
-                                        <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-slate-700">Motorizados</th>
-                                        <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider border-r border-slate-700">Serenos</th>
-                                        <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider bg-yellow-400 text-slate-900">Total</th>
+                                        <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider border-r border-slate-700"></th>
+                                        <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider border-r border-slate-700">Choferes</th>
+                                        <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider border-r border-slate-700">Motorizados</th>
+                                        <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider border-r border-slate-700">Serenos</th>
+                                        <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider bg-yellow-400 text-slate-900">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -372,15 +372,15 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                                             key={sector}
                                             className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-green-50 transition-colors border-b border-slate-200`}
                                         >
-                                            <td className="px-4 py-2.5 text-sm font-bold text-slate-700 border-r border-slate-200">{sector}</td>
-                                            <td className="px-4 py-2.5 text-center text-sm font-bold text-slate-800 border-r border-slate-200">{personnelStats[sector]?.choferes || 0}</td>
-                                            <td className="px-4 py-2.5 text-center text-sm font-bold text-slate-800 border-r border-slate-200">{personnelStats[sector]?.motorizados || 0}</td>
-                                            <td className="px-4 py-2.5 text-center text-sm font-bold text-slate-800 border-r border-slate-200">{personnelStats[sector]?.serenos || 0}</td>
-                                            <td className="px-4 py-2.5 text-center text-sm font-bold text-slate-900 bg-yellow-50">{personnelStats[sector]?.total || 0}</td>
+                                            <td className="px-4 py-2.5 text-left text-[13px] font-bold text-slate-700 border-r border-slate-200">{sector}</td>
+                                            <td className="px-4 py-2.5 text-center text-[13px] font-bold text-slate-800 border-r border-slate-200">{personnelStats[sector]?.choferes || 0}</td>
+                                            <td className="px-4 py-2.5 text-center text-[13px] font-bold text-slate-800 border-r border-slate-200">{personnelStats[sector]?.motorizados || 0}</td>
+                                            <td className="px-4 py-2.5 text-center text-[13px] font-bold text-slate-800 border-r border-slate-200">{personnelStats[sector]?.serenos || 0}</td>
+                                            <td className="px-4 py-2.5 text-center text-[13px] font-bold text-slate-900 bg-yellow-50">{personnelStats[sector]?.total || 0}</td>
                                         </tr>
                                     ))}
                                     <tr className="bg-slate-100 border-t-2 border-slate-300">
-                                        <td className="px-4 py-3 text-sm font-bold text-slate-900 uppercase border-r border-slate-300">Total</td>
+                                        <td className="px-4 py-3 text-[14px] font-bold text-slate-900 uppercase border-r border-slate-300">Total</td>
                                         <td className="px-4 py-3 text-center text-lg font-bold text-[#00a19b] border-r border-slate-300">{totalChoferes}</td>
                                         <td className="px-4 py-3 text-center text-lg font-bold text-[#00a19b] border-r border-slate-300">{totalMotorizados}</td>
                                         <td className="px-4 py-3 text-center text-lg font-bold text-[#00a19b] border-r border-slate-300">{totalSerenos}</td>
@@ -397,7 +397,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                     <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 shadow-lg">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Carros Patrullando</p>
+                                <p className="text-blue-100 text-[11px] font-bold uppercase tracking-wider">Carros Patrullando</p>
                                 <p className="text-white text-3xl font-bold mt-1">{totalCarros}</p>
                             </div>
                             <span className="material-symbols-outlined text-white text-4xl opacity-30">directions_car</span>
@@ -406,7 +406,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                     <div className="bg-gradient-to-br from-violet-500 to-violet-600 rounded-xl p-4 shadow-lg">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-violet-100 text-xs font-bold uppercase tracking-wider">Motos Patrullando</p>
+                                <p className="text-violet-100 text-[11px] font-bold uppercase tracking-wider">Motos Patrullando</p>
                                 <p className="text-white text-3xl font-bold mt-1">{totalMotos}</p>
                             </div>
                             <span className="material-symbols-outlined text-white text-4xl opacity-30">two_wheeler</span>
@@ -415,7 +415,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                     <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl p-4 shadow-lg">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-teal-100 text-xs font-bold uppercase tracking-wider">Personal Operativo</p>
+                                <p className="text-teal-100 text-[11px] font-bold uppercase tracking-wider">Personal Operativo</p>
                                 <p className="text-white text-3xl font-bold mt-1">{totalPersonnel}</p>
                             </div>
                             <span className="material-symbols-outlined text-white text-4xl opacity-30">badge</span>
@@ -424,7 +424,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
                     <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 shadow-lg">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-amber-100 text-xs font-bold uppercase tracking-wider">Sectores Activos</p>
+                                <p className="text-amber-100 text-[11px] font-bold uppercase tracking-wider">Sectores Activos</p>
                                 <p className="text-white text-3xl font-bold mt-1">{SECTORS.length}</p>
                             </div>
                             <span className="material-symbols-outlined text-white text-4xl opacity-30">map</span>

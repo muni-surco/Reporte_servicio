@@ -27,14 +27,24 @@ files.forEach(file => {
     }
 });
 
+// Fallback if Vite inlined CSS
+if (!cssContent) {
+    const rootCss = path.join(process.cwd(), 'index.css');
+    if (fs.existsSync(rootCss)) {
+        cssContent = fs.readFileSync(rootCss, 'utf-8');
+        console.log('Read CSS from root index.css (fallback)');
+    }
+}
+
 if (jsContent) {
     fs.writeFileSync(path.join(distPath, 'JavaScript.html'), `<script>\n${jsContent}\n</script>`);
     console.log('Created dist/JavaScript.html');
 }
 
 if (cssContent) {
-    fs.writeFileSync(path.join(distPath, 'Stylesheet.html'), `<style>\n${cssContent}\n</style>`);
-    console.log('Created dist/Stylesheet.html');
+    fs.writeFileSync(path.join(distPath, 'styles.html'), `<style>\n${cssContent}\n</style>`);
+    fs.writeFileSync(path.join(distPath, 'index.css'), cssContent);
+    console.log('Created dist/styles.html and dist/index.css');
 }
 
 // 3. Transform index.html
@@ -49,7 +59,7 @@ if (fs.existsSync(indexFile)) {
 
     // Inject our include() calls
     const includes = [];
-    if (cssContent) includes.push("<?!= include('Stylesheet'); ?>");
+    if (cssContent) includes.push("<?!= include('styles'); ?>");
     
     // Inject CSS in head
     if (includes.length > 0) {

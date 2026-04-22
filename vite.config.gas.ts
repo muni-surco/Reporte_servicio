@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
+      cssInlineLimit: 0,
       rollupOptions: {
         output: {
           format: 'iife',

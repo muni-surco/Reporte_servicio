@@ -134,12 +134,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
     onSave(formData);
   };
 
-  const labelStyle = "text-[10px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+  const labelStyle = "text-[11px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
   const errorInputStyle = "border-red-500 ring-1 ring-red-500 bg-red-50";
-  const inputStyle = (fieldName: string) => `w-full border ${errors[fieldName] ? errorInputStyle : 'border-slate-300 bg-white'} rounded px-2 py-1 text-[12px] font-medium h-[28px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
-  const labelStyleEdit = "text-[9px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
-  const errorMsgStyle = "text-[8px] font-medium text-red-600 uppercase leading-tight mt-0.5";
-  const infoValueStyle = "text-[11px] font-bold text-slate-800 truncate leading-tight uppercase";
+  const inputStyle = (fieldName: string) => `w-full border ${errors[fieldName] ? errorInputStyle : 'border-slate-300 bg-white'} rounded px-2 py-1 text-[13px] font-medium h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
+  const labelStyleEdit = "text-[11px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+  const errorMsgStyle = "text-[10px] font-medium text-red-600 uppercase leading-tight mt-0.5";
+  const infoValueStyle = "text-[13px] font-bold text-slate-800 truncate leading-tight uppercase";
 
   const badgeColors: Record<string, string> = {
     [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
@@ -231,7 +231,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   if (isEditing) {
     const idStr = String(formData.id);
     const isNew = idStr === '' || idStr.startsWith('NEW-');
-    const labelStyleEdit = "text-[10px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+    const labelStyleEdit = "text-[11px] font-bold text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
     return (
       <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg flex items-center gap-4`}>
         {/* Línea vertical distintiva estilo moderno */}
@@ -282,7 +282,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
             <div className="col-span-1">
               <label className={labelStyleEdit}>Indic.</label>
-              <select name="indicative" value={formData.indicative || ''} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[10px]`}>
+              <select name="indicative" value={formData.indicative || ''} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[12px]`}>
                 <option value="">--</option>
                 {formData.indicative && !activeIndicativeOptions.includes(formData.indicative) && <option value={formData.indicative}>{formData.indicative}</option>}
                 {activeIndicativeOptions.map(i => <option key={i} value={i}>{i}</option>)}
@@ -308,7 +308,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
             <div className="col-span-1">
               <label className={labelStyleEdit}>Estado</label>
-              <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0 text-[9px] font-bold`}>
+              <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0 text-[11px] font-bold`}>
                 <option value="">--</option>
                 {formData.status && !activeStatusOptions.includes(formData.status) && <option value={formData.status}>{formData.status}</option>}
                 {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -333,7 +333,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 <div className="col-span-3 grid grid-cols-3 gap-1">
                   <div><label className={labelStyleEdit}>KM INICIO</label><input type="number" value={kmStart} onChange={(e) => setKmStart(e.target.value)} className={inputStyle('kmStart')} /></div>
                   <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>
-                  <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[10px] font-bold text-blue-700 h-[26px] flex items-center justify-center">{kmDiff}</div></div>
+                  <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[13px] font-bold text-blue-700 h-[26px] flex items-center justify-center">{kmDiff}</div></div>
                 </div>
                 <div className="col-span-2 grid grid-cols-2 gap-1">
                   <div><label className={labelStyleEdit}>HORA INICIO</label><input type="time" value={hourStart} onChange={(e) => setHourStart(e.target.value)} className={inputStyle('hourStart')} /></div>
@@ -342,7 +342,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 <div className="col-span-7 grid grid-cols-5 gap-1">
                   <div><label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
                   <div><label className={labelStyleEdit}>COMBUSTIBLE</label>
-                    <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[9px] font-bold`}>
+                    <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-bold`}>
                       <option value="">--</option>
                       {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
                     </select>
@@ -364,10 +364,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
           </div>
 
           <div className="flex justify-end gap-3 pt-3">
-            <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
+            <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[12px] font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
               CANCELAR
             </button>
-            <button onClick={handleValidateAndSave} className="bg-[#005cbb] text-white text-[10px] font-bold py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group">
+            <button onClick={handleValidateAndSave} className="bg-[#005cbb] text-white text-[12px] font-bold py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group">
               <lord-icon
                 src="https://cdn.lordicon.com/egiwmiit.json"
                 trigger="hover"
@@ -395,7 +395,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
-            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-bold text-[10px] shadow-sm`}>
+            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-bold text-[13px] shadow-sm`}>
               {unit.id}
             </div>
           </div>
@@ -406,8 +406,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <div className={infoValueStyle}>{unit.personnel1 || '--'}</div>
             {hasPersonnel2 && unit.personnel2 && (
               <div className="flex items-center gap-1.5 mt-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Cop.</label>
-                <div className="text-[10px] font-bold text-slate-500 truncate uppercase leading-none">{unit.personnel2}</div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">Cop.</label>
+                <div className="text-[12px] font-bold text-slate-500 truncate uppercase leading-none">{unit.personnel2}</div>
               </div>
             )}
           </div>
@@ -449,7 +449,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {/* Columna Estado */}
           <div className="border-r border-slate-100 px-2 text-center w-32 shrink-0">
             <label className={labelStyle}>Estado</label>
-            <span className={`px-1.5 rounded text-[10px] font-bold border uppercase inline-block ${getBadgeClass(unit.status)}`} style={{ whiteSpace: 'normal', lineHeight: '1.2' }}>
+            <span className={`px-1.5 rounded text-[13px] font-bold border uppercase inline-block ${getBadgeClass(unit.status)}`} style={{ whiteSpace: 'normal', lineHeight: '1.2' }}>
               {unit.status}
             </span>
           </div>
@@ -459,7 +459,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               {/* Columna KM Centrada */}
               <div className="border-r border-slate-100 px-2 text-center">
                 <label className={labelStyle}>KM (Inicio/Fin/Recorrido)</label>
-                <div className="flex items-center justify-center gap-1 text-[10px] font-bold">
+                <div className="flex items-center justify-center gap-1 text-[13px] font-bold">
                   <span className="text-slate-400">{String(unit.km || '').split('/')[0] || '0'}</span>
                   <span className="text-slate-200">/</span>
                   <span className="text-slate-400">{String(unit.km || '').split('/')[1] || '0'}</span>
@@ -471,17 +471,17 @@ const UnitCard: React.FC<UnitCardProps> = ({
               {/* Columna Horario */}
               <div className="border-r border-slate-100 px-2 text-center">
                 <label className={labelStyle}>Horario</label>
-                <div className="text-[10px] font-bold text-slate-600">{unit.hours || '--:--'}</div>
+                <div className="text-[13px] font-bold text-slate-600">{unit.hours || '--:--'}</div>
               </div>
 
               {/* Columna Combustible Centrada con Recarga integrada */}
               <div className="border-r border-slate-100 px-2 text-center">
                 <label className={labelStyle}>Combustible</label>
-                <div className="flex items-center justify-center gap-1 text-[10px] font-bold">
+                <div className="flex items-center justify-center gap-1 text-[13px] font-bold">
                   <div className="flex items-center gap-1 text-slate-500">
                     <span>{String(unit.fuel || '').split('/')[0] || '--'}</span>
                     {hasKmRecarga && String(unit.km || '').split('/')[3] && String(unit.km || '').split('/')[3].trim() !== '0' && (
-                      <span className="text-amber-600 text-[10px] font-bold" title="Recarga">(R:{String(unit.km || '').split('/')[3].trim()})</span>
+                      <span className="text-amber-600 text-[13px] font-bold" title="Recarga">(R:{String(unit.km || '').split('/')[3].trim()})</span>
                     )}
                   </div>
                   <span className="text-slate-200">|</span>
@@ -494,7 +494,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {/* Columna Partes con Color Ámbar Suave */}
           <div className="border-r border-slate-100 px-2 text-center">
             <label className={labelStyle}>Partes</label>
-            <div className="w-5 h-5 mx-auto flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold shadow-sm">
+            <div className="w-6 h-6 mx-auto flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 rounded text-[13px] font-bold shadow-sm">
               {unit.parts}
             </div>
           </div>
@@ -502,7 +502,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {/* Columna Motivo */}
           <div className="px-2 min-w-0">
             <label className={labelStyle}>Motivo</label>
-            <div className="text-[10px] font-bold text-slate-500 truncate uppercase">{unit.reason || '--'}</div>
+            <div className="text-[13px] font-bold text-slate-500 truncate uppercase">{unit.reason || '--'}</div>
           </div>
 
           {/* Columna Acciones */}

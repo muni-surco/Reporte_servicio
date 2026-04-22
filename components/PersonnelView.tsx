@@ -38,15 +38,15 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
         });
     }, [data, searchTerm, filterState, filterRole]);
 
-    const columnHeaderStyle = "px-4 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]";
-    const cellStyle = "px-4 py-3 text-[12px] font-medium text-slate-700 border-b border-slate-50 bg-white";
+    const columnHeaderStyle = "px-4 py-3 text-left text-[13px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]";
+    const cellStyle = "px-4 py-3 text-[13px] font-medium text-slate-700 border-b border-slate-50 bg-white";
 
     return (
         <div className="flex flex-col h-full gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Toolbar */}
             <div className="flex items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200 shrink-0">
                 <div className="flex-1 flex flex-col">
-                    <span className="text-[8px] font-bold text-[#004b93] uppercase tracking-wider mb-1 px-1">Buscar por</span>
+                    <span className="text-[11px] font-bold text-[#004b93] uppercase tracking-wider mb-1 px-1">Buscar por</span>
                     <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
                         <input
@@ -54,7 +54,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                             placeholder="NOMBRE, DNI O CÓDIGO..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all uppercase placeholder:text-slate-300"
+                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all uppercase placeholder:text-slate-300"
                         />
                     </div>
                 </div>
@@ -62,12 +62,12 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                 <div className="flex items-center gap-4">
                     {/* Filtro Rol */}
                     <div className="flex flex-col min-w-[150px]">
-                        <span className="text-[8px] font-bold text-[#004b93] uppercase tracking-wider mb-1 px-1">Rol Operativo</span>
+                        <span className="text-[11px] font-bold text-[#004b93] uppercase tracking-wider mb-1 px-1">Rol Operativo</span>
                         <div className="relative">
                             <select
                                 value={filterRole}
                                 onChange={(e) => setFilterRole(e.target.value)}
-                                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all uppercase cursor-pointer pr-8"
+                                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-all uppercase cursor-pointer pr-8"
                             >
                                 {operationalRoles.map(role => (
                                     <option key={role} value={role}>{role}</option>
@@ -79,13 +79,13 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
 
                     {/* Filtro Estado */}
                     <div className="flex flex-col">
-                        <span className="text-[8px] font-bold text-[#004b93] uppercase tracking-wider mb-1 px-1">Estado</span>
+                        <span className="text-[11px] font-bold text-[#004b93] uppercase tracking-wider mb-1 px-1">Estado</span>
                         <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200 h-[38px]">
                             {['TODOS', 'ACTIVO', 'INACTIVO'].map(state => (
                                 <button
                                     key={state}
                                     onClick={() => setFilterState(state)}
-                                    className={`px-3 py-1.5 rounded-md text-[9px] font-bold transition-all h-full ${filterState === state
+                                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all h-full ${filterState === state
                                         ? 'bg-white text-blue-600 shadow-sm'
                                         : 'text-slate-400 hover:text-slate-600'
                                         }`}
@@ -118,14 +118,14 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                 <tr>
                                     <td colSpan={7} className="py-20 text-center">
                                         <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                        <p className="mt-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Cargando Personal...</p>
+                                        <p className="mt-4 text-[13px] font-bold text-slate-400 uppercase tracking-widest">Cargando Personal...</p>
                                     </td>
                                 </tr>
                             ) : filteredData.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="py-20 text-center">
                                         <span className="material-symbols-outlined text-slate-200 text-5xl mb-4">person_search</span>
-                                        <p className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">No se encontraron registros</p>
+                                        <p className="text-[13px] font-bold text-slate-300 uppercase tracking-widest">No se encontraron registros</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -138,7 +138,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                         <td className={cellStyle}>{person.sector_id}</td>
                                         <td className={cellStyle}>{person.rol_operativo}</td>
                                         <td className={cellStyle}>
-                                            <span className={`px-2 rounded text-[11px] font-bold border uppercase ${person.estado.toUpperCase() === 'ACTIVO'
+                                            <span className={`px-2 rounded text-[13px] font-bold border uppercase ${person.estado.toUpperCase() === 'ACTIVO'
                                                 ? 'bg-green-100 text-green-700 border-green-200'
                                                 : 'bg-red-100 text-red-700 border-red-200'
                                                 }`}>
