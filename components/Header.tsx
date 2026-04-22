@@ -154,7 +154,7 @@ const Header: React.FC<HeaderProps> = ({
 
               <div className="flex flex-wrap items-center gap-3 lg:border-l lg:border-slate-100 lg:pl-6 flex-1 min-w-0">
                 {isPersonnel && personnelStats ? (
-                  <div className="flex items-center gap-6 bg-slate-50/80 px-4 rounded-xl border border-slate-200 h-9">
+                  <div className="flex items-center gap-6 bg-slate-50/80 px-4 rounded-xl border border-slate-200 h-12">
                     <div className="text-center">
                       <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none m-1">Total</span>
                       <span className="text-[13px] font-bold text-slate-800 leading-none">{personnelStats.total}</span>
