@@ -246,21 +246,38 @@ function getMobileData() {
   const personnelSet = new Set();
   try {
     const extSS = getExternalPersonnelSpreadsheet();
-    const extSheet = extSS.getSheets()[0]; // Assumes first sheet
+    let extSheet = extSS.getSheetByName('Personal');
+    if (!extSheet) {
+      extSheet = extSS.getSheets()[0]; // Fallback to first sheet
+    }
+    
     const extData = extSheet.getDataRange().getValues();
     if (extData.length > 1) {
       const extHeaders = extData[0].map(h => String(h).toLowerCase().trim());
       const nameIdx = extHeaders.indexOf('apellidos_nombres');
+      const estadoIdx = extHeaders.indexOf('estado');
+      const rolIdx = extHeaders.indexOf('rol_operativo');
+      
+      const allowedRoles = ['CHOFER', 'MOTORIZADO', 'SERENO A PIE', 'RESCATE', 'SERENO GIR', 'OPERADOR', 'SUPERVISOR'];
+      
       if (nameIdx !== -1) {
         for (let i = 1; i < extData.length; i++) {
-          if (extData[i][nameIdx]) {
-            personnelSet.add(String(extData[i][nameIdx]).trim());
+          const row = extData[i];
+          const name = String(row[nameIdx] || '').trim();
+          const estado = estadoIdx !== -1 ? String(row[estadoIdx] || '').trim().toUpperCase() : 'ACTIVO';
+          const rol = rolIdx !== -1 ? String(row[rolIdx] || '').trim().toUpperCase() : '';
+          
+          const isAllowedRole = allowedRoles.includes(rol);
+          
+          // Only add to suggestions if status is ACTIVO and role is allowed
+          if (name && estado === 'ACTIVO' && isAllowedRole) {
+            personnelSet.add(name);
           }
         }
       }
     }
   } catch (e) {
-    console.error('Error fetching external personnel:', e);
+    console.error('Error fetching external personnel for suggestions:', e);
   }
 
   return {
