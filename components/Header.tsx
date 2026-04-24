@@ -25,6 +25,7 @@ interface HeaderProps {
   selectedDate: string;
   onDateChange: (date: string) => void;
   personnelOptions?: string[];
+  operatorOptions?: string[];
   personnelStats?: { total: number; activos: number; inactivos: number };
 }
 
@@ -42,6 +43,7 @@ const Header: React.FC<HeaderProps> = ({
   selectedDate,
   onDateChange,
   personnelOptions,
+  operatorOptions,
   personnelStats
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -170,7 +172,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>OPERADOR</span>
                       {editingField === 'operador' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
+                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('operador')}><p className={valueStyle}>{settings.operador || '--'}</p></div>
                       )}
@@ -178,7 +180,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="hidden sm:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>SUPERVISOR</span>
                       {editingField === 'supervisor' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
+                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('supervisor')}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
                       )}
@@ -186,7 +188,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>PERMANENCIA</span>
                       {editingField === 'permanencia' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
+                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
                       ) : (
                         <div className={displayBoxStyle} onClick={() => setEditingField('permanencia')}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
                       )}

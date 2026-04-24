@@ -60,7 +60,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
         {/* Contenedor de información */}
         <div className="flex-1 flex items-center justify-between min-w-0 gap-6">
-          <p className="text-[13px] font-medium text-slate-800 truncate uppercase tracking-tight flex-1">
+          <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex-1">
             {u.personnel1}
           </p>
 

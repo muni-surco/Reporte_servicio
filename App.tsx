@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [indicativeOptions, setIndicativeOptions] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
   const [personnelOptions, setPersonnelOptions] = useState<string[]>([]);
+  const [operatorOptions, setOperatorOptions] = useState<string[]>([]);
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
   const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
   const [loadingPersonnel, setLoadingPersonnel] = useState(false);
@@ -63,11 +64,12 @@ const App: React.FC = () => {
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], quadrants?: string[] }) => {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[] }) => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
           if (data.personnel) setPersonnelOptions(data.personnel);
+          if (data.operators) setOperatorOptions(data.operators);
           if (data.quadrants) setQuadrantOptions(data.quadrants);
         })
         .withFailureHandler((err: any) => {
@@ -383,6 +385,7 @@ const App: React.FC = () => {
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
           personnelOptions={personnelOptions}
+          operatorOptions={operatorOptions}
           personnelStats={personnelStats}
         />
 

@@ -244,6 +244,7 @@ function getMobileData() {
   
   // Fetch External Personnel Data
   const personnelSet = new Set();
+  const operatorsSet = new Set();
   try {
     const extSS = getExternalPersonnelSpreadsheet();
     let extSheet = extSS.getSheetByName('Personal');
@@ -259,6 +260,7 @@ function getMobileData() {
       const rolIdx = extHeaders.indexOf('rol_operativo');
       
       const allowedRoles = ['CHOFER', 'MOTORIZADO', 'SERENO A PIE', 'RESCATE', 'SERENO GIR', 'OPERADOR', 'SUPERVISOR'];
+      const operatorRoles = ['OPERADOR DE CAMARAS', 'RADIO OPERADOR', 'JEFE AREA', 'SUPERVISOR'];
       
       if (nameIdx !== -1) {
         for (let i = 1; i < extData.length; i++) {
@@ -267,11 +269,14 @@ function getMobileData() {
           const estado = estadoIdx !== -1 ? String(row[estadoIdx] || '').trim().toUpperCase() : 'ACTIVO';
           const rol = rolIdx !== -1 ? String(row[rolIdx] || '').trim().toUpperCase() : '';
           
-          const isAllowedRole = allowedRoles.includes(rol);
-          
-          // Only add to suggestions if status is ACTIVO and role is allowed
-          if (name && estado === 'ACTIVO' && isAllowedRole) {
+          // General personnel suggestions
+          if (name && estado === 'ACTIVO' && allowedRoles.includes(rol)) {
             personnelSet.add(name);
+          }
+          
+          // Specific operator suggestions
+          if (name && estado === 'ACTIVO' && operatorRoles.includes(rol)) {
+            operatorsSet.add(name);
           }
         }
       }
@@ -285,6 +290,7 @@ function getMobileData() {
     indicatives: Array.from(indicativesSet).sort(),
     statuses: Array.from(statusesSet).sort(),
     personnel: Array.from(personnelSet).sort(),
+    operators: Array.from(operatorsSet).sort(),
     quadrants: Array.from(quadrantsSet).sort()
   };
 }
