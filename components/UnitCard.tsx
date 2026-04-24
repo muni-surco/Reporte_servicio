@@ -284,14 +284,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </div>
             )}
 
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Indic.</label>
-              <select name="indicative" value={formData.indicative || ''} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[12px]`}>
-                <option value="">--</option>
-                {formData.indicative && !activeIndicativeOptions.includes(formData.indicative) && <option value={formData.indicative}>{formData.indicative}</option>}
-                {activeIndicativeOptions.map(i => <option key={i} value={i}>{i}</option>)}
-              </select>
-            </div>
+            {isChofer && (
+              <div className="col-span-1">
+                <label className={labelStyleEdit}>Indic.</label>
+                <select name="indicative" value={formData.indicative || ''} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[12px]`}>
+                  <option value="">--</option>
+                  {formData.indicative && !activeIndicativeOptions.includes(formData.indicative) && <option value={formData.indicative}>{formData.indicative}</option>}
+                  {activeIndicativeOptions.map(i => <option key={i} value={i}>{i}</option>)}
+                </select>
+              </div>
+            )}
 
             <div className="col-span-1">
               <label className={labelStyleEdit}>Cuad.</label>
@@ -305,12 +307,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Placa</label>
-              <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
-            </div>
-
-            <div className="col-span-1">
+            <div className="col-span-2">
               <label className={labelStyleEdit}>Estado</label>
               <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
                 <option value="">--</option>
@@ -330,12 +327,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
           <div className="grid grid-cols-12 gap-1.5 pt-0.5">
             {!isSereno ? (
               <>
-                <div className="col-span-3 grid grid-cols-3 gap-1">
+                <div className="col-span-4 grid grid-cols-4 gap-1">
+                  <div>
+                    <label className={labelStyleEdit}>Placa</label>
+                    <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
+                  </div>
                   <div><label className={labelStyleEdit}>KM INICIO</label><input type="number" value={kmStart} onChange={(e) => setKmStart(e.target.value)} className={inputStyle('kmStart')} /></div>
                   <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>
                   <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[13px] font-medium text-blue-700 h-[32px] flex items-center justify-center">{kmDiff}</div></div>
                 </div>
-                <div className="col-span-9 grid grid-cols-5 gap-1">
+                <div className="col-span-8 grid grid-cols-5 gap-1">
                   <div><label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
                   <div><label className={labelStyleEdit}>COMBUSTIBLE</label>
                     <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
