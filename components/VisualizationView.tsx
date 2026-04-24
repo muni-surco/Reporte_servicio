@@ -87,7 +87,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
   const infoValueStyle = "text-[13px] font-medium text-slate-800 uppercase truncate leading-none bg-transparent border-none p-0 cursor-default";
 
   return (
-    <div className="p-4 flex flex-col gap-6 max-w-[1600px] mx-auto">
+    <div className="flex flex-col gap-6 mx-auto">
       {sectorEntries.map(([sectorName, data]) => {
         const choferes = data.units.filter(u => u.type === 'CHOFER');
         const motos = data.units.filter(u => u.type === 'MOTO');

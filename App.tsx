@@ -394,7 +394,7 @@ const App: React.FC = () => {
           personnelStats={personnelStats}
         />
 
-        <div className="flex-1 overflow-y-auto scroll-smooth p-4 lg:p-6" id="report-content">
+        <div className="flex-1 overflow-y-auto scroll-smooth" id="report-content">
           {currentView === 'DASHBOARD' ? (
             <>
               <UnitSection

@@ -59,7 +59,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-8 animate-in fade-in duration-500">
+    <div className="mx-auto p-4 md:p-6 space-y-8 animate-in fade-in duration-500">
 
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
@@ -109,7 +109,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       </div>
 
       {/* Report Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {reportTypes.map((report) => (
           <div
             key={report.id}
@@ -164,24 +164,6 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
         ))}
       </div>
 
-      {/* Tips / Info Section */}
-      <div className="bg-blue-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20">
-        <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-          <div className="bg-blue-800 p-6 rounded-2xl">
-            <Calendar className="w-12 h-12 text-blue-300" />
-          </div>
-          <div className="text-center md:text-left">
-            <h2 className="text-2xl font-medium mb-2 tracking-tight">¿Necesitas reportes históricos?</h2>
-            <p className="text-blue-100/80 max-w-xl">
-              Solo debes cambiar la fecha en la parte superior. El sistema consultará automáticamente la base de datos histórica para generar el consolidado de ese día específico.
-            </p>
-          </div>
-        </div>
-
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-blue-800/30 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-64 h-64 bg-blue-700/20 rounded-full blur-3xl"></div>
-      </div>
     </div>
   );
 };

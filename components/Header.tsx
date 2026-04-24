@@ -256,14 +256,6 @@ const Header: React.FC<HeaderProps> = ({
                       <span className="material-symbols-outlined text-[18px]">save</span>
                       <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
                     </button>
-                    <button
-                      onClick={onGeneratePDF}
-                      title="Reportar"
-                      className={`${btnIconStyle} bg-teal-500 hover:bg-teal-600 text-white xl:px-4 shadow-teal-100`}
-                    >
-                      <span className="material-symbols-outlined text-[18px]">description</span>
-                      <span className="hidden xl:inline">REPORTAR</span>
-                    </button>
                   </>
                 ) : !isReports ? (
                   <button

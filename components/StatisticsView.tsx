@@ -199,7 +199,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
     };
 
     return (
-        <div className="p-8 bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
             <div className="w-full mx-auto">
                 {/* NUEVA SECCIÓN: Alertas y excepciones */}
                 {alerts.length > 0 && (
