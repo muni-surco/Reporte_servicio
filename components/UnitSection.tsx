@@ -99,10 +99,10 @@ const UnitSection: React.FC<UnitSectionProps> = ({
         ) : (
           units.map((unit, index) => (
             <UnitCard
-              key={unit.id || `new-${index}`}
+              key={unit.id || index}
               unit={unit}
               allUnits={allUnits}
-              isEditing={editingId !== null && (editingId === unit.id || (unit.id === '' && editingId.startsWith('NEW-')))}
+              isEditing={editingId !== null && editingId === unit.id}
               onEdit={() => onEdit(unit.id)}
               onSave={onSave}
               onCancel={() => onCancel()}

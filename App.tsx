@@ -170,7 +170,7 @@ const App: React.FC = () => {
   };
 
   const persistData = (newSettings: AppSettings, newUnits: UnitData[]) => {
-    const validUnits = newUnits.filter(u => u.id && !u.id.startsWith('NEW-'));
+    const validUnits = newUnits.filter(u => u.id && String(u.id).trim() !== '');
     const dataObj = { settings: newSettings, units: validUnits };
     const dataStr = JSON.stringify(dataObj);
     if (dataStr === lastSavedRef.current) return;
@@ -191,7 +191,7 @@ const App: React.FC = () => {
             alert('Error al guardar: ' + res.error);
           }
         })
-        .saveShiftData(selectedDate, newSettings.turno, newSettings, newUnits);
+        .saveShiftData(selectedDate, newSettings.turno, newSettings, validUnits);
     } else {
       setTimeout(() => {
         setSaving(false);
@@ -263,9 +263,8 @@ const App: React.FC = () => {
   };
 
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {
-    const tempId = `NEW-${Date.now()}`;
     const newUnit: UnitData = {
-      id: tempId,
+      id: '',
       sector: currentSector,
       type,
       personnel1: '',
@@ -283,8 +282,14 @@ const App: React.FC = () => {
       quadrant: '',
       mechanics: 'Operativo',
     };
-    setUnits(prev => [newUnit, ...prev.filter(u => !u.id.startsWith('NEW-'))]);
-    setEditingId(tempId);
+    setUnits(prev => [newUnit, ...prev.filter(u => u.id !== '')]);
+    setEditingId('');
+  };
+
+  const handleEdit = (id: string) => {
+    // Limpiar cualquier unidad nueva (ID vacío) antes de editar otra
+    setUnits(prev => prev.filter(u => u.id !== ''));
+    setEditingId(id);
   };
 
   const handleDeleteUnit = (id: string) => {
@@ -294,8 +299,8 @@ const App: React.FC = () => {
   };
 
   const handleCancel = () => {
-    if (editingId && editingId.startsWith('NEW-')) {
-      setUnits(prev => prev.filter(u => u.id !== editingId));
+    if (editingId === '') {
+      setUnits(prev => prev.filter(u => u.id !== ''));
     }
     setEditingId(null);
   };
@@ -399,7 +404,7 @@ const App: React.FC = () => {
                 units={currentSectorUnits.filter(u => u.type === 'CHOFER')}
                 allUnits={units}
                 editingId={editingId}
-                onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
                 mobileData={mobileData}
                 statusOptions={statusOptions}
                 indicativeOptions={indicativeOptions}
@@ -415,7 +420,7 @@ const App: React.FC = () => {
                     units={currentSectorUnits.filter(u => u.type === 'MOTO')}
                     allUnits={units}
                     editingId={editingId}
-                    onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
                     mobileData={mobileData}
                     statusOptions={statusOptions}
                     indicativeOptions={indicativeOptions}
@@ -429,7 +434,7 @@ const App: React.FC = () => {
                     units={currentSectorUnits.filter(u => u.type === 'SERENO')}
                     allUnits={units}
                     editingId={editingId}
-                    onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
                     mobileData={mobileData}
                     statusOptions={statusOptions}
                     indicativeOptions={indicativeOptions}

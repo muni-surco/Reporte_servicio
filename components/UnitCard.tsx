@@ -109,7 +109,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const isIdDuplicate = allUnits.some(u => u.id === formData.id && u.id !== unit.id);
 
     const newErrors: Record<string, boolean> = {
-      id: !formData.id || String(formData.id).trim() === '' || isIdDuplicate || String(formData.id).startsWith('NEW-'),
+      id: !formData.id || String(formData.id).trim() === '' || isIdDuplicate,
       personnel1: !formData.personnel1 || String(formData.personnel1).trim() === '',
       radio: !formData.radio || String(formData.radio).trim() === '',
       quadrant: !isRescate && !isSereno && (!formData.quadrant || String(formData.quadrant).trim() === ''),
@@ -222,7 +222,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
   if (isEditing) {
     const idStr = String(formData.id);
-    const isNew = idStr === '' || idStr.startsWith('NEW-');
+    const isNew = idStr === '';
     const labelStyleEdit = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
     return (
       <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg flex items-center gap-4`}>
@@ -235,7 +235,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <div className="col-span-1">
               <label className={labelStyleEdit}>ID</label>
               <AutocompleteInput
-                value={String(formData.id).startsWith('NEW-') ? '' : String(formData.id)}
+                value={String(formData.id)}
                 onChange={(val) => { setFormData(prev => ({ ...prev, id: val })); setErrors(prev => ({ ...prev, id: false })); }}
                 suggestions={(mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
                 placeholder="M-01"
