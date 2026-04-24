@@ -87,7 +87,7 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
                 {selectedValues.map(v => (
                     <span
                         key={v}
-                        className="flex items-center gap-1 bg-blue-100 text-[#004b93] text-[9px] font-medium px-1.5 py-0.5 rounded uppercase border border-blue-200 leading-none"
+                        className="flex items-center gap-1 bg-blue-100 text-[#004b93] text-[10px] font-medium px-1.5 py-0.5 rounded uppercase border border-blue-200 leading-none"
                     >
                         <span className="translate-y-[0.5px]">{v}</span>
                         <button

@@ -32,9 +32,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const [kmDiff, setKmDiff] = useState('0');
   const [kmRecarga, setKmRecarga] = useState('');
 
-  const [hourStart, setHourStart] = useState('');
-  const [hourEnd, setHourEnd] = useState('');
-
   const [fuelType, setFuelType] = useState('');
   const [fuelQty, setFuelQty] = useState('');
 
@@ -51,10 +48,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
       setKmEnd(kmParts[1] || '0');
       setKmRecarga(kmParts[3] || '0');
 
-      const hourParts = String(unit.hours || '').split('-').map(p => p.trim());
-      setHourStart(hourParts[0] || '');
-      setHourEnd(hourParts[1] || '');
-
       const fuelParts = String(unit.fuel || '').split('/').map(p => p.trim());
       setFuelType(fuelParts[0] || '');
       setFuelQty(fuelParts[1] || '0');
@@ -64,7 +57,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
       setErrors({});
     }
-  }, [isEditing, unit.id, unit.km, unit.hours, unit.fuel]);
+  }, [isEditing, unit.id, unit.km, unit.fuel]);
 
   useEffect(() => {
     const start = parseFloat(kmStart) || 0;
@@ -75,10 +68,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
     setFormData(prev => ({
       ...prev,
       km: `${kmStart || '0'} / ${kmEnd || '0'} / ${diff} / ${kmRecarga || '0'}`,
-      hours: `${hourStart || '--:--'} - ${hourEnd || '--:--'}`,
       fuel: `${fuelType || '--'} / ${fuelQty || '0'}`
     }));
-  }, [kmStart, kmEnd, kmRecarga, hourStart, hourEnd, fuelType, fuelQty]);
+  }, [kmStart, kmEnd, kmRecarga, fuelType, fuelQty]);
 
   useEffect(() => {
     if (isEditing && (unit.type === 'CHOFER' || unit.type === 'MOTO' || unit.type === 'SERENO')) {
@@ -280,6 +272,18 @@ const UnitCard: React.FC<UnitCardProps> = ({
               {errors.radio && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
+            {isChofer && (
+              <div className="col-span-2">
+                <label className={labelStyleEdit}>Copiloto</label>
+                <AutocompleteInput
+                  value={formData.personnel2 || ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))}
+                  suggestions={activePersonnelOptions}
+                  placeholder="Nombre..."
+                />
+              </div>
+            )}
+
             <div className="col-span-1">
               <label className={labelStyleEdit}>Indic.</label>
               <select name="indicative" value={formData.indicative || ''} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[12px]`}>
@@ -315,15 +319,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </select>
             </div>
 
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Motivo</label>
-              <input name="reason" value={formData.reason} onChange={handleChange} className={inputStyle('reason')} placeholder="..." />
-            </div>
-
-            <div className="col-span-3">
-              <label className={labelStyleEdit}>Mecánica Obs</label>
+            <div className="col-span-2">
+              <label className={labelStyleEdit}>Observaciones</label>
               <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Observaciones..." />
             </div>
+            <div className={isChofer ? "col-span-1" : "col-span-3"}></div>
           </div>
 
           {/* Línea 2: Operatividad Detallada (Exactamente 12 cols o menos) */}
@@ -335,11 +335,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>
                   <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[13px] font-medium text-blue-700 h-[32px] flex items-center justify-center">{kmDiff}</div></div>
                 </div>
-                <div className="col-span-2 grid grid-cols-2 gap-1">
-                  <div><label className={labelStyleEdit}>HORA INICIO</label><input type="time" value={hourStart} onChange={(e) => setHourStart(e.target.value)} className={inputStyle('hourStart')} /></div>
-                  <div><label className={labelStyleEdit}>HORA FIN</label><input type="time" value={hourEnd} onChange={(e) => setHourEnd(e.target.value)} className={inputStyle('hourEnd')} /></div>
-                </div>
-                <div className="col-span-7 grid grid-cols-5 gap-1">
+                <div className="col-span-9 grid grid-cols-5 gap-1">
                   <div><label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
                   <div><label className={labelStyleEdit}>COMBUSTIBLE</label>
                     <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
@@ -391,7 +387,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-4 flex-1 ${isSereno ? 'grid-cols-[48px_2fr_minmax(100px,1fr)_auto_min-content_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_auto_auto_1.2fr_1fr_1.2fr_min-content_1.5fr_64px]'}`}>
+        <div className={`grid items-center gap-4 flex-1 ${isSereno ? 'grid-cols-[48px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1.2fr_2.2fr_auto_auto_1.1fr_1.1fr_60px_90px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
@@ -404,12 +400,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
           <div className="border-r border-slate-100 pr-2 min-w-0">
             <label className={labelStyle}>{isSereno ? 'Sereno' : isMoto ? 'Motorizado' : 'Chofer'}</label>
             <div className={infoValueStyle}>{unit.personnel1 || '--'}</div>
-            {hasPersonnel2 && unit.personnel2 && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-tighter">Cop.</label>
-                <div className="text-[12px] font-medium text-slate-500 truncate uppercase leading-none">{unit.personnel2}</div>
-              </div>
-            )}
           </div>
 
           {/* Columna Logística Radio/Indicativo/Cuadrante */}
@@ -420,6 +410,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 {unit.radio || '--'}
               </div>
             </div>
+            {isChofer && (
+              <div className="flex flex-col flex-1 text-center min-w-[100px]">
+                <label className={labelStyle}>Copiloto</label>
+                <div className={infoValueStyle}>{unit.personnel2 || '--'}</div>
+              </div>
+            )}
             {hasIndicative && (
               <div className="flex flex-col flex-1 text-center min-w-[50px]">
                 <label className={labelStyle}>Indic.</label>
@@ -468,12 +464,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 </div>
               </div>
 
-              {/* Columna Horario */}
-              <div className="border-r border-slate-100 px-2 text-center">
-                <label className={labelStyle}>Horario</label>
-                <div className="text-[13px] font-medium text-slate-600">{unit.hours || '--:--'}</div>
-              </div>
-
               {/* Columna Combustible Centrada con Recarga integrada */}
               <div className="border-r border-slate-100 px-2 text-center">
                 <label className={labelStyle}>Combustible</label>
@@ -497,12 +487,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <div className="w-6 h-6 mx-auto flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 rounded text-[13px] font-medium shadow-sm">
               {unit.parts}
             </div>
-          </div>
-
-          {/* Columna Motivo */}
-          <div className="px-2 min-w-0">
-            <label className={labelStyle}>Motivo</label>
-            <div className="text-[13px] font-medium text-slate-500 truncate uppercase">{unit.reason || '--'}</div>
           </div>
 
           {/* Columna Acciones */}
