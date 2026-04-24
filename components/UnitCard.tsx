@@ -112,7 +112,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       id: !formData.id || String(formData.id).trim() === '' || isIdDuplicate || String(formData.id).startsWith('NEW-'),
       personnel1: !formData.personnel1 || String(formData.personnel1).trim() === '',
       radio: !formData.radio || String(formData.radio).trim() === '',
-      quadrant: !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
+      quadrant: !isRescate && !isSereno && (!formData.quadrant || String(formData.quadrant).trim() === ''),
     };
 
     setErrors(newErrors);
@@ -295,17 +295,19 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </div>
             )}
 
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Cuad.</label>
-              <MultiSelectAutocomplete
-                value={formData.quadrant || ''}
-                onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
-                suggestions={activeQuadrantOptions}
-                placeholder="Selec..."
-                error={errors.quadrant}
-              />
-              {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
-            </div>
+            {!isSereno && (
+              <div className="col-span-1">
+                <label className={labelStyleEdit}>Cuadrante</label>
+                <MultiSelectAutocomplete
+                  value={formData.quadrant || ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
+                  suggestions={activeQuadrantOptions}
+                  placeholder="Selec..."
+                  error={errors.quadrant}
+                />
+                {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
+              </div>
+            )}
 
             <div className="col-span-2">
               <label className={labelStyleEdit}>Estado</label>
@@ -320,7 +322,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <label className={labelStyleEdit}>Observaciones</label>
               <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Observaciones..." />
             </div>
-            <div className={isChofer ? "col-span-1" : "col-span-3"}></div>
+            <div className={isChofer ? "col-span-1" : isSereno ? "col-span-4" : "col-span-3"}></div>
           </div>
 
           {/* Línea 2: Operatividad Detallada (Exactamente 12 cols o menos) */}
@@ -423,7 +425,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 <div className={infoValueStyle}>{unit.indicative || '--'}</div>
               </div>
             )}
-            {!isRescate && (
+            {!isRescate && !isSereno && (
               <div className="flex flex-col flex-1 text-center">
                 <label className={labelStyle}>Cuadrante</label>
                 <div className={infoValueStyle}>
