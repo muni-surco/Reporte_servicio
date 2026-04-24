@@ -59,7 +59,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   };
 
   return (
-    <div className="mx-auto p-4 md:p-6 space-y-8 animate-in fade-in duration-500">
+    <div className="mx-auto space-y-8 animate-in fade-in duration-500">
 
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
