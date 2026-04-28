@@ -83,6 +83,12 @@ const App: React.FC = () => {
       setStatusOptions(Object.values(UnitStatus));
     }
   }, []);
+  // Cargar personal automáticamente cuando se entra a la vista de PERSONAL
+  useEffect(() => {
+    if (currentView === 'PERSONNEL' && personnelList.length === 0) {
+      loadPersonnel();
+    }
+  }, [currentView]);
 
   const loadPersonnel = () => {
     setLoadingPersonnel(true);

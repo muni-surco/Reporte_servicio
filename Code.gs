@@ -323,6 +323,14 @@ function getPersonnelList() {
         const alt = headers.findIndex(h => h.includes('regimen') || h.includes('planilla'));
         return alt;
       }
+      if (target === 'codigo_interno') {
+        const alt = headers.findIndex(h => h.includes('codigo') || h.includes('interno') || h.includes('cod'));
+        return alt;
+      }
+      if (target === 'sector_id') {
+        const alt = headers.findIndex(h => h.includes('sector') || h.includes('area'));
+        return alt;
+      }
       return -1;
     };
 
@@ -331,7 +339,9 @@ function getPersonnelList() {
       apellidos_nombres: findHeader('apellidos_nombres'),
       regimen_laboral: findHeader('regimen_laboral'),
       estado: findHeader('estado'),
-      rol_operativo: findHeader('rol_operativo')
+      rol_operativo: findHeader('rol_operativo'),
+      codigo_interno: findHeader('codigo_interno'),
+      sector_id: findHeader('sector_id')
     };
 
     const personnelList = [];

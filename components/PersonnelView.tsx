@@ -21,9 +21,9 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
     const filteredData = useMemo(() => {
         return data.filter(p => {
             const matchesSearch =
-                p.apellidos_nombres.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.dni.includes(searchTerm) ||
-                p.codigo_interno.toLowerCase().includes(searchTerm.toLowerCase());
+                (p.apellidos_nombres || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.dni || '').includes(searchTerm) ||
+                (p.codigo_interno || '').toLowerCase().includes(searchTerm.toLowerCase());
 
             const matchesRole = filterRole === 'TODOS' || p.rol_operativo === filterRole;
 
