@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UnitData, UnitStatus, MobileReference } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
@@ -17,11 +17,14 @@ interface UnitCardProps {
   indicativeOptions?: string[];
   personnelOptions?: string[];
   quadrantOptions?: string[];
+  currentDate: string;
+  currentShift: string;
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete, mobileData,
-  statusOptions, indicativeOptions, personnelOptions, quadrantOptions
+  statusOptions, indicativeOptions, personnelOptions, quadrantOptions,
+  currentDate, currentShift
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -75,6 +78,27 @@ const UnitCard: React.FC<UnitCardProps> = ({
     }));
   }, [kmStart, kmEnd, kmRecarga, fuelType, fuelQty]);
 
+  const lastKmFetchedIdRef = useRef<string>('');
+
+  useEffect(() => {
+    if (isEditing && formData.id && formData.id !== lastKmFetchedIdRef.current) {
+      const unitId = String(formData.id).trim().toUpperCase();
+      if (unitId === '' || unitId.startsWith('AR-')) return;
+      
+      lastKmFetchedIdRef.current = formData.id;
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler((km: string) => {
+            if (km && km !== '0' && km !== 'undefined' && String(km).trim() !== '') {
+              setKmStart(String(km));
+            }
+          })
+          .getPreviousKmEnd(currentDate, currentShift, formData.id, unit.sector || '');
+      }
+    }
+  }, [formData.id, isEditing, unit.sector, currentDate, currentShift]);
+
   useEffect(() => {
     if (isEditing && (unit.type === 'CHOFER' || unit.type === 'MOTO' || unit.type === 'SERENO')) {
       const dataSource = mobileData || [];
@@ -98,7 +122,13 @@ const UnitCard: React.FC<UnitCardProps> = ({
         });
       }
     }
-  }, [formData.id, isEditing, unit.type, mobileData]);
+  }, [formData.id, isEditing, unit.type, mobileData, unit.id]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      lastKmFetchedIdRef.current = '';
+    }
+  }, [isEditing]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

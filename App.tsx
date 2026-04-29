@@ -457,6 +457,8 @@ const App: React.FC = () => {
                 indicativeOptions={indicativeOptions}
                 personnelOptions={personnelOptions}
                 quadrantOptions={quadrantOptions}
+                currentDate={selectedDate}
+                currentShift={settings.turno}
               />
               {currentSector !== 'RESCATE' && (
                 <>
@@ -473,6 +475,8 @@ const App: React.FC = () => {
                     indicativeOptions={indicativeOptions}
                     personnelOptions={personnelOptions}
                     quadrantOptions={quadrantOptions}
+                    currentDate={selectedDate}
+                    currentShift={settings.turno}
                   />
                   <UnitSection
                     title="SERENOS" type="SERENO" icon="hail"
@@ -486,6 +490,8 @@ const App: React.FC = () => {
                     statusOptions={statusOptions}
                     indicativeOptions={indicativeOptions}
                     personnelOptions={personnelOptions}
+                    currentDate={selectedDate}
+                    currentShift={settings.turno}
                   />
                 </>
               )}

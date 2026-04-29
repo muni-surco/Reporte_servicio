@@ -442,6 +442,8 @@ function saveShiftData(dateStr, shift, settings, units) {
     
     // However, we only delete and replace rows belonging to the CURRENT sector being edited in the frontend
     // to allow multi-user editing of different sectors.
+    // However, we only delete and replace rows belonging to the CURRENT sector being edited in the frontend
+    // to allow multi-user editing of different sectors.
     for (let i = dataRows.length - 1; i >= 1; i--) {
       const row = dataRows[i];
       if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && 
@@ -469,6 +471,48 @@ function saveShiftData(dateStr, shift, settings, units) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Gets the last recorded KM Final for a unit in a specific sector,
+ * ensuring it's from a previous shift/day.
+ */
+function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
+  if (!unitId) return '0';
+  try {
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+    if (!dataSheet) return '0';
+    
+    const data = dataSheet.getDataRange().getValues();
+    const targetSector = toStorageSector(sector);
+    const searchId = String(unitId).trim().toUpperCase();
+    
+    const shiftOrder = { 'MAÑANA': 0, 'TARDE': 1, 'NOCHE': 2 };
+    const currentShiftVal = shiftOrder[currentShift] !== undefined ? shiftOrder[currentShift] : -1;
+    
+    // Search from bottom up
+    for (let i = data.length - 1; i >= 1; i--) {
+      const row = data[i];
+      if (!row[0]) continue;
+      
+      const rowDate = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+      const rowShift = row[1];
+      const rowShiftVal = shiftOrder[rowShift] !== undefined ? shiftOrder[rowShift] : -1;
+
+      // Skip if it's the same or a future record
+      if (rowDate > currentDateStr) continue;
+      if (rowDate === currentDateStr && rowShiftVal >= currentShiftVal) continue;
+      
+      // row[3] is ID, row[2] is SECTOR, row[14] is KM_FIN
+      if (String(row[3]).trim().toUpperCase() === searchId && toStorageSector(row[2]) === targetSector) {
+        return String(row[14] || '0');
+      }
+    }
+  } catch (e) {
+    console.error('Error in getPreviousKmEnd:', e);
+  }
+  return '0';
 }
 
 /**

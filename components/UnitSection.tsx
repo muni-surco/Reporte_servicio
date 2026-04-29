@@ -21,6 +21,8 @@ interface UnitSectionProps {
   indicativeOptions?: string[];
   personnelOptions?: string[];
   quadrantOptions?: string[];
+  currentDate: string;
+  currentShift: string;
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -41,7 +43,9 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   statusOptions,
   indicativeOptions,
   personnelOptions,
-  quadrantOptions
+  quadrantOptions,
+  currentDate,
+  currentShift
 }) => {
   // Configuración de colores claros según el tipo
   const colorConfig = {
@@ -114,6 +118,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
                 indicativeOptions={indicativeOptions}
                 personnelOptions={personnelOptions}
                 quadrantOptions={quadrantOptions}
+                currentDate={currentDate}
+                currentShift={currentShift}
               />
             );
           })
