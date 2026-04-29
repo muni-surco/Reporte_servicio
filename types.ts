@@ -56,6 +56,10 @@ export interface UnitData {
   status: UnitStatus;
   reason: string;
   km: string;
+  kmStart: string;
+  kmEnd: string;
+  totalKm: string;
+  kmRecarga: string;
   hours: string;
   fuel: string;
   expense: string;

@@ -95,6 +95,19 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                             ))}
                         </div>
                     </div>
+
+                    {/* Limpiar Filtros */}
+                        <div className="flex flex-col justify-end">
+                            <span className="text-[11px] font-medium text-transparent uppercase tracking-wider mb-1 px-1">‎</span>
+                            <button
+                                onClick={() => { setSearchTerm(''); setFilterRole('TODOS'); setFilterState('TODOS'); }}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-[11px] font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-all h-[38px] whitespace-nowrap cursor-pointer"
+                                title="Limpiar todos los filtros"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
+                                Limpiar
+                            </button>
+                        </div>
                 </div>
             </div>
 
@@ -107,6 +120,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                 <th className={`${columnHeaderStyle} w-12 text-center`}>#</th>
                                 <th className={columnHeaderStyle}>DNI</th>
                                 <th className={columnHeaderStyle}>Apellidos y Nombres</th>
+                                <th className={columnHeaderStyle}>Régimen Laboral</th>
                                 <th className={columnHeaderStyle}>Cód. Interno</th>
                                 <th className={columnHeaderStyle}>Sector</th>
                                 <th className={columnHeaderStyle}>Rol Operativo</th>
@@ -116,14 +130,14 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                         <tbody className="divide-y divide-slate-50">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={7} className="py-20 text-center">
+                                    <td colSpan={8} className="py-20 text-center">
                                         <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                         <p className="mt-4 text-[13px] font-medium text-slate-400 uppercase tracking-widest">Cargando Personal...</p>
                                     </td>
                                 </tr>
                             ) : filteredData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="py-20 text-center">
+                                    <td colSpan={8} className="py-20 text-center">
                                         <span className="material-symbols-outlined text-slate-200 text-5xl mb-4">person_search</span>
                                         <p className="text-[13px] font-medium text-slate-300 uppercase tracking-widest">No se encontraron registros</p>
                                     </td>
@@ -134,6 +148,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                         <td className={`${cellStyle} text-center text-slate-300 font-medium w-12`}>{idx + 1}</td>
                                         <td className={`${cellStyle} font-mono text-slate-500`}>{person.dni}</td>
                                         <td className={`${cellStyle} text-[#004b93] uppercase`}>{person.apellidos_nombres}</td>
+                                        <td className={cellStyle}>{person.regimen_laboral}</td>
                                         <td className={cellStyle}>{person.codigo_interno}</td>
                                         <td className={cellStyle}>{person.sector_id}</td>
                                         <td className={cellStyle}>{person.rol_operativo}</td>

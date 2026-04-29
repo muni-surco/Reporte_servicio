@@ -126,13 +126,17 @@ const App: React.FC = () => {
             radio: String(u.radio || ''),
             status: (u.status || UnitStatus.PATRULLANDO) as any,
             reason: String(u.reason || ''),
-            km: String(u.km || '0 / 0 / 0'),
+            km: `${String(u.kmStart || '0')} / ${String(u.kmEnd || '0')} / ${String(u.totalKm || '0')} / ${String(u.kmRecarga || '0')}`,
+            kmStart: String(u.kmStart || '0'),
+            kmEnd: String(u.kmEnd || '0'),
+            totalKm: String(u.totalKm || '0'),
+            kmRecarga: String(u.kmRecarga || '0'),
             hours: String(u.hours || ''),
             fuel: String(u.fuel || '-- / --'),
             expense: String(u.expense || 'S/ 0.00'),
             parts: String(u.parts || '0'),
             quadrant: String(u.quadrant || ''),
-            mechanics: String(u.mechanics || 'Operativo'),
+            mechanics: String(u.mechanics || ''),
             model: String(u.model || '')
           }));
 
@@ -281,12 +285,16 @@ const App: React.FC = () => {
       status: UnitStatus.PATRULLANDO,
       reason: '',
       km: '0 / 0 / 0',
+      kmStart: '0',
+      kmEnd: '0',
+      totalKm: '0',
+      kmRecarga: '0',
       hours: '',
       fuel: '-- / --',
       expense: 'S/ 0.00',
       parts: '0',
       quadrant: '',
-      mechanics: 'Operativo',
+      mechanics: '',
     };
     setUnits(prev => [newUnit, ...prev.filter(u => u.id !== '')]);
     setEditingId('');

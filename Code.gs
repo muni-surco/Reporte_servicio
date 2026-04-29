@@ -59,7 +59,7 @@ function initialSetup() {
   const dataHeaders = [
     'FECHA', 'TURNO', 'SECTOR', 'ID', 'TIPO', 'MODELO', 'PERSONAL_1', 'PERSONAL_2', 
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
-    'KM', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS'
+    'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -159,13 +159,16 @@ function getShiftData(dateStr, shift, sector) {
           radio: row[10],
           status: row[11],
           reason: row[12],
-          km: row[13],
-          hours: row[14],
-          fuel: row[15],
-          expense: row[16],
-          parts: row[17],
-          quadrant: row[18],
-          mechanics: row[19]
+          kmStart: row[13],
+          kmEnd: row[14],
+          totalKm: row[15],
+          kmRecarga: row[16],
+          hours: row[17],
+          fuel: row[18],
+          expense: row[19],
+          parts: row[20],
+          quadrant: row[21],
+          mechanics: row[22]
         });
       }
     }
@@ -450,7 +453,7 @@ function saveShiftData(dateStr, shift, settings, units) {
       const newRows = sectorUnits.map(u => [
         dateStr, shift, targetSector,
         u.id, u.type, u.model || '', u.personnel1, u.personnel2, u.plate, u.indicative, u.radio,
-        u.status, u.reason, u.km, u.hours, u.fuel, u.expense, u.parts, u.quadrant, u.mechanics
+        u.status, u.reason, u.kmStart || '0', u.kmEnd || '0', u.totalKm || '0', u.kmRecarga || '0', u.hours, u.fuel, u.expense, u.parts, u.quadrant, u.mechanics
       ]);
       dataSheet.getRange(dataSheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
     }

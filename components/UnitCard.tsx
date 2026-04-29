@@ -43,10 +43,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
   useEffect(() => {
     if (isEditing) {
-      const kmParts = String(unit.km || '').split('/').map(p => p.trim());
-      setKmStart(kmParts[0] || '0');
-      setKmEnd(kmParts[1] || '0');
-      setKmRecarga(kmParts[3] || '0');
+      setKmStart(String(unit.kmStart || '0'));
+      setKmEnd(String(unit.kmEnd || '0'));
+      setKmRecarga(String(unit.kmRecarga || '0'));
 
       const fuelParts = String(unit.fuel || '').split('/').map(p => p.trim());
       setFuelType(fuelParts[0] || '');
@@ -57,7 +56,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
       setErrors({});
     }
-  }, [isEditing, unit.id, unit.km, unit.fuel]);
+  }, [isEditing, unit.id, unit.kmStart, unit.kmEnd, unit.kmRecarga, unit.fuel]);
 
   useEffect(() => {
     const start = parseFloat(kmStart) || 0;
@@ -68,6 +67,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
     setFormData(prev => ({
       ...prev,
       km: `${kmStart || '0'} / ${kmEnd || '0'} / ${diff} / ${kmRecarga || '0'}`,
+      kmStart: kmStart || '0',
+      kmEnd: kmEnd || '0',
+      totalKm: diff,
+      kmRecarga: kmRecarga || '0',
       fuel: `${fuelType || '--'} / ${fuelQty || '0'}`
     }));
   }, [kmStart, kmEnd, kmRecarga, fuelType, fuelQty]);
