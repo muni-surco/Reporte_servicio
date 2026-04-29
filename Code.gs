@@ -434,7 +434,11 @@ function saveShiftData(dateStr, shift, settings, units) {
     const dataRows = dataSheet.getDataRange().getValues();
     
     // Only replace units of this sector to avoid overwriting other sectors' data during a single sector save
-    const unitsToSave = units.filter(u => u.id && String(u.id).trim() !== '');
+    // Permitir guardar unidades sin ID si tienen personal (casos de Falto, Permiso, etc)
+    const unitsToSave = units.filter(u => 
+      (u.id && String(u.id).trim() !== '') || 
+      (u.personnel1 && String(u.personnel1).trim() !== '')
+    );
     
     // However, we only delete and replace rows belonging to the CURRENT sector being edited in the frontend
     // to allow multi-user editing of different sectors.

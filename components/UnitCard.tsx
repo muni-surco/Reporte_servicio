@@ -109,19 +109,36 @@ const UnitCard: React.FC<UnitCardProps> = ({
   };
 
   const handleValidateAndSave = () => {
-    const isIdDuplicate = allUnits.some(u => u.id === formData.id && u.id !== unit.id);
+    const isIdDuplicate = formData.id && allUnits.some(u => u.id === formData.id && u.id !== unit.id);
+
+    const specialStatuses = [
+      'CAMBIO DE TURNO',
+      'DESCANSO COMPENSATORIO',
+      'DESCANSO MEDICO',
+      'DESCANSO MÉDICO',
+      'FALTO',
+      'ONOMASTICO',
+      'ONOMÁSTICO',
+      'PERMISO'
+    ];
+    const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
 
     const newErrors: Record<string, boolean> = {
-      id: !formData.id || String(formData.id).trim() === '' || isIdDuplicate,
+      id: !isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate),
       personnel1: !formData.personnel1 || String(formData.personnel1).trim() === '',
-      radio: !formData.radio || String(formData.radio).trim() === '',
-      quadrant: !isRescate && !isSereno && (!formData.quadrant || String(formData.quadrant).trim() === ''),
+      radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
+      quadrant: !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
     };
+
+    // If ID is provided even in special status, still check for duplicates
+    if (isSpecialStatus && formData.id && isIdDuplicate) {
+      newErrors.id = true;
+    }
 
     setErrors(newErrors);
 
     if (Object.values(newErrors).some(v => v)) {
-      if (isIdDuplicate) {
+      if (isIdDuplicate && (formData.id || !isSpecialStatus)) {
         alert(`El ID "${formData.id}" ya existe en la vista actual. No se permiten IDs duplicados.`);
       }
       return;
@@ -393,7 +410,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-4 flex-1 ${isSereno ? 'grid-cols-[48px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1.2fr_2.2fr_auto_auto_1.1fr_1.1fr_60px_90px]'}`}>
+        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[48px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1.2fr_2.2fr_auto_auto_1.1fr_1.1fr_60px_90px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
@@ -410,26 +427,26 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna Logística Radio/Indicativo/Cuadrante */}
           <div className="flex gap-4 border-r border-slate-100 px-2 min-w-0">
-            <div className="flex flex-col flex-1 text-center min-w-[50px]">
+            <div className="flex flex-col flex-1 min-w-[50px]">
               <label className={labelStyle}>Radio</label>
               <div className={`${infoValueStyle} text-slate-800`}>
                 {unit.radio || '--'}
               </div>
             </div>
             {isChofer && (
-              <div className="flex flex-col flex-1 text-center min-w-[100px]">
+              <div className="flex flex-col flex-1 min-w-[100px]">
                 <label className={labelStyle}>Copiloto</label>
                 <div className={infoValueStyle}>{unit.personnel2 || '--'}</div>
               </div>
             )}
             {hasIndicative && (
-              <div className="flex flex-col flex-1 text-center min-w-[50px]">
+              <div className="flex flex-col flex-1 min-w-[50px]">
                 <label className={labelStyle}>Indic.</label>
                 <div className={infoValueStyle}>{unit.indicative || '--'}</div>
               </div>
             )}
             {!isRescate && !isSereno && (
-              <div className="flex flex-col flex-1 text-center">
+              <div className="flex flex-col flex-1">
                 <label className={labelStyle}>Cuadrante</label>
                 <div className={infoValueStyle}>
                   {unit.quadrant || mobileData?.find(m => m.id === unit.id)?.quadrant || '--'}
@@ -440,7 +457,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna Placa */}
           {hasPlate && (
-            <div className="border-r border-slate-100 px-2 text-center whitespace-nowrap">
+            <div className="border-r border-slate-100 px-2 whitespace-nowrap">
               <label className={labelStyle}>Placa</label>
               <div className="text-[10px] font-medium text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">
                 {mobileData?.find(m => m.id === unit.id)?.plate || ''}
@@ -449,7 +466,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           )}
 
           {/* Columna Estado */}
-          <div className="border-r border-slate-100 px-2 text-center w-32 shrink-0">
+          <div className="border-r border-slate-100 px-2 w-32 shrink-0">
             <label className={labelStyle}>Estado</label>
             <span className={`px-1.5 rounded text-[13px] font-medium border uppercase inline-block ${getBadgeClass(unit.status)}`} style={{ whiteSpace: 'normal', lineHeight: '1.2' }}>
               {unit.status}
@@ -459,9 +476,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {!isSereno && (
             <>
               {/* Columna KM Centrada */}
-              <div className="border-r border-slate-100 px-2 text-center">
+              <div className="border-r border-slate-100 px-2">
                 <label className={labelStyle}>KM (Inicio/Fin/Recorrido)</label>
-                <div className="flex items-center justify-center gap-1 text-[13px] font-medium">
+                <div className="flex items-center gap-1 text-[13px] font-medium">
                   <span className="text-slate-400">{String(unit.km || '').split('/')[0] || '0'}</span>
                   <span className="text-slate-200">/</span>
                   <span className="text-slate-400">{String(unit.km || '').split('/')[1] || '0'}</span>
@@ -471,9 +488,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </div>
 
               {/* Columna Combustible Centrada con Recarga integrada */}
-              <div className="border-r border-slate-100 px-2 text-center">
+              <div className="border-r border-slate-100 px-2">
                 <label className={labelStyle}>Combustible</label>
-                <div className="flex items-center justify-center gap-1 text-[13px] font-medium">
+                <div className="flex items-center gap-1 text-[13px] font-medium">
                   <div className="flex items-center gap-1 text-slate-500">
                     <span>{String(unit.fuel || '').split('/')[0] || '--'}</span>
                     {hasKmRecarga && String(unit.km || '').split('/')[3] && String(unit.km || '').split('/')[3].trim() !== '0' && (
@@ -488,7 +505,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           )}
 
           {/* Columna Partes con Color Ámbar Suave */}
-          <div className="border-r border-slate-100 px-2 text-center">
+          <div className="border-r border-slate-100 px-2">
             <label className={labelStyle}>Partes</label>
             <div className="w-6 h-6 mx-auto flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 rounded text-[13px] font-medium shadow-sm">
               {unit.parts}

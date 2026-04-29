@@ -136,25 +136,27 @@ const Header: React.FC<HeaderProps> = ({
           {/* Info Section */}
           {!isStatistics && !isVisualization && currentView !== 'REPORTS' && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-1 lg:border-l lg:border-slate-100 lg:pl-8 min-w-0">
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="flex flex-col w-[110px] md:w-[150px]">
-                  <span className={labelStyle}>FECHA</span>
-                  <input type="date" value={selectedDate} onChange={(e) => onDateChange(e.target.value)} className={inputBaseStyle.replace('shadow-sm appearance-none', 'shadow-sm')} />
-                </div>
-                <div className="flex flex-col w-[85px] md:w-[110px]">
-                  <span className={labelStyle}>TURNO</span>
-                  <div className="relative">
-                    <select value={settings.turno} onChange={(e) => updateTempField('turno', e.target.value)} onBlur={handleBlur} className={`${inputBaseStyle} w-full pr-8`}>
-                      <option value="MAÑANA">MAÑANA</option>
-                      <option value="TARDE">TARDE</option>
-                      <option value="NOCHE">NOCHE</option>
-                    </select>
-                    <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">expand_more</span>
+              {!isPersonnel && (
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex flex-col w-[110px] md:w-[150px]">
+                    <span className={labelStyle}>FECHA</span>
+                    <input type="date" value={selectedDate} onChange={(e) => onDateChange(e.target.value)} className={inputBaseStyle.replace('shadow-sm appearance-none', 'shadow-sm')} />
+                  </div>
+                  <div className="flex flex-col w-[85px] md:w-[110px]">
+                    <span className={labelStyle}>TURNO</span>
+                    <div className="relative">
+                      <select value={settings.turno} onChange={(e) => updateTempField('turno', e.target.value)} onBlur={handleBlur} className={`${inputBaseStyle} w-full pr-8`}>
+                        <option value="MAÑANA">MAÑANA</option>
+                        <option value="TARDE">TARDE</option>
+                        <option value="NOCHE">NOCHE</option>
+                      </select>
+                      <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">expand_more</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="flex flex-wrap items-center gap-3 lg:border-l lg:border-slate-100 lg:pl-6 flex-1 min-w-0">
+              <div className={`flex flex-wrap items-center gap-3 ${!isPersonnel ? 'lg:border-l lg:border-slate-100 lg:pl-6' : ''} flex-1 min-w-0`}>
                 {isPersonnel && personnelStats ? (
                   <div className="flex items-center gap-6 bg-slate-50/80 px-4 rounded-xl border border-slate-200 h-12">
                     <div className="text-center">

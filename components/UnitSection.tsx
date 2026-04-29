@@ -97,23 +97,26 @@ const UnitSection: React.FC<UnitSectionProps> = ({
         {units.length === 0 ? (
           <div className="text-center py-8 text-slate-300 text-[12px] italic font-medium uppercase tracking-widest">No hay registros en esta sección</div>
         ) : (
-          units.map((unit, index) => (
-            <UnitCard
-              key={unit.id || index}
-              unit={unit}
-              allUnits={allUnits}
-              isEditing={editingId !== null && editingId === unit.id}
-              onEdit={() => onEdit(unit.id)}
-              onSave={onSave}
-              onCancel={() => onCancel()}
-              onDelete={() => onDelete(unit.id)}
-              mobileData={mobileData}
-              statusOptions={statusOptions}
-              indicativeOptions={indicativeOptions}
-              personnelOptions={personnelOptions}
-              quadrantOptions={quadrantOptions}
-            />
-          ))
+          units.map((unit, index) => {
+            const unitIdentifier = unit.id || unit.tempId || `idx-${index}`;
+            return (
+              <UnitCard
+                key={unitIdentifier}
+                unit={unit}
+                allUnits={allUnits}
+                isEditing={editingId !== null && (editingId === unit.id || editingId === unit.tempId)}
+                onEdit={() => onEdit(unitIdentifier)}
+                onSave={onSave}
+                onCancel={() => onCancel()}
+                onDelete={() => onDelete(unitIdentifier)}
+                mobileData={mobileData}
+                statusOptions={statusOptions}
+                indicativeOptions={indicativeOptions}
+                personnelOptions={personnelOptions}
+                quadrantOptions={quadrantOptions}
+              />
+            );
+          })
         )}
       </div>
     </div>

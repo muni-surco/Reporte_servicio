@@ -45,6 +45,7 @@ export interface PersonnelData {
 
 export interface UnitData {
   id: string;
+  tempId?: string;
   sector?: Sector;
   type: 'CHOFER' | 'MOTO' | 'SERENO';
   model?: string;

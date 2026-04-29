@@ -114,9 +114,10 @@ const App: React.FC = () => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler((data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] }) => {
-          const incomingUnits: UnitData[] = (data.units || []).map(u => ({
+          const incomingUnits: UnitData[] = (data.units || []).map((u, idx) => ({
             ...u,
             id: String(u.id || ''),
+            tempId: !u.id || String(u.id).trim() === '' ? `LOADED-${Date.now()}-${idx}` : undefined,
             sector: (u.sector || '').trim().toUpperCase() === '' ? 'SECTOR 1A' : u.sector,
             type: u.type as any,
             personnel1: String(u.personnel1 || ''),
@@ -180,7 +181,11 @@ const App: React.FC = () => {
   };
 
   const persistData = (newSettings: AppSettings, newUnits: UnitData[]) => {
-    const validUnits = newUnits.filter(u => u.id && String(u.id).trim() !== '');
+    // Permitir unidades sin ID si tienen personal (casos de Falto, Permiso, etc)
+    const validUnits = newUnits.filter(u => 
+      (u.id && String(u.id).trim() !== '') || 
+      (u.personnel1 && String(u.personnel1).trim() !== '')
+    );
     const dataObj = { settings: newSettings, units: validUnits };
     const dataStr = JSON.stringify(dataObj);
     if (dataStr === lastSavedRef.current) return;
@@ -222,17 +227,41 @@ const App: React.FC = () => {
 
   const handleSave = (updatedUnit: UnitData) => {
     const unitWithSector = { ...updatedUnit, sector: currentSector };
-    let newUnits = units.map(u => (u.id === updatedUnit.id || u.id === editingId) ? unitWithSector : u);
+    // Usar tempId o id para identificar la unidad que se estaba editando
+    let newUnits = units.map(u => 
+      ((u.tempId && u.tempId === editingId) || (u.id && u.id === editingId)) 
+        ? unitWithSector 
+        : u
+    );
     setUnits(newUnits);
     setEditingId(null);
     persistData(settings, newUnits);
   };
 
-  const currentSectorUnits = units.filter(u => {
-    const uSector = (u.sector || '').trim().toUpperCase();
-    const currSector = currentSector.trim().toUpperCase();
-    return uSector === currSector;
-  });
+  const currentSectorUnits = units
+    .filter(u => {
+      const uSector = (u.sector || '').trim().toUpperCase();
+      const currSector = currentSector.trim().toUpperCase();
+      return uSector === currSector;
+    })
+    .sort((a, b) => {
+      const specialStatuses = [
+        'CAMBIO DE TURNO',
+        'DESCANSO COMPENSATORIO',
+        'DESCANSO MEDICO',
+        'DESCANSO MÉDICO',
+        'FALTO',
+        'ONOMASTICO',
+        'ONOMÁSTICO',
+        'PERMISO'
+      ];
+      const isASpecial = specialStatuses.includes(a.status?.toUpperCase());
+      const isBSpecial = specialStatuses.includes(b.status?.toUpperCase());
+
+      if (isASpecial && !isBSpecial) return 1;
+      if (!isASpecial && isBSpecial) return -1;
+      return 0;
+    });
 
   const allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
   SECTORS.forEach(s => {
@@ -273,8 +302,10 @@ const App: React.FC = () => {
   };
 
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {
+    const tempId = `NEW-${Date.now()}`;
     const newUnit: UnitData = {
       id: '',
+      tempId: tempId,
       sector: currentSector,
       type,
       personnel1: '',
@@ -296,25 +327,27 @@ const App: React.FC = () => {
       quadrant: '',
       mechanics: '',
     };
-    setUnits(prev => [newUnit, ...prev.filter(u => u.id !== '')]);
-    setEditingId('');
+    // No filtrar las unidades nuevas previas para no perder datos
+    setUnits(prev => [...prev, newUnit]);
+    setEditingId(tempId);
   };
 
   const handleEdit = (id: string) => {
-    // Limpiar cualquier unidad nueva (ID vacío) antes de editar otra
-    setUnits(prev => prev.filter(u => u.id !== ''));
+    // El id que viene puede ser el id real o el tempId
     setEditingId(id);
   };
 
   const handleDeleteUnit = (id: string) => {
-    const newUnits = units.filter(u => u.id !== id);
+    // Eliminar por ID o por tempId
+    const newUnits = units.filter(u => u.id !== id && u.tempId !== id);
     setUnits(newUnits);
     persistData(settings, newUnits);
   };
 
   const handleCancel = () => {
-    if (editingId === '') {
-      setUnits(prev => prev.filter(u => u.id !== ''));
+    if (editingId && String(editingId).startsWith('NEW-')) {
+      // Eliminar la unidad temporal si se cancela la creación
+      setUnits(prev => prev.filter(u => u.tempId !== editingId));
     }
     setEditingId(null);
   };
