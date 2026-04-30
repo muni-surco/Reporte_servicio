@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, FileText, Download, PieChart, Users } from 'lucide-react';
+import { UnitData, PersonnelData } from '../types';
 
 interface ReportGeneratorViewProps {
   selectedDate: string;
@@ -21,47 +22,47 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   const reportTypes = [
     {
       id: 'motos',
-      title: 'Reporte Numérico de Motos',
-      subtitle: 'Yamaha XTZ150',
-      description: 'Consolidado de operatividad, patrullaje y personal de toda la flota de motos Yamaha por sector.',
+      title: 'Motos Yamaha',
+      subtitle: 'MODELO XTZ150',
+      description: 'Reporte consolidado de operatividad, patrullaje y personal de toda la flota Yamaha por sector.',
       icon: <PieChart className="w-8 h-8" />,
       color: 'blue',
-      themeClass: 'border-blue-500 bg-blue-50/30',
-      iconClass: 'bg-blue-100 text-blue-600',
-      btnClass: 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+      themeClass: 'border-blue-100',
+      iconClass: 'bg-blue-50 text-blue-600',
+      btnClass: 'bg-blue-600 hover:bg-blue-700'
     },
     {
       id: 'motos_honda',
-      title: 'Reporte Numérico de Motos',
-      subtitle: 'Honda SAHARA XRE 300',
-      description: 'Consolidado de operatividad, patrullaje y personal de la flota Honda SAHARA XRE 300 por sector.',
+      title: 'Motos Honda',
+      subtitle: 'MODELO SAHARA XRE 300',
+      description: 'Reporte consolidado de operatividad, patrullaje y personal de la flota Honda SAHARA por sector.',
       icon: <PieChart className="w-8 h-8" />,
       color: 'red',
-      themeClass: 'border-red-500 bg-red-50/30',
-      iconClass: 'bg-red-100 text-red-600',
-      btnClass: 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
+      themeClass: 'border-red-100',
+      iconClass: 'bg-red-50 text-red-600',
+      btnClass: 'bg-red-600 hover:bg-red-700'
     },
     {
       id: 'moviles',
-      title: 'Reporte Numérico de Vehículos',
-      subtitle: 'FLOTA RENTING (CAMIONETAS/AUTOS)',
-      description: 'Consolidado general de operatividad, patrullaje y personal de toda la flota de vehículos Renting por sector.',
+      title: 'Flota Renting',
+      subtitle: 'CAMIONETAS Y AUTOS',
+      description: 'Reporte general de operatividad, patrullaje y personal de toda la flota de vehículos Renting.',
       icon: <FileText className="w-8 h-8" />,
       color: 'indigo',
-      themeClass: 'border-indigo-500 bg-indigo-50/30',
-      iconClass: 'bg-indigo-100 text-indigo-600',
-      btnClass: 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
+      themeClass: 'border-indigo-100',
+      iconClass: 'bg-indigo-50 text-indigo-600',
+      btnClass: 'bg-indigo-600 hover:bg-indigo-700'
     },
     {
       id: 'asistencia_regimen',
-      title: 'Reporte de Asistencia por Régimen',
-      subtitle: 'Personal Faltante por Régimen Laboral',
-      description: 'Detalle de personal inasistente agrupado por su régimen laboral: 276, 728, 1057 y OS.',
+      title: 'Asistencia por Régimen',
+      subtitle: 'PERSONAL FALTANTE',
+      description: 'Detalle de personal inasistente agrupado por régimen laboral (276, 728, 1057 y OS).',
       icon: <Users className="w-8 h-8" />,
       color: 'rose',
-      themeClass: 'border-rose-500 bg-rose-50/30',
-      iconClass: 'bg-rose-100 text-rose-600',
-      btnClass: 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+      themeClass: 'border-rose-100',
+      iconClass: 'bg-rose-50 text-rose-600',
+      btnClass: 'bg-rose-600 hover:bg-rose-700'
     }
   ];
 
@@ -72,7 +73,6 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
 
   return (
     <div className="mx-auto space-y-8 animate-in fade-in duration-500">
-
       {/* Filters Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
@@ -80,8 +80,8 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
             <Calendar className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-sm font-medium text-slate-800 leading-none">Filtros de Reporte</h2>
-            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Seleccione parámetros</p>
+            <h2 className="text-sm font-medium text-slate-800 leading-none">Generador de Reportes</h2>
+            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Configure fecha y turno para los documentos</p>
           </div>
         </div>
 
@@ -125,23 +125,25 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
         {reportTypes.map((report) => (
           <div
             key={report.id}
-            className={`group rounded-2xl border-t-4 ${report.themeClass} border-x border-b shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col`}
+            className={`group bg-white rounded-2xl border ${report.themeClass} shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col`}
           >
-            <div className="p-6 flex-1 flex flex-col space-y-4">
-              <div className="flex items-start justify-between">
-                <div className={`p-3 rounded-xl ${report.iconClass} group-hover:rotate-6 transition-all duration-300`}>
+            <div className="p-6 flex-1 flex flex-col">
+              <div className="flex items-start gap-4 mb-5">
+                <div className={`w-14 h-14 rounded-2xl ${report.iconClass} flex items-center justify-center flex-shrink-0 shadow-sm transition-transform group-hover:scale-105`}>
                   {report.icon}
                 </div>
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/80 backdrop-blur-sm border border-slate-100 rounded-full shadow-sm">
-                  <FileText className="w-3 h-3 text-slate-400" />
-                  <span className="text-[9px] font-medium text-slate-500 tracking-wider uppercase">PDF</span>
+                <div className="flex flex-col">
+                  <h3 className="text-base font-bold text-slate-800 leading-tight group-hover:text-blue-700 transition-colors">
+                    {report.title}
+                  </h3>
+                  <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                    {report.subtitle}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-slate-800 leading-snug group-hover:text-blue-900 transition-colors">{report.title}</h3>
-                <p className="text-[11px] font-semibold text-slate-400 mt-1 mb-3 uppercase tracking-tighter">{report.subtitle}</p>
-                <p className="text-slate-500 text-xs leading-relaxed line-clamp-3">
+              <div className="flex-1 mb-6">
+                <p className="text-slate-500 text-[11px] leading-relaxed">
                   {report.description}
                 </p>
               </div>
@@ -151,7 +153,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                   onClick={() => handleGenerate(report.id)}
                   disabled={isGenerating}
                   className={`
-                    w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-xs transition-all
+                    w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[11px] tracking-widest transition-all uppercase
                     ${isGenerating && activeReport === report.id
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       : `${report.btnClass} text-white shadow-lg active:scale-95 hover:-translate-y-0.5`
@@ -161,7 +163,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                   {isGenerating && activeReport === report.id ? (
                     <>
                       <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                      GENERANDO...
+                      PROCESANDO...
                     </>
                   ) : (
                     <>

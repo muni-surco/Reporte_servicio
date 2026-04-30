@@ -255,12 +255,27 @@ const App: React.FC = () => {
         'ONOMÁSTICO',
         'PERMISO'
       ];
+
+      // 1. Prioritize units being NEWLY created (unsaved and currently editing)
+      const isNewA = !!(a.tempId?.startsWith('NEW-') && editingId === a.tempId);
+      const isNewB = !!(b.tempId?.startsWith('NEW-') && editingId === b.tempId);
+      if (isNewA && !isNewB) return -1;
+      if (!isNewA && isNewB) return 1;
+
+      // 2. Special statuses go to the very bottom
       const isASpecial = specialStatuses.includes(a.status?.toUpperCase());
       const isBSpecial = specialStatuses.includes(b.status?.toUpperCase());
-
       if (isASpecial && !isBSpecial) return 1;
       if (!isASpecial && isBSpecial) return -1;
-      return 0;
+
+      // 3. For the rest, sort by ID to keep them organized
+      const idA = String(a.id || '').trim();
+      const idB = String(b.id || '').trim();
+      
+      if (!idA && idB) return 1;
+      if (idA && !idB) return -1;
+      
+      return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
     });
 
   const allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
@@ -327,8 +342,8 @@ const App: React.FC = () => {
       quadrant: '',
       mechanics: '',
     };
-    // No filtrar las unidades nuevas previas para no perder datos
-    setUnits(prev => [...prev, newUnit]);
+    // Prepend the new unit to the list so it appears at the top of its section
+    setUnits(prev => [newUnit, ...prev]);
     setEditingId(tempId);
   };
 

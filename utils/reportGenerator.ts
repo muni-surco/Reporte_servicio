@@ -4,9 +4,9 @@ declare const jspdf: any;
 import { UnitData, AppSettings, Sector } from '../types';
 
 export const generateMotoReport = (
-  units: UnitData[], 
-  settingsMap: Record<string, AppSettings>, 
-  date: string, 
+  units: UnitData[],
+  settingsMap: Record<string, AppSettings>,
+  date: string,
   shift: string,
   modelFilter: string = 'XTZ150',
   titleSuffix: string = 'YAMAHA XTZ150'
@@ -20,18 +20,18 @@ export const generateMotoReport = (
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
-  
+
   // Filter specifically for the selected model
   const motoUnits = units.filter(u => u.type === 'MOTO' && (u.model || '').toUpperCase().includes(modelFilter.toUpperCase()));
 
   const formatLongDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('es-ES', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
+      return d.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
       });
     } catch (e) {
       return dateStr;
@@ -56,13 +56,13 @@ export const generateMotoReport = (
 
   // --- SUMMARY TABLE ---
   const sectors = [
-    'SECTOR 1A', 'SECTOR 1B', 'SECTOR 2A', 'SECTOR 2B', 'SECTOR 3', 
-    'SECTOR 4', 'SECTOR 5', 'SECTOR 6', 'SECTOR 7', 'SECTOR 8', 
+    'SECTOR 1A', 'SECTOR 1B', 'SECTOR 2A', 'SECTOR 2B', 'SECTOR 3',
+    'SECTOR 4', 'SECTOR 5', 'SECTOR 6', 'SECTOR 7', 'SECTOR 8',
     'SECTOR 9A', 'GIR'
   ];
 
   const inoperativeStatuses = ['MAESTRANZA', 'TALLER PARTICULAR', 'EN PC x DESPERFECTOS', 'TALLER'];
-  
+
   const summaryRows = sectors.map(s => {
     const sectorCode = s.replace('SECTOR ', '');
     const sectorUnits = motoUnits.filter(u => (u.sector || '').toUpperCase().includes(sectorCode));
@@ -115,10 +115,10 @@ export const generateMotoReport = (
       3: { cellWidth: 30 },
       4: { cellWidth: 30 }
     },
-    didParseCell: function(data: any) {
+    didParseCell: function (data: any) {
       if (data.row.section === 'body') {
         const isTotalRow = data.row.index === summaryRows.length - 1;
-        
+
         // Color for 'EFECTIVO' column (Green)
         if (data.column.index === 1) {
           data.cell.styles.fillColor = [144, 238, 144]; // Light Green
@@ -148,7 +148,7 @@ export const generateMotoReport = (
 
   // --- PERMANENCIA ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setDrawColor(0);
@@ -163,13 +163,13 @@ export const generateMotoReport = (
   const inopData = motoUnits
     .filter(u => u.status !== 'PATRULLANDO' && inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map(u => [u.indicative || u.id, u.reason || u.status]);
-  
+
   while (inopData.length < 15) inopData.push(['', '']);
 
   const sinPatrullarData = motoUnits
     .filter(u => u.status !== 'PATRULLANDO' && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map(u => [u.indicative || u.id, u.reason || u.status]);
-    
+
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '']);
 
   // Two columns for details
@@ -199,12 +199,12 @@ export const generateMotoReport = (
   doc.setLineWidth(0.5);
   doc.line(margin + 10, footerY, margin + 70, footerY);
   doc.line(pageWidth - margin - 70, footerY, pageWidth - margin - 10, footerY);
-  
+
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('SUPERVISOR CCO', margin + 40, footerY + 5, { align: 'center' });
   doc.text('OPERADOR CCO', pageWidth - margin - 40, footerY + 5, { align: 'center' });
-  
+
   doc.setFont('helvetica', 'normal');
   doc.text(firstSectorSettings.supervisor || '______________________', margin + 40, footerY + 10, { align: 'center' });
   doc.text(firstSectorSettings.operador || '______________________', pageWidth - margin - 40, footerY + 10, { align: 'center' });
@@ -219,9 +219,9 @@ export const generateMotoReport = (
 };
 
 export const generateVehicleReport = (
-  units: UnitData[], 
-  settingsMap: Record<string, AppSettings>, 
-  date: string, 
+  units: UnitData[],
+  settingsMap: Record<string, AppSettings>,
+  date: string,
   shift: string
 ) => {
   const doc = new jspdf.jsPDF({
@@ -233,18 +233,18 @@ export const generateVehicleReport = (
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
-  
+
   // Filter for CHOFER units (Vehicles)
   const vehicleUnits = units.filter(u => u.type === 'CHOFER');
 
   const formatLongDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('es-ES', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
+      return d.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
       });
     } catch (e) {
       return dateStr;
@@ -273,20 +273,20 @@ export const generateVehicleReport = (
   ];
 
   const inoperativeStatuses = ['MAESTRANZA', 'TALLER PARTICULAR', 'EN PC x DESPERFECTOS', 'TALLER'];
-  
+
   const summaryRows = sectors.map(s => {
     const sectorUnits = vehicleUnits.filter(u => (u.sector || '').toUpperCase().includes(s));
-    
+
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12)
     const countReten = sectorUnits.filter(u => (u.id || '').startsWith('AR-')).length;
-    
+
     // Regular statuses only for non-AR units
     const regularUnits = sectorUnits.filter(u => !(u.id || '').startsWith('AR-'));
-    
+
     const countInoperativos = regularUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
     const countPatrullando = regularUnits.filter(u => u.status === 'PATRULLANDO').length;
-    const countSinPatrullar = regularUnits.filter(u => 
-      u.status !== 'PATRULLANDO' && 
+    const countSinPatrullar = regularUnits.filter(u =>
+      u.status !== 'PATRULLANDO' &&
       !inoperativeStatuses.includes((u.status || '').toUpperCase()) &&
       u.status !== 'CHOFER SIN MOVIL'
     ).length;
@@ -341,15 +341,15 @@ export const generateVehicleReport = (
       4: { cellWidth: 25 },
       5: { cellWidth: 25 }
     },
-    didParseCell: function(data: any) {
+    didParseCell: function (data: any) {
       if (data.row.section === 'body') {
         const isTotalRow = data.row.index === summaryRows.length - 1;
-        
-        if (data.column.index === 1) data.cell.styles.fillColor = [220, 255, 220]; 
-        if (data.column.index === 2) data.cell.styles.fillColor = [255, 200, 200]; 
-        if (data.column.index === 3) data.cell.styles.fillColor = [255, 255, 200]; 
-        if (data.column.index === 4) data.cell.styles.fillColor = [255, 255, 200]; 
-        if (data.column.index === 5) data.cell.styles.fillColor = [255, 230, 230]; 
+
+        if (data.column.index === 1) data.cell.styles.fillColor = [220, 255, 220];
+        if (data.column.index === 2) data.cell.styles.fillColor = [255, 200, 200];
+        if (data.column.index === 3) data.cell.styles.fillColor = [255, 255, 200];
+        if (data.column.index === 4) data.cell.styles.fillColor = [255, 255, 200];
+        if (data.column.index === 5) data.cell.styles.fillColor = [255, 230, 230];
 
         if (isTotalRow) {
           data.cell.styles.fillColor = [38, 70, 83];
@@ -384,14 +384,14 @@ export const generateVehicleReport = (
 
   // --- PERMANENCIA ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
-  
+
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setFillColor(38, 70, 83);
   doc.rect(margin, finalY, 40, 7, 'F');
   doc.setTextColor(255, 255, 255);
   doc.text(' P E R M A N E N C I A :', margin + 2, finalY + 4.8);
-  
+
   doc.setDrawColor(0);
   doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
   doc.setTextColor(0, 0, 0);
@@ -404,18 +404,18 @@ export const generateVehicleReport = (
   const inopData = vehicleUnits
     .filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map(u => [u.id, u.plate || '', u.reason || u.status]);
-  
+
   while (inopData.length < 15) inopData.push(['', '', '']);
 
   const sinPatrullarData = vehicleUnits
-    .filter(u => 
-      u.status !== 'PATRULLANDO' && 
-      u.status !== 'RETEN' && 
+    .filter(u =>
+      u.status !== 'PATRULLANDO' &&
+      u.status !== 'RETEN' &&
       !inoperativeStatuses.includes((u.status || '').toUpperCase()) &&
       u.status !== 'CHOFER SIN MOVIL'
     )
     .map(u => [u.id, u.plate || '', u.reason || u.status]);
-    
+
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '']);
 
   (doc as any).autoTable({
@@ -481,11 +481,11 @@ export const generatePersonnelAbsenceReport = (
   const formatLongDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('es-ES', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric' 
+      return d.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
       });
     } catch (e) {
       return dateStr;
@@ -505,30 +505,25 @@ export const generatePersonnelAbsenceReport = (
   const presentNames = new Set<string>();
   const explicitAbsentInUnits = new Set<string>();
   const nameToSector = new Map<string, string>();
-  
+
   const absenceStatuses = [
-    'FALTO', 
-    'PERMISO', 
-    'DESCANSO MEDICO', 
-    'DESCANSO MÉDICO', 
-    'ONOMASTICO', 
-    'ONOMÁSTICO', 
-    'DESCANSO COMPENSATORIO',
-    'LICENCIA'
+    'FALTO',
+    'DESCANSO MEDICO',
+    'DESCANSO MÉDICO'
   ];
 
   units.forEach(u => {
     const names = [];
     if (u.personnel1) names.push(normalize(u.personnel1));
     if (u.personnel2) names.push(normalize(u.personnel2));
-    
+
     // Store assigned sector for each person found in units
     const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
     names.forEach(name => nameToSector.set(name, sector));
-    
+
     // Check status robustly
     const status = (u.status || '').toString().trim().toUpperCase();
-    
+
     if (absenceStatuses.includes(status)) {
       names.forEach(name => explicitAbsentInUnits.add(name));
     } else {
@@ -539,15 +534,15 @@ export const generatePersonnelAbsenceReport = (
   // 2. Filter personnel for "ABSENT"
   const absents = personnel.filter(p => {
     const name = normalize(p.apellidos_nombres);
-    
+
     // Check spreadsheet status robustly
     const statusSS = (p.estado || '').toString().trim().toUpperCase();
     const isExplicitFaltoSS = absenceStatuses.includes(statusSS);
     const isExplicitFaltoUnit = explicitAbsentInUnits.has(name);
-    
+
     // Avoid including people who are actually marked as present in another unit row
     if (presentNames.has(name)) return false;
-    
+
     return isExplicitFaltoSS || isExplicitFaltoUnit;
   });
 
@@ -573,15 +568,15 @@ export const generatePersonnelAbsenceReport = (
   // Draw Main Report Header (Once)
   doc.setFillColor(38, 70, 83);
   doc.rect(margin, currentY, contentWidth, 18, 'F');
-  
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
   doc.setTextColor(255, 255, 255);
   doc.text('SURCO', margin + 5, currentY + 11);
-  
+
   doc.setFontSize(11);
   doc.text('REPORTE DE ASISTENCIA POR RÉGIMEN', margin + 35, currentY + 11);
-  
+
   doc.setFontSize(8);
   doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
   doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
@@ -623,14 +618,14 @@ export const generatePersonnelAbsenceReport = (
       head: [['APELLIDOS Y NOMBRES', 'ROL / CARGO', 'T', 'SECTOR / GRUPO']],
       body: tableData,
       theme: 'grid',
-      headStyles: { 
-        fillColor: [240, 240, 240], 
+      headStyles: {
+        fillColor: [240, 240, 240],
         textColor: [50, 50, 50],
         fontSize: 8,
         fontStyle: 'bold',
         halign: 'center'
       },
-      styles: { 
+      styles: {
         fontSize: 8,
         cellPadding: 1.5,
         valign: 'middle'

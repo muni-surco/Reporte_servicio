@@ -93,7 +93,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
             colors={`primary:${colorConfig.textAccent === 'text-blue-700' ? '#1d4ed8' : colorConfig.textAccent === 'text-violet-700' ? '#7c3aed' : '#0f766e'}`}
             style={{ width: '20px', height: '20px' }}>
           </lord-icon>
-          REGISTRAR
+          NUEVO REGISTRO
         </button>
       </div>
 
