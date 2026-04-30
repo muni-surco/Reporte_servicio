@@ -81,7 +81,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
           </div>
           <div>
             <h2 className="text-sm font-medium text-slate-800 leading-none">Generador de Reportes</h2>
-            <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Configure fecha y turno para los documentos</p>
+            <p className="text-[11px] font-medium text-slate-400 mt-1 uppercase tracking-wider">Configure fecha y turno para los documentos</p>
           </div>
         </div>
 

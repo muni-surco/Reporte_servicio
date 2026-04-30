@@ -608,7 +608,7 @@ export const generatePersonnelAbsenceReport = (
       return [
         p.apellidos_nombres?.toUpperCase() || '',
         (p.rol_operativo || '').toUpperCase() || '',
-        shift.charAt(0), // M, T, N
+        shift.toUpperCase(), // MAÑANA, TARDE, NOCHE
         nameToSector.get(nameNorm) || '--'
       ];
     });
@@ -632,9 +632,9 @@ export const generatePersonnelAbsenceReport = (
       },
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { cellWidth: 45, halign: 'center' },
-        2: { cellWidth: 10, halign: 'center' },
-        3: { cellWidth: 35, halign: 'center' }
+        1: { cellWidth: 35, halign: 'center' },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 30, halign: 'center' }
       },
       margin: { left: margin, right: margin },
       didDrawPage: (data: any) => {
