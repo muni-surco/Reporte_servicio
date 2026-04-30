@@ -557,10 +557,10 @@ export const generatePersonnelAbsenceReport = (
   };
 
   const groupsToDraw = [
-    { data: absents.filter(p => getRegime(p) === '276'), label: 'PLANILLA D.L. 276', color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === '728'), label: 'PLANILLA D.L. 728', color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === 'CAS'), label: 'D.L. 1057 (CAS)', color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === 'OS'), label: 'ORDEN DE SERVICIO', color: [0, 92, 187] }
+    { data: absents.filter(p => getRegime(p) === '276'), label: 'FALTOS PLANILLA D.L. 276', color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === '728'), label: 'FALTOS PLANILLA D.L. 728', color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === 'CAS'), label: 'FALTOS D.L. 1057 (CAS)', color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === 'OS'), label: ' FALTOS ORDEN DE SERVICIO', color: [0, 92, 187] }
   ];
 
   let currentY = 10;
@@ -615,7 +615,7 @@ export const generatePersonnelAbsenceReport = (
 
     (doc as any).autoTable({
       startY: currentY,
-      head: [['APELLIDOS Y NOMBRES', 'ROL / CARGO', 'T', 'SECTOR / GRUPO']],
+      head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR']],
       body: tableData,
       theme: 'grid',
       headStyles: {
