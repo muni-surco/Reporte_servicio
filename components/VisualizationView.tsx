@@ -37,6 +37,12 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     return "bg-slate-300 ring-2 ring-slate-100";
   };
 
+  const ALLOWED_STATUSES = [
+    UnitStatus.PATRULLANDO,
+    UnitStatus.APOYO_OTRA_AREA,
+    UnitStatus.EXPLANADA
+  ];
+
   const renderCompactUnit = (u: UnitData, type: string) => {
     const idTextColor = {
       CHOFER: 'text-[#004b93]',
@@ -89,9 +95,10 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
   return (
     <div className="flex flex-col gap-6 mx-auto">
       {sectorEntries.map(([sectorName, data]) => {
-        const choferes = data.units.filter(u => u.type === 'CHOFER');
-        const motos = data.units.filter(u => u.type === 'MOTO');
-        const serenos = data.units.filter(u => u.type === 'SERENO');
+        const activeUnits = data.units.filter(u => ALLOWED_STATUSES.includes(u.status));
+        const choferes = activeUnits.filter(u => u.type === 'CHOFER');
+        const motos = activeUnits.filter(u => u.type === 'MOTO');
+        const serenos = activeUnits.filter(u => u.type === 'SERENO');
         const isRescate = sectorName === 'RESCATE';
 
         return (
