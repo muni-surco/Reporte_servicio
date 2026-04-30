@@ -474,7 +474,9 @@ export const generatePersonnelAbsenceReport = (
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
+  const contentWidth = pageWidth - (margin * 2);
 
   const formatLongDate = (dateStr: string) => {
     try {
@@ -504,6 +506,17 @@ export const generatePersonnelAbsenceReport = (
   const explicitAbsentInUnits = new Set<string>();
   const nameToSector = new Map<string, string>();
   
+  const absenceStatuses = [
+    'FALTO', 
+    'PERMISO', 
+    'DESCANSO MEDICO', 
+    'DESCANSO MÉDICO', 
+    'ONOMASTICO', 
+    'ONOMÁSTICO', 
+    'DESCANSO COMPENSATORIO',
+    'LICENCIA'
+  ];
+
   units.forEach(u => {
     const names = [];
     if (u.personnel1) names.push(normalize(u.personnel1));
@@ -513,10 +526,10 @@ export const generatePersonnelAbsenceReport = (
     const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
     names.forEach(name => nameToSector.set(name, sector));
     
-    // Check status robustly (Falto, FALTO, falto)
+    // Check status robustly
     const status = (u.status || '').toString().trim().toUpperCase();
     
-    if (status === 'FALTO') {
+    if (absenceStatuses.includes(status)) {
       names.forEach(name => explicitAbsentInUnits.add(name));
     } else {
       names.forEach(name => presentNames.add(name));
@@ -529,88 +542,114 @@ export const generatePersonnelAbsenceReport = (
     
     // Check spreadsheet status robustly
     const statusSS = (p.estado || '').toString().trim().toUpperCase();
-    const isExplicitFaltoSS = statusSS === 'FALTO';
+    const isExplicitFaltoSS = absenceStatuses.includes(statusSS);
     const isExplicitFaltoUnit = explicitAbsentInUnits.has(name);
+    
+    // Avoid including people who are actually marked as present in another unit row
+    if (presentNames.has(name)) return false;
     
     return isExplicitFaltoSS || isExplicitFaltoUnit;
   });
 
-  // 3. Define groups based on regId keywords
+  // 3. Group by regime
+  const getRegime = (p: any) => {
+    const reg = (p.regimen_laboral || '').toString().toUpperCase();
+    if (/276/.test(reg)) return '276';
+    if (/728/.test(reg)) return '728';
+    if (/1057|CAS|CONTRATO/i.test(reg)) return 'CAS';
+    // Todo lo demás se considera Orden de Servicio (OS)
+    return 'OS';
+  };
+
   const groupsToDraw = [
-    { id: '276', label: 'PLANILLA D.L. 276' },
-    { id: '728', label: 'PLANILLA D.L. 728' },
-    { id: '1057', label: 'CAS D.L. 1057' },
-    { id: 'OS', label: 'OS' }
+    { data: absents.filter(p => getRegime(p) === '276'), label: 'PLANILLA D.L. 276', color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === '728'), label: 'PLANILLA D.L. 728', color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === 'CAS'), label: 'D.L. 1057 (CAS)', color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === 'OS'), label: 'ORDEN DE SERVICIO', color: [0, 92, 187] }
   ];
 
   let currentY = 10;
 
-  groupsToDraw.forEach((groupInfo, index) => {
-    const regimenAbsents = absents.filter(p => {
-      const reg = (p.regimen_laboral || '').toUpperCase();
-      if (groupInfo.id === 'OS') return reg === 'OS' || reg === 'O.S.' || reg.includes('SERVICIOS');
-      if (groupInfo.id === '1057') return reg.includes('1057') || reg.includes('CAS');
-      return reg.includes(groupInfo.id);
-    });
+  // Draw Main Report Header (Once)
+  doc.setFillColor(38, 70, 83);
+  doc.rect(margin, currentY, contentWidth, 18, 'F');
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text('SURCO', margin + 5, currentY + 11);
+  
+  doc.setFontSize(11);
+  doc.text('REPORTE DE ASISTENCIA POR RÉGIMEN', margin + 35, currentY + 11);
+  
+  doc.setFontSize(8);
+  doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
+  doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
+
+  currentY += 25;
+
+  groupsToDraw.forEach((groupInfo) => {
+    if (groupInfo.data.length === 0) return;
 
     // Check if we need a new page
-    if (currentY > 230) {
+    if (currentY > 250) {
       doc.addPage();
-      currentY = 10;
+      currentY = 20;
     }
 
-    // --- Header Section for Group ---
-    doc.setFillColor(38, 70, 83);
-    doc.rect(margin, currentY, pageWidth - (margin * 2), 15, 'F');
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    // Header de grupo (Sub-title)
+    doc.setFillColor(groupInfo.color[0], groupInfo.color[1], groupInfo.color[2]);
+    doc.rect(margin, currentY, contentWidth, 7, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.text('SURCO', margin + 5, currentY + 10);
-    
-    doc.setFontSize(10);
-    doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 10, { align: 'right' });
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${groupInfo.label}`, margin + 3, currentY + 4.8);
+    doc.text(`TOTAL: ${groupInfo.data.length}`, margin + contentWidth - 3, currentY + 4.8, { align: 'right' });
 
-    // Red Title Bar
-    currentY += 15;
-    doc.setDrawColor(200, 200, 200);
-    doc.setFillColor(150, 0, 0); // Red
-    doc.rect(margin, currentY, pageWidth - (margin * 2), 8, 'F');
-    
-    doc.setFontSize(11);
-    doc.text(`FALTOS ${groupInfo.label}`, margin + 5, currentY + 5.5);
-    doc.text(regimenAbsents.length.toString(), pageWidth - margin - 5, currentY + 5.5, { align: 'right' });
+    currentY += 7;
 
-    // --- Table ---
-    const tableData = regimenAbsents.map(p => {
+    const tableData = groupInfo.data.map(p => {
       const nameNorm = normalize(p.apellidos_nombres);
       return [
         p.apellidos_nombres?.toUpperCase() || '',
         (p.rol_operativo || '').toUpperCase() || '',
-        shift === 'MAÑANA' ? 'M' : shift === 'TARDE' ? 'T' : 'N',
+        shift.charAt(0), // M, T, N
         nameToSector.get(nameNorm) || '--'
       ];
     });
 
     (doc as any).autoTable({
-      startY: currentY + 8,
-      head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR']],
+      startY: currentY,
+      head: [['APELLIDOS Y NOMBRES', 'ROL / CARGO', 'T', 'SECTOR / GRUPO']],
       body: tableData,
       theme: 'grid',
-      styles: { fontSize: 8, fontStyle: 'normal', halign: 'center', cellPadding: 1, textColor: [0, 0, 0], lineWidth: 0.1 },
-      headStyles: { fillColor: [38, 70, 83], textColor: [255, 255, 255], fontStyle: 'bold' },
-      columnStyles: {
-        0: { halign: 'left' },
-        1: { halign: 'center' },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 25 }
+      headStyles: { 
+        fillColor: [240, 240, 240], 
+        textColor: [50, 50, 50],
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'center'
       },
-      margin: { left: margin, right: margin }
+      styles: { 
+        fontSize: 8,
+        cellPadding: 1.5,
+        valign: 'middle'
+      },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 45, halign: 'center' },
+        2: { cellWidth: 10, halign: 'center' },
+        3: { cellWidth: 35, halign: 'center' }
+      },
+      margin: { left: margin, right: margin },
+      didDrawPage: (data: any) => {
+        currentY = data.cursor.y;
+      }
     });
 
-    currentY = (doc as any).lastAutoTable.finalY + 10;
+    currentY = (doc as any).lastAutoTable.finalY + 8;
   });
 
-  doc.save(`REPORTE_ASISTENCIA_${shift}_${date}.pdf`);
+  doc.save(`REPORTE_ASISTENCIA_REGIMEN_${shift}_${date}.pdf`);
 };
 

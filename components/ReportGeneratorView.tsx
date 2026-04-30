@@ -24,32 +24,44 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       title: 'Reporte Numérico de Motos',
       subtitle: 'Yamaha XTZ150',
       description: 'Consolidado de operatividad, patrullaje y personal de toda la flota de motos Yamaha por sector.',
-      icon: <PieChart className="w-8 h-8 text-blue-600" />,
-      color: 'blue'
+      icon: <PieChart className="w-8 h-8" />,
+      color: 'blue',
+      themeClass: 'border-blue-500 bg-blue-50/30',
+      iconClass: 'bg-blue-100 text-blue-600',
+      btnClass: 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
     },
     {
       id: 'motos_honda',
       title: 'Reporte Numérico de Motos',
       subtitle: 'Honda SAHARA XRE 300',
       description: 'Consolidado de operatividad, patrullaje y personal de la flota Honda SAHARA XRE 300 por sector.',
-      icon: <PieChart className="w-8 h-8 text-red-600" />,
-      color: 'red'
+      icon: <PieChart className="w-8 h-8" />,
+      color: 'red',
+      themeClass: 'border-red-500 bg-red-50/30',
+      iconClass: 'bg-red-100 text-red-600',
+      btnClass: 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
     },
     {
       id: 'moviles',
       title: 'Reporte Numérico de Vehículos',
       subtitle: 'FLOTA RENTING (CAMIONETAS/AUTOS)',
       description: 'Consolidado general de operatividad, patrullaje y personal de toda la flota de vehículos Renting por sector.',
-      icon: <FileText className="w-8 h-8 text-indigo-600" />,
-      color: 'indigo'
+      icon: <FileText className="w-8 h-8" />,
+      color: 'indigo',
+      themeClass: 'border-indigo-500 bg-indigo-50/30',
+      iconClass: 'bg-indigo-100 text-indigo-600',
+      btnClass: 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
     },
     {
       id: 'asistencia_regimen',
       title: 'Reporte de Asistencia por Régimen',
       subtitle: 'Personal Faltante por Régimen Laboral',
-      description: 'Detalle de personal inasistente agrupado por su régimen laboral: 276, 728, CAS y OS.',
-      icon: <Users className="w-8 h-8 text-rose-600" />,
-      color: 'rose'
+      description: 'Detalle de personal inasistente agrupado por su régimen laboral: 276, 728, 1057 y OS.',
+      icon: <Users className="w-8 h-8" />,
+      color: 'rose',
+      themeClass: 'border-rose-500 bg-rose-50/30',
+      iconClass: 'bg-rose-100 text-rose-600',
+      btnClass: 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
     }
   ];
 
@@ -109,46 +121,47 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       </div>
 
       {/* Report Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {reportTypes.map((report) => (
           <div
             key={report.id}
-            className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 overflow-hidden"
+            className={`group rounded-2xl border-t-4 ${report.themeClass} border-x border-b shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col`}
           >
-            <div className="p-6 space-y-4">
+            <div className="p-6 flex-1 flex flex-col space-y-4">
               <div className="flex items-start justify-between">
-                <div className={`p-4 rounded-2xl bg-${report.color}-50 group-hover:scale-110 transition-transform duration-500`}>
+                <div className={`p-3 rounded-xl ${report.iconClass} group-hover:rotate-6 transition-all duration-300`}>
                   {report.icon}
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-full">
-                  <span className="text-[10px] font-medium text-slate-400 tracking-wider uppercase">Formato PDF</span>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/80 backdrop-blur-sm border border-slate-100 rounded-full shadow-sm">
+                  <FileText className="w-3 h-3 text-slate-400" />
+                  <span className="text-[9px] font-medium text-slate-500 tracking-wider uppercase">PDF</span>
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-xl font-medium text-slate-800">{report.title}</h3>
-                <p className={`text-sm font-medium text-${report.color}-600/80 mb-2 uppercase tracking-tight`}>{report.subtitle}</p>
-                <p className="text-slate-500 text-sm leading-relaxed">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-slate-800 leading-snug group-hover:text-blue-900 transition-colors">{report.title}</h3>
+                <p className="text-[11px] font-semibold text-slate-400 mt-1 mb-3 uppercase tracking-tighter">{report.subtitle}</p>
+                <p className="text-slate-500 text-xs leading-relaxed line-clamp-3">
                   {report.description}
                 </p>
               </div>
 
-              <div className="pt-4 flex items-center justify-between border-t border-slate-50">
+              <div className="pt-4 border-t border-slate-100/50">
                 <button
                   onClick={() => handleGenerate(report.id)}
                   disabled={isGenerating}
                   className={`
-                    flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium text-sm transition-all
+                    w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-xs transition-all
                     ${isGenerating && activeReport === report.id
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                      : `bg-${report.color}-600 text-white hover:bg-${report.color}-700 shadow-lg shadow-${report.color}-600/20 active:scale-95 hover:-translate-y-0.5`
+                      : `${report.btnClass} text-white shadow-lg active:scale-95 hover:-translate-y-0.5`
                     }
                   `}
                 >
                   {isGenerating && activeReport === report.id ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                      PROCESANDO...
+                      <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                      GENERANDO...
                     </>
                   ) : (
                     <>
@@ -157,13 +170,11 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                     </>
                   )}
                 </button>
-
               </div>
             </div>
           </div>
         ))}
       </div>
-
     </div>
   );
 };
