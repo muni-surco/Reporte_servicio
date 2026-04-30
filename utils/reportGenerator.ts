@@ -1,7 +1,7 @@
 // We use the global jspdf and jspdf-autotable from the CDN in index.html
 declare const jspdf: any;
 
-import { UnitData, AppSettings, Sector } from '../types';
+import { UnitData, AppSettings, Sector, PersonnelData } from '../types';
 
 export const generateMotoReport = (
   units: UnitData[],
@@ -648,3 +648,82 @@ export const generatePersonnelAbsenceReport = (
   doc.save(`REPORTE_ASISTENCIA_REGIMEN_${shift}_${date}.pdf`);
 };
 
+export const generateObservationsReport = (
+  units: UnitData[],
+  date: string,
+  shift: string
+) => {
+  const doc = new jspdf.jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 10;
+
+  const formatShortDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      return `${d.getDate()}-${months[d.getMonth()]}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // Filter units with observations (reason)
+  const unitsWithObservations = units.filter(u => u.reason && u.reason.trim() !== '');
+
+  const rows: any[] = [];
+  unitsWithObservations.forEach(u => {
+    const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
+    const dateFormatted = formatShortDate(date);
+    
+    // Each person gets a row with the same observation
+    if (u.personnel1) {
+      rows.push([
+        dateFormatted,
+        shift.toUpperCase(),
+        sector,
+        u.personnel1.toUpperCase(),
+        u.reason.toUpperCase()
+      ]);
+    }
+    if (u.personnel2) {
+      rows.push([
+        dateFormatted,
+        shift.toUpperCase(),
+        sector,
+        u.personnel2.toUpperCase(),
+        u.reason.toUpperCase()
+      ]);
+    }
+  });
+
+  // Sort by sector
+  rows.sort((a, b) => a[2].localeCompare(b[2]));
+
+  (doc as any).autoTable({
+    startY: 15,
+    head: [[
+      { content: `REPORTE DE LOS PUESTOS DE COMANDOS - TURNO ${shift.toUpperCase()}`, colSpan: 5, styles: { halign: 'center', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 11 } }
+    ], [
+      'FECHA', 'TURNO', 'SECTOR', 'NOMBRES Y APELLIDOS', 'TURNO REPORTADO / OBSERVACIONES'
+    ]],
+    body: rows,
+    theme: 'grid',
+    styles: { fontSize: 8, halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1 },
+    headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 20 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 20 },
+      3: { cellWidth: 80, halign: 'left' },
+      4: { cellWidth: 'auto', halign: 'left' }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  doc.save(`REPORTE_OBSERVACIONES_${shift}_${date}.pdf`);
+};

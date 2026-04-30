@@ -21,6 +21,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
 
   const reportTypes = [
     {
+      id: 'observaciones',
+      title: 'Reporte de Observaciones',
+      subtitle: 'PUESTOS DE COMANDO',
+      description: 'Reporte detallado de observaciones, cambios de turno y novedades reportadas por el personal.',
+      icon: <FileText className="w-8 h-8" />,
+      color: 'amber',
+      themeClass: 'border-amber-100',
+      iconClass: 'bg-amber-50 text-amber-600',
+      btnClass: 'bg-amber-600 hover:bg-amber-700'
+    },
+    {
       id: 'motos',
       title: 'Motos Yamaha',
       subtitle: 'MODELO XTZ150',
