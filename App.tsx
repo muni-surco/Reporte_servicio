@@ -6,7 +6,7 @@ import Header from './components/Header';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import ReportGeneratorView from './components/ReportGeneratorView';
-import { generateMotoReport, generateVehicleReport, generatePersonnelAbsenceReport, generateObservationsReport } from './utils/reportGenerator';
+import { generateMotoReport, generateVehicleReport, generatePersonnelAbsenceReport, generateObservationsReport, generateAllRecordsReport } from './utils/reportGenerator';
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData } from './types';
@@ -390,6 +390,8 @@ const App: React.FC = () => {
           generateVehicleReport(units, sectorSettingsMap, date, shift);
         } else if (type === 'asistencia_regimen') {
           generatePersonnelAbsenceReport(units, personnelList, date, shift);
+        } else if (type === 'general') {
+          generateAllRecordsReport(units, sectorSettingsMap, date, shift);
         }
       }, 1000);
       return;
@@ -408,6 +410,8 @@ const App: React.FC = () => {
           generatePersonnelAbsenceReport(data.units, data.personnelList || [], date, shift);
         } else if (type === 'observaciones') {
           generateObservationsReport(data.units, date, shift);
+        } else if (type === 'general') {
+          generateAllRecordsReport(data.units, data.allSectorSettings || {}, date, shift);
         } else {
           alert(`El reporte de "${type}" se encuentra en desarrollo.`);
         }

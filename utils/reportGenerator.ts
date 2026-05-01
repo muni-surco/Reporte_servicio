@@ -162,13 +162,13 @@ export const generateMotoReport = (
   // --- DETAILS ---
   const inopData = motoUnits
     .filter(u => u.status !== 'PATRULLANDO' && inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map(u => [u.indicative || u.id, u.reason || u.status]);
+    .map(u => [u.indicative || u.id, u.mechanics || u.status]);
 
   while (inopData.length < 15) inopData.push(['', '']);
 
   const sinPatrullarData = motoUnits
     .filter(u => u.status !== 'PATRULLANDO' && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map(u => [u.indicative || u.id, u.reason || u.status]);
+    .map(u => [u.indicative || u.id, u.mechanics || u.status]);
 
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '']);
 
@@ -403,7 +403,7 @@ export const generateVehicleReport = (
   // --- DETAILS TABLES ---
   const inopData = vehicleUnits
     .filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map(u => [u.id, u.plate || '', u.reason || u.status]);
+    .map(u => [u.id, u.plate || '', u.mechanics || u.status]);
 
   while (inopData.length < 15) inopData.push(['', '', '']);
 
@@ -414,7 +414,7 @@ export const generateVehicleReport = (
       !inoperativeStatuses.includes((u.status || '').toUpperCase()) &&
       u.status !== 'CHOFER SIN MOVIL'
     )
-    .map(u => [u.id, u.plate || '', u.reason || u.status]);
+    .map(u => [u.id, u.plate || '', u.mechanics || u.status]);
 
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '']);
 
@@ -666,20 +666,20 @@ export const generateObservationsReport = (
     try {
       const d = new Date(dateStr + 'T12:00:00');
       const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-      return `${d.getDate()}-${months[d.getMonth()]}`;
+      return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
     } catch (e) {
       return dateStr;
     }
   };
 
-  // Filter units with observations (reason)
-  const unitsWithObservations = units.filter(u => u.reason && u.reason.trim() !== '');
+  // Filter units with observations (mechanics)
+  const unitsWithObservations = units.filter(u => u.mechanics && u.mechanics.trim() !== '');
 
   const rows: any[] = [];
   unitsWithObservations.forEach(u => {
     const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
     const dateFormatted = formatShortDate(date);
-    
+
     // Each person gets a row with the same observation
     if (u.personnel1) {
       rows.push([
@@ -687,7 +687,7 @@ export const generateObservationsReport = (
         shift.toUpperCase(),
         sector,
         u.personnel1.toUpperCase(),
-        u.reason.toUpperCase()
+        u.mechanics.toUpperCase()
       ]);
     }
     if (u.personnel2) {
@@ -696,7 +696,7 @@ export const generateObservationsReport = (
         shift.toUpperCase(),
         sector,
         u.personnel2.toUpperCase(),
-        u.reason.toUpperCase()
+        u.mechanics.toUpperCase()
       ]);
     }
   });
@@ -709,7 +709,7 @@ export const generateObservationsReport = (
     head: [[
       { content: `REPORTE DE LOS PUESTOS DE COMANDOS - TURNO ${shift.toUpperCase()}`, colSpan: 5, styles: { halign: 'center', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 11 } }
     ], [
-      'FECHA', 'TURNO', 'SECTOR', 'NOMBRES Y APELLIDOS', 'TURNO REPORTADO / OBSERVACIONES'
+      'FECHA', 'TURNO', 'SECTOR', 'NOMBRES Y APELLIDOS', 'OBSERVACIONES'
     ]],
     body: rows,
     theme: 'grid',
@@ -726,4 +726,216 @@ export const generateObservationsReport = (
   });
 
   doc.save(`REPORTE_OBSERVACIONES_${shift}_${date}.pdf`);
+};
+
+export const generateAllRecordsReport = (
+  units: UnitData[],
+  settingsMap: Record<string, AppSettings>,
+  date: string,
+  shift: string
+) => {
+  const doc = new jspdf.jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 10;
+
+  const formatShortDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const rows: any[] = [];
+  units.forEach(u => {
+    const idStr = (u.id || '').toString();
+    const p1Str = (u.personnel1 || '').toString();
+    const p2Str = (u.personnel2 || '').toString();
+
+    // Only include rows that have at least some data (ID or personnel)
+    if (idStr.trim() === '' && p1Str.trim() === '' && p2Str.trim() === '') return;
+
+    const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
+    const unitId = (idStr || '--').toUpperCase();
+    const status = (u.status || '').toString().toUpperCase();
+    const mechanics = (u.mechanics || '').toString().toUpperCase();
+    const unitType = (u.type || '').toString().toUpperCase();
+    const plate = (u.plate || '').toString().toUpperCase();
+
+    // Combine radio
+    const radioArr = [];
+    if (u.radio) radioArr.push(`${u.radio}`);
+    const radioStr = radioArr.join('\n');
+    const cuadrante = (u.quadrant || '').toString().toUpperCase();
+    const indicative = (u.indicative || '').toString().toUpperCase();
+
+    // Combine personnel
+    const persArr = [];
+    if (p1Str) persArr.push(p1Str.toUpperCase());
+    if (p2Str) {
+      persArr.push(indicative ? `${p2Str.toUpperCase()} (IND: ${indicative})` : p2Str.toUpperCase());
+    } else if (indicative) {
+      persArr.push(`IND: ${indicative}`);
+    }
+    const personnel = persArr.join('\n');
+
+    // Kilometraje
+    let kmStr = '--';
+    const start = (u.kmStart || '0').toString();
+    const end = (u.kmEnd || '0').toString();
+    const total = (u.totalKm || '0').toString();
+    const recarga = (u.kmRecarga || '0').toString();
+
+    if (start !== '0' || end !== '0' || total !== '0' || recarga !== '0') {
+      kmStr = `INICIO:${start} FIN:${end}\nRECORRIDO:${total} RECARGA:${recarga}`;
+    }
+
+    // Combustible y Gasto
+    const fuelExp = `${(u.fuel || '').toString() || '--'}\n${(u.expense || '').toString() || 'S/ 0.00'}`;
+
+    const partesStr = (u.parts || '0').toString();
+    const partesNum = parseInt(partesStr.replace(/\D/g, '') || '0', 10);
+
+    rows.push({
+      sector,
+      unitType,
+      unitId,
+      plate,
+      radioStr,
+      cuadrante,
+      personnel,
+      status,
+      kmStr,
+      fuelExp,
+      partesStr,
+      partesNum,
+      mechanics
+    });
+  });
+
+  // Extract unique sectors and sort them
+  const uniqueSectors = Array.from(new Set(rows.map(r => r.sector))).sort((a, b) => a.localeCompare(b));
+
+  const firstSettings = Object.values(settingsMap)[0] || {} as AppSettings;
+  const permanencia = firstSettings.permanencia || '--';
+
+  let currentY = 15;
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`REPORTE GENERAL DE REGISTROS - TURNO ${shift.toUpperCase()}`, pageWidth / 2, currentY, { align: 'center' });
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`FECHA: ${formatShortDate(date)}   |   PERMANENCIA: ${permanencia}`, pageWidth / 2, currentY + 5, { align: 'center' });
+
+  currentY += 12;
+
+  uniqueSectors.forEach((sector) => {
+    // Header styling for the SECTOR
+    if (currentY > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage();
+      currentY = 15;
+    }
+
+    const sectorSettings = settingsMap[sector] || settingsMap[`SECTOR ${sector}`] || {} as AppSettings;
+    const operador = sectorSettings.operador || 'N/A';
+    const supervisor = sectorSettings.supervisor || 'N/A';
+
+    doc.setFillColor(38, 70, 83); // Dark slate background for sector title
+    doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(`SECTOR: ${sector}`, margin + 5, currentY + 5);
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`OPERADOR: ${operador.toUpperCase()}   |   SUPERVISOR: ${supervisor.toUpperCase()}`, pageWidth - margin - 5, currentY + 4.8, { align: 'right' });
+
+    currentY += 9;
+    doc.setTextColor(0, 0, 0); // Reset text color to black
+
+    const sections = [
+      { key: 'CHOFER', label: 'CHOFERES' },
+      { key: 'MOTO', label: 'MOTORIZADOS' },
+      { key: 'SERENO', label: 'SERENOS' }
+    ];
+
+    sections.forEach(sec => {
+      // Filter rows for the current sector and unit type
+      const sectorTypeRows = rows
+        .filter(r => r.sector === sector && r.unitType === sec.key)
+        .sort((a, b) => a.unitId.localeCompare(b.unitId));
+
+      if (sectorTypeRows.length === 0) return;
+
+      const totalPartes = sectorTypeRows.reduce((sum, r) => sum + r.partesNum, 0);
+      const totalEfectivos = sectorTypeRows.length;
+
+      const tableData = sectorTypeRows.map(r => [
+        r.unitId,
+        r.plate,
+        r.radioStr,
+        r.cuadrante,
+        r.personnel,
+        r.status,
+        r.kmStr,
+        r.fuelExp,
+        r.partesStr,
+        r.mechanics
+      ]);
+
+      // Add a total row
+      tableData.push([
+        { content: `TOTAL UNIDADES: ${totalEfectivos}`, colSpan: 5, styles: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'right' } },
+        { content: '', colSpan: 3, styles: { fillColor: [240, 240, 240] } },
+        { content: totalPartes.toString(), styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } },
+        { content: '', styles: { fillColor: [240, 240, 240] } }
+      ]);
+
+      if (currentY > doc.internal.pageSize.getHeight() - 25) {
+        doc.addPage();
+        currentY = 15;
+      }
+
+      (doc as any).autoTable({
+        startY: currentY,
+        head: [[
+          { content: sec.label, colSpan: 10, styles: { halign: 'left', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 8 } }
+        ], [
+          'UNIDAD', 'PLACA', 'RADIO', 'CUADRANTE', 'NOMBRES Y APELLIDOS / COPILOTO', 'ESTADO', 'KILOMETRAJE', 'COMBUSTIBLE / GASTO', 'PARTES', 'OBSERVACIONES'
+        ]],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 6.5, halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1, cellPadding: 0.8 },
+        headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 6.5 },
+        columnStyles: {
+          0: { cellWidth: 14 },
+          1: { cellWidth: 15 },
+          2: { cellWidth: 12 },
+          3: { cellWidth: 16 },
+          4: { cellWidth: 60, halign: 'left' },
+          5: { cellWidth: 22, halign: 'center' },
+          6: { cellWidth: 30 },
+          7: { cellWidth: 20 },
+          8: { cellWidth: 15 },
+          9: { cellWidth: 'auto', halign: 'left' }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 4;
+    });
+
+    currentY += 4;
+  });
+
+  doc.save(`REPORTE_GENERAL_${shift}_${date}.pdf`);
 };

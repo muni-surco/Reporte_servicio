@@ -74,6 +74,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       themeClass: 'border-rose-100',
       iconClass: 'bg-rose-50 text-rose-600',
       btnClass: 'bg-rose-600 hover:bg-rose-700'
+    },
+    {
+      id: 'general',
+      title: 'Reporte General',
+      subtitle: 'TODOS LOS REGISTROS',
+      description: 'Lista completa de todos los registros del turno y fecha incluyendo todos los sectores.',
+      icon: <FileText className="w-8 h-8" />,
+      color: 'emerald',
+      themeClass: 'border-emerald-100',
+      iconClass: 'bg-emerald-50 text-emerald-600',
+      btnClass: 'bg-emerald-600 hover:bg-emerald-700'
     }
   ];
 
