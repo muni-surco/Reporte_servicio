@@ -84,7 +84,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     if (isEditing && formData.id && formData.id !== lastKmFetchedIdRef.current) {
       const unitId = String(formData.id).trim().toUpperCase();
       if (unitId === '' || unitId.startsWith('AR-')) return;
-      
+
       lastKmFetchedIdRef.current = formData.id;
 
       if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -286,7 +286,19 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <label className={labelStyleEdit}>ID</label>
               <AutocompleteInput
                 value={String(formData.id)}
-                onChange={(val) => { setFormData(prev => ({ ...prev, id: val })); setErrors(prev => ({ ...prev, id: false })); }}
+                onChange={(val) => { 
+                  setFormData(prev => {
+                    const newData = { ...prev, id: val };
+                    if ((isChofer || isMoto) && mobileData) {
+                      const matched = mobileData.find(m => m.id === val);
+                      if (matched && matched.plate) {
+                        newData.plate = matched.plate;
+                      }
+                    }
+                    return newData;
+                  }); 
+                  setErrors(prev => ({ ...prev, id: false })); 
+                }}
                 suggestions={(mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
                 placeholder="M-01"
                 error={errors.id}
@@ -457,14 +469,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna Logística Radio/Indicativo/Cuadrante */}
           <div className="flex gap-4 border-r border-slate-100 px-2 min-w-0">
-            <div className="flex flex-col flex-1 min-w-[50px]">
+            <div className="flex flex-col flex-1 min-w-[20px]">
               <label className={labelStyle}>Radio</label>
               <div className={`${infoValueStyle} text-slate-800`}>
                 {unit.radio || '--'}
               </div>
             </div>
             {isChofer && (
-              <div className="flex flex-col flex-1 min-w-[100px]">
+              <div className="flex flex-col flex-1 min-w-[130px]">
                 <label className={labelStyle}>Copiloto</label>
                 <div className={infoValueStyle}>{unit.personnel2 || '--'}</div>
               </div>
