@@ -939,3 +939,90 @@ export const generateAllRecordsReport = (
 
   doc.save(`REPORTE_GENERAL_${shift}_${date}.pdf`);
 };
+
+export const generateRetenReport = (
+  replacements: any[],
+  date: string,
+  shift: string
+) => {
+  if (!replacements || replacements.length === 0) {
+    alert("No hay registros para generar el reporte.");
+    return;
+  }
+
+  const doc = new jspdf.jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 10;
+
+  // Header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('REPORTE DE RELEVOS - UNIDADES RETÉN (AR)', pageWidth / 2, 15, { align: 'center' });
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`FECHA: ${date}`, margin, 25);
+  doc.text(`TURNO: ${shift.toUpperCase()}`, margin + 60, 25);
+
+  const tableRows = replacements.map(r => [
+    r.hora,
+    r.turno,
+    r.retenUnit,
+    r.replacedUnit,
+    r.placa,
+    r.motivo || '-'
+  ]);
+
+  (doc as any).autoTable({
+    startY: 30,
+    head: [['HORA', 'TURNO', 'U. RETÉN', 'U. REEMPLAZADA', 'PLACA', 'MOTIVO']],
+    body: tableRows,
+    theme: 'grid',
+    headStyles: { fillColor: [0, 61, 107], textColor: [255, 255, 255] },
+    styles: { fontSize: 8, halign: 'center' },
+    columnStyles: {
+      5: { halign: 'left', cellWidth: 'auto' }
+    }
+  });
+
+  doc.save(`REPORTE_RETEN_${shift}_${date}.pdf`);
+};
+
+export const generateRetenExcel = (
+  replacements: any[],
+  date: string,
+  shift: string
+) => {
+  const xlsxLib = (window as any).XLSX || (globalThis as any).XLSX || (typeof XLSX !== 'undefined' ? XLSX : null);
+  
+  if (!xlsxLib) {
+    alert("Error: La librería de Excel (SheetJS) no se ha cargado correctamente. Esto puede deberse a restricciones de red o a que el script fue bloqueado por el navegador. Por favor, intenta recargar la página.");
+    return;
+  }
+
+  if (!replacements || replacements.length === 0) {
+    alert("No hay registros para generar el reporte.");
+    return;
+  }
+
+  const data = replacements.map(r => ({
+    'FECHA': r.fecha,
+    'HORA': r.hora,
+    'TURNO': r.turno,
+    'UNIDAD RETÉN': r.retenUnit,
+    'UNIDAD REEMPLAZADA': r.replacedUnit,
+    'PLACA': r.placa,
+    'MOTIVO': r.motivo || '-'
+  }));
+
+  const worksheet = xlsxLib.utils.json_to_sheet(data);
+  const workbook = xlsxLib.utils.book_new();
+  xlsxLib.utils.book_append_sheet(workbook, worksheet, "Relevos Retén");
+
+  xlsxLib.writeFile(workbook, `REPORTE_RETEN_${shift}_${date}.xlsx`);
+};

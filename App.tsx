@@ -9,6 +9,7 @@ import ReportGeneratorView from './components/ReportGeneratorView';
 import { generateMotoReport, generateVehicleReport, generatePersonnelAbsenceReport, generateObservationsReport, generateAllRecordsReport } from './utils/reportGenerator';
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
+import RetenManagementView from './components/RetenManagementView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData } from './types';
 import { SECTORS, SECTOR_DATA } from './constants';
 import { Users, LayoutDashboard, FileText } from 'lucide-react';
@@ -535,6 +536,12 @@ const App: React.FC = () => {
               data={personnelList}
               isLoading={loadingPersonnel}
               onRefresh={loadPersonnel}
+            />
+          ) : currentView === 'RETEN' ? (
+            <RetenManagementView
+              settings={settings}
+              selectedDate={selectedDate}
+              mobileData={mobileData}
             />
           ) : (
             <StatisticsView units={units} />

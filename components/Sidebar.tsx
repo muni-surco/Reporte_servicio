@@ -25,43 +25,53 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       <nav className="flex flex-col gap-5">
         <button
           onClick={() => onViewChange('DASHBOARD')}
-          title="Dashboard de Edición"
+          data-tooltip="Dashboard de Edición"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'DASHBOARD' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
         >
           <span className="material-symbols-outlined">dashboard</span>
         </button>
         <button
           onClick={() => onViewChange('VISUALIZATION')}
-          title="Visualización de Reporte"
+          data-tooltip="Visualización de Reporte"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'VISUALIZATION' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
         >
           <span className="material-symbols-outlined">description</span>
         </button>
         <button
           onClick={() => onViewChange('STATISTICS')}
-          title="Estadísticas Operativas"
+          data-tooltip="Estadísticas Operativas"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'STATISTICS' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
         >
           <span className="material-symbols-outlined">bar_chart</span>
         </button>
         <button
           onClick={() => onViewChange('PERSONNEL')}
-          title="Gestión de Personal"
+          data-tooltip="Gestión de Personal"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'PERSONNEL' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
         >
           <span className="material-symbols-outlined">group</span>
         </button>
         <button
           onClick={() => onViewChange('REPORTS')}
-          title="Centro de Reportes Estructurados"
+          data-tooltip="Centro de Reportes Estructurados"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'REPORTS' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
         >
           <span className="material-symbols-outlined">summarize</span>
         </button>
+        <button
+          onClick={() => onViewChange('RETEN')}
+          data-tooltip="Gestión de Unidades Retén"
+          className={`px-3 py-2 rounded-xl transition-all ${currentView === 'RETEN' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
+        >
+          <span className="material-symbols-outlined">swap_horizontal_circle</span>
+        </button>
       </nav>
 
       <div className="mt-auto flex flex-col items-center gap-4">
-        <div className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center text-[10px] font-medium border border-white/20">
+        <div 
+          data-tooltip="Usuario: Municipalidad de Surco"
+          className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center text-[10px] font-medium border border-white/20 hover:bg-white/20 transition-all cursor-help"
+        >
           MSS
         </div>
       </div>

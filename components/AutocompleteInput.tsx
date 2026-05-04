@@ -36,7 +36,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
       );
       setFiltered(matches.slice(0, 10));
     } else {
-      setFiltered([]);
+      setFiltered(suggestions.slice(0, 20));
     }
   }, [value, suggestions]);
 

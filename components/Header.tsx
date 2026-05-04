@@ -125,7 +125,7 @@ const Header: React.FC<HeaderProps> = ({
                   </div>
                 ) : (
                   <h2 className="text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none truncate">
-                    {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : 'REPORTE'}
+                    {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : currentView === 'RETEN' ? 'GESTIÓN DE RETENES' : 'REPORTE'}
                   </h2>
                 )}
                 <span className="text-[11px] font-medium text-slate-300 uppercase tracking-widest mt-1 block">Gestión de Seguridad</span>

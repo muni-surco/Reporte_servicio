@@ -14,6 +14,13 @@ if (fs.existsSync(sourceGs)) {
 
 // 2. Process JS and CSS into .html files
 const files = fs.readdirSync(assetsPath);
+const xlsxLibPath = path.join(process.cwd(), 'libs', 'xlsx.full.min.js');
+if (fs.existsSync(xlsxLibPath)) {
+    const xlsxContent = fs.readFileSync(xlsxLibPath, 'utf-8');
+    fs.writeFileSync(path.join(distPath, 'XLSX.html'), `<script>\n${xlsxContent}\n</script>`);
+    console.log('Created dist/XLSX.html from libs/xlsx.full.min.js');
+}
+
 let jsContent = '';
 let cssContent = '';
 
@@ -68,7 +75,12 @@ if (fs.existsSync(indexFile)) {
 
     // Inject JS at the end of body
     if (jsContent) {
-        indexHtml = indexHtml.replace('</body>', "<?!= include('JavaScript'); ?>\n</body>");
+        let scripts = "";
+        if (fs.existsSync(path.join(distPath, 'XLSX.html'))) {
+            scripts += "<?!= include('XLSX'); ?>\n";
+        }
+        scripts += "<?!= include('JavaScript'); ?>";
+        indexHtml = indexHtml.replace('</body>', scripts + "\n</body>");
     }
 
     fs.writeFileSync(indexFile, indexHtml);

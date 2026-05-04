@@ -3,6 +3,7 @@ const APP_CONFIG = {
     settings: 'SHIFT_SETTINGS',
     unitData: 'UNIT_DATA',
     referenceData: 'DATA',
+    retenLog: 'RETEN_LOG',
   },
   EXTERNAL_PERSONNEL_SPREADSHEET_ID: '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ',
   MOBILE_DATA_SPREADSHEET_ID: '11j6Ipd3J6HjUnG91RCliCbjrgzJWhzUwktCgfnAESKU',
@@ -67,9 +68,29 @@ function initialSetup() {
            .setBackground('#cfe2f3');
   dataSheet.setFrozenRows(1);
 
+  // 3. Setup RETEN_LOG
+  setupRetenLogSheet(ss);
+
   SpreadsheetApp.getUi().alert(
-    `Estructura de base de datos creada exitosamente. Las hojas ${APP_CONFIG.SHEETS.settings} y ${APP_CONFIG.SHEETS.unitData} están listas.`
+    `Estructura de base de datos creada exitosamente. Las hojas ${APP_CONFIG.SHEETS.settings}, ${APP_CONFIG.SHEETS.unitData} y ${APP_CONFIG.SHEETS.retenLog} están listas.`
   );
+}
+
+/**
+ * Setup RETEN_LOG sheet
+ */
+function setupRetenLogSheet(ss) {
+  let retenSheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+  if (!retenSheet) {
+    retenSheet = ss.insertSheet(APP_CONFIG.SHEETS.retenLog);
+  }
+  retenSheet.clear();
+  const retenHeaders = ['FECHA', 'TURNO', 'UNIDAD_RETEN', 'UNIDAD_REEMPLAZADA', 'PLACA', 'MOTIVO', 'HORA'];
+  retenSheet.getRange(1, 1, 1, retenHeaders.length)
+            .setValues([retenHeaders])
+            .setFontWeight('bold')
+            .setBackground('#fff2cc');
+  retenSheet.setFrozenRows(1);
 }
 
 /**
@@ -178,8 +199,86 @@ function getShiftData(dateStr, shift, sector) {
     settings: shiftSettings, 
     allSectorSettings: allSectorSettings, 
     units: allUnits, 
-    personnelList: getPersonnelList() 
+    personnelList: getPersonnelList(),
+    retenData: getRetenData(dateStr, shift)
   };
+}
+
+/**
+ * Fetches reten replacement logs for a specific date and shift.
+ */
+function getRetenData(dateStr, shift) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues();
+  const results = [];
+  
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
+    if (rowDate === dateStr && row[1] === shift) {
+      results.push({
+        fecha: rowDate,
+        turno: row[1],
+        retenUnit: row[2],
+        replacedUnit: row[3],
+        placa: row[4],
+        motivo: row[5],
+        hora: row[6]
+      });
+    }
+  }
+  return results.reverse(); // Newest first
+}
+
+/**
+ * Saves a new reten replacement record.
+ */
+function saveRetenData(data) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+  if (!sheet) {
+    setupRetenLogSheet(ss);
+    sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+  }
+  
+  sheet.appendRow([
+    data.fecha,
+    data.turno,
+    data.retenUnit,
+    data.replacedUnit,
+    data.placa,
+    data.motivo,
+    data.hora
+  ]);
+  
+  return { success: true };
+}
+
+/**
+ * Deletes a reten replacement record.
+ */
+function deleteRetenData(data) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+  if (!sheet) return { success: false };
+
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
+    if (rowDate === data.fecha && 
+        row[1] === data.turno && 
+        row[2] === data.retenUnit && 
+        row[3] === data.replacedUnit && 
+        row[6] === data.hora) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false };
 }
 
 /**
