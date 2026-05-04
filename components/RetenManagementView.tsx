@@ -26,7 +26,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   const [replacements, setReplacements] = useState<RetenReplacement[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [touched, setTouched] = useState({ replacedUnit: false });
+  const [touched, setTouched] = useState({ replacedUnit: false, motivo: false });
 
   // Form State
   const [form, setForm] = useState({
@@ -46,9 +46,10 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   const errors = {
     replacedUnit: !form.replacedUnit.trim() ? 'Campo requerido' : '',
     placa: !form.placa ? 'Unidad no encontrada' : '',
+    motivo: !form.motivo.trim() ? 'El motivo es obligatorio' : '',
   };
 
-  const isFormValid = !errors.replacedUnit && !errors.placa;
+  const isFormValid = !errors.replacedUnit && !errors.placa && !errors.motivo;
 
   useEffect(() => {
     setForm(prev => ({ ...prev, turno: settings.turno }));
@@ -79,7 +80,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    setTouched({ replacedUnit: true });
+    setTouched({ replacedUnit: true, motivo: true });
 
     if (!isFormValid) {
       return;
@@ -102,7 +103,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
         .withSuccessHandler(() => {
           setReplacements(prev => [newReplacement, ...prev]);
           setForm({ ...form, replacedUnit: '', placa: '', motivo: '' });
-          setTouched({ replacedUnit: false });
+          setTouched({ replacedUnit: false, motivo: false });
           setSaving(false);
         })
         .withFailureHandler((err: any) => {
@@ -113,7 +114,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
     } else {
       setReplacements(prev => [newReplacement, ...prev]);
       setForm({ ...form, replacedUnit: '', placa: '', motivo: '' });
-      setTouched({ replacedUnit: false });
+      setTouched({ replacedUnit: false, motivo: false });
       setSaving(false);
     }
   };
@@ -126,7 +127,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
       replacedUnit: value,
       placa: found ? found.plate : ''
     }));
-    if (!touched.replacedUnit) setTouched({ replacedUnit: true });
+    if (!touched.replacedUnit) setTouched(prev => ({ ...prev, replacedUnit: true }));
   };
 
   const handleRetenUnitChange = (value: string) => {
@@ -147,21 +148,23 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
 
 
   return (
-    <div className="mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="bg-surco-navy p-4 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-2xl">swap_horizontal_circle</span>
-            <h2 className="text-lg font-semibold tracking-tight">Registro de Unidades de Reemplazo /  Retén (AR)</h2>
-          </div>
-          <div className="flex items-center gap-4 text-xs font-medium opacity-80">
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm">calendar_today</span>
-              {selectedDate}
+    <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200/60 overflow-hidden border border-slate-100 min-h-[600px] flex flex-col">
+      <div className="p-8 pb-0">
+        <div className="bg-surco-blue rounded-2xl p-6 text-white mb-8 shadow-xl shadow-surco-blue/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-2xl">swap_horizontal_circle</span>
+              <h2 className="text-lg font-semibold tracking-tight">Registro de Unidades de Reemplazo /  Retén (AR)</h2>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm">schedule</span>
-              TURNO {settings.turno}
+            <div className="flex items-center gap-4 text-xs font-medium opacity-80">
+              <div className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm">calendar_today</span>
+                {selectedDate}
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-sm">schedule</span>
+                TURNO {settings.turno}
+              </div>
             </div>
           </div>
         </div>
@@ -187,7 +190,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                 <AutocompleteInput
                   value={form.replacedUnit}
                   onChange={handleReplacedUnitChange}
-                  onBlur={() => setTouched({ replacedUnit: true })}
+                  onBlur={() => setTouched(prev => ({ ...prev, replacedUnit: true }))}
                   placeholder="Ej: M-15..."
                   suggestions={mobileIds}
                   error={touched.replacedUnit && !!errors.replacedUnit}
@@ -244,13 +247,25 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Motivo</label>
-              <input
-                type="text"
-                value={form.motivo}
-                placeholder="Opcional..."
-                onChange={e => setForm({ ...form, motivo: e.target.value })}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px]"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={form.motivo}
+                  placeholder="Justificación del relevo..."
+                  onBlur={() => setTouched(prev => ({ ...prev, motivo: true }))}
+                  onChange={e => {
+                    setForm({ ...form, motivo: e.target.value });
+                    if (!touched.motivo) setTouched(prev => ({ ...prev, motivo: true }));
+                  }}
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px] ${touched.motivo && errors.motivo
+                    ? 'border-red-300 bg-red-50/30'
+                    : 'bg-white border-slate-200'
+                    }`}
+                />
+                {touched.motivo && errors.motivo && (
+                  <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.motivo}</p>
+                )}
+              </div>
             </div>
           </div>
 
