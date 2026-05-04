@@ -90,6 +90,7 @@ const Header: React.FC<HeaderProps> = ({
   const isStatistics = currentView === 'STATISTICS';
   const isReports = currentView === 'REPORTS';
   const isVisualization = currentView === 'VISUALIZATION';
+  const isReten = currentView === 'RETEN';
 
   const labelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-widest block mb-1 whitespace-nowrap leading-none";
   const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-medium text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-9 shadow-sm appearance-none flex items-center";
@@ -125,7 +126,7 @@ const Header: React.FC<HeaderProps> = ({
                   </div>
                 ) : (
                   <h2 className="text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none truncate">
-                    {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : currentView === 'RETEN' ? 'GESTIÓN DE RETENES' : 'REPORTE'}
+                    {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : 'REPORTE'}
                   </h2>
                 )}
                 <span className="text-[11px] font-medium text-slate-300 uppercase tracking-widest mt-1 block">Gestión de Seguridad</span>
@@ -169,7 +170,7 @@ const Header: React.FC<HeaderProps> = ({
                       <span className="text-[13px] font-medium text-green-600 leading-none">{personnelStats.activos}</span>
                     </div>
                   </div>
-                ) : (
+                ) : !isReten ? (
                   <>
                     <div className="flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>OPERADOR</span>
@@ -196,7 +197,7 @@ const Header: React.FC<HeaderProps> = ({
                       )}
                     </div>
                   </>
-                )}
+                ) : null}
               </div>
 
               <div className="flex items-center gap-4 ml-auto lg:ml-0">
@@ -259,7 +260,7 @@ const Header: React.FC<HeaderProps> = ({
                       <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
                     </button>
                   </>
-                ) : !isReports ? (
+                ) : !isReports && !isReten ? (
                   <button
                     onClick={handleRefreshClick}
                     disabled={isRefreshing}

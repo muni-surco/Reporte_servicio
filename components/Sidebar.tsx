@@ -31,6 +31,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           <span className="material-symbols-outlined">dashboard</span>
         </button>
         <button
+          onClick={() => onViewChange('RETEN')}
+          data-tooltip="Gestión de Unidades Retén"
+          className={`px-3 py-2 rounded-xl transition-all ${currentView === 'RETEN' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
+        >
+          <span className="material-symbols-outlined">swap_horizontal_circle</span>
+        </button>
+        <button
           onClick={() => onViewChange('VISUALIZATION')}
           data-tooltip="Visualización de Reporte"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'VISUALIZATION' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
@@ -58,17 +65,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
         >
           <span className="material-symbols-outlined">summarize</span>
         </button>
-        <button
-          onClick={() => onViewChange('RETEN')}
-          data-tooltip="Gestión de Unidades Retén"
-          className={`px-3 py-2 rounded-xl transition-all ${currentView === 'RETEN' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
-        >
-          <span className="material-symbols-outlined">swap_horizontal_circle</span>
-        </button>
       </nav>
 
       <div className="mt-auto flex flex-col items-center gap-4">
-        <div 
+        <div
           data-tooltip="Usuario: Municipalidad de Surco"
           className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center text-[10px] font-medium border border-white/20 hover:bg-white/20 transition-all cursor-help"
         >

@@ -17,7 +17,7 @@ interface RetenReplacement {
 interface RetenManagementViewProps {
   settings: AppSettings;
   selectedDate: string;
-  mobileData: { id: string, plate: string }[];
+  mobileData: { id: string, plate: string, sector?: string }[];
 }
 
 declare const google: any;
@@ -27,10 +27,6 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState({ replacedUnit: false });
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; index: number | null }>({
-    isOpen: false,
-    index: null,
-  });
 
   // Form State
   const [form, setForm] = useState({
@@ -143,24 +139,12 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
     }));
   };
 
-  const handleDelete = (index: number) => {
-    setDeleteModal({ isOpen: true, index });
+  // Helper to find sector for a given unit ID
+  const getUnitSector = (unitId: string) => {
+    const found = mobileData.find(m => m.id.toUpperCase() === unitId.toUpperCase());
+    return found?.sector || '-';
   };
 
-  const confirmDelete = () => {
-    if (deleteModal.index === null) return;
-
-    const index = deleteModal.index;
-    const replacementToDelete = replacements[index];
-    const newReplacements = replacements.filter((_, i) => i !== index);
-    setReplacements(newReplacements);
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run.deleteRetenData(replacementToDelete);
-    }
-
-    setDeleteModal({ isOpen: false, index: null });
-  };
 
   return (
     <div className="mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -306,11 +290,11 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Hora</th>
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Turno</th>
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Reemplazada</th>
+                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Sector</th>
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Placa Reemplazada</th>
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Retén</th>
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Placa Retén</th>
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -347,9 +331,12 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                       <span className="text-[11px] font-semibold text-slate-500">{r.turno}</span>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-700">{r.replacedUnit}</span>
-                      </div>
+                      <span className="font-semibold text-slate-700">{r.replacedUnit}</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                        {getUnitSector(r.replacedUnit)}
+                      </span>
                     </td>
                     <td className="px-4 py-4">
                       <span className="text-sm font-medium text-slate-500">{r.placa}</span>
@@ -359,15 +346,6 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                     <td className="px-4 py-4 text-sm text-slate-600">
                       {r.motivo || '-'}
                     </td>
-                    <td className="px-4 py-4 text-right">
-                      <button
-                        onClick={() => handleDelete(idx)}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        title="Eliminar registro"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}
@@ -375,41 +353,6 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
           </table>
         </div>
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {deleteModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            onClick={() => setDeleteModal({ isOpen: false, index: null })}
-          ></div>
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden relative z-10 animate-in zoom-in-95 duration-200">
-            <div className="bg-red-50 p-6 flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <span className="material-symbols-outlined text-red-600 text-4xl">delete_forever</span>
-              </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">¿Eliminar registro?</h3>
-              <p className="text-slate-500 text-sm leading-relaxed">
-                Esta acción eliminará el registro de la unidad retén de forma permanente en el sistema.
-              </p>
-            </div>
-            <div className="p-4 bg-slate-50 flex gap-3">
-              <button
-                onClick={() => setDeleteModal({ isOpen: false, index: null })}
-                className="flex-1 px-4 py-3 rounded-2xl font-semibold text-slate-600 hover:bg-slate-200 transition-all text-sm"
-              >
-                CANCELAR
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 px-4 py-3 rounded-2xl font-semibold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/20 transition-all text-sm"
-              >
-                SÍ, ELIMINAR
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
