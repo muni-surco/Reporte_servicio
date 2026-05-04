@@ -973,6 +973,7 @@ export const generateRetenReport = (
     r.hora,
     r.turno,
     r.retenUnit,
+    r.placaReten || '-',
     r.replacedUnit,
     r.placa,
     r.motivo || '-'
@@ -980,13 +981,13 @@ export const generateRetenReport = (
 
   (doc as any).autoTable({
     startY: 30,
-    head: [['HORA', 'TURNO', 'U. RETÉN', 'U. REEMPLAZADA', 'PLACA', 'MOTIVO']],
+    head: [['HORA', 'TURNO', 'U. RETÉN', 'PLACA RETÉN', 'U. REEMPLAZADA', 'PLACA', 'MOTIVO']],
     body: tableRows,
     theme: 'grid',
     headStyles: { fillColor: [0, 61, 107], textColor: [255, 255, 255] },
     styles: { fontSize: 8, halign: 'center' },
     columnStyles: {
-      5: { halign: 'left', cellWidth: 'auto' }
+      6: { halign: 'left', cellWidth: 'auto' }
     }
   });
 
@@ -1015,8 +1016,9 @@ export const generateRetenExcel = (
     'HORA': r.hora,
     'TURNO': r.turno,
     'UNIDAD RETÉN': r.retenUnit,
+    'PLACA RETÉN': r.placaReten || '-',
     'UNIDAD REEMPLAZADA': r.replacedUnit,
-    'PLACA': r.placa,
+    'PLACA REEMPLAZADA': r.placa,
     'MOTIVO': r.motivo || '-'
   }));
 

@@ -85,7 +85,7 @@ function setupRetenLogSheet(ss) {
     retenSheet = ss.insertSheet(APP_CONFIG.SHEETS.retenLog);
   }
   retenSheet.clear();
-  const retenHeaders = ['FECHA', 'TURNO', 'UNIDAD_RETEN', 'UNIDAD_REEMPLAZADA', 'PLACA', 'MOTIVO', 'HORA'];
+  const retenHeaders = ['FECHA', 'TURNO', 'UNIDAD_RETEN', 'PLACA_RETEN', 'UNIDAD_REEMPLAZADA', 'PLACA', 'MOTIVO', 'HORA'];
   retenSheet.getRange(1, 1, 1, retenHeaders.length)
             .setValues([retenHeaders])
             .setFontWeight('bold')
@@ -223,10 +223,11 @@ function getRetenData(dateStr, shift) {
         fecha: rowDate,
         turno: row[1],
         retenUnit: row[2],
-        replacedUnit: row[3],
-        placa: row[4],
-        motivo: row[5],
-        hora: row[6]
+        placaReten: row[3],
+        replacedUnit: row[4],
+        placa: row[5],
+        motivo: row[6],
+        hora: row[7]
       });
     }
   }
@@ -248,6 +249,7 @@ function saveRetenData(data) {
     data.fecha,
     data.turno,
     data.retenUnit,
+    data.placaReten,
     data.replacedUnit,
     data.placa,
     data.motivo,
@@ -272,8 +274,8 @@ function deleteRetenData(data) {
     if (rowDate === data.fecha && 
         row[1] === data.turno && 
         row[2] === data.retenUnit && 
-        row[3] === data.replacedUnit && 
-        row[6] === data.hora) {
+        row[4] === data.replacedUnit && 
+        row[7] === data.hora) {
       sheet.deleteRow(i + 1);
       return { success: true };
     }
