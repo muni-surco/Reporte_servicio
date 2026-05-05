@@ -209,11 +209,11 @@ function getShiftData(dateStr, shift, sector) {
     console.log('[getShiftData] OK — units=' + allUnits.length);
 
     // NOTE: personnelList is NOT included here to keep the payload small.
+    // NOTE: retenData is loaded lazily by RetenManagementView.
     return { 
       settings: shiftSettings, 
       allSectorSettings: allSectorSettings, 
-      units: allUnits,
-      retenData: getRetenData(dateStr, shift)
+      units: allUnits
     };
   } catch (err) {
     console.error('[getShiftData] ERROR', err);
