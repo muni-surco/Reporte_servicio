@@ -97,141 +97,171 @@ function setupRetenLogSheet(ss) {
  * Fetches all units and settings for a specific date, shift and sector.
  */
 function getShiftData(dateStr, shift, sector) {
-  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-  
+  try {
+    console.log('[getShiftData] START — dateStr=' + dateStr + ' shift=' + shift + ' sector=' + sector);
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
 
-  // 1. Get Settings
-  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
-  let shiftSettings = {
-    turno: shift,
-    operador: '',
-    supervisor: '',
-    nombrePuesto: toDisplaySector(sector || '1A'),
-    permanencia: ''
-  };
-  
-  // Store settings for ALL sectors to support the Integrated Report view
-  const allSectorSettings = {};
+    // 1. Get Settings
+    const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
+    let shiftSettings = {
+      turno: shift,
+      operador: '',
+      supervisor: '',
+      nombrePuesto: toDisplaySector(sector || '1A'),
+      permanencia: ''
+    };
+    
+    // Store settings for ALL sectors to support the Integrated Report view
+    const allSectorSettings = {};
 
-  if (settingsSheet) {
-    const settingsRows = settingsSheet.getDataRange().getValues();
-    let commonPermanencia = '';
+    if (settingsSheet) {
+      const settingsRows = settingsSheet.getDataRange().getValues();
+      let commonPermanencia = '';
 
-    // First pass: find common permanencia and collect all sector settings
-    for (let i = 1; i < settingsRows.length; i++) {
-      const row = settingsRows[i];
-      if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
-        // Capture permanencia from any row of this shift found
-        if (row[5]) commonPermanencia = row[5];
+      for (let i = 1; i < settingsRows.length; i++) {
+        const row = settingsRows[i];
+        if (!row[0]) continue;
+        try {
+          const rowDateStr = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+          if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
+        } catch (e) {
+          continue;
+        }
+
+        // Convert all values to strings to avoid GAS serialization issues with Date/Number cell values
+        const permanenciaVal = String(row[5] || '');
+        if (permanenciaVal) commonPermanencia = permanenciaVal;
         
         const sectorName = toDisplaySector(row[2]);
         if (sectorName) {
-           allSectorSettings[sectorName] = {
-            turno: row[1],
-            operador: row[3],
-            supervisor: row[4],
+          allSectorSettings[sectorName] = {
+            turno: String(row[1] || ''),
+            operador: String(row[3] || ''),
+            supervisor: String(row[4] || ''),
             nombrePuesto: sectorName,
-            permanencia: row[5]
+            permanencia: permanenciaVal
           };
         }
 
-        // Check if this row is for the requested sector (for single view compatibility)
         if (toStorageSector(sectorName) === toStorageSector(sector)) {
           shiftSettings = {
-            turno: row[1],
-            operador: row[3],
-            supervisor: row[4],
+            turno: String(row[1] || ''),
+            operador: String(row[3] || ''),
+            supervisor: String(row[4] || ''),
             nombrePuesto: sectorName,
-            permanencia: row[5]
+            permanencia: permanenciaVal
           };
         }
       }
-    }
-    
-    // Propagate common permanencia if missing in specific sectors
-    if (commonPermanencia) {
-      if (!shiftSettings.permanencia) shiftSettings.permanencia = commonPermanencia;
-      Object.keys(allSectorSettings).forEach(key => {
-        if (!allSectorSettings[key].permanencia) {
-          allSectorSettings[key].permanencia = commonPermanencia;
-        }
-      });
-    }
-  }
-
-  // 2. Get Unit Data
-  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-  const allUnits = [];
-
-  if (dataSheet) {
-    const dataRows = dataSheet.getDataRange().getValues();
-    for (let i = 1; i < dataRows.length; i++) {
-      const row = dataRows[i];
-      if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && row[1] === shift) {
-        allUnits.push({
-          id: row[3],
-          sector: toDisplaySector(row[2]),
-          type: row[4],
-          model: row[5],
-          personnel1: row[6],
-          personnel2: row[7],
-          plate: row[8],
-          indicative: row[9],
-          radio: row[10],
-          status: row[11],
-          reason: row[12],
-          kmStart: row[13],
-          kmEnd: row[14],
-          totalKm: row[15],
-          kmRecarga: row[16],
-          hours: row[17],
-          fuel: row[18],
-          expense: row[19],
-          parts: row[20],
-          quadrant: row[21],
-          mechanics: row[22]
+      
+      if (commonPermanencia) {
+        if (!shiftSettings.permanencia) shiftSettings.permanencia = commonPermanencia;
+        Object.keys(allSectorSettings).forEach(key => {
+          if (!allSectorSettings[key].permanencia) {
+            allSectorSettings[key].permanencia = commonPermanencia;
+          }
         });
       }
     }
-  }
 
-  return { 
-    settings: shiftSettings, 
-    allSectorSettings: allSectorSettings, 
-    units: allUnits, 
-    personnelList: getPersonnelList(),
-    retenData: getRetenData(dateStr, shift)
-  };
+    // 2. Get Unit Data
+    const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+    const allUnits = [];
+
+    if (dataSheet) {
+      const dataRows = dataSheet.getDataRange().getValues();
+      for (let i = 1; i < dataRows.length; i++) {
+        const row = dataRows[i];
+        if (!row[0]) continue;
+        try {
+          const rowDateStr = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+          if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
+        } catch (e) {
+          continue;
+        }
+        // Convert all values to String to avoid serialization issues with Date/Number cells
+        allUnits.push({
+          id: String(row[3] || ''),
+          sector: toDisplaySector(row[2]),
+          type: String(row[4] || ''),
+          model: String(row[5] || ''),
+          personnel1: String(row[6] || ''),
+          personnel2: String(row[7] || ''),
+          plate: String(row[8] || ''),
+          indicative: String(row[9] || ''),
+          radio: String(row[10] || ''),
+          status: String(row[11] || ''),
+          reason: String(row[12] || ''),
+          kmStart: String(row[13] || '0'),
+          kmEnd: String(row[14] || '0'),
+          totalKm: String(row[15] || '0'),
+          kmRecarga: String(row[16] || '0'),
+          hours: String(row[17] || ''),
+          fuel: String(row[18] || '-- / --'),
+          expense: String(row[19] || 'S/ 0.00'),
+          parts: String(row[20] || '0'),
+          quadrant: String(row[21] || ''),
+          mechanics: String(row[22] || '')
+        });
+      }
+    }
+
+    console.log('[getShiftData] OK — units=' + allUnits.length);
+
+    // NOTE: personnelList is NOT included here to keep the payload small.
+    return { 
+      settings: shiftSettings, 
+      allSectorSettings: allSectorSettings, 
+      units: allUnits,
+      retenData: getRetenData(dateStr, shift)
+    };
+  } catch (err) {
+    console.error('[getShiftData] ERROR', err);
+    throw err;
+  }
 }
 
 /**
  * Fetches reten replacement logs for a specific date and shift.
  */
 function getRetenData(dateStr, shift) {
-  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
-  if (!sheet) return [];
+  try {
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+    if (!sheet) return [];
 
-  const rows = sheet.getDataRange().getValues();
-  const results = [];
-  
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
-    if (rowDate === dateStr && row[1] === shift) {
-      results.push({
-        fecha: rowDate,
-        turno: row[1],
-        retenUnit: row[2],
-        placaReten: row[3],
-        replacedUnit: row[4],
-        placa: row[5],
-        motivo: row[6],
-        hora: row[7]
-      });
+    const rows = sheet.getDataRange().getValues();
+    const results = [];
+    
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row[0]) continue;
+      
+      try {
+        const rowDate = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+        if (rowDate === dateStr && String(row[1]) === shift) {
+          results.push({
+            fecha: rowDate,
+            turno: String(row[1] || ''),
+            retenUnit: String(row[2] || ''),
+            placaReten: String(row[3] || ''),
+            replacedUnit: String(row[4] || ''),
+            placa: String(row[5] || ''),
+            motivo: String(row[6] || ''),
+            hora: (row[7] instanceof Date) 
+                  ? Utilities.formatDate(row[7], ss.getSpreadsheetTimeZone(), 'HH:mm')
+                  : String(row[7] || '')
+          });
+        }
+      } catch (e) {
+        continue;
+      }
     }
+    return results.reverse(); // Newest first
+  } catch (err) {
+    console.error('[getRetenData] ERROR', err);
+    return [];
   }
-  return results.reverse(); // Newest first
 }
 
 /**

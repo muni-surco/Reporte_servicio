@@ -114,7 +114,14 @@ const App: React.FC = () => {
     setLoading(true);
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] }) => {
+        .withSuccessHandler((data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] } | null) => {
+          // Guard: GAS may return null if the payload is too large or an error occurs server-side
+          if (!data) {
+            console.warn('getShiftData returned null — no data for this date/shift or a server error occurred.');
+            setUnits([]);
+            setLoading(false);
+            return;
+          }
           const incomingUnits: UnitData[] = (data.units || []).map((u, idx) => ({
             ...u,
             id: String(u.id || ''),
@@ -408,7 +415,8 @@ const App: React.FC = () => {
         } else if (type === 'moviles') {
           generateVehicleReport(data.units, data.allSectorSettings || {}, date, shift);
         } else if (type === 'asistencia_regimen') {
-          generatePersonnelAbsenceReport(data.units, data.personnelList || [], date, shift);
+          // Use personnelList already loaded in state — getShiftData no longer includes it
+          generatePersonnelAbsenceReport(data.units, personnelList, date, shift);
         } else if (type === 'observaciones') {
           generateObservationsReport(data.units, date, shift);
         } else if (type === 'general') {
