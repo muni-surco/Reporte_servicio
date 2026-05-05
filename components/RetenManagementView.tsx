@@ -12,6 +12,10 @@ interface RetenReplacement {
   placa: string;
   motivo: string;
   hora: string;
+  fechaIngresoTaller?: string;
+  horaIngresoTaller?: string;
+  fechaSalidaTaller?: string;
+  horaSalidaTaller?: string;
 }
 
 interface RetenManagementViewProps {
@@ -26,7 +30,10 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   const [replacements, setReplacements] = useState<RetenReplacement[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [touched, setTouched] = useState({ replacedUnit: false, motivo: false });
+  const [touched, setTouched] = useState({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false });
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ fechaSalidaTaller: '', horaSalidaTaller: '' });
 
   // Form State
   const [form, setForm] = useState({
@@ -36,6 +43,10 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
     placa: '',
     motivo: '',
     turno: settings.turno,
+    fechaIngresoTaller: '',
+    horaIngresoTaller: '',
+    fechaSalidaTaller: '',
+    horaSalidaTaller: '',
   });
 
   const shifts = ['MAÑANA', 'TARDE', 'NOCHE'];
@@ -47,9 +58,11 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
     replacedUnit: !form.replacedUnit.trim() ? 'Campo requerido' : '',
     placa: !form.placa ? 'Unidad no encontrada' : '',
     motivo: !form.motivo.trim() ? 'El motivo es obligatorio' : '',
+    fechaIngresoTaller: !form.fechaIngresoTaller ? 'Fecha requerida' : '',
+    horaIngresoTaller: !form.horaIngresoTaller ? 'Hora requerida' : '',
   };
 
-  const isFormValid = !errors.replacedUnit && !errors.placa && !errors.motivo;
+  const isFormValid = !errors.replacedUnit && !errors.placa && !errors.motivo && !errors.fechaIngresoTaller && !errors.horaIngresoTaller;
 
   useEffect(() => {
     setForm(prev => ({ ...prev, turno: settings.turno }));
@@ -80,7 +93,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    setTouched({ replacedUnit: true, motivo: true });
+    setTouched({ replacedUnit: true, motivo: true, fechaIngresoTaller: true, horaIngresoTaller: true });
 
     if (!isFormValid) {
       return;
@@ -95,6 +108,10 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
       placa: form.placa.toUpperCase(),
       motivo: form.motivo,
       hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      fechaIngresoTaller: form.fechaIngresoTaller,
+      horaIngresoTaller: form.horaIngresoTaller,
+      fechaSalidaTaller: form.fechaSalidaTaller,
+      horaSalidaTaller: form.horaSalidaTaller,
     };
 
     setSaving(true);
@@ -102,8 +119,8 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
       google.script.run
         .withSuccessHandler(() => {
           setReplacements(prev => [newReplacement, ...prev]);
-          setForm({ ...form, replacedUnit: '', placa: '', motivo: '' });
-          setTouched({ replacedUnit: false, motivo: false });
+          setForm({ ...form, replacedUnit: '', placa: '', motivo: '', fechaIngresoTaller: '', horaIngresoTaller: '', fechaSalidaTaller: '', horaSalidaTaller: '' });
+          setTouched({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false });
           setSaving(false);
         })
         .withFailureHandler((err: any) => {
@@ -113,10 +130,59 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
         .saveRetenData(newReplacement);
     } else {
       setReplacements(prev => [newReplacement, ...prev]);
-      setForm({ ...form, replacedUnit: '', placa: '', motivo: '' });
-      setTouched({ replacedUnit: false, motivo: false });
+      setForm({ ...form, replacedUnit: '', placa: '', motivo: '', fechaIngresoTaller: '', horaIngresoTaller: '', fechaSalidaTaller: '', horaSalidaTaller: '' });
+      setTouched({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false });
       setSaving(false);
     }
+  };
+
+  const handleUpdateSalida = (replacement: RetenReplacement) => {
+    const key = replacement.fecha + replacement.hora + replacement.retenUnit + replacement.replacedUnit;
+    setUpdatingId(key);
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res: { success: boolean, error?: string }) => {
+          if (res.success) {
+            setReplacements(prev => prev.map(r => {
+              if (r.fecha === replacement.fecha && r.hora === replacement.hora && r.retenUnit === replacement.retenUnit && r.replacedUnit === replacement.replacedUnit) {
+                return { ...r, fechaSalidaTaller: editForm.fechaSalidaTaller, horaSalidaTaller: editForm.horaSalidaTaller };
+              }
+              return r;
+            }));
+            setEditingKey(null);
+          } else {
+            alert('Error al actualizar: ' + res.error);
+          }
+          setUpdatingId(null);
+        })
+        .withFailureHandler((err: any) => {
+          alert('Error de red: ' + err);
+          setUpdatingId(null);
+        })
+        .updateRetenSalida({
+          ...replacement,
+          fechaSalidaTaller: editForm.fechaSalidaTaller,
+          horaSalidaTaller: editForm.horaSalidaTaller
+        });
+    } else {
+      // Mock update
+      setReplacements(prev => prev.map(r => {
+        if (r.fecha === replacement.fecha && r.hora === replacement.hora && r.retenUnit === replacement.retenUnit && r.replacedUnit === replacement.replacedUnit) {
+          return { ...r, fechaSalidaTaller: editForm.fechaSalidaTaller, horaSalidaTaller: editForm.horaSalidaTaller };
+        }
+        return r;
+      }));
+      setEditingKey(null);
+      setUpdatingId(null);
+    }
+  };
+
+  const startEditing = (r: RetenReplacement) => {
+    setEditingKey(r.fecha + r.hora + r.retenUnit + r.replacedUnit);
+    setEditForm({
+      fechaSalidaTaller: r.fechaSalidaTaller || '',
+      horaSalidaTaller: r.horaSalidaTaller || ''
+    });
   };
 
   const handleReplacedUnitChange = (value: string) => {
@@ -267,6 +333,70 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                 )}
               </div>
             </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">F. Ingreso Taller</label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={form.fechaIngresoTaller}
+                  onBlur={() => setTouched(prev => ({ ...prev, fechaIngresoTaller: true }))}
+                  onChange={e => {
+                    setForm({ ...form, fechaIngresoTaller: e.target.value });
+                    if (!touched.fechaIngresoTaller) setTouched(prev => ({ ...prev, fechaIngresoTaller: true }));
+                  }}
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px] ${touched.fechaIngresoTaller && errors.fechaIngresoTaller
+                    ? 'border-red-300 bg-red-50/30'
+                    : 'bg-white border-slate-200'
+                    }`}
+                />
+                {touched.fechaIngresoTaller && errors.fechaIngresoTaller && (
+                  <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.fechaIngresoTaller}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">H. Ingreso Taller</label>
+              <div className="relative">
+                <input
+                  type="time"
+                  value={form.horaIngresoTaller}
+                  onBlur={() => setTouched(prev => ({ ...prev, horaIngresoTaller: true }))}
+                  onChange={e => {
+                    setForm({ ...form, horaIngresoTaller: e.target.value });
+                    if (!touched.horaIngresoTaller) setTouched(prev => ({ ...prev, horaIngresoTaller: true }));
+                  }}
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px] ${touched.horaIngresoTaller && errors.horaIngresoTaller
+                    ? 'border-red-300 bg-red-50/30'
+                    : 'bg-white border-slate-200'
+                    }`}
+                />
+                {touched.horaIngresoTaller && errors.horaIngresoTaller && (
+                  <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.horaIngresoTaller}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">F. Salida Taller</label>
+              <input
+                type="date"
+                value={form.fechaSalidaTaller}
+                onChange={e => setForm({ ...form, fechaSalidaTaller: e.target.value })}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px]"
+              />
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">H. Salida Taller</label>
+              <input
+                type="time"
+                value={form.horaSalidaTaller}
+                onChange={e => setForm({ ...form, horaSalidaTaller: e.target.value })}
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px]"
+              />
+            </div>
           </div>
 
           <div className="flex gap-3 h-[42px] justify-end">
@@ -310,12 +440,15 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Retén</th>
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Placa Retén</th>
                 <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
+                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ingreso Taller</th>
+                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider min-w-[140px]">Salida Taller</th>
+                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={12} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-8 h-8 border-3 border-surco-blue/30 border-t-surco-blue rounded-full animate-spin"></div>
                       <p className="text-slate-400 text-sm font-medium">Buscando registros...</p>
@@ -324,7 +457,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                 </tr>
               ) : replacements.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={12} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2 opacity-60">
                       <span className="material-symbols-outlined text-4xl text-slate-300">history_toggle_off</span>
                       <p className="text-sm font-medium">No hay relevos registrados para este turno.</p>
@@ -360,6 +493,66 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                     <td className="px-4 py-4 text-sm font-medium text-slate-500">{r.placaReten}</td>
                     <td className="px-4 py-4 text-sm text-slate-600">
                       {r.motivo || '-'}
+                    </td>
+                    <td className="px-4 py-4 text-[11px] text-slate-500">
+                      {r.fechaIngresoTaller ? `${r.fechaIngresoTaller} ${r.horaIngresoTaller || ''}` : '-'}
+                    </td>
+                    <td className="px-4 py-4 text-[11px] text-slate-500">
+                      {editingKey === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
+                        <div className="flex flex-col gap-2">
+                          <input
+                            type="date"
+                            value={editForm.fechaSalidaTaller}
+                            onChange={e => setEditForm(prev => ({ ...prev, fechaSalidaTaller: e.target.value }))}
+                            className="border border-slate-200 rounded px-2 py-1 text-[11px] outline-none"
+                          />
+                          <input
+                            type="time"
+                            value={editForm.horaSalidaTaller}
+                            onChange={e => setEditForm(prev => ({ ...prev, horaSalidaTaller: e.target.value }))}
+                            className="border border-slate-200 rounded px-2 py-1 text-[11px] outline-none"
+                          />
+                        </div>
+                      ) : (
+                        r.fechaSalidaTaller ? `${r.fechaSalidaTaller} ${r.horaSalidaTaller || ''}` : '-'
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      {editingKey === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateSalida(r)}
+                            disabled={updatingId === r.fecha + r.hora + r.retenUnit + r.replacedUnit}
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                            title="Guardar"
+                          >
+                            {updatingId === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
+                              <div className="w-4 h-4 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin"></div>
+                            ) : (
+                              <span className="material-symbols-outlined text-lg">check_circle</span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingKey(null)}
+                            disabled={updatingId === r.fecha + r.hora + r.retenUnit + r.replacedUnit}
+                            className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition-colors"
+                            title="Cancelar"
+                          >
+                            <span className="material-symbols-outlined text-lg">cancel</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startEditing(r)}
+                          className="p-1.5 text-slate-400 hover:text-surco-blue hover:bg-blue-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          title="Editar Salida Taller"
+                        >
+                          <span className="material-symbols-outlined text-lg">edit</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

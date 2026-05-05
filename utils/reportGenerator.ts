@@ -976,18 +976,22 @@ export const generateRetenReport = (
     r.placaReten || '-',
     r.replacedUnit,
     r.placa,
-    r.motivo || '-'
+    r.motivo || '-',
+    r.fechaIngresoTaller ? `${r.fechaIngresoTaller} ${r.horaIngresoTaller || ''}` : '-',
+    r.fechaSalidaTaller ? `${r.fechaSalidaTaller} ${r.horaSalidaTaller || ''}` : '-'
   ]);
 
   (doc as any).autoTable({
     startY: 30,
-    head: [['HORA', 'TURNO', 'U. RETÉN', 'PLACA RETÉN', 'U. REEMPLAZADA', 'PLACA', 'MOTIVO']],
+    head: [['HORA', 'TURNO', 'U. RETÉN', 'PLACA RETÉN', 'U. REEMPLAZADA', 'PLACA', 'MOTIVO', 'INGRESO TALLER', 'SALIDA TALLER']],
     body: tableRows,
     theme: 'grid',
     headStyles: { fillColor: [0, 61, 107], textColor: [255, 255, 255] },
     styles: { fontSize: 8, halign: 'center' },
     columnStyles: {
-      6: { halign: 'left', cellWidth: 'auto' }
+      6: { halign: 'left', cellWidth: 30 },
+      7: { halign: 'left', cellWidth: 'auto' },
+      8: { halign: 'left', cellWidth: 'auto' }
     }
   });
 
@@ -1019,7 +1023,11 @@ export const generateRetenExcel = (
     'PLACA RETÉN': r.placaReten || '-',
     'UNIDAD REEMPLAZADA': r.replacedUnit,
     'PLACA REEMPLAZADA': r.placa,
-    'MOTIVO': r.motivo || '-'
+    'MOTIVO': r.motivo || '-',
+    'FECHA INGRESO TALLER': r.fechaIngresoTaller || '-',
+    'HORA INGRESO TALLER': r.horaIngresoTaller || '-',
+    'FECHA SALIDA TALLER': r.fechaSalidaTaller || '-',
+    'HORA SALIDA TALLER': r.horaSalidaTaller || '-'
   }));
 
   const worksheet = xlsxLib.utils.json_to_sheet(data);

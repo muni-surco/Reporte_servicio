@@ -250,7 +250,11 @@ function getRetenData(dateStr, shift) {
             motivo: String(row[6] || ''),
             hora: (row[7] instanceof Date) 
                   ? Utilities.formatDate(row[7], ss.getSpreadsheetTimeZone(), 'HH:mm')
-                  : String(row[7] || '')
+                  : String(row[7] || ''),
+            fechaIngresoTaller: (row[8] instanceof Date) ? Utilities.formatDate(row[8], ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : String(row[8] || ''),
+            horaIngresoTaller: (row[9] instanceof Date) ? Utilities.formatDate(row[9], ss.getSpreadsheetTimeZone(), 'HH:mm') : String(row[9] || ''),
+            fechaSalidaTaller: (row[10] instanceof Date) ? Utilities.formatDate(row[10], ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : String(row[10] || ''),
+            horaSalidaTaller: (row[11] instanceof Date) ? Utilities.formatDate(row[11], ss.getSpreadsheetTimeZone(), 'HH:mm') : String(row[11] || '')
           });
         }
       } catch (e) {
@@ -283,7 +287,11 @@ function saveRetenData(data) {
     data.replacedUnit,
     data.placa,
     data.motivo,
-    data.hora
+    data.hora,
+    data.fechaIngresoTaller || '',
+    data.horaIngresoTaller || '',
+    data.fechaSalidaTaller || '',
+    data.horaSalidaTaller || ''
   ]);
   
   return { success: true };
@@ -305,12 +313,44 @@ function deleteRetenData(data) {
         row[1] === data.turno && 
         row[2] === data.retenUnit && 
         row[4] === data.replacedUnit && 
-        row[7] === data.hora) {
+        String(row[7] || '') === String(data.hora || '')) {
       sheet.deleteRow(i + 1);
       return { success: true };
     }
   }
-  return { success: false };
+  return { success: false, error: 'Record not found' };
+}
+
+/**
+ * Updates the exit date and time for a reten replacement record.
+ */
+function updateRetenSalida(data) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+  if (!sheet) return { success: false, error: 'Sheet not found' };
+
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
+    // Use composite key to find the record
+    if (rowDate === data.fecha && 
+        String(row[1]) === String(data.turno) && 
+        String(row[2]) === String(data.retenUnit) && 
+        String(row[4]) === String(data.replacedUnit) && 
+        String(row[7] || '') === String(data.hora || '')) {
+      
+      // The columns are: 0=fecha, 1=turno, 2=retenUnit, 3=placaReten, 4=replacedUnit, 5=placa, 6=motivo, 7=hora
+      // 8=fechaIngreso, 9=horaIngreso, 10=fechaSalida, 11=horaSalida
+      
+      // Updates are 1-indexed, so row[10] -> column 11
+      sheet.getRange(i + 1, 11).setValue(data.fechaSalidaTaller || '');
+      sheet.getRange(i + 1, 12).setValue(data.horaSalidaTaller || '');
+      
+      return { success: true };
+    }
+  }
+  return { success: false, error: 'Record not found' };
 }
 
 /**
