@@ -413,7 +413,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
             <button
               type="submit"
               disabled={saving || !isFormValid}
-              className={`min-w-[200px] font-semibold py-2.5 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${isFormValid
+              className={`min-w-[200px] text-[12px] font-semibold py-2.5 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${isFormValid
                 ? 'bg-secondary hover:bg-secondary-dark text-white shadow-secondary/20'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                 }`}
@@ -428,7 +428,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
             <button
               type="button"
               onClick={() => generateRetenExcel(replacements, selectedDate, settings.turno)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
+              className="text-[12px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
               title="Generar Reporte Excel"
             >
               <span className="material-symbols-outlined text-xl">description</span>
@@ -449,18 +449,18 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-100/50 border-y border-slate-200">
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Hora</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Turno</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Reemplazada</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Sector</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Placa Reemplazada</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Retén</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Placa Retén</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Ingreso Taller</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider min-w-[140px]">Salida Taller</th>
-                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider text-center">Acciones</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Hora</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Turno</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Reemplazada</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Sector</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Placa Reemplazada</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Retén</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Placa Retén</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Ingreso Taller</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider min-w-[140px]">Salida Taller</th>
+                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider text-center">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
