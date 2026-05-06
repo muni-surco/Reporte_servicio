@@ -222,7 +222,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
               <span className="material-symbols-outlined text-2xl">swap_horizontal_circle</span>
               <h2 className="text-lg font-semibold tracking-tight">Registro de Unidades de Reemplazo /  Retén (AR)</h2>
             </div>
-            <div className="flex items-center gap-4 text-xs font-medium opacity-80">
+            <div className="flex items-center gap-4 font-medium opacity-80">
               <div className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">calendar_today</span>
                 {selectedDate}
@@ -238,7 +238,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
         <form onSubmit={handleAdd} className="p-6 bg-slate-50/50 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 items-end">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Turno</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Turno</label>
               <select
                 value={form.turno}
                 onChange={e => setForm({ ...form, turno: e.target.value })}
@@ -251,7 +251,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">U. Reemplazada</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">U. Reemplazada</label>
               <div className="relative">
                 <AutocompleteInput
                   value={form.replacedUnit}
@@ -263,13 +263,13 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                   className="!h-[42px] !rounded-xl !px-4 !py-2.5 !text-sm !bg-white !border-slate-200"
                 />
                 {touched.replacedUnit && errors.replacedUnit && (
-                  <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.replacedUnit}</p>
+                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.replacedUnit}</p>
                 )}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Placa Reemp.</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Placa Reemp.</label>
               <div className="relative">
                 <input
                   type="text"
@@ -282,13 +282,13 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                     }`}
                 />
                 {form.replacedUnit && !form.placa && (
-                  <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">No válida</p>
+                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">No válida</p>
                 )}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Unidad Retén</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Unidad Retén</label>
               <select
                 value={form.retenUnit}
                 onChange={e => handleRetenUnitChange(e.target.value)}
@@ -301,7 +301,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Placa Retén</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Placa Retén</label>
               <input
                 type="text"
                 value={form.placaReten}
@@ -312,7 +312,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Motivo</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Motivo</label>
               <div className="relative">
                 <input
                   type="text"
@@ -329,13 +329,13 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                     }`}
                 />
                 {touched.motivo && errors.motivo && (
-                  <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.motivo}</p>
+                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.motivo}</p>
                 )}
               </div>
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">F. Ingreso Taller</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">F. Ingreso Taller</label>
               <div className="relative">
                 <input
                   type="date"
@@ -351,13 +351,13 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                     }`}
                 />
                 {touched.fechaIngresoTaller && errors.fechaIngresoTaller && (
-                  <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.fechaIngresoTaller}</p>
+                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.fechaIngresoTaller}</p>
                 )}
               </div>
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">H. Ingreso Taller</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">H. Ingreso Taller</label>
               <div className="relative">
                 <input
                   type="time"
@@ -373,13 +373,13 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                     }`}
                 />
                 {touched.horaIngresoTaller && errors.horaIngresoTaller && (
-                  <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.horaIngresoTaller}</p>
+                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.horaIngresoTaller}</p>
                 )}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">F. Salida Taller</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">F. Salida Taller</label>
               <input
                 type="date"
                 value={form.fechaSalidaTaller}
@@ -389,7 +389,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider ml-1">H. Salida Taller</label>
+              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">H. Salida Taller</label>
               <input
                 type="time"
                 value={form.horaSalidaTaller}
@@ -427,35 +427,34 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
           </div>
         </form>
 
-        <div className="overflow-x-auto">
+        <div className={`overflow-x-auto relative ${loading ? 'min-h-[200px]' : ''}`}>
+          {loading && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <p className="text-slate-400 text-sm font-medium">Buscando registros...</p>
+              </div>
+            </div>
+          )}
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-100/50 border-y border-slate-200">
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Hora</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Turno</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Reemplazada</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Sector</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Placa Reemplazada</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Retén</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Placa Retén</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ingreso Taller</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider min-w-[140px]">Salida Taller</th>
-                <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center">Acciones</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Hora</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Turno</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Reemplazada</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Sector</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Placa Reemplazada</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Retén</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Placa Retén</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Ingreso Taller</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider min-w-[140px]">Salida Taller</th>
+                <th className="px-6 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider text-center">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={12} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-8 h-8 border-3 border-surco-blue/30 border-t-surco-blue rounded-full animate-spin"></div>
-                      <p className="text-slate-400 text-sm font-medium">Buscando registros...</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : replacements.length === 0 ? (
+              {replacements.length === 0 && !loading ? (
                 <tr>
                   <td colSpan={12} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2 opacity-60">
@@ -468,21 +467,21 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                 replacements.map((r, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-4 py-4">
-                      <span className="text-[11px] font-medium text-slate-500">{r.fecha}</span>
+                      <span className="text-[13px] font-medium text-slate-500">{r.fecha}</span>
                     </td>
                     <td className="px-4 py-4">
-                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-semibold">
+                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[13px] font-semibold">
                         {r.hora}
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <span className="text-[11px] font-semibold text-slate-500">{r.turno}</span>
+                      <span className="text-[13px] font-semibold text-slate-500">{r.turno}</span>
                     </td>
                     <td className="px-4 py-4">
                       <span className="font-semibold text-slate-700">{r.replacedUnit}</span>
                     </td>
                     <td className="px-4 py-4">
-                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[13px] font-bold">
                         {getUnitSector(r.replacedUnit)}
                       </span>
                     </td>
@@ -494,23 +493,23 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                     <td className="px-4 py-4 text-sm text-slate-600">
                       {r.motivo || '-'}
                     </td>
-                    <td className="px-4 py-4 text-[11px] text-slate-500">
+                    <td className="px-4 py-4 text-[13px] text-slate-500">
                       {r.fechaIngresoTaller ? `${r.fechaIngresoTaller} ${r.horaIngresoTaller || ''}` : '-'}
                     </td>
-                    <td className="px-4 py-4 text-[11px] text-slate-500">
+                    <td className="px-4 py-4 text-[13px] text-slate-500">
                       {editingKey === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
                         <div className="flex flex-col gap-2">
                           <input
                             type="date"
                             value={editForm.fechaSalidaTaller}
                             onChange={e => setEditForm(prev => ({ ...prev, fechaSalidaTaller: e.target.value }))}
-                            className="border border-slate-200 rounded px-2 py-1 text-[11px] outline-none"
+                            className="border border-slate-200 rounded px-2 py-1 text-[13px] outline-none"
                           />
                           <input
                             type="time"
                             value={editForm.horaSalidaTaller}
                             onChange={e => setEditForm(prev => ({ ...prev, horaSalidaTaller: e.target.value }))}
-                            className="border border-slate-200 rounded px-2 py-1 text-[11px] outline-none"
+                            className="border border-slate-200 rounded px-2 py-1 text-[13px] outline-none"
                           />
                         </div>
                       ) : (
@@ -547,10 +546,15 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                         <button
                           type="button"
                           onClick={() => startEditing(r)}
-                          className="p-1.5 text-slate-400 hover:text-surco-blue hover:bg-blue-50 rounded transition-colors opacity-0 group-hover:opacity-100"
                           title="Editar Salida Taller"
+                          className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95"
                         >
-                          <span className="material-symbols-outlined text-lg">edit</span>
+                          <lord-icon
+                            src="https://cdn.lordicon.com/puvaffet.json"
+                            trigger="hover"
+                            colors="primary:#2563eb,secondary:#1d4ed8"
+                            style={{ width: '20px', height: '20px' }}>
+                          </lord-icon>
                         </button>
                       )}
                     </td>
