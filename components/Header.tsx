@@ -49,12 +49,17 @@ const Header: React.FC<HeaderProps> = ({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localDate, setLocalDate] = useState(selectedDate);
   const tempSettingsRef = useRef<AppSettings>(settings);
 
   useEffect(() => {
     setTempSettings(settings);
     tempSettingsRef.current = settings;
   }, [settings]);
+
+  useEffect(() => {
+    setLocalDate(selectedDate);
+  }, [selectedDate]);
 
   const handleBlur = () => {
     const currentTemp = tempSettingsRef.current;
@@ -141,7 +146,22 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="flex flex-col w-[110px] md:w-[150px]">
                     <span className={labelStyle}>FECHA</span>
-                    <input type="date" value={selectedDate} onChange={(e) => onDateChange(e.target.value)} className={inputBaseStyle.replace('shadow-sm appearance-none', 'shadow-sm')} />
+                    <input
+                      type="date"
+                      value={localDate}
+                      onChange={(e) => setLocalDate(e.target.value)}
+                      onBlur={(e) => {
+                        if (e.target.value && e.target.value !== selectedDate) {
+                          onDateChange(e.target.value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      className={inputBaseStyle.replace('shadow-sm appearance-none', 'shadow-sm')}
+                    />
                   </div>
                   <div className="flex flex-col w-[85px] md:w-[110px]">
                     <span className={labelStyle}>TURNO</span>
