@@ -30,14 +30,14 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   const [replacements, setReplacements] = useState<RetenReplacement[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [touched, setTouched] = useState({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false });
+  const [touched, setTouched] = useState({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false, retenUnit: false });
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ fechaSalidaTaller: '', horaSalidaTaller: '' });
 
   // Form State
   const [form, setForm] = useState({
-    retenUnit: 'AR-1',
+    retenUnit: '',
     placaReten: '',
     replacedUnit: '',
     placa: '',
@@ -60,9 +60,10 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
     motivo: !form.motivo.trim() ? 'El motivo es obligatorio' : '',
     fechaIngresoTaller: !form.fechaIngresoTaller ? 'Fecha requerida' : '',
     horaIngresoTaller: !form.horaIngresoTaller ? 'Hora requerida' : '',
+    retenUnit: (form.replacedUnit.trim().toUpperCase().startsWith('M') && !form.retenUnit.trim()) ? 'Unidad Retén es obligatoria para unidades tipo M' : '',
   };
 
-  const isFormValid = !errors.replacedUnit && !errors.placa && !errors.motivo && !errors.fechaIngresoTaller && !errors.horaIngresoTaller;
+  const isFormValid = !errors.replacedUnit && !errors.placa && !errors.motivo && !errors.fechaIngresoTaller && !errors.horaIngresoTaller && !errors.retenUnit;
 
   useEffect(() => {
     setForm(prev => ({ ...prev, turno: settings.turno }));
@@ -204,6 +205,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
       retenUnit: value,
       placaReten: found ? found.plate : ''
     }));
+    if (!touched.retenUnit) setTouched(prev => ({ ...prev, retenUnit: true }));
   };
 
   // Helper to find sector for a given unit ID
@@ -287,17 +289,25 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 relative">
               <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Unidad Retén</label>
               <select
                 value={form.retenUnit}
                 onChange={e => handleRetenUnitChange(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all cursor-pointer h-[42px]"
+                onBlur={() => setTouched(prev => ({ ...prev, retenUnit: true }))}
+                className={`w-full bg-white border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all cursor-pointer h-[42px] ${touched.retenUnit && errors.retenUnit
+                  ? 'border-red-300 bg-red-50/30'
+                  : 'border-slate-200'
+                }`}
               >
+                <option value="">Seleccione...</option>
                 {retenUnits.map(unit => (
                   <option key={unit} value={unit}>{unit}</option>
                 ))}
               </select>
+              {touched.retenUnit && errors.retenUnit && (
+                <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.retenUnit}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -466,37 +476,37 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
               ) : (
                 replacements.map((r, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3">
                       <span className="text-[13px] font-medium text-slate-500">{r.fecha}</span>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3">
                       <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[13px] font-semibold">
                         {r.hora}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3">
                       <span className="text-[13px] font-semibold text-slate-500">{r.turno}</span>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3">
                       <span className="font-semibold text-slate-700">{r.replacedUnit}</span>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3">
                       <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[13px] font-bold">
                         {getUnitSector(r.replacedUnit)}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3">
                       <span className="text-sm font-medium text-slate-500">{r.placa}</span>
                     </td>
-                    <td className="px-4 py-4 font-semibold text-surco-blue">{r.retenUnit}</td>
-                    <td className="px-4 py-4 text-sm font-medium text-slate-500">{r.placaReten}</td>
-                    <td className="px-4 py-4 text-sm text-slate-600">
+                    <td className="px-3 py-3 font-semibold text-surco-blue">{r.retenUnit}</td>
+                    <td className="px-3 py-3 text-sm font-medium text-slate-500">{r.placaReten}</td>
+                    <td className="px-3 py-3 text-sm text-slate-600">
                       {r.motivo || '-'}
                     </td>
-                    <td className="px-4 py-4 text-[13px] text-slate-500">
+                    <td className="px-3 py-3 text-[13px] text-slate-500">
                       {r.fechaIngresoTaller ? `${r.fechaIngresoTaller} ${r.horaIngresoTaller || ''}` : '-'}
                     </td>
-                    <td className="px-4 py-4 text-[13px] text-slate-500">
+                    <td className="px-3 py-3 text-[13px] text-slate-500">
                       {editingKey === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
                         <div className="flex flex-col gap-2">
                           <input
@@ -516,7 +526,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                         r.fechaSalidaTaller ? `${r.fechaSalidaTaller} ${r.horaSalidaTaller || ''}` : '-'
                       )}
                     </td>
-                    <td className="px-4 py-4 text-center">
+                    <td className="px-3 py-3 text-center">
                       {editingKey === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
                         <div className="flex items-center justify-center gap-2">
                           <button
