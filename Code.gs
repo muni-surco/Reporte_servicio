@@ -9,6 +9,13 @@ const APP_CONFIG = {
   MOBILE_DATA_SPREADSHEET_ID: '11j6Ipd3J6HjUnG91RCliCbjrgzJWhzUwktCgfnAESKU',
 };
 
+function cellToStr(val, tz) {
+  if (val instanceof Date) {
+    return tz ? Utilities.formatDate(val, tz, 'yyyy-MM-dd HH:mm') : String(val);
+  }
+  return String(val || '');
+}
+
 function getExternalPersonnelSpreadsheet() {
   return SpreadsheetApp.openById(APP_CONFIG.EXTERNAL_PERSONNEL_SPREADSHEET_ID);
 }
@@ -199,7 +206,7 @@ function getShiftData(dateStr, shift, sector) {
           hours: String(row[17] || ''),
           fuel: String(row[18] || '-- / --'),
           expense: String(row[19] || 'S/ 0.00'),
-          quadrant: String(row[21] || ''),
+          quadrant: cellToStr(row[21], ss.getSpreadsheetTimeZone()),
           mechanics: String(row[22] || '')
         });
       }
@@ -373,7 +380,7 @@ function getMobileData() {
         plate: placaIdx !== -1 ? String(row[placaIdx] || '') : '',
         model: modeloIdx !== -1 ? String(row[modeloIdx] || '') : '',
         radio: radioIdx !== -1 ? String(row[radioIdx] || '') : '',
-        quadrant: cuadranteIdx !== -1 ? String(row[cuadranteIdx] || '') : '',
+        quadrant: cuadranteIdx !== -1 ? cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()) : '',
         sector: sectorIdx !== -1 ? String(row[sectorIdx] || '') : '' 
       });
     }
@@ -390,7 +397,7 @@ function getMobileData() {
 
     // Collect Unique Quadrants
     if (cuadranteIdx !== -1 && row[cuadranteIdx]) {
-      quadrantsSet.add(String(row[cuadranteIdx]).trim());
+      quadrantsSet.add(cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()).trim());
     }
 
     // Collect Unique Motivo Taller
@@ -530,31 +537,41 @@ function getPersonnelList() {
  */
 function saveShiftData(dateStr, shift, settings, units) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+
+  // Phase 1: Read everything upfront (no lock needed for reads)
+  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
+  if (!settingsSheet) {
+    return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.settings}. Ejecuta la función initialSetup desde el editor de código.` };
+  }
+  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+  if (!dataSheet) {
+    return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.unitData}. Ejecuta la función initialSetup desde el editor de código.` };
+  }
+
+  const targetSector = toStorageSector(settings.nombrePuesto || '1A');
+  const settingsRows = settingsSheet.getDataRange().getValues();
+  const dataRows = dataSheet.getDataRange().getValues();
+
+  const unitsToSave = units.filter(u =>
+    (u.id && String(u.id).trim() !== '') ||
+    (u.personnel1 && String(u.personnel1).trim() !== '')
+  );
+  const sectorUnits = unitsToSave.filter(u => toStorageSector(u.sector) === targetSector);
+
+  // Phase 2: Acquire lock only for writes (shorter window)
   const lock = LockService.getScriptLock();
-  
   try {
-    lock.waitLock(30000); // 30s timeout
+    lock.waitLock(30000);
 
-    // 1. Update Settings
-    const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
-    if (!settingsSheet) {
-      return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.settings}. Ejecuta la función initialSetup desde el editor de código.` };
-    }
-
-    const targetSector = toStorageSector(settings.nombrePuesto || '1A');
-    const settingsRows = settingsSheet.getDataRange().getValues();
+    // --- Settings: find target row ---
     let settingsFoundIdx = -1;
-    let rowsToUpdatePermanencia = [];
+    const permanenciaUpdates = []; // [rowIndex, ...]
 
     for (let i = 1; i < settingsRows.length; i++) {
       const row = settingsRows[i];
       const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
-      
       if (rowDate === dateStr && row[1] === shift) {
-        // Collect all rows for this shift to update permanencia later
-        rowsToUpdatePermanencia.push(i + 1);
-
-        // Check if this is the specific sector row
+        permanenciaUpdates.push(i + 1);
         if (toStorageSector(row[2]) === targetSector) {
           settingsFoundIdx = i + 1;
         }
@@ -562,55 +579,64 @@ function saveShiftData(dateStr, shift, settings, units) {
     }
 
     const settingsValues = [dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia];
-    
+
     if (settingsFoundIdx > -1) {
-      // Update specific sector row
       settingsSheet.getRange(settingsFoundIdx, 1, 1, settingsValues.length).setValues([settingsValues]);
     } else {
-      // Create new row for this sector
       settingsSheet.appendRow(settingsValues);
-      // Add this new row index to permanencia update list (though it already has the value)
-      rowsToUpdatePermanencia.push(settingsSheet.getLastRow());
+      permanenciaUpdates.push(settingsSheet.getLastRow());
     }
 
-    // Update Permanencia for ALL other sectors in this shift
-    if (rowsToUpdatePermanencia.length > 0) {
-      rowsToUpdatePermanencia.forEach(rowIndex => {
-         // Column 6 is PERMANENCIA
-         settingsSheet.getRange(rowIndex, 6).setValue(settings.permanencia);
+    // Batch permanencia: use a single setValues() for contiguous ranges
+    if (permanenciaUpdates.length > 0) {
+      // Group contiguous row indices into ranges
+      let ranges = [];
+      let start = permanenciaUpdates[0], end = permanenciaUpdates[0];
+      for (let i = 1; i < permanenciaUpdates.length; i++) {
+        if (permanenciaUpdates[i] === end + 1) {
+          end = permanenciaUpdates[i];
+        } else {
+          ranges.push({ start: start, end: end });
+          start = end = permanenciaUpdates[i];
+        }
+      }
+      ranges.push({ start: start, end: end });
+      ranges.forEach(r => {
+        const count = r.end - r.start + 1;
+        const vals = Array.from({ length: count }, () => [settings.permanencia]);
+        settingsSheet.getRange(r.start, 6, count, 1).setValues(vals);
       });
     }
 
-    // 2. Update Units
-    const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-    if (!dataSheet) {
-      return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.unitData}. Ejecuta la función initialSetup desde el editor de código.` };
-    }
-
-    const dataRows = dataSheet.getDataRange().getValues();
-    
-    // Only replace units of this sector to avoid overwriting other sectors' data during a single sector save
-    // Permitir guardar unidades sin ID si tienen personal (casos de Falto, Permiso, etc)
-    const unitsToSave = units.filter(u => 
-      (u.id && String(u.id).trim() !== '') || 
-      (u.personnel1 && String(u.personnel1).trim() !== '')
-    );
-    
-    // However, we only delete and replace rows belonging to the CURRENT sector being edited in the frontend
-    // to allow multi-user editing of different sectors.
-    // However, we only delete and replace rows belonging to the CURRENT sector being edited in the frontend
-    // to allow multi-user editing of different sectors.
+    // --- Units: batch-delete old rows, then write new ---
+    // Collect row indices (1-based) to delete
+    const toDelete = [];
     for (let i = dataRows.length - 1; i >= 1; i--) {
       const row = dataRows[i];
-      if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr && 
-          row[1] === shift && 
+      if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr &&
+          row[1] === shift &&
           toStorageSector(row[2]) === targetSector) {
-        dataSheet.deleteRow(i + 1);
+        toDelete.push(i + 1);
       }
     }
-    
-    const sectorUnits = unitsToSave.filter(u => toStorageSector(u.sector) === targetSector);
 
+    // Delete contiguous ranges in batch (toDelete is descending)
+    if (toDelete.length > 0) {
+      let rangeStart = toDelete[0], rangeCount = 1;
+      for (let i = 1; i < toDelete.length; i++) {
+        if (toDelete[i] === toDelete[i - 1] - 1) {
+          rangeCount++;
+          rangeStart = toDelete[i];
+        } else {
+          dataSheet.deleteRows(rangeStart, rangeCount);
+          rangeStart = toDelete[i];
+          rangeCount = 1;
+        }
+      }
+      dataSheet.deleteRows(rangeStart, rangeCount);
+    }
+
+    // Write new rows
     if (sectorUnits.length > 0) {
       const newRows = sectorUnits.map(u => [
         dateStr, shift, targetSector,
