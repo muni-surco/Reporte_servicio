@@ -298,30 +298,6 @@ function saveRetenData(data) {
 }
 
 /**
- * Deletes a reten replacement record.
- */
-function deleteRetenData(data) {
-  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
-  if (!sheet) return { success: false };
-
-  const rows = sheet.getDataRange().getValues();
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
-    if (rowDate === data.fecha && 
-        row[1] === data.turno && 
-        row[2] === data.retenUnit && 
-        row[4] === data.replacedUnit && 
-        String(row[7] || '') === String(data.hora || '')) {
-      sheet.deleteRow(i + 1);
-      return { success: true };
-    }
-  }
-  return { success: false, error: 'Record not found' };
-}
-
-/**
  * Updates the exit date and time for a reten replacement record.
  */
 function updateRetenSalida(data) {
@@ -329,16 +305,18 @@ function updateRetenSalida(data) {
   const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
   if (!sheet) return { success: false, error: 'Sheet not found' };
 
+  const timeZone = ss.getSpreadsheetTimeZone();
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
+    const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd') : '';
+    const horaActual = (row[7] instanceof Date) ? Utilities.formatDate(row[7], timeZone, 'HH:mm') : String(row[7] || '');
     // Use composite key to find the record
     if (rowDate === data.fecha && 
         String(row[1]) === String(data.turno) && 
         String(row[2]) === String(data.retenUnit) && 
         String(row[4]) === String(data.replacedUnit) && 
-        String(row[7] || '') === String(data.hora || '')) {
+        horaActual === String(data.hora || '')) {
       
       // The columns are: 0=fecha, 1=turno, 2=retenUnit, 3=placaReten, 4=replacedUnit, 5=placa, 6=motivo, 7=hora
       // 8=fechaIngreso, 9=horaIngreso, 10=fechaSalida, 11=horaSalida
