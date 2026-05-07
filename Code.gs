@@ -687,6 +687,46 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
 }
 
 /**
+ * Gets the last taller entry (ingreso) for a unit that has no exit registered.
+ * Searches all records in RETEN_LOG from newest to oldest.
+ */
+function getLastUnitTallerEntry(unitId) {
+  try {
+    if (!unitId) return null;
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+    if (!sheet) return null;
+
+    const timeZone = ss.getSpreadsheetTimeZone();
+    const rows = sheet.getDataRange().getValues();
+    const searchId = String(unitId).trim().toUpperCase();
+
+    // Search from bottom (newest) to top (oldest)
+    for (let i = rows.length - 1; i >= 1; i--) {
+      const row = rows[i];
+      const replacedUnit = String(row[4] || '').trim().toUpperCase();
+      const fechaIngreso = (row[8] instanceof Date) ? Utilities.formatDate(row[8], timeZone, 'yyyy-MM-dd') : String(row[8] || '').trim();
+      const horaIngreso = (row[9] instanceof Date) ? Utilities.formatDate(row[9], timeZone, 'HH:mm') : String(row[9] || '').trim();
+      const fechaSalida = (row[10] instanceof Date) ? Utilities.formatDate(row[10], timeZone, 'yyyy-MM-dd') : String(row[10] || '').trim();
+
+      if (replacedUnit === searchId && fechaIngreso) {
+        if (!fechaSalida) {
+          return {
+            fechaIngresoTaller: fechaIngreso,
+            horaIngresoTaller: horaIngreso
+          };
+        }
+        return null;
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error('[getLastUnitTallerEntry] ERROR', err);
+    return null;
+  }
+}
+
+/**
  * Serves the web application.
  */
 function doGet() {

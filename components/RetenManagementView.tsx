@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppSettings } from '../types';
 import { generateRetenExcel } from '../utils/reportGenerator';
 import AutocompleteInput from './AutocompleteInput';
@@ -34,6 +34,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ fechaSalidaTaller: '', horaSalidaTaller: '' });
+  const lastQueriedUnitRef = useRef<string>('');
 
   // Form State
   const [form, setForm] = useState({
@@ -195,6 +196,34 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
       placa: found ? found.plate : ''
     }));
     if (!touched.replacedUnit) setTouched(prev => ({ ...prev, replacedUnit: true }));
+
+    lastQueriedUnitRef.current = normalized;
+
+    // Auto-fill taller entry from last record without exit
+    if (typeof google !== 'undefined' && google.script && google.script.run && normalized) {
+      google.script.run
+        .withSuccessHandler((data: { fechaIngresoTaller: string, horaIngresoTaller: string } | null) => {
+          if (lastQueriedUnitRef.current !== normalized) return; // Stale response
+          setForm(prev => ({
+            ...prev,
+            fechaIngresoTaller: data?.fechaIngresoTaller || '',
+            horaIngresoTaller: data?.horaIngresoTaller || ''
+          }));
+        })
+        .withFailureHandler(() => {})
+        .getLastUnitTallerEntry(normalized);
+    } else if (normalized) {
+      // Mock: search current replacements for last record without exit
+      const found = replacements.filter(
+        r => r.replacedUnit.toUpperCase() === normalized && r.fechaIngresoTaller
+      );
+      const last = found[found.length - 1];
+      setForm(prev => ({
+        ...prev,
+        fechaIngresoTaller: (last && !last.fechaSalidaTaller) ? last.fechaIngresoTaller : '',
+        horaIngresoTaller: (last && !last.fechaSalidaTaller) ? last.horaIngresoTaller : ''
+      }));
+    }
   };
 
   const handleRetenUnitChange = (value: string) => {
