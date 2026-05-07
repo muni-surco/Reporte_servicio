@@ -800,9 +800,6 @@ export const generateAllRecordsReport = (
     // Combustible y Gasto
     const fuelExp = `${(u.fuel || '').toString() || '--'}\n${(u.expense || '').toString() || 'S/ 0.00'}`;
 
-    const partesStr = (u.parts || '0').toString();
-    const partesNum = parseInt(partesStr.replace(/\D/g, '') || '0', 10);
-
     rows.push({
       sector,
       unitType,
@@ -814,8 +811,6 @@ export const generateAllRecordsReport = (
       status,
       kmStr,
       fuelExp,
-      partesStr,
-      partesNum,
       mechanics
     });
   });
@@ -876,7 +871,6 @@ export const generateAllRecordsReport = (
 
       if (sectorTypeRows.length === 0) return;
 
-      const totalPartes = sectorTypeRows.reduce((sum, r) => sum + r.partesNum, 0);
       const totalEfectivos = sectorTypeRows.length;
 
       const tableData = sectorTypeRows.map(r => [
@@ -888,16 +882,13 @@ export const generateAllRecordsReport = (
         r.status,
         r.kmStr,
         r.fuelExp,
-        r.partesStr,
         r.mechanics
       ]);
 
       // Add a total row
       tableData.push([
         { content: `TOTAL UNIDADES: ${totalEfectivos}`, colSpan: 5, styles: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'right' } },
-        { content: '', colSpan: 3, styles: { fillColor: [240, 240, 240] } },
-        { content: totalPartes.toString(), styles: { fillColor: [240, 240, 240], fontStyle: 'bold' } },
-        { content: '', styles: { fillColor: [240, 240, 240] } }
+        { content: '', colSpan: 4, styles: { fillColor: [240, 240, 240] } }
       ]);
 
       if (currentY > doc.internal.pageSize.getHeight() - 25) {
@@ -908,9 +899,9 @@ export const generateAllRecordsReport = (
       (doc as any).autoTable({
         startY: currentY,
         head: [[
-          { content: sec.label, colSpan: 10, styles: { halign: 'left', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 8 } }
+          { content: sec.label, colSpan: 9, styles: { halign: 'left', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 8 } }
         ], [
-          'UNIDAD', 'PLACA', 'RADIO', 'CUADRANTE', 'NOMBRES Y APELLIDOS / COPILOTO', 'ESTADO', 'KILOMETRAJE', 'COMBUSTIBLE / GASTO', 'PARTES', 'OBSERVACIONES'
+          'UNIDAD', 'PLACA', 'RADIO', 'CUADRANTE', 'NOMBRES Y APELLIDOS / COPILOTO', 'ESTADO', 'KILOMETRAJE', 'COMBUSTIBLE / GASTO', 'OBSERVACIONES'
         ]],
         body: tableData,
         theme: 'grid',
@@ -925,8 +916,7 @@ export const generateAllRecordsReport = (
           5: { cellWidth: 22, halign: 'center' },
           6: { cellWidth: 30 },
           7: { cellWidth: 20 },
-          8: { cellWidth: 15 },
-          9: { cellWidth: 'auto', halign: 'left' }
+          8: { cellWidth: 'auto', halign: 'left' }
         },
         margin: { left: margin, right: margin }
       });

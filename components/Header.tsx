@@ -13,7 +13,6 @@ import AutocompleteInput from './AutocompleteInput';
 
 interface HeaderProps {
   settings: AppSettings;
-  totalPartes: number;
   onSaveSettings: (newSettings: AppSettings) => void;
   onGlobalSave: () => void;
   onGeneratePDF: () => void;
@@ -31,7 +30,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({
   settings,
-  totalPartes,
   onSaveSettings,
   onGlobalSave,
   onGeneratePDF,
@@ -218,15 +216,6 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                   </>
                 ) : null}
-              </div>
-
-              <div className="flex items-center gap-4 ml-auto lg:ml-0">
-                {isDashboard && (
-                  <div className="bg-amber-100/50 px-3 py-1 rounded-xl border border-amber-200 flex flex-col items-center justify-center h-9 shadow-sm shrink-0 min-w-[60px]">
-                    <span className="text-[10px] font-medium text-amber-500 uppercase leading-none mb-0.5 tracking-tighter">PARTES</span>
-                    <p className="text-sm font-medium text-amber-700 leading-none">{totalPartes}</p>
-                  </div>
-                )}
               </div>
             </div>
           )}

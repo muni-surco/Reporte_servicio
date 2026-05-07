@@ -7,14 +7,12 @@ interface UnitSectionProps {
   type: 'CHOFER' | 'MOTO' | 'SERENO';
   icon: string;
   badge: string;
-  partesTotal: number;
   units: UnitData[];
   allUnits: UnitData[];
   onEdit: (id: string) => void;
   onSave: (unit: UnitData) => void;
   onCancel: () => void;
   onAdd: (type: 'CHOFER' | 'MOTO' | 'SERENO') => void;
-  onDelete: (id: string) => void;
   editingId: string | null;
   mobileData?: { id: string; plate: string; }[]; // Original type
   statusOptions?: string[];
@@ -30,14 +28,12 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   type,
   icon,
   badge,
-  partesTotal,
   units,
   allUnits,
   onEdit,
   onSave,
   onCancel,
   onAdd,
-  onDelete,
   editingId,
   mobileData,
   statusOptions,
@@ -79,9 +75,6 @@ const UnitSection: React.FC<UnitSectionProps> = ({
               {title} <span className={`${colorConfig.badgeBg} text-white px-1.5 rounded text-[12px] ml-1 shadow-sm`}>{badge}</span>
             </h2>
           </div>
-          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 rounded-full text-[12px] font-medium uppercase tracking-tighter shadow-sm">
-            Acumulado Partes: {partesTotal}
-          </span>
         </div>
         <button
           onClick={() => onAdd(type)}

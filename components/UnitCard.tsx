@@ -11,7 +11,6 @@ interface UnitCardProps {
   onEdit: () => void;
   onSave: (updated: UnitData) => void;
   onCancel: () => void;
-  onDelete: (id: string) => void;
   mobileData?: MobileReference[];
   statusOptions?: string[];
   indicativeOptions?: string[];
@@ -22,12 +21,11 @@ interface UnitCardProps {
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
-  unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete, mobileData,
+  unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions,
   currentDate, currentShift
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
   const [kmStart, setKmStart] = useState('');
@@ -237,39 +235,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
     }
   }[unit.type] || { lineBg: 'bg-slate-500', idBadge: 'bg-slate-100 text-slate-700 border-slate-200' };
 
-  // (Modal logic omitted for brevity as it is unchanged)
-  const DeleteConfirmationModal = () => (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)}></div>
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
-        <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-            <span className="material-symbols-outlined text-red-600 text-4xl">warning</span>
-          </div>
-          <h3 className="text-lg  text-slate-900 mb-2">¿Confirmar eliminación?</h3>
-          <p className="text-slate-500 text-sm mb-6">
-            Está a punto de eliminar la unidad <span className=" text-slate-800">{unit.id}</span>.
-            Esta acción no se puede deshacer.
-          </p>
-          <div className="flex w-full gap-3">
-            <button
-              onClick={() => setShowDeleteModal(false)}
-              className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl  text-xs hover:bg-slate-200 transition-colors"
-            >
-              CANCELAR
-            </button>
-            <button
-              onClick={() => { onDelete(unit.id); setShowDeleteModal(false); }}
-              className="flex-1 px-4 py-2.5 bg-[#e34242] text-white rounded-xl  text-xs hover:bg-[#c13232] shadow-lg shadow-red-200 transition-all active:scale-95"
-            >
-              SÍ, ELIMINAR
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   if (isEditing) {
     const idStr = String(formData.id);
     const isNew = idStr === '';
@@ -382,7 +347,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
             <div className="col-span-2">
               <label className={labelStyleEdit}>Observaciones</label>
-              <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Observaciones..." />
+              <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
             </div>
             <div className={isChofer ? "col-span-1" : isSereno ? "col-span-4" : "col-span-3"}></div>
           </div>
@@ -410,17 +375,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   </div>
                   <div><label className={labelStyleEdit}>CANTIDAD</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} /></div>
                   <div><label className={labelStyleEdit}>GASTO</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
-                  <div><label className={labelStyleEdit}>PARTES</label><input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} /></div>
                 </div>
               </>
             ) : (
-              <>
-                <div className="col-span-2">
-                  <label className={labelStyleEdit}>Partes / Intervenciones</label>
-                  <input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} />
-                </div>
-                <div className="col-span-10" />
-              </>
+              <></>
             )}
           </div>
 
@@ -445,14 +403,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
   return (
     <>
-      {showDeleteModal && <DeleteConfirmationModal />}
-
       <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden flex items-center`}>
         {/* Línea vertical distintiva estilo moderno */}
         <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[48px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1.2fr_2.2fr_auto_auto_1.1fr_1.1fr_60px_90px]'}`}>
+        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[48px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.4fr_90px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
@@ -535,24 +491,27 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 <div className="flex items-center gap-1 text-[13px] font-medium">
                   <div className="flex items-center gap-1 text-slate-500">
                     <span>{String(unit.fuel || '').split('/')[0] || '--'}</span>
-                    {hasKmRecarga && String(unit.km || '').split('/')[3] && String(unit.km || '').split('/')[3].trim() !== '0' && (
-                      <span className="text-amber-600 text-[13px] font-medium" title="Recarga">(R:{String(unit.km || '').split('/')[3].trim()})</span>
-                    )}
+                    {(() => {
+                      const gal = String(unit.fuel || '').split('/')[1]?.trim();
+                      return gal && gal !== '0' ? (
+                        <span className="text-amber-600 text-[13px] font-medium" title="Galones">({gal} GL)</span>
+                      ) : null;
+                    })()}
                   </div>
                   <span className="text-slate-200">|</span>
                   <span className={`${unit.expense !== 'S/ 0.00' ? 'text-green-600' : 'text-slate-400'}`}>{unit.expense}</span>
                 </div>
               </div>
+
+              {/* Columna Observaciones */}
+              <div className="border-r border-slate-100 px-2">
+                <label className={labelStyle}>Observaciones</label>
+                <div className="text-[11px] text-slate-600 leading-tight">
+                  {unit.mechanics || '--'}
+                </div>
+              </div>
             </>
           )}
-
-          {/* Columna Partes con Color Ámbar Suave */}
-          <div className="border-r border-slate-100 px-2">
-            <label className={labelStyle}>Partes</label>
-            <div className="w-6 h-6 mx-auto flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 rounded text-[13px] font-medium shadow-sm">
-              {unit.parts}
-            </div>
-          </div>
 
           {/* Columna Acciones */}
           <div className="text-right flex justify-end gap-2">
@@ -561,14 +520,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 src="https://cdn.lordicon.com/puvaffet.json"
                 trigger="hover"
                 colors="primary:#2563eb,secondary:#1d4ed8"
-                style={{ width: '20px', height: '20px' }}>
-              </lord-icon>
-            </button>
-            <button onClick={() => setShowDeleteModal(true)} title="Eliminar" className="text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">
-              <lord-icon
-                src="https://cdn.lordicon.com/drxwpfop.json"
-                trigger="hover"
-                colors="primary:#dc2626,secondary:#b91c1c"
                 style={{ width: '20px', height: '20px' }}>
               </lord-icon>
             </button>

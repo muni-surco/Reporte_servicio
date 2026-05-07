@@ -138,7 +138,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
                 <div className="h-8 w-px bg-slate-200 shrink-0"></div>
 
-                {/* ESTADÍSTICAS RÁPIDAS - Sin partes */}
+                {/* ESTADÍSTICAS RÁPIDAS */}
                 <div className="flex items-center gap-6">
                   <div className="flex flex-col items-center">
                     <span className={infoLabelStyle}>UNIDADES TOTALES</span>

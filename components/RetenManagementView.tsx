@@ -22,11 +22,12 @@ interface RetenManagementViewProps {
   settings: AppSettings;
   selectedDate: string;
   mobileData: { id: string, plate: string, sector?: string }[];
+  motivoTallerOptions: string[];
 }
 
 declare const google: any;
 
-const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, selectedDate, mobileData }) => {
+const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, selectedDate, mobileData, motivoTallerOptions }) => {
   const [replacements, setReplacements] = useState<RetenReplacement[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -353,19 +354,17 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Motivo</label>
               <div className="relative">
-                <input
-                  type="text"
+                <AutocompleteInput
                   value={form.motivo}
-                  placeholder="Justificación del relevo..."
-                  onBlur={() => setTouched(prev => ({ ...prev, motivo: true }))}
-                  onChange={e => {
-                    setForm({ ...form, motivo: e.target.value });
+                  onChange={(val) => {
+                    setForm({ ...form, motivo: val });
                     if (!touched.motivo) setTouched(prev => ({ ...prev, motivo: true }));
                   }}
-                  className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px] ${touched.motivo && errors.motivo
-                    ? 'border-red-300 bg-red-50/30'
-                    : 'bg-white border-slate-200'
-                    }`}
+                  onBlur={() => setTouched(prev => ({ ...prev, motivo: true }))}
+                  placeholder="Justificación del relevo..."
+                  suggestions={motivoTallerOptions}
+                  error={touched.motivo && !!errors.motivo}
+                  className="!h-[42px] !rounded-xl !px-4 !py-2.5 !text-sm !bg-white !border-slate-200"
                 />
                 {touched.motivo && errors.motivo && (
                   <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.motivo}</p>

@@ -54,6 +54,7 @@ const App: React.FC = () => {
   const [personnelOptions, setPersonnelOptions] = useState<string[]>([]);
   const [operatorOptions, setOperatorOptions] = useState<string[]>([]);
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
+  const [motivoTallerOptions, setMotivoTallerOptions] = useState<string[]>([]);
   const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
   const [loadingPersonnel, setLoadingPersonnel] = useState(false);
   const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
@@ -72,6 +73,7 @@ const App: React.FC = () => {
           if (data.personnel) setPersonnelOptions(data.personnel);
           if (data.operators) setOperatorOptions(data.operators);
           if (data.quadrants) setQuadrantOptions(data.quadrants);
+          if (data.motivoTallerOptions) setMotivoTallerOptions(data.motivoTallerOptions);
         })
         .withFailureHandler((err: any) => {
           console.error('Failed to get mobile data', err);
@@ -143,7 +145,6 @@ const App: React.FC = () => {
             hours: String(u.hours || ''),
             fuel: String(u.fuel || '-- / --'),
             expense: String(u.expense || 'S/ 0.00'),
-            parts: String(u.parts || '0'),
             quadrant: String(u.quadrant || ''),
             mechanics: String(u.mechanics || ''),
             model: String(u.model || '')
@@ -346,7 +347,6 @@ const App: React.FC = () => {
       hours: '',
       fuel: '-- / --',
       expense: 'S/ 0.00',
-      parts: '0',
       quadrant: '',
       mechanics: '',
     };
@@ -360,26 +360,12 @@ const App: React.FC = () => {
     setEditingId(id);
   };
 
-  const handleDeleteUnit = (id: string) => {
-    // Eliminar por ID o por tempId
-    const newUnits = units.filter(u => u.id !== id && u.tempId !== id);
-    setUnits(newUnits);
-    persistData(settings, newUnits);
-  };
-
   const handleCancel = () => {
     if (editingId && String(editingId).startsWith('NEW-')) {
       // Eliminar la unidad temporal si se cancela la creación
       setUnits(prev => prev.filter(u => u.tempId !== editingId));
     }
     setEditingId(null);
-  };
-
-  const sumPartes = (unitsArr: UnitData[]) => {
-    return unitsArr.reduce((acc, curr) => {
-      const p = parseInt(curr.parts?.toString().match(/\d+/)?.[0] || '0');
-      return acc + p;
-    }, 0);
   };
 
   const handleGenerateReport = async (type: string, date: string, shift: string) => {
@@ -455,7 +441,6 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col min-w-0">
         <Header
           settings={settings}
-          totalPartes={sumPartes(currentSectorUnits)}
           onSaveSettings={handleSaveSettings}
           onGlobalSave={handleGlobalSave}
           onGeneratePDF={() => setCurrentView('REPORTS')}
@@ -477,29 +462,27 @@ const App: React.FC = () => {
               <UnitSection
                 title="CHOFERES" type="CHOFER" icon="minor_crash"
                 badge={currentSectorUnits.filter(u => u.type === 'CHOFER').length.toString()}
-                partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'CHOFER'))}
                 units={currentSectorUnits.filter(u => u.type === 'CHOFER')}
                 allUnits={units}
                 editingId={editingId}
-                onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
-                mobileData={mobileData}
-                statusOptions={statusOptions}
-                indicativeOptions={indicativeOptions}
-                personnelOptions={personnelOptions}
-                quadrantOptions={quadrantOptions}
-                currentDate={selectedDate}
-                currentShift={settings.turno}
-              />
+                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                    mobileData={mobileData}
+                    statusOptions={statusOptions}
+                    indicativeOptions={indicativeOptions}
+                    personnelOptions={personnelOptions}
+                    quadrantOptions={quadrantOptions}
+                    currentDate={selectedDate}
+                    currentShift={settings.turno}
+                  />
               {currentSector !== 'RESCATE' && (
                 <>
                   <UnitSection
                     title="MOTORIZADOS" type="MOTO" icon="moped"
                     badge={currentSectorUnits.filter(u => u.type === 'MOTO').length.toString()}
-                    partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'MOTO'))}
                     units={currentSectorUnits.filter(u => u.type === 'MOTO')}
                     allUnits={units}
                     editingId={editingId}
-                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
                     mobileData={mobileData}
                     statusOptions={statusOptions}
                     indicativeOptions={indicativeOptions}
@@ -511,11 +494,10 @@ const App: React.FC = () => {
                   <UnitSection
                     title="SERENOS" type="SERENO" icon="hail"
                     badge={currentSectorUnits.filter(u => u.type === 'SERENO').length.toString()}
-                    partesTotal={sumPartes(currentSectorUnits.filter(u => u.type === 'SERENO'))}
                     units={currentSectorUnits.filter(u => u.type === 'SERENO')}
                     allUnits={units}
                     editingId={editingId}
-                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
+                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
                     mobileData={mobileData}
                     statusOptions={statusOptions}
                     indicativeOptions={indicativeOptions}
@@ -550,6 +532,7 @@ const App: React.FC = () => {
               settings={settings}
               selectedDate={selectedDate}
               mobileData={mobileData}
+              motivoTallerOptions={motivoTallerOptions}
             />
           ) : (
             <StatisticsView units={units} />

@@ -199,7 +199,6 @@ function getShiftData(dateStr, shift, sector) {
           hours: String(row[17] || ''),
           fuel: String(row[18] || '-- / --'),
           expense: String(row[19] || 'S/ 0.00'),
-          parts: String(row[20] || '0'),
           quadrant: String(row[21] || ''),
           mechanics: String(row[22] || '')
         });
@@ -356,11 +355,13 @@ function getMobileData() {
   const indicativoIdx = headers.indexOf('indicativo');
   const estadoIdx = headers.indexOf('estado');
   const modeloIdx = headers.indexOf('modelo');
+  const motivoTallerIdx = headers.indexOf('motivo_taller');
   
   const mobileData = [];
   const indicativesSet = new Set();
   const statusesSet = new Set();
   const quadrantsSet = new Set();
+  const motivoTallerSet = new Set();
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -390,6 +391,11 @@ function getMobileData() {
     // Collect Unique Quadrants
     if (cuadranteIdx !== -1 && row[cuadranteIdx]) {
       quadrantsSet.add(String(row[cuadranteIdx]).trim());
+    }
+
+    // Collect Unique Motivo Taller
+    if (motivoTallerIdx !== -1 && row[motivoTallerIdx]) {
+      motivoTallerSet.add(String(row[motivoTallerIdx]).trim());
     }
   }
   
@@ -443,7 +449,8 @@ function getMobileData() {
     statuses: Array.from(statusesSet).sort(),
     personnel: Array.from(personnelSet).sort(),
     operators: Array.from(operatorsSet).sort(),
-    quadrants: Array.from(quadrantsSet).sort()
+    quadrants: Array.from(quadrantsSet).sort(),
+    motivoTallerOptions: Array.from(motivoTallerSet).sort()
   };
 }
 
@@ -608,7 +615,7 @@ function saveShiftData(dateStr, shift, settings, units) {
       const newRows = sectorUnits.map(u => [
         dateStr, shift, targetSector,
         u.id, u.type, u.model || '', u.personnel1, u.personnel2, u.plate, u.indicative, u.radio,
-        u.status, u.reason, u.kmStart || '0', u.kmEnd || '0', u.totalKm || '0', u.kmRecarga || '0', u.hours, u.fuel, u.expense, u.parts, u.quadrant, u.mechanics
+        u.status, u.reason, u.kmStart || '0', u.kmEnd || '0', u.totalKm || '0', u.kmRecarga || '0', u.hours, u.fuel, u.expense, '0', u.quadrant, u.mechanics
       ]);
       dataSheet.getRange(dataSheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
     }

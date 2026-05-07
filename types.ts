@@ -64,7 +64,6 @@ export interface UnitData {
   hours: string;
   fuel: string;
   expense: string;
-  parts: string;
   quadrant: string;
   mechanics: string;
 }
