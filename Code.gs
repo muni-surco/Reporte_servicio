@@ -102,13 +102,17 @@ function setupRetenLogSheet(ss) {
 
 /**
  * Fetches all units and settings for a specific date, shift and sector.
+ * Optimized to read only necessary columns for better performance.
  */
 function getShiftData(dateStr, shift, sector) {
   try {
     console.log('[getShiftData] START — dateStr=' + dateStr + ' shift=' + shift + ' sector=' + sector);
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
 
-    // 1. Get Settings
+    // Cache timezone at function start
+    const timeZone = ss.getSpreadsheetTimeZone();
+
+    // 1. Get Settings - read only columns 1-6 (FECHA, TURNO, SECTOR, OPERADOR, SUPERVISOR, PERMANENCIA)
     const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
     let shiftSettings = {
       turno: shift,
@@ -117,19 +121,23 @@ function getShiftData(dateStr, shift, sector) {
       nombrePuesto: toDisplaySector(sector || '1A'),
       permanencia: ''
     };
-    
+
     // Store settings for ALL sectors to support the Integrated Report view
     const allSectorSettings = {};
 
     if (settingsSheet) {
-      const settingsRows = settingsSheet.getDataRange().getValues();
+      const settingsLastRow = settingsSheet.getLastRow();
+      const settingsRows = settingsLastRow > 1
+        ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues()
+        : [];
+
       let commonPermanencia = '';
 
-      for (let i = 1; i < settingsRows.length; i++) {
+      for (let i = 0; i < settingsRows.length; i++) {
         const row = settingsRows[i];
         if (!row[0]) continue;
         try {
-          const rowDateStr = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+          const rowDateStr = Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd');
           if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
         } catch (e) {
           continue;
@@ -138,7 +146,7 @@ function getShiftData(dateStr, shift, sector) {
         // Convert all values to strings to avoid GAS serialization issues with Date/Number cell values
         const permanenciaVal = String(row[5] || '');
         if (permanenciaVal) commonPermanencia = permanenciaVal;
-        
+
         const sectorName = toDisplaySector(row[2]);
         if (sectorName) {
           allSectorSettings[sectorName] = {
@@ -160,7 +168,7 @@ function getShiftData(dateStr, shift, sector) {
           };
         }
       }
-      
+
       if (commonPermanencia) {
         if (!shiftSettings.permanencia) shiftSettings.permanencia = commonPermanencia;
         Object.keys(allSectorSettings).forEach(key => {
@@ -171,43 +179,59 @@ function getShiftData(dateStr, shift, sector) {
       }
     }
 
-    // 2. Get Unit Data
+    // 2. Get Unit Data - two-phase approach for optimal performance
     const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
     const allUnits = [];
 
     if (dataSheet) {
-      const dataRows = dataSheet.getDataRange().getValues();
-      for (let i = 1; i < dataRows.length; i++) {
+      const dataLastRow = dataSheet.getLastRow();
+
+      // Phase 1: Read columns 1-4 (FECHA, TURNO, SECTOR, ID) for filtering
+      const dataRows = dataLastRow > 1
+        ? dataSheet.getRange(2, 1, dataLastRow - 1, 4).getValues()
+        : [];
+
+      // Find matching row indices
+      const matchingRowIndices = [];
+      for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
         if (!row[0]) continue;
         try {
-          const rowDateStr = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-          if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
+          const rowDateStr = Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd');
+          if (rowDateStr === dateStr && String(row[1]) === shift) {
+            matchingRowIndices.push(i + 2); // +2 because data starts at row 2
+          }
         } catch (e) {
           continue;
         }
+      }
+
+      // Phase 2: Read full rows for matching indices
+      for (const rowIndex of matchingRowIndices) {
+        const fullRow = dataSheet.getRange(rowIndex, 1, 1, 23).getValues()[0];
+
         // Convert all values to String to avoid serialization issues with Date/Number cells
         allUnits.push({
-          id: String(row[3] || ''),
-          sector: toDisplaySector(row[2]),
-          type: String(row[4] || ''),
-          model: String(row[5] || ''),
-          personnel1: String(row[6] || ''),
-          personnel2: String(row[7] || ''),
-          plate: String(row[8] || ''),
-          indicative: String(row[9] || ''),
-          radio: String(row[10] || ''),
-          status: String(row[11] || ''),
-          reason: String(row[12] || ''),
-          kmStart: String(row[13] || '0'),
-          kmEnd: String(row[14] || '0'),
-          totalKm: String(row[15] || '0'),
-          kmRecarga: String(row[16] || '0'),
-          hours: String(row[17] || ''),
-          fuel: String(row[18] || '-- / --'),
-          expense: String(row[19] || 'S/ 0.00'),
-          quadrant: cellToStr(row[21], ss.getSpreadsheetTimeZone()),
-          mechanics: String(row[22] || '')
+          id: String(fullRow[3] || ''),
+          sector: toDisplaySector(fullRow[2]),
+          type: String(fullRow[4] || ''),
+          model: String(fullRow[5] || ''),
+          personnel1: String(fullRow[6] || ''),
+          personnel2: String(fullRow[7] || ''),
+          plate: String(fullRow[8] || ''),
+          indicative: String(fullRow[9] || ''),
+          radio: String(fullRow[10] || ''),
+          status: String(fullRow[11] || ''),
+          reason: String(fullRow[12] || ''),
+          kmStart: String(fullRow[13] || '0'),
+          kmEnd: String(fullRow[14] || '0'),
+          totalKm: String(fullRow[15] || '0'),
+          kmRecarga: String(fullRow[16] || '0'),
+          hours: String(fullRow[17] || ''),
+          fuel: String(fullRow[18] || '-- / --'),
+          expense: String(fullRow[19] || 'S/ 0.00'),
+          quadrant: cellToStr(fullRow[21], timeZone),
+          mechanics: String(fullRow[22] || '')
         });
       }
     }
@@ -216,9 +240,9 @@ function getShiftData(dateStr, shift, sector) {
 
     // NOTE: personnelList is NOT included here to keep the payload small.
     // NOTE: retenData is loaded lazily by RetenManagementView.
-    return { 
-      settings: shiftSettings, 
-      allSectorSettings: allSectorSettings, 
+    return {
+      settings: shiftSettings,
+      allSectorSettings: allSectorSettings,
       units: allUnits
     };
   } catch (err) {
