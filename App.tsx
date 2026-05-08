@@ -189,7 +189,7 @@ const App: React.FC = () => {
     }
   };
 
-  const persistData = (newSettings: AppSettings, newUnits: UnitData[]) => {
+  const persistData = (newSettings: AppSettings, newUnits: UnitData[], retryCount = 0) => {
     // Permitir unidades sin ID si tienen personal (casos de Falto, Permiso, etc)
     const validUnits = newUnits.filter(u => 
       (u.id && String(u.id).trim() !== '') || 
@@ -202,15 +202,23 @@ const App: React.FC = () => {
     setSaving(true);
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((res: { success: boolean, error?: string }) => {
-          setSaving(false);
+        .withSuccessHandler((res: { success: boolean, error?: string, retry?: boolean }) => {
           if (res.success) {
+            setSaving(false);
             lastSavedRef.current = dataStr;
             setSectorSettingsMap(prev => ({
               ...prev,
               [newSettings.nombrePuesto || 'SECTOR 1A']: newSettings
             }));
+          } else if (res.retry && retryCount < 3) {
+            // Retry with exponential backoff: 500ms, 1000ms, 2000ms
+            const delay = 500 * Math.pow(2, retryCount);
+            console.log(`Lock timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
+            setTimeout(() => {
+              persistData(newSettings, newUnits, retryCount + 1);
+            }, delay);
           } else {
+            setSaving(false);
             console.error('GAS Save Error:', res.error);
             alert('Error al guardar: ' + res.error);
           }

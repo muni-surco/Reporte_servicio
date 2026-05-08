@@ -561,7 +561,10 @@ function saveShiftData(dateStr, shift, settings, units) {
   // Phase 2: Acquire lock only for writes (shorter window)
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(5000); // Reduced from 30000ms to 5000ms for faster timeout
+    // Use tryLock for immediate failure, allowing frontend to retry
+    if (!lock.tryLock(5000)) {
+      return { success: false, error: 'LOCK_TIMEOUT', retry: true };
+    }
 
     // --- Settings: find target row ---
     let settingsFoundIdx = -1;
@@ -649,6 +652,10 @@ function saveShiftData(dateStr, shift, settings, units) {
     return { success: true };
   } catch (e) {
     console.error('Error in saveShiftData:', e);
+    // Check if it's a lock timeout
+    if (e.message && e.message.includes('Lock')) {
+      return { success: false, error: 'LOCK_TIMEOUT', retry: true };
+    }
     return { success: false, error: e.toString() };
   } finally {
     lock.releaseLock();
