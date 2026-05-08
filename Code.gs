@@ -549,8 +549,19 @@ function saveShiftData(dateStr, shift, settings, units) {
   }
 
   const targetSector = toStorageSector(settings.nombrePuesto || '1A');
-  const settingsRows = settingsSheet.getDataRange().getValues();
-  const dataRows = dataSheet.getDataRange().getValues();
+
+  // Optimization: Read only necessary columns instead of entire sheet
+  // Settings: columns A, B, C, F (FECHA, TURNO, SECTOR, PERMANENCIA)
+  const settingsLastRow = settingsSheet.getLastRow();
+  const settingsRows = settingsLastRow > 1 
+    ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues() 
+    : [];
+
+  // Unit Data: columns A, B, C (FECHA, TURNO, SECTOR) - only what's needed to find rows to delete
+  const dataLastRow = dataSheet.getLastRow();
+  const dataRows = dataLastRow > 1 
+    ? dataSheet.getRange(2, 1, dataLastRow - 1, 3).getValues() 
+    : [];
 
   const unitsToSave = units.filter(u =>
     (u.id && String(u.id).trim() !== '') ||
@@ -567,16 +578,17 @@ function saveShiftData(dateStr, shift, settings, units) {
     }
 
     // --- Settings: find target row ---
+    // Note: settingsRows now starts at row 2 (no header row in array)
     let settingsFoundIdx = -1;
     const permanenciaUpdates = []; // [rowIndex, ...]
 
-    for (let i = 1; i < settingsRows.length; i++) {
+    for (let i = 0; i < settingsRows.length; i++) {
       const row = settingsRows[i];
       const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
-      if (rowDate === dateStr && row[1] === shift) {
-        permanenciaUpdates.push(i + 1);
+      if (rowDate === dateStr && String(row[1]) === shift) {
+        permanenciaUpdates.push(i + 2); // +2 because array starts at row 2
         if (toStorageSector(row[2]) === targetSector) {
-          settingsFoundIdx = i + 1;
+          settingsFoundIdx = i + 2; // +2 because array starts at row 2
         }
       }
     }
@@ -611,42 +623,52 @@ function saveShiftData(dateStr, shift, settings, units) {
       });
     }
 
-    // --- Units: batch-delete old rows, then write new ---
-    // Collect row indices (1-based) to delete
-    const toDelete = [];
-    for (let i = dataRows.length - 1; i >= 1; i--) {
+    // --- Units: update-in-place using composite key ---
+    // Build Map of existing rows for O(1) lookup: key -> {rowIndex, rowData}
+    // Composite key format: ${dateStr}_${shift}_${targetSector}_${unitId}
+    const existingRows = new Map();
+    for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
-      if (row[0] && Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') === dateStr &&
-          row[1] === shift &&
-          toStorageSector(row[2]) === targetSector) {
-        toDelete.push(i + 1);
-      }
-    }
-
-    // Delete contiguous ranges in batch (toDelete is descending)
-    if (toDelete.length > 0) {
-      let rangeStart = toDelete[0], rangeCount = 1;
-      for (let i = 1; i < toDelete.length; i++) {
-        if (toDelete[i] === toDelete[i - 1] - 1) {
-          rangeCount++;
-          rangeStart = toDelete[i];
-        } else {
-          dataSheet.deleteRows(rangeStart, rangeCount);
-          rangeStart = toDelete[i];
-          rangeCount = 1;
+      if (!row[0]) continue;
+      const rowDate = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+      if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
+        const unitId = String(row[3] || '').trim();
+        if (unitId) {
+          const key = `${dateStr}_${shift}_${targetSector}_${unitId}`;
+          existingRows.set(key, { rowIndex: i + 2, rowData: row }); // +2 because array starts at row 2
         }
       }
-      dataSheet.deleteRows(rangeStart, rangeCount);
     }
 
-    // Write new rows
-    if (sectorUnits.length > 0) {
-      const newRows = sectorUnits.map(u => [
+    // Track which existing rows were updated, and collect new rows to append
+    const updatedRows = [];
+    const rowsToAppend = [];
+
+    for (const unit of sectorUnits) {
+      const unitId = String(unit.id || '').trim();
+      if (!unitId) continue;
+
+      const key = `${dateStr}_${shift}_${targetSector}_${unitId}`;
+      const unitRow = [
         dateStr, shift, targetSector,
-        u.id, u.type, u.model || '', u.personnel1, u.personnel2, u.plate, u.indicative, u.radio,
-        u.status, u.reason, u.kmStart || '0', u.kmEnd || '0', u.totalKm || '0', u.kmRecarga || '0', u.hours, u.fuel, u.expense, '0', u.quadrant, u.mechanics
-      ]);
-      dataSheet.getRange(dataSheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
+        unit.id, unit.type, unit.model || '', unit.personnel1, unit.personnel2, unit.plate, unit.indicative, unit.radio,
+        unit.status, unit.reason, unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours, unit.fuel, unit.expense, '0', unit.quadrant, unit.mechanics
+      ];
+
+      if (existingRows.has(key)) {
+        // Update existing row in place
+        const existing = existingRows.get(key);
+        dataSheet.getRange(existing.rowIndex, 1, 1, unitRow.length).setValues([unitRow]);
+        updatedRows.push(existing.rowIndex);
+      } else {
+        // Append new row
+        rowsToAppend.push(unitRow);
+      }
+    }
+
+    // Write new rows at the end
+    if (rowsToAppend.length > 0) {
+      dataSheet.getRange(dataSheet.getLastRow() + 1, 1, rowsToAppend.length, rowsToAppend[0].length).setValues(rowsToAppend);
     }
 
     return { success: true };
