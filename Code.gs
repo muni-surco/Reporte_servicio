@@ -561,7 +561,7 @@ function saveShiftData(dateStr, shift, settings, units) {
   // Phase 2: Acquire lock only for writes (shorter window)
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(30000);
+    lock.waitLock(5000); // Reduced from 30000ms to 5000ms for faster timeout
 
     // --- Settings: find target row ---
     let settingsFoundIdx = -1;
