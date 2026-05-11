@@ -575,17 +575,50 @@ function saveShiftData(dateStr, shift, settings, units) {
   const targetSector = toStorageSector(settings.nombrePuesto || '1A');
 
   // Optimization: Read only necessary columns instead of entire sheet
-  // Settings: columns A, B, C, F (FECHA, TURNO, SECTOR, PERMANENCIA)
   const settingsLastRow = settingsSheet.getLastRow();
   const settingsRows = settingsLastRow > 1 
     ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues() 
     : [];
 
-  // Unit Data: columns A, B, C (FECHA, TURNO, SECTOR) - only what's needed to find rows to delete
   const dataLastRow = dataSheet.getLastRow();
   const dataRows = dataLastRow > 1 
-    ? dataSheet.getRange(2, 1, dataLastRow - 1, 3).getValues() 
+    ? dataSheet.getRange(2, 1, dataLastRow - 1, 4).getValues() // Read 4 columns to get ID
     : [];
+
+  const timeZone = ss.getSpreadsheetTimeZone();
+
+
+  // --- PRE-PROCESS OUTSIDE LOCK (Fast Lookups) ---
+  let settingsFoundIdx = -1;
+  const permanenciaUpdates = [];
+  for (let i = 0; i < settingsRows.length; i++) {
+    const row = settingsRows[i];
+    if (!row[0]) continue;
+    try {
+      const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
+      if (rowDate === dateStr && String(row[1]) === shift) {
+        permanenciaUpdates.push(i + 2);
+        if (toStorageSector(row[2]) === targetSector) {
+          settingsFoundIdx = i + 2;
+        }
+      }
+    } catch (e) {}
+  }
+
+  const existingRows = new Map();
+  for (let i = 0; i < dataRows.length; i++) {
+    const row = dataRows[i];
+    if (!row[0]) continue;
+    try {
+      const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
+      if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
+        const unitId = String(row[3] || '').trim();
+        if (unitId) {
+          existingRows.set(`${dateStr}_${shift}_${targetSector}_${unitId}`, { rowIndex: i + 2 });
+        }
+      }
+    } catch (e) {}
+  }
 
   const unitsToSave = units.filter(u =>
     (u.id && String(u.id).trim() !== '') ||
@@ -593,32 +626,15 @@ function saveShiftData(dateStr, shift, settings, units) {
   );
   const sectorUnits = unitsToSave.filter(u => toStorageSector(u.sector) === targetSector);
 
-  // Phase 2: Acquire lock only for writes (shorter window)
+  // Phase 2: Acquire lock only for writes (shortest window possible)
   const lock = LockService.getScriptLock();
   try {
-    // Use tryLock for immediate failure, allowing frontend to retry
-    if (!lock.tryLock(5000)) {
+    if (!lock.tryLock(20000)) { // 20s timeout
       return { success: false, error: 'LOCK_TIMEOUT', retry: true };
     }
 
-    // --- Settings: find target row ---
-    // Note: settingsRows now starts at row 2 (no header row in array)
-    let settingsFoundIdx = -1;
-    const permanenciaUpdates = []; // [rowIndex, ...]
-
-    for (let i = 0; i < settingsRows.length; i++) {
-      const row = settingsRows[i];
-      const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : '';
-      if (rowDate === dateStr && String(row[1]) === shift) {
-        permanenciaUpdates.push(i + 2); // +2 because array starts at row 2
-        if (toStorageSector(row[2]) === targetSector) {
-          settingsFoundIdx = i + 2; // +2 because array starts at row 2
-        }
-      }
-    }
-
+    // --- Settings: Update/Append target sector row ---
     const settingsValues = [dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia];
-
     if (settingsFoundIdx > -1) {
       settingsSheet.getRange(settingsFoundIdx, 1, 1, settingsValues.length).setValues([settingsValues]);
     } else {
@@ -626,9 +642,8 @@ function saveShiftData(dateStr, shift, settings, units) {
       permanenciaUpdates.push(settingsSheet.getLastRow());
     }
 
-    // Batch permanencia: use a single setValues() for contiguous ranges
+    // --- Permanencia: Sync all sectors for same date/shift ---
     if (permanenciaUpdates.length > 0) {
-      // Group contiguous row indices into ranges
       let ranges = [];
       let start = permanenciaUpdates[0], end = permanenciaUpdates[0];
       for (let i = 1; i < permanenciaUpdates.length; i++) {
@@ -647,25 +662,8 @@ function saveShiftData(dateStr, shift, settings, units) {
       });
     }
 
-    // --- Units: update-in-place using composite key ---
-    // Build Map of existing rows for O(1) lookup: key -> {rowIndex, rowData}
-    // Composite key format: ${dateStr}_${shift}_${targetSector}_${unitId}
-    const existingRows = new Map();
-    for (let i = 0; i < dataRows.length; i++) {
-      const row = dataRows[i];
-      if (!row[0]) continue;
-      const rowDate = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-      if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
-        const unitId = String(row[3] || '').trim();
-        if (unitId) {
-          const key = `${dateStr}_${shift}_${targetSector}_${unitId}`;
-          existingRows.set(key, { rowIndex: i + 2, rowData: row }); // +2 because array starts at row 2
-        }
-      }
-    }
-
-    // Track which existing rows were updated, and collect new rows to append
-    const updatedRows = [];
+    // Track updates to perform them in batches
+    const unitUpdates = [];
     const rowsToAppend = [];
 
     for (const unit of sectorUnits) {
@@ -680,13 +678,32 @@ function saveShiftData(dateStr, shift, settings, units) {
       ];
 
       if (existingRows.has(key)) {
-        // Update existing row in place
         const existing = existingRows.get(key);
-        dataSheet.getRange(existing.rowIndex, 1, 1, unitRow.length).setValues([unitRow]);
-        updatedRows.push(existing.rowIndex);
+        unitUpdates.push({ rowIndex: existing.rowIndex, values: unitRow });
       } else {
-        // Append new row
         rowsToAppend.push(unitRow);
+      }
+    }
+
+    // Sort updates by rowIndex to facilitate batching
+    unitUpdates.sort((a, b) => a.rowIndex - b.rowIndex);
+
+    // Perform unit updates in contiguous batches
+    if (unitUpdates.length > 0) {
+      let i = 0;
+      while (i < unitUpdates.length) {
+        let j = i;
+        // Find how many rows are contiguous
+        while (j + 1 < unitUpdates.length && unitUpdates[j + 1].rowIndex === unitUpdates[j].rowIndex + 1) {
+          j++;
+        }
+        
+        const startRow = unitUpdates[i].rowIndex;
+        const numRows = j - i + 1;
+        const batchValues = unitUpdates.slice(i, j + 1).map(u => u.values);
+        
+        dataSheet.getRange(startRow, 1, numRows, batchValues[0].length).setValues(batchValues);
+        i = j + 1;
       }
     }
 

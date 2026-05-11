@@ -210,10 +210,10 @@ const App: React.FC = () => {
               ...prev,
               [newSettings.nombrePuesto || 'SECTOR 1A']: newSettings
             }));
-          } else if (res.retry && retryCount < 3) {
-            // Retry with exponential backoff: 500ms, 1000ms, 2000ms
-            const delay = 500 * Math.pow(2, retryCount);
-            console.log(`Lock timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/3)`);
+          } else if (res.retry && retryCount < 5) {
+            // Retry with exponential backoff: 1000ms, 2000ms, 4000ms, 8000ms, 16000ms
+            const delay = 1000 * Math.pow(2, retryCount);
+            console.warn(`Lock timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/5)`);
             setTimeout(() => {
               persistData(newSettings, newUnits, retryCount + 1);
             }, delay);
@@ -233,6 +233,9 @@ const App: React.FC = () => {
   };
 
   const handleSectorChange = (sector: Sector) => {
+    // Save current sector data before switching
+    persistData(settings, units);
+    
     setCurrentSector(sector);
     const specificSettings = sectorSettingsMap[sector];
     if (specificSettings) {
@@ -326,11 +329,13 @@ const App: React.FC = () => {
 
   const handleSaveSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
-    persistData(newSettings, units);
+    // Removed immediate persistData(newSettings, units) to avoid multiple server calls on focus loss
+    // Persistence now happens on Global Save or Sector Change
   };
 
-  const handleGlobalSave = () => {
-    persistData(settings, units);
+  const handleGlobalSave = (currentSettings?: AppSettings) => {
+    const settingsToSave = currentSettings || settings;
+    persistData(settingsToSave, units);
   };
 
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {

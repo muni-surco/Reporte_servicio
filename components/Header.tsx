@@ -14,7 +14,7 @@ import AutocompleteInput from './AutocompleteInput';
 interface HeaderProps {
   settings: AppSettings;
   onSaveSettings: (newSettings: AppSettings) => void;
-  onGlobalSave: () => void;
+  onGlobalSave: (currentSettings: AppSettings) => void;
   onGeneratePDF: () => void;
   onRefresh?: () => void;
   isSaving?: boolean;
@@ -260,7 +260,7 @@ const Header: React.FC<HeaderProps> = ({
                       <span className="hidden xl:inline">SINCRONIZAR</span>
                     </button>
                     <button
-                      onClick={onGlobalSave}
+                      onClick={() => onGlobalSave(tempSettingsRef.current)}
                       disabled={isSaving || isRefreshing}
                       title="Guardar"
                       className={`${btnIconStyle} bg-primary hover:bg-primary-dark text-white xl:px-6 shadow-blue-100`}
