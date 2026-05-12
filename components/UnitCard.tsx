@@ -16,13 +16,14 @@ interface UnitCardProps {
   indicativeOptions?: string[];
   personnelOptions?: string[];
   quadrantOptions?: string[];
+  radioOptions?: string[];
   currentDate: string;
   currentShift: string;
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
-  statusOptions, indicativeOptions, personnelOptions, quadrantOptions,
+  statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions,
   currentDate, currentShift
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
@@ -293,7 +294,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   setFormData(prev => ({ ...prev, radio: val }));
                   setErrors(prev => ({ ...prev, radio: false }));
                 }}
-                suggestions={Array.from(new Set([...RADIOS, ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])])) as string[]}
+                suggestions={Array.from(new Set([
+                  ...RADIOS, 
+                  ...(radioOptions || []),
+                  ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])
+                ])) as string[]}
                 placeholder="20xxx"
                 error={errors.radio}
               />

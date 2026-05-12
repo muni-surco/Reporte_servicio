@@ -19,6 +19,7 @@ interface UnitSectionProps {
   indicativeOptions?: string[];
   personnelOptions?: string[];
   quadrantOptions?: string[];
+  radioOptions?: string[];
   currentDate: string;
   currentShift: string;
 }
@@ -40,6 +41,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   indicativeOptions,
   personnelOptions,
   quadrantOptions,
+  radioOptions,
   currentDate,
   currentShift
 }) => {
@@ -111,6 +113,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
                 indicativeOptions={indicativeOptions}
                 personnelOptions={personnelOptions}
                 quadrantOptions={quadrantOptions}
+                radioOptions={radioOptions}
                 currentDate={currentDate}
                 currentShift={currentShift}
               />

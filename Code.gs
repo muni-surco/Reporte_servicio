@@ -393,6 +393,7 @@ function getMobileData() {
   const statusesSet = new Set();
   const quadrantsSet = new Set();
   const motivoTallerSet = new Set();
+  const radiosSet = new Set();
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -427,6 +428,11 @@ function getMobileData() {
     // Collect Unique Motivo Taller
     if (motivoTallerIdx !== -1 && row[motivoTallerIdx]) {
       motivoTallerSet.add(String(row[motivoTallerIdx]).trim());
+    }
+
+    // Collect ALL Unique Radios (even if no movil ID is present)
+    if (radioIdx !== -1 && row[radioIdx]) {
+      radiosSet.add(String(row[radioIdx]).trim());
     }
   }
   
@@ -481,7 +487,8 @@ function getMobileData() {
     personnel: Array.from(personnelSet).sort(),
     operators: Array.from(operatorsSet).sort(),
     quadrants: Array.from(quadrantsSet).sort(),
-    motivoTallerOptions: Array.from(motivoTallerSet).sort()
+    motivoTallerOptions: Array.from(motivoTallerSet).sort(),
+    radios: Array.from(radiosSet).sort()
   };
 }
 

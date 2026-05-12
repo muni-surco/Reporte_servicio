@@ -55,6 +55,7 @@ const App: React.FC = () => {
   const [operatorOptions, setOperatorOptions] = useState<string[]>([]);
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
   const [motivoTallerOptions, setMotivoTallerOptions] = useState<string[]>([]);
+  const [radioOptions, setRadioOptions] = useState<string[]>([]);
   const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
   const [loadingPersonnel, setLoadingPersonnel] = useState(false);
   const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
@@ -66,7 +67,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[] }) => {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[] }) => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
@@ -74,6 +75,7 @@ const App: React.FC = () => {
           if (data.operators) setOperatorOptions(data.operators);
           if (data.quadrants) setQuadrantOptions(data.quadrants);
           if (data.motivoTallerOptions) setMotivoTallerOptions(data.motivoTallerOptions);
+          if (data.radios) setRadioOptions(data.radios);
         })
         .withFailureHandler((err: any) => {
           console.error('Failed to get mobile data', err);
@@ -484,6 +486,7 @@ const App: React.FC = () => {
                     indicativeOptions={indicativeOptions}
                     personnelOptions={personnelOptions}
                     quadrantOptions={quadrantOptions}
+                    radioOptions={radioOptions}
                     currentDate={selectedDate}
                     currentShift={settings.turno}
                   />
@@ -501,6 +504,7 @@ const App: React.FC = () => {
                     indicativeOptions={indicativeOptions}
                     personnelOptions={personnelOptions}
                     quadrantOptions={quadrantOptions}
+                    radioOptions={radioOptions}
                     currentDate={selectedDate}
                     currentShift={settings.turno}
                   />
@@ -515,6 +519,7 @@ const App: React.FC = () => {
                     statusOptions={statusOptions}
                     indicativeOptions={indicativeOptions}
                     personnelOptions={personnelOptions}
+                    radioOptions={radioOptions}
                     currentDate={selectedDate}
                     currentShift={settings.turno}
                   />
