@@ -307,10 +307,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
             {isChofer && (
               <div className="col-span-2">
                 <label className={labelStyleEdit}>Copiloto</label>
-                <AutocompleteInput
+                <input
+                  name="personnel2"
                   value={formData.personnel2 || ''}
-                  onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))}
-                  suggestions={activePersonnelOptions}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]/g, '');
+                    setFormData(prev => ({ ...prev, personnel2: cleaned }));
+                  }}
+                  className={inputStyle('personnel2')}
                   placeholder="Nombre..."
                 />
               </div>
