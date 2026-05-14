@@ -599,7 +599,7 @@ function saveShiftData(dateStr, shift, settings, units) {
 
   const dataLastRow = dataSheet.getLastRow();
   const dataRows = dataLastRow > 1 
-    ? dataSheet.getRange(2, 1, dataLastRow - 1, 4).getValues() // Read 4 columns to get ID
+    ? dataSheet.getRange(2, 1, dataLastRow - 1, 23).getValues() // Read all 23 columns
     : [];
 
   const timeZone = ss.getSpreadsheetTimeZone();
@@ -679,6 +679,23 @@ function saveShiftData(dateStr, shift, settings, units) {
       });
     }
 
+    // --- Mileage Bridge: Find previous shift records to update KM_FIN ---
+    const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
+    const prevShiftRecords = new Map();
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      if (!row[0]) continue;
+      try {
+        const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
+        if (rowDate === prevShiftInfo.date && String(row[1]) === prevShiftInfo.shift) {
+          const unitId = String(row[3] || '').trim().toUpperCase();
+          if (unitId) {
+            prevShiftRecords.set(unitId, { rowIndex: i + 2, rowData: [...row] });
+          }
+        }
+      } catch (e) {}
+    }
+
     // Track updates to perform them in batches
     const unitUpdates = [];
     const rowsToAppend = [];
@@ -699,6 +716,20 @@ function saveShiftData(dateStr, shift, settings, units) {
         unitUpdates.push({ rowIndex: existing.rowIndex, values: unitRow });
       } else {
         rowsToAppend.push(unitRow);
+      }
+
+      // Update KM_FIN of previous shift if applicable
+      if (unit.kmStart && unit.kmStart !== '0' && prevShiftRecords.has(unitId)) {
+        const prev = prevShiftRecords.get(unitId);
+        // Only update if current KM_FIN is 0 or empty to avoid overwriting manually fixed data? 
+        // User said "se debe autopopular", so we overwrite.
+        prev.rowData[14] = unit.kmStart; // Index 14 is KM_FIN
+        // Calculate total KM for previous shift too
+        const prevKmStart = parseFloat(prev.rowData[13]) || 0;
+        const prevKmEnd = parseFloat(unit.kmStart) || 0;
+        prev.rowData[15] = prevKmEnd >= prevKmStart ? (prevKmEnd - prevKmStart).toFixed(1) : '0';
+        
+        unitUpdates.push({ rowIndex: prev.rowIndex, values: prev.rowData });
       }
     }
 
@@ -743,6 +774,23 @@ function saveShiftData(dateStr, shift, settings, units) {
 }
 
 /**
+ * Helper to determine the previous shift and date.
+ */
+function getPreviousShift(dateStr, shift, timeZone) {
+  const shiftOrder = ['MAÑANA', 'TARDE', 'NOCHE'];
+  let idx = shiftOrder.indexOf(shift);
+  if (idx > 0) {
+    return { date: dateStr, shift: shiftOrder[idx - 1] };
+  } else {
+    // Go to previous day
+    let date = new Date(dateStr + 'T12:00:00');
+    date.setDate(date.getDate() - 1);
+    let prevDateStr = Utilities.formatDate(date, timeZone, "yyyy-MM-dd");
+    return { date: prevDateStr, shift: 'NOCHE' };
+  }
+}
+
+/**
  * Gets the last recorded KM Final for a unit in a specific sector,
  * ensuring it's from a previous shift/day.
  */
@@ -773,8 +821,8 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
       if (rowDate > currentDateStr) continue;
       if (rowDate === currentDateStr && rowShiftVal >= currentShiftVal) continue;
       
-      // row[3] is ID, row[2] is SECTOR, row[14] is KM_FIN
-      if (String(row[3]).trim().toUpperCase() === searchId && toStorageSector(row[2]) === targetSector) {
+      // row[3] is ID, row[14] is KM_FIN
+      if (String(row[3]).trim().toUpperCase() === searchId) {
         return String(row[14] || '0');
       }
     }

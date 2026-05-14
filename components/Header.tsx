@@ -132,8 +132,10 @@ const Header: React.FC<HeaderProps> = ({
                       {isPersonnel ? 'VISTA DE PERSONAL' : isStatistics ? 'ESTADÍSTICAS OPERATIVAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : 'VISTA DE DESPACHADOR'}
                     </h2>
                     {isVisualization && (
-                      <span className="text-[14px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 uppercase tracking-tight">
-                        {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })} | {settings.turno}
+                      <span className="text-[16px] font-bold text-blue-700 bg-blue-50/50 px-3 py-1 rounded-xl border border-blue-100 uppercase tracking-tighter flex items-center gap-3">
+                        <span className="text-blue-400 font-medium">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                        <div className="w-1 h-1 bg-blue-200 rounded-full"></div>
+                        <span>TURNO: {settings.turno}</span>
                       </span>
                     )}
                   </div>
