@@ -62,7 +62,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                 <div className="flex items-center gap-4">
                     {/* Filtro Rol */}
                     <div className="flex flex-col min-w-[150px]">
-                        <span className="text-[11px] font-medium text-[#004b93] uppercase tracking-wider mb-1 px-1">Rol Operativo</span>
+                        <span className="text-[11px] font-medium text-[#004b93] uppercase tracking-wider mb-1 px-1">Función Actual</span>
                         <div className="relative">
                             <select
                                 value={filterRole}
@@ -123,7 +123,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                 <th className={columnHeaderStyle}>Régimen Laboral</th>
                                 <th className={columnHeaderStyle}>Cód. Interno</th>
                                 <th className={columnHeaderStyle}>Sector</th>
-                                <th className={columnHeaderStyle}>Rol Operativo</th>
+                                <th className={columnHeaderStyle}>Función Actual</th>
                                 <th className={columnHeaderStyle}>Estado</th>
                             </tr>
                         </thead>

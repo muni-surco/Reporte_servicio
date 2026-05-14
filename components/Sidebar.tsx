@@ -39,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
         </button>
         <button
           onClick={() => onViewChange('VISUALIZATION')}
-          data-tooltip="Visualización de Reporte"
+          data-tooltip="Vista de Despachador"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'VISUALIZATION' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
         >
           <span className="material-symbols-outlined">description</span>
@@ -53,14 +53,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
         </button>
         <button
           onClick={() => onViewChange('PERSONNEL')}
-          data-tooltip="Gestión de Personal"
+          data-tooltip="Vista de Personal"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'PERSONNEL' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
         >
           <span className="material-symbols-outlined">group</span>
         </button>
         <button
           onClick={() => onViewChange('REPORTS')}
-          data-tooltip="Centro de Reportes Estructurados"
+          data-tooltip="Centro de Reportes"
           className={`px-3 py-2 rounded-xl transition-all ${currentView === 'REPORTS' ? 'bg-primary-dark text-white shadow-lg shadow-black/30' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
         >
           <span className="material-symbols-outlined">summarize</span>

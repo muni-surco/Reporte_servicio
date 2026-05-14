@@ -47,6 +47,7 @@ const Header: React.FC<HeaderProps> = ({
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [localDate, setLocalDate] = useState(selectedDate);
+  const [liveTime, setLiveTime] = useState(new Date());
   const tempSettingsRef = useRef<AppSettings>(settings);
 
   useEffect(() => {
@@ -57,6 +58,13 @@ const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     setLocalDate(selectedDate);
   }, [selectedDate]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveTime(new Date());
+    }, 10000); // Update every 10 seconds to save some cycles
+    return () => clearInterval(timer);
+  }, []);
 
   const handleBlur = () => {
     const currentTemp = tempSettingsRef.current;
@@ -127,9 +135,16 @@ const Header: React.FC<HeaderProps> = ({
                     <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-2xl md:text-3xl text-[#002d5a] pointer-events-none group-hover/sector:scale-110 transition-transform">expand_more</span>
                   </div>
                 ) : (
-                  <h2 className="text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none truncate">
-                    {isPersonnel ? 'PERSONAL' : isStatistics ? 'ESTADÍSTICAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : 'REPORTE'}
-                  </h2>
+                  <div className="flex items-baseline gap-3">
+                    <h2 className="text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none truncate">
+                      {isPersonnel ? 'VISTA DE PERSONAL' : isStatistics ? 'ESTADÍSTICAS OPERATIVAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : 'VISTA DE DESPACHADOR'}
+                    </h2>
+                    {isVisualization && (
+                      <span className="text-[14px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 uppercase tracking-tight">
+                        {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })} | {liveTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </span>
+                    )}
+                  </div>
                 )}
                 <span className="text-[11px] font-medium text-slate-300 uppercase tracking-widest mt-1 block">Gestión de Seguridad</span>
               </div>
