@@ -28,7 +28,15 @@ function toStorageSector(value) {
   const normalized = normalizeSectorValue(value);
   if (!normalized) return '';
   if (normalized === 'RESCATE' || normalized === 'GIR') return normalized;
+  // Handle cases like "SECTOR 1A" -> "1A"
   return normalized.replace(/^SECTOR\s+/, '');
+}
+
+function getUnitType(id) {
+  const upperId = String(id || '').toUpperCase();
+  if (upperId.startsWith('H') || upperId.startsWith('A-G')) return 'MOTO';
+  if (upperId.startsWith('S')) return 'SERENO';
+  return 'CHOFER';
 }
 
 function toDisplaySector(value) {
@@ -400,13 +408,15 @@ function getMobileData() {
     
     // Collect Mobile Data
     if (movilIdx !== -1 && row[movilIdx]) {
+      const id = String(row[movilIdx]);
       mobileData.push({
-        id: String(row[movilIdx]),
+        id: id,
         plate: placaIdx !== -1 ? String(row[placaIdx] || '') : '',
         model: modeloIdx !== -1 ? String(row[modeloIdx] || '') : '',
         radio: radioIdx !== -1 ? String(row[radioIdx] || '') : '',
         quadrant: cuadranteIdx !== -1 ? cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()) : '',
-        sector: sectorIdx !== -1 ? String(row[sectorIdx] || '') : '' 
+        sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
+        type: getUnitType(id)
       });
     }
 

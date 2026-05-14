@@ -11,7 +11,7 @@ import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import RetenManagementView from './components/RetenManagementView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData } from './types';
-import { SECTORS, SECTOR_DATA } from './constants';
+import { SECTORS } from './constants';
 import { Users, LayoutDashboard, FileText } from 'lucide-react';
 
 declare const google: any;
@@ -62,7 +62,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     loadData(selectedDate, settings.turno);
-  }, [selectedDate, settings.turno, currentSector]);
+  }, [selectedDate, settings.turno, currentSector, mobileData.length]);
 
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -156,14 +156,36 @@ const App: React.FC = () => {
           const otherSectorsUnits = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() !== currentSectorNormalized);
           const currentSectorUnitsFound = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() === currentSectorNormalized);
 
-          const defaults = SECTOR_DATA[currentSector] || [];
+          const defaults = mobileData.filter(m => (m.sector || '').trim().toUpperCase() === currentSectorNormalized);
           const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
           let sectorUnitsToUse = [...currentSectorUnitsFound];
 
           typesToLoad.forEach(type => {
             const hasType = currentSectorUnitsFound.some(u => u.type === type);
             if (!hasType) {
-              const typeDefaults = defaults.filter(d => d.type === type).map(d => ({ ...d, sector: currentSector }));
+              const typeDefaults = defaults
+                .filter(d => d.type === type)
+                .map(d => ({
+                  id: d.id,
+                  type: d.type as any,
+                  sector: currentSector,
+                  plate: d.plate,
+                  quadrant: d.quadrant,
+                  status: UnitStatus.PATRULLANDO,
+                  kmStart: '0',
+                  kmEnd: '0',
+                  totalKm: '0',
+                  kmRecarga: '0',
+                  fuel: '-- / --',
+                  expense: 'S/ 0.00',
+                  personnel1: '',
+                  personnel2: '',
+                  indicative: '',
+                  radio: d.radio || '',
+                  reason: '',
+                  mechanics: '',
+                  hours: '--:-- - --:--'
+                }));
               sectorUnitsToUse = [...sectorUnitsToUse, ...typeDefaults];
             }
           });
@@ -309,16 +331,58 @@ const App: React.FC = () => {
       supervisor: ''
     };
     let sectorUnits = units.filter(u => u.sector === s);
+    const defaults = mobileData.filter(m => m.sector === s);
+    
     if (sectorUnits.length === 0) {
-      const defaults = SECTOR_DATA[s] || [];
-      sectorUnits = defaults.map(d => ({ ...d, sector: s }));
+      sectorUnits = defaults.map(d => ({
+        id: d.id,
+        type: d.type as any,
+        sector: s,
+        plate: d.plate,
+        quadrant: d.quadrant,
+        status: UnitStatus.PATRULLANDO,
+        kmStart: '0',
+        kmEnd: '0',
+        totalKm: '0',
+        kmRecarga: '0',
+        fuel: '-- / --',
+        expense: 'S/ 0.00',
+        personnel1: '',
+        personnel2: '',
+        indicative: '',
+        radio: d.radio || '',
+        reason: '',
+        mechanics: '',
+        hours: '--:-- - --:--'
+      }));
     } else {
       const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
-      const defaults = SECTOR_DATA[s] || [];
       typesToLoad.forEach(type => {
         const hasType = sectorUnits.some(u => u.type === type);
         if (!hasType) {
-          const typeDefaults = defaults.filter(d => d.type === type).map(d => ({ ...d, sector: s }));
+          const typeDefaults = defaults
+            .filter(d => d.type === type)
+            .map(d => ({
+              id: d.id,
+              type: d.type as any,
+              sector: s,
+              plate: d.plate,
+              quadrant: d.quadrant,
+              status: UnitStatus.PATRULLANDO,
+              kmStart: '0',
+              kmEnd: '0',
+              totalKm: '0',
+              kmRecarga: '0',
+              fuel: '-- / --',
+              expense: 'S/ 0.00',
+              personnel1: '',
+              personnel2: '',
+              indicative: '',
+              radio: d.radio || '',
+              reason: '',
+              mechanics: '',
+              hours: '--:-- - --:--'
+            }));
           sectorUnits = [...sectorUnits, ...typeDefaults];
         }
       });
