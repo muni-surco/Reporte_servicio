@@ -10,7 +10,6 @@ interface PersonnelViewProps {
 
 const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterState, setFilterState] = useState('TODOS');
     const [filterRole, setFilterRole] = useState('TODOS');
 
     const operationalRoles = useMemo(() => {
@@ -26,17 +25,11 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                 (p.codigo_interno || '').toLowerCase().includes(searchTerm.toLowerCase());
 
             const matchesRole = filterRole === 'TODOS' || p.rol_operativo === filterRole;
-
-            let matchesState = filterState === 'TODOS' || p.estado.toUpperCase() === filterState.toUpperCase();
-
-            // Compatibilidad para registros que aún digan CESADO pero el filtro sea INACTIVO
-            if (filterState === 'INACTIVO' && p.estado.toUpperCase() === 'CESADO') {
-                matchesState = true;
-            }
+            const matchesState = (p.estado || '').toUpperCase() === 'ACTIVO';
 
             return matchesSearch && matchesState && matchesRole;
         });
-    }, [data, searchTerm, filterState, filterRole]);
+    }, [data, searchTerm, filterRole]);
 
     const columnHeaderStyle = "px-4 py-3 text-left text-[13px] font-semibold text-white uppercase tracking-widest border-b border-blue-800 bg-[#005ea5] sticky top-0 z-20 shadow-[0_1px_2px_0_rgba(0,0,0,0.1)]";
     const cellStyle = "px-4 py-3 text-[13px] text-slate-700 border-b border-slate-50 bg-white";
@@ -61,7 +54,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
 
                 <div className="flex items-center gap-4">
                     {/* Filtro Rol */}
-                    <div className="flex flex-col min-w-[150px]">
+                    <div className="flex flex-col min-w-[200px]">
                         <span className="text-[11px] font-medium text-[#004b93] uppercase tracking-wider mb-1 px-1">Función Actual</span>
                         <div className="relative">
                             <select
@@ -77,37 +70,18 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                         </div>
                     </div>
 
-                    {/* Filtro Estado */}
-                    <div className="flex flex-col">
-                        <span className="text-[11px] font-medium text-[#004b93] uppercase tracking-wider mb-1 px-1">Estado</span>
-                        <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200 h-[38px]">
-                            {['TODOS', 'ACTIVO', 'INACTIVO'].map(state => (
-                                <button
-                                    key={state}
-                                    onClick={() => setFilterState(state)}
-                                    className={`px-3 py-1.5 rounded-md text-[11px] font-medium transition-all h-full ${filterState === state
-                                        ? 'bg-white text-blue-600 shadow-sm'
-                                        : 'text-slate-400 hover:text-slate-600'
-                                        }`}
-                                >
-                                    {state}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
                     {/* Limpiar Filtros */}
-                        <div className="flex flex-col justify-end">
-                            <span className="text-[11px] font-medium text-transparent uppercase tracking-wider mb-1 px-1">‎</span>
-                            <button
-                                onClick={() => { setSearchTerm(''); setFilterRole('TODOS'); setFilterState('TODOS'); }}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-[11px] font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-all h-[38px] whitespace-nowrap cursor-pointer"
-                                title="Limpiar todos los filtros"
-                            >
-                                <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
-                                Limpiar
-                            </button>
-                        </div>
+                    <div className="flex flex-col justify-end">
+                        <span className="text-[11px] font-medium text-transparent uppercase tracking-wider mb-1 px-1">‎</span>
+                        <button
+                            onClick={() => { setSearchTerm(''); setFilterRole('TODOS'); }}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-[11px] font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-all h-[38px] whitespace-nowrap cursor-pointer"
+                            title="Limpiar todos los filtros"
+                        >
+                            <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
+                            Limpiar
+                        </button>
+                    </div>
                 </div>
             </div>
 

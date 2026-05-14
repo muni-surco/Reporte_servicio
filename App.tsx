@@ -550,22 +550,22 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto scroll-smooth p-4" id="report-content">
           {currentView === 'DASHBOARD' ? (
             <>
-              <UnitSection
-                title="CHOFERES" type="CHOFER" icon="minor_crash"
-                badge={currentSectorUnits.filter(u => u.type === 'CHOFER').length.toString()}
-                units={currentSectorUnits.filter(u => u.type === 'CHOFER')}
-                allUnits={units}
-                editingId={editingId}
-                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
-                    mobileData={mobileData}
-                    statusOptions={statusOptions}
-                    indicativeOptions={indicativeOptions}
-                    personnelOptions={personnelOptions}
-                    quadrantOptions={quadrantOptions}
-                    radioOptions={radioOptions}
-                    currentDate={selectedDate}
-                    currentShift={settings.turno}
-                  />
+                <UnitSection
+                  title="CHOFERES" type="CHOFER" icon="minor_crash"
+                  badge={currentSectorUnits.filter(u => u.type === 'CHOFER').length.toString()}
+                  units={currentSectorUnits.filter(u => u.type === 'CHOFER')}
+                  allUnits={units}
+                  editingId={editingId}
+                  onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                  mobileData={mobileData}
+                  statusOptions={statusOptions}
+                  indicativeOptions={indicativeOptions}
+                  personnelOptions={personnelOptions}
+                  quadrantOptions={quadrantOptions}
+                  radioOptions={radioOptions}
+                  currentDate={selectedDate}
+                  currentShift={settings.turno}
+                />
               {currentSector !== 'RESCATE' && (
                 <>
                   <UnitSection

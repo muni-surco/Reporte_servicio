@@ -172,15 +172,15 @@ const Header: React.FC<HeaderProps> = ({
                   <div className="flex flex-col w-[85px] md:w-[110px]">
                     <span className={labelStyle}>TURNO</span>
                     <div className="relative">
-                      <select 
-                        value={settings.turno} 
+                      <select
+                        value={settings.turno}
                         onChange={(e) => {
                           const val = e.target.value;
                           const updated = { ...tempSettingsRef.current, turno: val };
                           setTempSettings(updated);
                           tempSettingsRef.current = updated;
                           onSaveSettings(updated);
-                        }} 
+                        }}
                         className={`${inputBaseStyle} w-full pr-8 cursor-pointer`}
                       >
                         <option value="MAÑANA">MAÑANA</option>
@@ -225,7 +225,7 @@ const Header: React.FC<HeaderProps> = ({
                       )}
                     </div>
                     <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1">
-                      <span className={labelStyle}>PERMANENCIA</span>
+                      <span className={labelStyle}>JEFE DE ÁREA O PERMANENCIA</span>
                       {editingField === 'permanencia' ? (
                         <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
                       ) : (

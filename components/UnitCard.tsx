@@ -148,17 +148,28 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'FALTO',
       'ONOMASTICO',
       'ONOMÁSTICO',
-      'PERMISO'
+      'PERMISO',
+      UnitStatus.MAESTRANZA,
+      UnitStatus.TALLER_PARTICULAR,
+      UnitStatus.EN_PC_X_DESPERFECTOS,
+      UnitStatus.OPERATIVA_SIN_CHOFER
     ];
     const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
+    const isNoPersonnelStatus = [
+      UnitStatus.OPERATIVA_SIN_CHOFER,
+      UnitStatus.MAESTRANZA,
+      UnitStatus.TALLER_PARTICULAR,
+      UnitStatus.EN_PC_X_DESPERFECTOS,
+      'FALTO', 'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO', 'PERMISO', 'ONOMASTICO', 'ONOMÁSTICO'
+    ].includes(formData.status?.toUpperCase());
 
-    const isValidMobileId = !formData.id || String(formData.id).trim() === '' || 
-                           isSereno || 
-                           (mobileData && mobileData.some(m => m.id === formData.id));
+    const isValidMobileId = !formData.id || String(formData.id).trim() === '' ||
+      isSereno ||
+      (mobileData && mobileData.some(m => m.id === formData.id));
 
     const newErrors: Record<string, boolean> = {
-      id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) || 
-          ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
+      id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
+        ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: !formData.personnel1 || String(formData.personnel1).trim() === '',
       radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
       quadrant: !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
