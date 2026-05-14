@@ -211,7 +211,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
             horaIngresoTaller: data?.horaIngresoTaller || ''
           }));
         })
-        .withFailureHandler(() => {})
+        .withFailureHandler(() => { })
         .getLastUnitTallerEntry(normalized);
     } else if (normalized) {
       // Mock: search current replacements for last record without exit
@@ -245,362 +245,310 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   };
 
 
+  const columnHeaderStyle = "px-4 py-3 text-left text-[13px] font-semibold text-white uppercase tracking-widest border-b border-blue-800 bg-[#005ea5] sticky top-0 z-20 shadow-[0_1px_2px_0_rgba(0,0,0,0.1)]";
+  const cellStyle = "px-4 py-3 text-[13px] text-slate-700 border-b border-slate-50 bg-white";
+  const labelStyle = "text-[11px] font-medium text-[#004b93] uppercase tracking-wider mb-1 px-1 block";
+  const inputBaseStyle = "w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all uppercase placeholder:text-slate-300 h-[38px]";
+
   return (
-    <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200/60 overflow-hidden border border-slate-100 min-h-[600px] flex flex-col">
-      <div className="p-8 pb-0">
-        <div className="bg-surco-blue rounded-2xl p-6 text-white mb-8 shadow-xl shadow-surco-blue/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-2xl">swap_horizontal_circle</span>
-              <h2 className="text-lg font-semibold tracking-tight">Registro de Unidades de Reemplazo /  Retén (AR)</h2>
-            </div>
-            <div className="flex items-center gap-4 font-medium opacity-80">
-              <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">calendar_today</span>
-                {selectedDate}
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">schedule</span>
-                TURNO {settings.turno}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <form onSubmit={handleAdd} className="p-6 bg-slate-50/50 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 items-end">
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Turno</label>
-              <select
-                value={form.turno}
-                onChange={e => setForm({ ...form, turno: e.target.value })}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all cursor-pointer h-[42px]"
-              >
-                {shifts.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">U. Reemplazada</label>
+    <div className="flex flex-col h-full gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Toolbar / Form */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 shrink-0">
+        <form onSubmit={handleAdd} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-4">
+            {/* Row 1 */}
+            <div className="flex flex-col">
+              <label className={labelStyle}>Turno</label>
               <div className="relative">
-                <AutocompleteInput
-                  value={form.replacedUnit}
-                  onChange={handleReplacedUnitChange}
-                  onBlur={() => setTouched(prev => ({ ...prev, replacedUnit: true }))}
-                  placeholder="Ej: M-15..."
-                  suggestions={mobileIds}
-                  error={touched.replacedUnit && !!errors.replacedUnit}
-                  className="!h-[42px] !rounded-xl !px-4 !py-2.5 !text-sm !bg-white !border-slate-200"
-                />
-                {touched.replacedUnit && errors.replacedUnit && (
-                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.replacedUnit}</p>
-                )}
+                <select
+                  value={form.turno}
+                  onChange={e => setForm({ ...form, turno: e.target.value })}
+                  className={`${inputBaseStyle} appearance-none cursor-pointer pr-8`}
+                >
+                  {shifts.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[16px] pointer-events-none">expand_more</span>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Placa Reemp.</label>
+            <div className="flex flex-col">
+              <label className={labelStyle}>Unidad Reemplazada</label>
+              <AutocompleteInput
+                value={form.replacedUnit}
+                onChange={handleReplacedUnitChange}
+                onBlur={() => setTouched(prev => ({ ...prev, replacedUnit: true }))}
+                placeholder="M-15..."
+                suggestions={mobileIds}
+                error={touched.replacedUnit && !!errors.replacedUnit}
+                className="!h-[38px] !rounded-lg !text-[13px] !bg-slate-50 !border-slate-200"
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className={labelStyle}>Placa Reemplazada</label>
+              <input
+                type="text"
+                value={form.placa}
+                placeholder="-"
+                readOnly
+                className={`${inputBaseStyle} ${form.replacedUnit && !form.placa ? 'bg-red-50 border-red-200 text-red-600' : 'bg-slate-100/50 text-slate-400 cursor-not-allowed'}`}
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className={labelStyle}>Unidad Retén</label>
               <div className="relative">
-                <input
-                  type="text"
-                  value={form.placa}
-                  placeholder="-"
-                  readOnly
-                  className={`w-full border rounded-xl px-4 py-2.5 text-sm outline-none transition-all uppercase cursor-not-allowed h-[42px] ${form.replacedUnit && !form.placa
-                    ? 'bg-red-50 border-red-200 text-red-600'
-                    : 'bg-slate-50 border-slate-200 text-slate-500'
-                    }`}
-                />
-                {form.replacedUnit && !form.placa && (
-                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">No válida</p>
-                )}
+                <select
+                  value={form.retenUnit}
+                  onChange={e => handleRetenUnitChange(e.target.value)}
+                  onBlur={() => setTouched(prev => ({ ...prev, retenUnit: true }))}
+                  className={`${inputBaseStyle} appearance-none cursor-pointer pr-8 ${touched.retenUnit && errors.retenUnit ? 'border-red-300 bg-red-50/30' : ''}`}
+                >
+                  <option value="">--</option>
+                  {retenUnits.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                </select>
+                <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[16px] pointer-events-none">expand_more</span>
               </div>
             </div>
 
-            <div className="space-y-1.5 relative">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Unidad Retén</label>
-              <select
-                value={form.retenUnit}
-                onChange={e => handleRetenUnitChange(e.target.value)}
-                onBlur={() => setTouched(prev => ({ ...prev, retenUnit: true }))}
-                className={`w-full bg-white border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all cursor-pointer h-[42px] ${touched.retenUnit && errors.retenUnit
-                  ? 'border-red-300 bg-red-50/30'
-                  : 'border-slate-200'
-                }`}
-              >
-                <option value="">Seleccione...</option>
-                {retenUnits.map(unit => (
-                  <option key={unit} value={unit}>{unit}</option>
-                ))}
-              </select>
-              {touched.retenUnit && errors.retenUnit && (
-                <p className="absolute -bottom-5 left-1 text-[10px] text-red-500 font-medium">{errors.retenUnit}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Placa Retén</label>
+            <div className="flex flex-col">
+              <label className={labelStyle}>Placa Retén</label>
               <input
                 type="text"
                 value={form.placaReten}
                 placeholder="-"
                 readOnly
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-500 outline-none transition-all uppercase cursor-not-allowed h-[42px]"
+                className={`${inputBaseStyle} bg-slate-100/50 text-slate-400 cursor-not-allowed`}
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">Motivo</label>
-              <div className="relative">
-                <AutocompleteInput
-                  value={form.motivo}
-                  onChange={(val) => {
-                    setForm({ ...form, motivo: val });
-                    if (!touched.motivo) setTouched(prev => ({ ...prev, motivo: true }));
-                  }}
-                  onBlur={() => setTouched(prev => ({ ...prev, motivo: true }))}
-                  placeholder="Justificación del relevo..."
-                  suggestions={motivoTallerOptions}
-                  error={touched.motivo && !!errors.motivo}
-                  className="!h-[42px] !rounded-xl !px-4 !py-2.5 !text-sm !bg-white !border-slate-200"
-                />
-                {touched.motivo && errors.motivo && (
-                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.motivo}</p>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">F. Ingreso Taller</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={form.fechaIngresoTaller}
-                  onBlur={() => setTouched(prev => ({ ...prev, fechaIngresoTaller: true }))}
-                  onChange={e => {
-                    setForm({ ...form, fechaIngresoTaller: e.target.value });
-                    if (!touched.fechaIngresoTaller) setTouched(prev => ({ ...prev, fechaIngresoTaller: true }));
-                  }}
-                  className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px] ${touched.fechaIngresoTaller && errors.fechaIngresoTaller
-                    ? 'border-red-300 bg-red-50/30'
-                    : 'bg-white border-slate-200'
-                    }`}
-                />
-                {touched.fechaIngresoTaller && errors.fechaIngresoTaller && (
-                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.fechaIngresoTaller}</p>
-                )}
-              </div>
-            </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">H. Ingreso Taller</label>
-              <div className="relative">
-                <input
-                  type="time"
-                  value={form.horaIngresoTaller}
-                  onBlur={() => setTouched(prev => ({ ...prev, horaIngresoTaller: true }))}
-                  onChange={e => {
-                    setForm({ ...form, horaIngresoTaller: e.target.value });
-                    if (!touched.horaIngresoTaller) setTouched(prev => ({ ...prev, horaIngresoTaller: true }));
-                  }}
-                  className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px] ${touched.horaIngresoTaller && errors.horaIngresoTaller
-                    ? 'border-red-300 bg-red-50/30'
-                    : 'bg-white border-slate-200'
-                    }`}
-                />
-                {touched.horaIngresoTaller && errors.horaIngresoTaller && (
-                  <p className="absolute -bottom-5 left-1 text-[13px] text-red-500 font-medium">{errors.horaIngresoTaller}</p>
-                )}
-              </div>
+            <div className="flex flex-col">
+              <label className={labelStyle}>Motivo</label>
+              <AutocompleteInput
+                value={form.motivo}
+                onChange={(val) => {
+                  setForm({ ...form, motivo: val });
+                  if (!touched.motivo) setTouched(prev => ({ ...prev, motivo: true }));
+                }}
+                onBlur={() => setTouched(prev => ({ ...prev, motivo: true }))}
+                placeholder="Motivo..."
+                suggestions={motivoTallerOptions}
+                error={touched.motivo && !!errors.motivo}
+                className="!h-[38px] !rounded-lg !text-[13px] !bg-slate-50 !border-slate-200"
+              />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">F. Salida Taller</label>
+            {/* Row 2 */}
+            <div className="flex flex-col">
+              <label className={labelStyle}>Fecha Ingreso Taller</label>
+              <input
+                type="date"
+                value={form.fechaIngresoTaller}
+                onChange={e => setForm({ ...form, fechaIngresoTaller: e.target.value })}
+                className={`${inputBaseStyle} ${touched.fechaIngresoTaller && errors.fechaIngresoTaller ? 'border-red-300 bg-red-50/30' : ''}`}
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className={labelStyle}>Hora Ingreso Taller</label>
+              <input
+                type="time"
+                value={form.horaIngresoTaller}
+                onChange={e => setForm({ ...form, horaIngresoTaller: e.target.value })}
+                className={`${inputBaseStyle} ${touched.horaIngresoTaller && errors.horaIngresoTaller ? 'border-red-300 bg-red-50/30' : ''}`}
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className={labelStyle}>Fecha Salida Taller</label>
               <input
                 type="date"
                 value={form.fechaSalidaTaller}
                 onChange={e => setForm({ ...form, fechaSalidaTaller: e.target.value })}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px]"
+                className={inputBaseStyle}
               />
             </div>
-            
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider ml-1">H. Salida Taller</label>
+
+            <div className="flex flex-col">
+              <label className={labelStyle}>Hora Salida Taller</label>
               <input
                 type="time"
                 value={form.horaSalidaTaller}
                 onChange={e => setForm({ ...form, horaSalidaTaller: e.target.value })}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-surco-blue/20 focus:border-surco-blue outline-none transition-all h-[42px]"
+                className={inputBaseStyle}
               />
             </div>
-          </div>
 
-          <div className="flex gap-3 h-[42px] justify-end">
-            <button
-              type="submit"
-              disabled={saving || !isFormValid}
-              className={`min-w-[200px] text-[12px] font-semibold py-2.5 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${isFormValid
-                ? 'bg-secondary hover:bg-secondary-dark text-white shadow-secondary/20'
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
-                }`}
-            >
-              {saving ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              ) : (
-                <span className="material-symbols-outlined text-xl">add_circle</span>
-              )}
-              REGISTRAR RELEVO
-            </button>
-            <button
-              type="button"
-              onClick={() => generateRetenExcel(replacements, selectedDate, settings.turno)}
-              className="text-[12px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-6 rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2"
-              title="Generar Reporte Excel"
-            >
-              <span className="material-symbols-outlined text-xl">description</span>
-              DESCARGAR EXCEL
-            </button>
+            <div className="flex flex-col lg:col-span-2 justify-end">
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={saving || !isFormValid}
+                  className={`flex-1 flex items-center justify-center gap-2 h-[38px] rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm ${isFormValid
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                    }`}
+                >
+                  {saving ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                  )}
+                  REGISTRAR RELEVO
+                </button>
+                <button
+                  type="button"
+                  onClick={() => generateRetenExcel(replacements, selectedDate, settings.turno)}
+                  className="flex items-center justify-center gap-2 h-[38px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm shadow-emerald-100"
+                  title="Descargar Excel"
+                >
+                  <span className="material-symbols-outlined text-[18px]">download</span>
+                </button>
+              </div>
+            </div>
           </div>
         </form>
+      </div>
 
-        <div className={`overflow-x-auto relative ${loading ? 'min-h-[200px]' : ''}`}>
+      {/* Table Container */}
+      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-0">
+        <div className="overflow-x-auto overflow-y-auto flex-1 relative">
           {loading && (
-            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                <p className="text-slate-400 text-sm font-medium">Buscando registros...</p>
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center z-30">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-[13px] font-medium text-slate-400 uppercase tracking-widest">Cargando Relevos...</p>
               </div>
             </div>
           )}
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-100/50 border-y border-slate-200">
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Hora</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Turno</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Reemplazada</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Sector</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Placa Reemplazada</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Unidad Retén</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Placa Retén</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">Ingreso Taller</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider min-w-[140px]">Salida Taller</th>
-                <th className="px-3 py-3 text-[13px] font-semibold text-slate-500 uppercase tracking-wider text-center">Acciones</th>
+
+          <table className="w-full border-collapse min-w-[1200px]">
+            <thead className="sticky top-0 z-10">
+              <tr>
+                <th className={columnHeaderStyle}>Fecha/Hora</th>
+                <th className={columnHeaderStyle}>Turno</th>
+                <th className={columnHeaderStyle}>Unidad Reemplazada</th>
+                <th className={columnHeaderStyle}>Sector</th>
+                <th className={columnHeaderStyle}>Placa</th>
+                <th className={columnHeaderStyle}>Unidad Retén</th>
+                <th className={columnHeaderStyle}>Placa Retén</th>
+                <th className={columnHeaderStyle}>Motivo</th>
+                <th className={columnHeaderStyle}>Ingreso Taller</th>
+                <th className={columnHeaderStyle}>Salida Taller</th>
+                <th className={`${columnHeaderStyle} text-center`}>Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-50">
               {replacements.length === 0 && !loading ? (
                 <tr>
-                  <td colSpan={12} className="px-6 py-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center gap-2 opacity-60">
-                      <span className="material-symbols-outlined text-4xl text-slate-300">history_toggle_off</span>
-                      <p className="text-sm font-medium">No hay relevos registrados para este turno.</p>
-                    </div>
+                  <td colSpan={11} className="py-20 text-center">
+                    <span className="material-symbols-outlined text-slate-200 text-5xl mb-4">history_toggle_off</span>
+                    <p className="text-[13px] font-medium text-slate-300 uppercase tracking-widest">No hay relevos registrados</p>
                   </td>
                 </tr>
               ) : (
-                replacements.map((r, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-3 py-3">
-                      <span className="text-[13px] font-medium text-slate-500">{r.fecha}</span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[13px] font-semibold">
-                        {r.hora}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="text-[13px] font-semibold text-slate-500">{r.turno}</span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="font-semibold text-slate-700">{r.replacedUnit}</span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[13px] font-bold">
-                        {getUnitSector(r.replacedUnit)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="text-sm font-medium text-slate-500">{r.placa}</span>
-                    </td>
-                    <td className="px-3 py-3 font-semibold text-surco-blue">{r.retenUnit}</td>
-                    <td className="px-3 py-3 text-sm font-medium text-slate-500">{r.placaReten}</td>
-                    <td className="px-3 py-3 text-sm text-slate-600">
-                      {r.motivo || '-'}
-                    </td>
-                    <td className="px-3 py-3 text-[13px] text-slate-500">
-                      {r.fechaIngresoTaller ? `${r.fechaIngresoTaller} ${r.horaIngresoTaller || ''}` : '-'}
-                    </td>
-                    <td className="px-3 py-3 text-[13px] text-slate-500">
-                      {editingKey === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
-                        <div className="flex flex-col gap-2">
-                          <input
-                            type="date"
-                            value={editForm.fechaSalidaTaller}
-                            onChange={e => setEditForm(prev => ({ ...prev, fechaSalidaTaller: e.target.value }))}
-                            className="border border-slate-200 rounded px-2 py-1 text-[13px] outline-none"
-                          />
-                          <input
-                            type="time"
-                            value={editForm.horaSalidaTaller}
-                            onChange={e => setEditForm(prev => ({ ...prev, horaSalidaTaller: e.target.value }))}
-                            className="border border-slate-200 rounded px-2 py-1 text-[13px] outline-none"
-                          />
+                replacements.map((r, idx) => {
+                  const key = r.fecha + r.hora + r.retenUnit + r.replacedUnit;
+                  const isEditing = editingKey === key;
+
+                  return (
+                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className={cellStyle}>
+                        <div className="flex flex-col">
+                          <span className="text-slate-400 text-[11px] leading-none mb-1">{r.fecha}</span>
+                          <span className="font-semibold text-slate-700">{r.hora}</span>
                         </div>
-                      ) : (
-                        r.fechaSalidaTaller ? `${r.fechaSalidaTaller} ${r.horaSalidaTaller || ''}` : '-'
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {editingKey === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateSalida(r)}
-                            disabled={updatingId === r.fecha + r.hora + r.retenUnit + r.replacedUnit}
-                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                            title="Guardar"
-                          >
-                            {updatingId === r.fecha + r.hora + r.retenUnit + r.replacedUnit ? (
-                              <div className="w-4 h-4 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin"></div>
-                            ) : (
-                              <span className="material-symbols-outlined text-lg">check_circle</span>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingKey(null)}
-                            disabled={updatingId === r.fecha + r.hora + r.retenUnit + r.replacedUnit}
-                            className="p-1.5 text-slate-400 hover:bg-slate-100 rounded transition-colors"
-                            title="Cancelar"
-                          >
-                            <span className="material-symbols-outlined text-lg">cancel</span>
-                          </button>
+                      </td>
+                      <td className={cellStyle}>
+                        <span className="font-bold text-slate-500">{r.turno}</span>
+                      </td>
+                      <td className={cellStyle}>
+                        <span className="font-bold text-[#004b93]">{r.replacedUnit}</span>
+                      </td>
+                      <td className={cellStyle}>
+                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[11px] font-bold uppercase">
+                          {getUnitSector(r.replacedUnit)}
+                        </span>
+                      </td>
+                      <td className={`${cellStyle} font-mono text-slate-500`}>{r.placa}</td>
+                      <td className={`${cellStyle} font-bold text-surco-blue`}>{r.retenUnit}</td>
+                      <td className={`${cellStyle} font-mono text-slate-500`}>{r.placaReten}</td>
+                      <td className={cellStyle}>
+                        <span className="text-[12px] italic text-slate-500">{r.motivo || '--'}</span>
+                      </td>
+                      <td className={cellStyle}>
+                        <div className="flex flex-col text-[12px]">
+                          <span className="text-slate-400">{r.fechaIngresoTaller}</span>
+                          <span className="font-medium">{r.horaIngresoTaller}</span>
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => startEditing(r)}
-                          title="Editar Salida Taller"
-                          className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95"
-                        >
-                          <lord-icon
-                            src="https://cdn.lordicon.com/puvaffet.json"
-                            trigger="hover"
-                            colors="primary:#2563eb,secondary:#1d4ed8"
-                            style={{ width: '20px', height: '20px' }}>
-                          </lord-icon>
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className={cellStyle}>
+                        {isEditing ? (
+                          <div className="flex flex-col gap-1">
+                            <input
+                              type="date"
+                              value={editForm.fechaSalidaTaller}
+                              onChange={e => setEditForm(prev => ({ ...prev, fechaSalidaTaller: e.target.value }))}
+                              className="border border-slate-200 rounded px-2 py-0.5 text-[11px] outline-none bg-white"
+                            />
+                            <input
+                              type="time"
+                              value={editForm.horaSalidaTaller}
+                              onChange={e => setEditForm(prev => ({ ...prev, horaSalidaTaller: e.target.value }))}
+                              className="border border-slate-200 rounded px-2 py-0.5 text-[11px] outline-none bg-white"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex flex-col text-[12px]">
+                            <span className="text-slate-400">{r.fechaSalidaTaller || '--'}</span>
+                            <span className="font-medium">{r.horaSalidaTaller || '--'}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className={`${cellStyle} text-center`}>
+                        {isEditing ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleUpdateSalida(r)}
+                              disabled={updatingId === key}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Guardar"
+                            >
+                              {updatingId === key ? (
+                                <div className="w-4 h-4 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin"></div>
+                              ) : (
+                                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => setEditingKey(null)}
+                              className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Cancelar"
+                            >
+                              <span className="material-symbols-outlined text-[20px]">cancel</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => startEditing(r)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            title="Registrar Salida de Taller"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">edit_calendar</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Footer info */}
+        <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-400 uppercase tracking-wider">
+          <span>{replacements.length} Relevos registrados para el turno {settings.turno}</span>
         </div>
       </div>
     </div>

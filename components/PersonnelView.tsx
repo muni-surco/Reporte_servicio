@@ -38,7 +38,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
         });
     }, [data, searchTerm, filterState, filterRole]);
 
-    const columnHeaderStyle = "px-4 py-3 text-left text-[13px] font-medium text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]";
+    const columnHeaderStyle = "px-4 py-3 text-left text-[13px] font-semibold text-white uppercase tracking-widest border-b border-blue-800 bg-[#005ea5] sticky top-0 z-20 shadow-[0_1px_2px_0_rgba(0,0,0,0.1)]";
     const cellStyle = "px-4 py-3 text-[13px] text-slate-700 border-b border-slate-50 bg-white";
 
     return (
