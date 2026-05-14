@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UnitData, UnitStatus, MobileReference } from '../types';
+import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
-import { PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../constants';
 
 interface UnitCardProps {
   unit: UnitData;

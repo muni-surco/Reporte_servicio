@@ -1,6 +1,5 @@
 import React from 'react';
-import { UnitData, UnitStatus, Sector } from '../types';
-import { SECTORS } from '../constants';
+import { UnitData, UnitStatus, Sector, SECTORS } from '../types';
 
 interface StatisticsViewProps {
     units: UnitData[];

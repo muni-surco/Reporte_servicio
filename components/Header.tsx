@@ -7,8 +7,7 @@ declare global {
 }
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppSettings, Sector, ViewMode } from '../types';
-import { PERSONNEL_NAMES, SECTORS } from '../constants';
+import { AppSettings, Sector, ViewMode, PERSONNEL_NAMES, SECTORS } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 
 interface HeaderProps {

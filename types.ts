@@ -91,3 +91,21 @@ export interface MobileReference {
   quadrant?: string;
   sector?: string;
 }
+
+// Configuration Constants
+export const SECTORS: Sector[] = [
+  'SECTOR 1A', 'SECTOR 1B',
+  'SECTOR 2A', 'SECTOR 2B',
+  'SECTOR 3', 'SECTOR 4',
+  'SECTOR 5', 'SECTOR 6',
+  'SECTOR 7', 'SECTOR 8',
+  'SECTOR 9A', 'SECTOR 9B',
+  'RESCATE',
+  'GIR'
+];
+
+export const FUEL_TYPES = ['GLP', 'GASOLINA', 'PETROLEO'];
+export const RADIOS: string[] = [];
+export const PERSONNEL_NAMES: string[] = [];
+export const INITIAL_UNITS: UnitData[] = [];
+export const SECTOR_DATA: Record<Sector, UnitData[]> = {} as any;

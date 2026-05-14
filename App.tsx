@@ -10,8 +10,7 @@ import { generateMotoReport, generateVehicleReport, generatePersonnelAbsenceRepo
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import RetenManagementView from './components/RetenManagementView';
-import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData } from './types';
-import { SECTORS } from './constants';
+import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS } from './types';
 import { Users, LayoutDashboard, FileText } from 'lucide-react';
 
 declare const google: any;

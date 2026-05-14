@@ -462,9 +462,9 @@ function getMobileData() {
       const extHeaders = extData[0].map(h => String(h).toLowerCase().trim());
       const nameIdx = extHeaders.indexOf('apellidos_nombres');
       const estadoIdx = extHeaders.indexOf('estado');
-      const rolIdx = extHeaders.indexOf('rol_operativo');
+      const funcionIdx = extHeaders.indexOf('funcion_actual');
       
-      const allowedRoles = ['CHOFER', 'MOTORIZADO', 'SERENO A PIE', 'RESCATE', 'SERENO GIR', 'OPERADOR', 'SUPERVISOR'];
+      const allowedRoles = ['CHOFER', 'MOTORIZADO', 'SERENO A PIE', 'SERENO GIR', 'RESCATE'];
       const operatorRoles = ['OPERADOR DE CAMARAS', 'RADIO OPERADOR', 'JEFE AREA', 'SUPERVISOR', 'SERENO A PIE'];
       
       if (nameIdx !== -1) {
@@ -472,15 +472,15 @@ function getMobileData() {
           const row = extData[i];
           const name = String(row[nameIdx] || '').trim();
           const estado = estadoIdx !== -1 ? String(row[estadoIdx] || '').trim().toUpperCase() : 'ACTIVO';
-          const rol = rolIdx !== -1 ? String(row[rolIdx] || '').trim().toUpperCase() : '';
+          const funcion = funcionIdx !== -1 ? String(row[funcionIdx] || '').trim().toUpperCase() : '';
           
           // General personnel suggestions
-          if (name && estado === 'ACTIVO' && allowedRoles.includes(rol)) {
+          if (name && estado === 'ACTIVO' && allowedRoles.includes(funcion)) {
             personnelSet.add(name);
           }
           
           // Specific operator suggestions
-          if (name && estado === 'ACTIVO' && operatorRoles.includes(rol)) {
+          if (name && estado === 'ACTIVO' && operatorRoles.includes(funcion)) {
             operatorsSet.add(name);
           }
         }
@@ -546,7 +546,7 @@ function getPersonnelList() {
       apellidos_nombres: findHeader('apellidos_nombres'),
       regimen_laboral: findHeader('regimen_laboral'),
       estado: findHeader('estado'),
-      rol_operativo: findHeader('rol_operativo'),
+      rol_operativo: findHeader('funcion_actual'), // Mapped to funcion_actual per user request
       codigo_interno: findHeader('codigo_interno'),
       sector_id: findHeader('sector_id')
     };
