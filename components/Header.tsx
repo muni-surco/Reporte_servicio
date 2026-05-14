@@ -172,7 +172,17 @@ const Header: React.FC<HeaderProps> = ({
                   <div className="flex flex-col w-[85px] md:w-[110px]">
                     <span className={labelStyle}>TURNO</span>
                     <div className="relative">
-                      <select value={settings.turno} onChange={(e) => updateTempField('turno', e.target.value)} onBlur={handleBlur} className={`${inputBaseStyle} w-full pr-8`}>
+                      <select 
+                        value={settings.turno} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const updated = { ...tempSettingsRef.current, turno: val };
+                          setTempSettings(updated);
+                          tempSettingsRef.current = updated;
+                          onSaveSettings(updated);
+                        }} 
+                        className={`${inputBaseStyle} w-full pr-8 cursor-pointer`}
+                      >
                         <option value="MAÑANA">MAÑANA</option>
                         <option value="TARDE">TARDE</option>
                         <option value="NOCHE">NOCHE</option>
