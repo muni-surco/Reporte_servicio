@@ -47,7 +47,6 @@ const Header: React.FC<HeaderProps> = ({
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [localDate, setLocalDate] = useState(selectedDate);
-  const [liveTime, setLiveTime] = useState(new Date());
   const tempSettingsRef = useRef<AppSettings>(settings);
 
   useEffect(() => {
@@ -58,13 +57,6 @@ const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     setLocalDate(selectedDate);
   }, [selectedDate]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setLiveTime(new Date());
-    }, 10000); // Update every 10 seconds to save some cycles
-    return () => clearInterval(timer);
-  }, []);
 
   const handleBlur = () => {
     const currentTemp = tempSettingsRef.current;
@@ -141,7 +133,7 @@ const Header: React.FC<HeaderProps> = ({
                     </h2>
                     {isVisualization && (
                       <span className="text-[14px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 uppercase tracking-tight">
-                        {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })} | {liveTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })} | {settings.turno}
                       </span>
                     )}
                   </div>
