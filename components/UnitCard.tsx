@@ -152,8 +152,13 @@ const UnitCard: React.FC<UnitCardProps> = ({
     ];
     const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
 
+    const isValidMobileId = !formData.id || String(formData.id).trim() === '' || 
+                           isSereno || 
+                           (mobileData && mobileData.some(m => m.id === formData.id));
+
     const newErrors: Record<string, boolean> = {
-      id: !isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate),
+      id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) || 
+          ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: !formData.personnel1 || String(formData.personnel1).trim() === '',
       radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
       quadrant: !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
@@ -169,6 +174,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
     if (Object.values(newErrors).some(v => v)) {
       if (isIdDuplicate && (formData.id || !isSpecialStatus)) {
         alert(`El ID "${formData.id}" ya existe en la vista actual. No se permiten IDs duplicados.`);
+      } else if (newErrors.id && (isChofer || isMoto) && formData.id && !isValidMobileId) {
+        alert(`El ID "${formData.id}" no es válido. Para Choferes/Motos debe seleccionar una unidad de la lista.`);
       }
       return;
     }
@@ -252,7 +259,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <label className={labelStyleEdit}>ID</label>
               <AutocompleteInput
                 value={String(formData.id)}
-                onChange={(val) => { 
+                onChange={(val) => {
                   setFormData(prev => {
                     const newData = { ...prev, id: val };
                     if ((isChofer || isMoto) && mobileData) {
@@ -262,12 +269,13 @@ const UnitCard: React.FC<UnitCardProps> = ({
                       }
                     }
                     return newData;
-                  }); 
-                  setErrors(prev => ({ ...prev, id: false })); 
+                  });
+                  setErrors(prev => ({ ...prev, id: false }));
                 }}
                 suggestions={(mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
                 placeholder="M-01"
                 error={errors.id}
+                strict={isChofer || isMoto}
               />
               {errors.id && <span className={errorMsgStyle}>Requerido</span>}
             </div>
@@ -294,7 +302,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   setErrors(prev => ({ ...prev, radio: false }));
                 }}
                 suggestions={Array.from(new Set([
-                  ...RADIOS, 
+                  ...RADIOS,
                   ...(radioOptions || []),
                   ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])
                 ])) as string[]}
@@ -402,7 +410,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 colors="primary:#ffffff"
                 style={{ width: '16px', height: '16px' }}>
               </lord-icon>
-              {isNew ? 'CREAR UNIDAD' : 'GUARDAR'}
+              {isNew ? 'GUARDAR' : 'GUARDAR'}
             </button>
           </div>
         </div>

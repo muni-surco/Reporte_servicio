@@ -214,9 +214,16 @@ const App: React.FC = () => {
 
   const persistData = (newSettings: AppSettings, newUnits: UnitData[], retryCount = 0) => {
     // Permitir unidades sin ID si tienen personal (casos de Falto, Permiso, etc)
+    const specialStatuses = [
+      'MAESTRANZA', 'TALLER PARTICULAR', 'CHOFER SIN MOVIL', 'EN PC X DESPERFECTOS',
+      'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO',
+      'FALTO', 'ONOMASTICO', 'ONOMÁSTICO', 'PERMISO'
+    ];
+
     const validUnits = newUnits.filter(u => 
       (u.id && String(u.id).trim() !== '') || 
-      (u.personnel1 && String(u.personnel1).trim() !== '')
+      (u.personnel1 && String(u.personnel1).trim() !== '') ||
+      (u.status && specialStatuses.includes(u.status.toUpperCase()))
     );
     const dataObj = { settings: newSettings, units: validUnits };
     const dataStr = JSON.stringify(dataObj);
@@ -271,11 +278,17 @@ const App: React.FC = () => {
   const handleSave = (updatedUnit: UnitData) => {
     const unitWithSector = { ...updatedUnit, sector: currentSector };
     // Usar tempId o id para identificar la unidad que se estaba editando
-    let newUnits = units.map(u => 
-      ((u.tempId && u.tempId === editingId) || (u.id && u.id === editingId)) 
-        ? unitWithSector 
-        : u
-    );
+    let newUnits = units.map(u => {
+      if ((u.tempId && u.tempId === editingId) || (u.id && u.id === editingId)) {
+        const savedUnit = { ...unitWithSector };
+        // Si borró el ID, necesitamos mantener un identificador para que siga siendo editable
+        if (!savedUnit.id || String(savedUnit.id).trim() === '') {
+          savedUnit.tempId = u.tempId || `TEMP-${Date.now()}`;
+        }
+        return savedUnit;
+      }
+      return u;
+    });
     setUnits(newUnits);
     setEditingId(null);
     persistData(settings, newUnits);

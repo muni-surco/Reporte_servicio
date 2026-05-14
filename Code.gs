@@ -622,24 +622,29 @@ function saveShiftData(dateStr, shift, settings, units) {
     } catch (e) {}
   }
 
-  const existingRows = new Map();
+  // Find all existing unit row indices for this specific sector/date/shift
+  const sectorRowIndices = [];
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
     if (!row[0]) continue;
     try {
       const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
       if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
-        const unitId = String(row[3] || '').trim();
-        if (unitId) {
-          existingRows.set(`${dateStr}_${shift}_${targetSector}_${unitId}`, { rowIndex: i + 2 });
-        }
+        sectorRowIndices.push(i + 2);
       }
     } catch (e) {}
   }
 
+  const specialStatuses = [
+    'MAESTRANZA', 'TALLER PARTICULAR', 'CHOFER SIN MOVIL', 'EN PC X DESPERFECTOS',
+    'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO',
+    'FALTO', 'ONOMASTICO', 'ONOMÁSTICO', 'PERMISO'
+  ];
+
   const unitsToSave = units.filter(u =>
     (u.id && String(u.id).trim() !== '') ||
-    (u.personnel1 && String(u.personnel1).trim() !== '')
+    (u.personnel1 && String(u.personnel1).trim() !== '') ||
+    (u.status && specialStatuses.includes(u.status.toUpperCase()))
   );
   const sectorUnits = unitsToSave.filter(u => toStorageSector(u.sector) === targetSector);
 
@@ -700,36 +705,38 @@ function saveShiftData(dateStr, shift, settings, units) {
     const unitUpdates = [];
     const rowsToAppend = [];
 
-    for (const unit of sectorUnits) {
+    // --- Position-Based Unit Sync ---
+    for (let i = 0; i < sectorUnits.length; i++) {
+      const unit = sectorUnits[i];
       const unitId = String(unit.id || '').trim();
-      if (!unitId) continue;
-
-      const key = `${dateStr}_${shift}_${targetSector}_${unitId}`;
       const unitRow = [
         dateStr, shift, targetSector,
-        unit.id, unit.type, unit.model || '', unit.personnel1, unit.personnel2, unit.plate, unit.indicative, unit.radio,
-        unit.status, unit.reason, unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours, unit.fuel, unit.expense, '0', unit.quadrant, unit.mechanics
+        unitId, unit.type, unit.model || '', unit.personnel1 || '', unit.personnel2 || '', unit.plate || '', unit.indicative || '', unit.radio || '',
+        unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || ''
       ];
 
-      if (existingRows.has(key)) {
-        const existing = existingRows.get(key);
-        unitUpdates.push({ rowIndex: existing.rowIndex, values: unitRow });
+      if (i < sectorRowIndices.length) {
+        unitUpdates.push({ rowIndex: sectorRowIndices[i], values: unitRow });
       } else {
         rowsToAppend.push(unitRow);
       }
 
       // Update KM_FIN of previous shift if applicable
-      if (unit.kmStart && unit.kmStart !== '0' && prevShiftRecords.has(unitId)) {
-        const prev = prevShiftRecords.get(unitId);
-        // Only update if current KM_FIN is 0 or empty to avoid overwriting manually fixed data? 
-        // User said "se debe autopopular", so we overwrite.
+      if (unitId && unit.kmStart && unit.kmStart !== '0' && prevShiftRecords.has(unitId.toUpperCase())) {
+        const prev = prevShiftRecords.get(unitId.toUpperCase());
         prev.rowData[14] = unit.kmStart; // Index 14 is KM_FIN
-        // Calculate total KM for previous shift too
         const prevKmStart = parseFloat(prev.rowData[13]) || 0;
         const prevKmEnd = parseFloat(unit.kmStart) || 0;
         prev.rowData[15] = prevKmEnd >= prevKmStart ? (prevKmEnd - prevKmStart).toFixed(1) : '0';
-        
         unitUpdates.push({ rowIndex: prev.rowIndex, values: prev.rowData });
+      }
+    }
+
+    // If there are extra rows in the spreadsheet for this sector, clear them
+    if (sectorRowIndices.length > sectorUnits.length) {
+      for (let i = sectorUnits.length; i < sectorRowIndices.length; i++) {
+        const emptyRow = Array(23).fill('');
+        unitUpdates.push({ rowIndex: sectorRowIndices[i], values: emptyRow });
       }
     }
 
@@ -741,15 +748,12 @@ function saveShiftData(dateStr, shift, settings, units) {
       let i = 0;
       while (i < unitUpdates.length) {
         let j = i;
-        // Find how many rows are contiguous
         while (j + 1 < unitUpdates.length && unitUpdates[j + 1].rowIndex === unitUpdates[j].rowIndex + 1) {
           j++;
         }
-        
         const startRow = unitUpdates[i].rowIndex;
         const numRows = j - i + 1;
         const batchValues = unitUpdates.slice(i, j + 1).map(u => u.values);
-        
         dataSheet.getRange(startRow, 1, numRows, batchValues[0].length).setValues(batchValues);
         i = j + 1;
       }
@@ -763,7 +767,6 @@ function saveShiftData(dateStr, shift, settings, units) {
     return { success: true };
   } catch (e) {
     console.error('Error in saveShiftData:', e);
-    // Check if it's a lock timeout
     if (e.message && e.message.includes('Lock')) {
       return { success: false, error: 'LOCK_TIMEOUT', retry: true };
     }

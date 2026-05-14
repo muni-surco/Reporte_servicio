@@ -10,6 +10,7 @@ interface AutocompleteInputProps {
   autoFocus?: boolean;
   className?: string;
   error?: boolean;
+  strict?: boolean;
 }
 
 const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
@@ -20,7 +21,8 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   suggestions,
   autoFocus,
   className = "",
-  error
+  error,
+  strict = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filtered, setFiltered] = useState<string[]>([]);
@@ -84,6 +86,15 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
           }
           setTimeout(() => {
             setIsOpen(false);
+            
+            // Strict mode logic: If not in suggestions, clear it
+            if (strict && value && value.trim() !== '') {
+              const exists = suggestions.some(s => String(s).toLowerCase() === String(value).toLowerCase());
+              if (!exists) {
+                onChange('');
+              }
+            }
+            
             if (onBlur) onBlur();
           }, 150);
         }}
