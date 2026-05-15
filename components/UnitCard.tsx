@@ -147,6 +147,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'DESCANSO MEDICO',
       'DESCANSO MÉDICO',
       'FALTO',
+      'FALTO (INASISTENCIA)',
       'ONOMASTICO',
       'ONOMÁSTICO',
       'PERMISO',
@@ -163,7 +164,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.CON_DESPERFECTOS,
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
-      'FALTO (INASISTENCIA)', 'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO', 'PERMISO', 'ONOMASTICO', 'ONOMÁSTICO'
+      'FALTO',
+      'FALTO (INASISTENCIA)', 
+      'DESCANSO COMPENSATORIO', 
+      'DESCANSO MEDICO', 
+      'DESCANSO MÉDICO', 
+      'PERMISO', 
+      'ONOMASTICO', 
+      'ONOMÁSTICO'
     ].includes(formData.status?.toUpperCase());
 
     const isValidMobileId = !formData.id || String(formData.id).trim() === '' ||
@@ -220,14 +228,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
     'DESCANSO MEDICO',
     'DESCANSO MÉDICO',
     'FALTO',
+    'FALTO (INASISTENCIA)',
     'ONOMASTICO',
     'ONOMÁSTICO',
     'PERMISO',
   ];
 
   const getBadgeClass = (status: string) => {
+    const s = String(status || '').toUpperCase();
     if (badgeColors[status]) return badgeColors[status];
-    if (redStatusPatterns.includes(status)) return "bg-red-100 text-red-700 border-red-200";
+    if (redStatusPatterns.includes(s)) return "bg-red-100 text-red-700 border-red-200";
     return "bg-slate-100 text-slate-700 border-slate-200";
   };
 
