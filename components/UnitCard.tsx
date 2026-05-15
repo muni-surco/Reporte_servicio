@@ -280,7 +280,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   });
                   setErrors(prev => ({ ...prev, id: false }));
                 }}
-                suggestions={(mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
+                suggestions={isSereno ? [] : (mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
                 placeholder="M-01"
                 error={errors.id}
                 strict={isChofer || isMoto}
@@ -436,7 +436,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[48px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.4fr_90px]'}`}>
+        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[140px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.4fr_90px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
