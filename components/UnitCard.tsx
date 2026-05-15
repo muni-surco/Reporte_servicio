@@ -152,13 +152,17 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'PERMISO',
       UnitStatus.MANTENIMIENTO,
       UnitStatus.CON_DESPERFECTOS,
-      UnitStatus.SIN_CONDUCTOR
+      UnitStatus.SIN_CONDUCTOR,
+      UnitStatus.SIN_DOCUMENTOS,
+      UnitStatus.SINIESTRO
     ];
     const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
     const isNoPersonnelStatus = [
       UnitStatus.SIN_CONDUCTOR,
       UnitStatus.MANTENIMIENTO,
       UnitStatus.CON_DESPERFECTOS,
+      UnitStatus.SIN_DOCUMENTOS,
+      UnitStatus.SINIESTRO,
       'FALTO (INASISTENCIA)', 'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO', 'PERMISO', 'ONOMASTICO', 'ONOMÁSTICO'
     ].includes(formData.status?.toUpperCase());
 
@@ -169,7 +173,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const newErrors: Record<string, boolean> = {
       id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
-      personnel1: !formData.personnel1 || String(formData.personnel1).trim() === '',
+      personnel1: !isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === ''),
       radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
       quadrant: !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
     };
@@ -211,6 +215,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     UnitStatus.SIN_CONDUCTOR,
     UnitStatus.SIN_VEHICULO,
     UnitStatus.CON_DESPERFECTOS,
+    UnitStatus.SINIESTRO,
     'DESCANSO COMPENSATORIO',
     'DESCANSO MEDICO',
     'DESCANSO MÉDICO',
@@ -338,7 +343,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
             {isChofer && (
               <div className="col-span-1">
-                <label className={labelStyleEdit}>Indic.</label>
+                <label className={labelStyleEdit}>Indicativo Copiloto</label>
                 <select name="indicative" value={formData.indicative || ''} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[12px]`}>
                   <option value="">--</option>
                   {formData.indicative && !activeIndicativeOptions.includes(formData.indicative) && <option value={formData.indicative}>{formData.indicative}</option>}
@@ -467,7 +472,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             )}
             {hasIndicative && (
               <div className="flex flex-col flex-1 min-w-[50px]">
-                <label className={labelStyle}>Indic.</label>
+                <label className={labelStyle}>Indicativo Copiloto</label>
                 <div className={infoValueStyle}>{unit.indicative || '--'}</div>
               </div>
             )}
