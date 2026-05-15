@@ -282,7 +282,7 @@ const App: React.FC = () => {
     const unitWithSector = { ...updatedUnit, sector: currentSector };
     // Usar tempId o id para identificar la unidad que se estaba editando
     let newUnits = units.map(u => {
-      if ((u.tempId && u.tempId === editingId) || (u.id && u.id === editingId)) {
+      if ((u.unit_id && u.unit_id === editingId) || (u.tempId && u.tempId === editingId) || (u.id && u.id === editingId)) {
         const savedUnit = { ...unitWithSector };
         // Si borró el ID, necesitamos mantener un identificador para que siga siendo editable
         if (!savedUnit.id || String(savedUnit.id).trim() === '') {

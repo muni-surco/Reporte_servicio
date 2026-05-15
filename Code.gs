@@ -725,13 +725,7 @@ function saveShiftData(dateStr, shift, settings, units) {
       }
     });
 
-    // Handle deletions: If a row exists in the sector for this shift but its UNIT_ID is not in sectorUnits, clear it
-    sectorRowIndices.forEach(existing => {
-      if (!processedUnitIds.has(existing.unitId)) {
-        const emptyRow = Array(24).fill('');
-        unitUpdates.push({ rowIndex: existing.index, values: emptyRow });
-      }
-    });
+    // Handle deletions: DISABLED per user request. Records are only created or updated.
 
     // Batch Updates
     unitUpdates.sort((a, b) => a.rowIndex - b.rowIndex);
