@@ -75,7 +75,7 @@ function initialSetup() {
   const dataHeaders = [
     'FECHA', 'TURNO', 'SECTOR', 'ID', 'TIPO', 'MODELO', 'PERSONAL_1', 'PERSONAL_2', 
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
-    'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS'
+    'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -216,11 +216,12 @@ function getShiftData(dateStr, shift, sector) {
 
       // Phase 2: Read full rows for matching indices
       for (const rowIndex of matchingRowIndices) {
-        const fullRow = dataSheet.getRange(rowIndex, 1, 1, 23).getValues()[0];
+        const fullRow = dataSheet.getRange(rowIndex, 1, 1, 24).getValues()[0];
 
         // Convert all values to String to avoid serialization issues with Date/Number cells
         allUnits.push({
           id: String(fullRow[3] || ''),
+          unit_id: String(fullRow[23] || ''), // New UNIT_ID column (24th)
           sector: toDisplaySector(fullRow[2]),
           type: String(fullRow[4] || ''),
           model: String(fullRow[5] || ''),
@@ -245,6 +246,8 @@ function getShiftData(dateStr, shift, sector) {
     }
 
     console.log('[getShiftData] OK — units=' + allUnits.length);
+    // ...
+
 
     // NOTE: personnelList is NOT included here to keep the payload small.
     // NOTE: retenData is loaded lazily by RetenManagementView.
@@ -590,20 +593,13 @@ function saveShiftData(dateStr, shift, settings, units) {
   }
 
   const targetSector = toStorageSector(settings.nombrePuesto || '1A');
+  const timeZone = ss.getSpreadsheetTimeZone();
 
-  // Optimization: Read only necessary columns instead of entire sheet
+  // Optimization: Read only necessary columns for settings
   const settingsLastRow = settingsSheet.getLastRow();
   const settingsRows = settingsLastRow > 1 
     ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues() 
     : [];
-
-  const dataLastRow = dataSheet.getLastRow();
-  const dataRows = dataLastRow > 1 
-    ? dataSheet.getRange(2, 1, dataLastRow - 1, 23).getValues() // Read all 23 columns
-    : [];
-
-  const timeZone = ss.getSpreadsheetTimeZone();
-
 
   // --- PRE-PROCESS OUTSIDE LOCK (Fast Lookups) ---
   let settingsFoundIdx = -1;
@@ -622,36 +618,40 @@ function saveShiftData(dateStr, shift, settings, units) {
     } catch (e) {}
   }
 
-  // Find all existing unit row indices for this specific sector/date/shift
+  // Use a map to find row indices by UNIT_ID
+  const unitIdToRowMap = new Map();
   const sectorRowIndices = [];
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
+  
+  // Read columns for filtering and ID mapping
+  const dataLastRow = dataSheet.getLastRow();
+  // Read up to column 24 (UNIT_ID)
+  const dataRowsFull = dataLastRow > 1 
+    ? dataSheet.getRange(2, 1, dataLastRow - 1, 24).getValues() 
+    : [];
+
+  for (let i = 0; i < dataRowsFull.length; i++) {
+    const row = dataRowsFull[i];
     if (!row[0]) continue;
     try {
       const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
-      if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
-        sectorRowIndices.push(i + 2);
+      if (rowDate === dateStr && String(row[1]) === shift) {
+        const uId = String(row[23] || '').trim(); // UNIT_ID column
+        if (uId) {
+          unitIdToRowMap.set(uId, i + 2);
+        }
+        if (toStorageSector(row[2]) === targetSector) {
+          sectorRowIndices.push({ index: i + 2, unitId: uId });
+        }
       }
     } catch (e) {}
   }
 
-  const specialStatuses = [
-    'MAESTRANZA', 'TALLER PARTICULAR', 'CHOFER SIN MOVIL', 'EN PC X DESPERFECTOS',
-    'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO',
-    'FALTO', 'ONOMASTICO', 'ONOMÁSTICO', 'PERMISO'
-  ];
+  const sectorUnits = units.filter(u => toStorageSector(u.sector) === targetSector);
 
-  const unitsToSave = units.filter(u =>
-    (u.id && String(u.id).trim() !== '') ||
-    (u.personnel1 && String(u.personnel1).trim() !== '') ||
-    (u.status && specialStatuses.includes(u.status.toUpperCase()))
-  );
-  const sectorUnits = unitsToSave.filter(u => toStorageSector(u.sector) === targetSector);
-
-  // Phase 2: Acquire lock only for writes (shortest window possible)
+  // Phase 2: Acquire lock only for writes
   const lock = LockService.getScriptLock();
   try {
-    if (!lock.tryLock(20000)) { // 20s timeout
+    if (!lock.tryLock(20000)) {
       return { success: false, error: 'LOCK_TIMEOUT', retry: true };
     }
 
@@ -664,102 +664,83 @@ function saveShiftData(dateStr, shift, settings, units) {
       permanenciaUpdates.push(settingsSheet.getLastRow());
     }
 
-    // --- Permanencia: Sync all sectors for same date/shift ---
+    // --- Permanencia Sync ---
     if (permanenciaUpdates.length > 0) {
-      let ranges = [];
-      let start = permanenciaUpdates[0], end = permanenciaUpdates[0];
-      for (let i = 1; i < permanenciaUpdates.length; i++) {
-        if (permanenciaUpdates[i] === end + 1) {
-          end = permanenciaUpdates[i];
-        } else {
-          ranges.push({ start: start, end: end });
-          start = end = permanenciaUpdates[i];
-        }
-      }
-      ranges.push({ start: start, end: end });
-      ranges.forEach(r => {
-        const count = r.end - r.start + 1;
-        const vals = Array.from({ length: count }, () => [settings.permanencia]);
-        settingsSheet.getRange(r.start, 6, count, 1).setValues(vals);
+      permanenciaUpdates.forEach(rowIdx => {
+        settingsSheet.getRange(rowIdx, 6).setValue(settings.permanencia);
       });
     }
 
-    // --- Mileage Bridge: Find previous shift records to update KM_FIN ---
+    // --- Mileage Bridge: Find previous shift records ---
     const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
     const prevShiftRecords = new Map();
-    for (let i = 0; i < dataRows.length; i++) {
-      const row = dataRows[i];
+    for (let i = 0; i < dataRowsFull.length; i++) {
+      const row = dataRowsFull[i];
       if (!row[0]) continue;
       try {
         const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
         if (rowDate === prevShiftInfo.date && String(row[1]) === prevShiftInfo.shift) {
-          const unitId = String(row[3] || '').trim().toUpperCase();
-          if (unitId) {
-            prevShiftRecords.set(unitId, { rowIndex: i + 2, rowData: [...row] });
+          const unitInternalId = String(row[3] || '').trim().toUpperCase(); // ID de unidad (101, etc)
+          if (unitInternalId) {
+            prevShiftRecords.set(unitInternalId, { rowIndex: i + 2, rowData: [...row] });
           }
         }
       } catch (e) {}
     }
 
-    // Track updates to perform them in batches
     const unitUpdates = [];
     const rowsToAppend = [];
+    const processedUnitIds = new Set();
 
-    // --- Position-Based Unit Sync ---
-    for (let i = 0; i < sectorUnits.length; i++) {
-      const unit = sectorUnits[i];
-      const unitId = String(unit.id || '').trim();
+    // --- Unit Sync by UNIT_ID ---
+    sectorUnits.forEach((unit) => {
+      let unit_id = unit.unit_id || '';
+      if (!unit_id || unit_id === 'undefined') {
+        unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+      }
+      processedUnitIds.add(unit_id);
+
       const unitRow = [
         dateStr, shift, targetSector,
-        unitId, unit.type, unit.model || '', unit.personnel1 || '', unit.personnel2 || '', unit.plate || '', unit.indicative || '', unit.radio || '',
-        unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || ''
+        unit.id, unit.type, unit.model || '', unit.personnel1 || '', unit.personnel2 || '', unit.plate || '', unit.indicative || '', unit.radio || '',
+        unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
+        unit_id // Column 24
       ];
 
-      if (i < sectorRowIndices.length) {
-        unitUpdates.push({ rowIndex: sectorRowIndices[i], values: unitRow });
+      const existingRowIdx = unitIdToRowMap.get(unit_id);
+      if (existingRowIdx) {
+        unitUpdates.push({ rowIndex: existingRowIdx, values: unitRow });
       } else {
         rowsToAppend.push(unitRow);
       }
 
-      // Update KM_FIN of previous shift if applicable
-      if (unitId && unit.kmStart && unit.kmStart !== '0' && prevShiftRecords.has(unitId.toUpperCase())) {
-        const prev = prevShiftRecords.get(unitId.toUpperCase());
-        prev.rowData[14] = unit.kmStart; // Index 14 is KM_FIN
+      // KM_FIN bridge
+      if (unit.id && unit.kmStart && unit.kmStart !== '0' && prevShiftRecords.has(unit.id.toUpperCase())) {
+        const prev = prevShiftRecords.get(unit.id.toUpperCase());
+        prev.rowData[14] = unit.kmStart;
         const prevKmStart = parseFloat(prev.rowData[13]) || 0;
         const prevKmEnd = parseFloat(unit.kmStart) || 0;
         prev.rowData[15] = prevKmEnd >= prevKmStart ? (prevKmEnd - prevKmStart).toFixed(1) : '0';
         unitUpdates.push({ rowIndex: prev.rowIndex, values: prev.rowData });
       }
-    }
+    });
 
-    // If there are extra rows in the spreadsheet for this sector, clear them
-    if (sectorRowIndices.length > sectorUnits.length) {
-      for (let i = sectorUnits.length; i < sectorRowIndices.length; i++) {
-        const emptyRow = Array(23).fill('');
-        unitUpdates.push({ rowIndex: sectorRowIndices[i], values: emptyRow });
+    // Handle deletions: If a row exists in the sector for this shift but its UNIT_ID is not in sectorUnits, clear it
+    sectorRowIndices.forEach(existing => {
+      if (!processedUnitIds.has(existing.unitId)) {
+        const emptyRow = Array(24).fill('');
+        unitUpdates.push({ rowIndex: existing.index, values: emptyRow });
       }
-    }
+    });
 
-    // Sort updates by rowIndex to facilitate batching
+    // Batch Updates
     unitUpdates.sort((a, b) => a.rowIndex - b.rowIndex);
-
-    // Perform unit updates in contiguous batches
     if (unitUpdates.length > 0) {
-      let i = 0;
-      while (i < unitUpdates.length) {
-        let j = i;
-        while (j + 1 < unitUpdates.length && unitUpdates[j + 1].rowIndex === unitUpdates[j].rowIndex + 1) {
-          j++;
-        }
-        const startRow = unitUpdates[i].rowIndex;
-        const numRows = j - i + 1;
-        const batchValues = unitUpdates.slice(i, j + 1).map(u => u.values);
-        dataSheet.getRange(startRow, 1, numRows, batchValues[0].length).setValues(batchValues);
-        i = j + 1;
-      }
+      unitUpdates.forEach(u => {
+        dataSheet.getRange(u.rowIndex, 1, 1, u.values.length).setValues([u.values]);
+      });
     }
 
-    // Write new rows at the end
     if (rowsToAppend.length > 0) {
       dataSheet.getRange(dataSheet.getLastRow() + 1, 1, rowsToAppend.length, rowsToAppend[0].length).setValues(rowsToAppend);
     }
@@ -767,9 +748,6 @@ function saveShiftData(dateStr, shift, settings, units) {
     return { success: true };
   } catch (e) {
     console.error('Error in saveShiftData:', e);
-    if (e.message && e.message.includes('Lock')) {
-      return { success: false, error: 'LOCK_TIMEOUT', retry: true };
-    }
     return { success: false, error: e.toString() };
   } finally {
     lock.releaseLock();

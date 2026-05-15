@@ -213,18 +213,21 @@ const App: React.FC = () => {
   };
 
   const persistData = (newSettings: AppSettings, newUnits: UnitData[], retryCount = 0) => {
-    // Permitir unidades sin ID si tienen personal (casos de Falto, Permiso, etc)
-    const specialStatuses = [
-      'MAESTRANZA', 'TALLER PARTICULAR', 'CHOFER SIN MOVIL', 'EN PC X DESPERFECTOS',
-      'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO',
-      'FALTO', 'ONOMASTICO', 'ONOMÁSTICO', 'PERMISO'
-    ];
+    // Usar unit_id como ancla principal de persistencia
+    const validUnits = newUnits.filter(u => {
+      // Si ya tiene un unit_id del servidor, es un registro existente que debemos mantener
+      if (u.unit_id && u.unit_id !== 'undefined' && u.unit_id.trim() !== '') return true;
+      
+      // Si es una unidad cargada (no NEW-), la mantenemos para preservar la fila
+      if (u.id && !String(u.id).startsWith('NEW-')) return true;
+      
+      // Si es un registro nuevo (NEW-), solo lo guardamos si tiene contenido real
+      if (u.tempId && u.tempId.startsWith('NEW-')) {
+        return (u.personnel1 && u.personnel1.trim() !== '') || (u.id && u.id.trim() !== '');
+      }
 
-    const validUnits = newUnits.filter(u => 
-      (u.id && String(u.id).trim() !== '') || 
-      (u.personnel1 && String(u.personnel1).trim() !== '') ||
-      (u.status && specialStatuses.includes(u.status.toUpperCase()))
-    );
+      return true;
+    });
     const dataObj = { settings: newSettings, units: validUnits };
     const dataStr = JSON.stringify(dataObj);
     if (dataStr === lastSavedRef.current) return;
