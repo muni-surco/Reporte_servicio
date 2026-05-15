@@ -187,61 +187,52 @@ function getShiftData(dateStr, shift, sector) {
       }
     }
 
-    // 2. Get Unit Data - two-phase approach for optimal performance
+    // 2. Get Unit Data - Optimized single-phase batch read
     const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
     const allUnits = [];
 
     if (dataSheet) {
       const dataLastRow = dataSheet.getLastRow();
-
-      // Phase 1: Read columns 1-4 (FECHA, TURNO, SECTOR, ID) for filtering
-      const dataRows = dataLastRow > 1
-        ? dataSheet.getRange(2, 1, dataLastRow - 1, 4).getValues()
+      // Read all columns (up to 24) for all rows once
+      const dataRowsFull = dataLastRow > 1
+        ? dataSheet.getRange(2, 1, dataLastRow - 1, 24).getValues()
         : [];
 
-      // Find matching row indices
-      const matchingRowIndices = [];
-      for (let i = 0; i < dataRows.length; i++) {
-        const row = dataRows[i];
-        if (!row[0]) continue;
+      for (let i = 0; i < dataRowsFull.length; i++) {
+        const fullRow = dataRowsFull[i];
+        if (!fullRow[0]) continue;
+        
         try {
-          const rowDateStr = Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd');
-          if (rowDateStr === dateStr && String(row[1]) === shift) {
-            matchingRowIndices.push(i + 2); // +2 because data starts at row 2
+          const rowDateStr = Utilities.formatDate(new Date(fullRow[0]), timeZone, 'yyyy-MM-dd');
+          if (rowDateStr === dateStr && String(fullRow[1]) === shift) {
+            // Convert all values to String to avoid serialization issues
+            allUnits.push({
+              id: String(fullRow[3] || ''),
+              unit_id: String(fullRow[23] || ''), // New UNIT_ID column (24th)
+              sector: toDisplaySector(fullRow[2]),
+              type: String(fullRow[4] || ''),
+              model: String(fullRow[5] || ''),
+              personnel1: String(fullRow[6] || ''),
+              personnel2: String(fullRow[7] || ''),
+              plate: String(fullRow[8] || ''),
+              indicative: String(fullRow[9] || ''),
+              radio: String(fullRow[10] || ''),
+              status: String(fullRow[11] || ''),
+              reason: String(fullRow[12] || ''),
+              kmStart: String(fullRow[13] || '0'),
+              kmEnd: String(fullRow[14] || '0'),
+              totalKm: String(fullRow[15] || '0'),
+              kmRecarga: String(fullRow[16] || '0'),
+              hours: String(fullRow[17] || ''),
+              fuel: String(fullRow[18] || '-- / --'),
+              expense: String(fullRow[19] || 'S/ 0.00'),
+              quadrant: cellToStr(fullRow[21], timeZone),
+              mechanics: String(fullRow[22] || '')
+            });
           }
         } catch (e) {
           continue;
         }
-      }
-
-      // Phase 2: Read full rows for matching indices
-      for (const rowIndex of matchingRowIndices) {
-        const fullRow = dataSheet.getRange(rowIndex, 1, 1, 24).getValues()[0];
-
-        // Convert all values to String to avoid serialization issues with Date/Number cells
-        allUnits.push({
-          id: String(fullRow[3] || ''),
-          unit_id: String(fullRow[23] || ''), // New UNIT_ID column (24th)
-          sector: toDisplaySector(fullRow[2]),
-          type: String(fullRow[4] || ''),
-          model: String(fullRow[5] || ''),
-          personnel1: String(fullRow[6] || ''),
-          personnel2: String(fullRow[7] || ''),
-          plate: String(fullRow[8] || ''),
-          indicative: String(fullRow[9] || ''),
-          radio: String(fullRow[10] || ''),
-          status: String(fullRow[11] || ''),
-          reason: String(fullRow[12] || ''),
-          kmStart: String(fullRow[13] || '0'),
-          kmEnd: String(fullRow[14] || '0'),
-          totalKm: String(fullRow[15] || '0'),
-          kmRecarga: String(fullRow[16] || '0'),
-          hours: String(fullRow[17] || ''),
-          fuel: String(fullRow[18] || '-- / --'),
-          expense: String(fullRow[19] || 'S/ 0.00'),
-          quadrant: cellToStr(fullRow[21], timeZone),
-          mechanics: String(fullRow[22] || '')
-        });
       }
     }
 

@@ -129,10 +129,11 @@ const App: React.FC = () => {
             setLoading(false);
             return;
           }
-          const incomingUnits: UnitData[] = (data.units || []).map((u, idx) => ({
+          // 1. Map and clean incoming units
+          const rawIncomingUnits: UnitData[] = (data.units || []).map((u, idx) => ({
             ...u,
-            id: String(u.id || ''),
-            tempId: !u.id || String(u.id).trim() === '' ? `LOADED-${Date.now()}-${idx}` : undefined,
+            id: String(u.id || '').trim(),
+            unit_id: u.unit_id || `LEGACY-${idx}`, // Fallback for old records
             sector: (u.sector || '').trim().toUpperCase() === '' ? 'SECTOR 1A' : u.sector,
             type: u.type as any,
             personnel1: String(u.personnel1 || ''),
@@ -152,62 +153,92 @@ const App: React.FC = () => {
             expense: String(u.expense || 'S/ 0.00'),
             quadrant: String(u.quadrant || ''),
             mechanics: String(u.mechanics || ''),
-            model: String(u.model || ''),
-            unit_id: u.unit_id
+            model: String(u.model || '')
           }));
+
+          // 2. Deduplicate by unit_id (keep last)
+          const deduplicatedMap = new Map<string, UnitData>();
+          rawIncomingUnits.forEach(u => {
+            if (u.unit_id) deduplicatedMap.set(u.unit_id, u);
+          });
+          const incomingUnits = Array.from(deduplicatedMap.values());
 
           const currentSectorNormalized = currentSector.trim().toUpperCase();
           const otherSectorsUnits = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() !== currentSectorNormalized);
           const currentSectorUnitsFound = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() === currentSectorNormalized);
 
-          const defaults = mobileData.filter(m => (m.sector || '').trim().toUpperCase() === currentSectorNormalized);
-          const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
-          let sectorUnitsToUse = [...currentSectorUnitsFound];
-
-          typesToLoad.forEach(type => {
-            const hasType = currentSectorUnitsFound.some(u => u.type === type);
-            if (!hasType) {
-              const typeDefaults = defaults
-                .filter(d => d.type === type)
-                .map(d => ({
-                  id: d.id,
-                  type: d.type as any,
-                  sector: currentSector,
-                  plate: d.plate,
-                  quadrant: d.quadrant,
-                  status: UnitStatus.PATRULLANDO,
-                  kmStart: '0',
-                  kmEnd: '0',
-                  totalKm: '0',
-                  kmRecarga: '0',
-                  fuel: '-- / --',
-                  expense: 'S/ 0.00',
-                  personnel1: '',
-                  personnel2: '',
-                  indicative: '',
-                  radio: d.radio || '',
-                  reason: '',
-                  mechanics: '',
-                  hours: '--:-- - --:--',
-                  unit_id: `DEF-${currentSector.replace(/\s+/g, '')}-${d.id}`
-                }));
-              sectorUnitsToUse = [...sectorUnitsToUse, ...typeDefaults];
+          // 3. Granular Deduplication for current sector (by display ID to hide past duplicates)
+          const finalSectorUnitsMap = new Map<string, UnitData>();
+          currentSectorUnitsFound.forEach(u => {
+            const displayId = u.id.toUpperCase();
+            if (displayId && !displayId.startsWith('NEW-')) {
+               // If multiple rows exist for the same vehicle ID, prefer the one with more data or the last one
+               const existing = finalSectorUnitsMap.get(displayId);
+               if (!existing || (u.personnel1 && !existing.personnel1)) {
+                 finalSectorUnitsMap.set(displayId, u);
+               }
+            } else {
+              // Units without ID or new units are kept by their unit_id
+              finalSectorUnitsMap.set(u.unit_id || `TEMP-${Math.random()}`, u);
             }
           });
 
+          // 4. Inject Missing Defaults
+          const defaults = mobileData.filter(m => (m.sector || '').trim().toUpperCase() === currentSectorNormalized);
+          defaults.forEach(d => {
+            const displayId = d.id.toUpperCase();
+            if (!finalSectorUnitsMap.has(displayId)) {
+              finalSectorUnitsMap.set(displayId, {
+                id: d.id,
+                unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${d.id}`,
+                type: d.type as any,
+                sector: currentSector,
+                plate: d.plate,
+                quadrant: d.quadrant,
+                status: UnitStatus.PATRULLANDO,
+                kmStart: '0',
+                kmEnd: '0',
+                totalKm: '0',
+                kmRecarga: '0',
+                fuel: '-- / --',
+                expense: 'S/ 0.00',
+                personnel1: '',
+                personnel2: '',
+                indicative: '',
+                radio: d.radio || '',
+                reason: '',
+                mechanics: '',
+                hours: '--:-- - --:--',
+                model: d.model || ''
+              });
+            }
+          });
+
+          const sectorUnitsToUse = Array.from(finalSectorUnitsMap.values());
           setUnits([...otherSectorsUnits, ...sectorUnitsToUse]);
 
           if (data.allSectorSettings) {
             setSectorSettingsMap(data.allSectorSettings);
           }
 
-          setSettings(prev => ({
-            ...prev,
-            ...data.settings,
-            turno: shift
-          }));
+          const finalSettings = { ...settings, ...data.settings, turno: shift };
+          setSettings(finalSettings);
           setLoading(false);
-          lastSavedRef.current = JSON.stringify(data);
+
+          // Initialize lastSavedRef with the same structure used in persistData to prevent immediate redundant save
+          const normalizedUnits = [...otherSectorsUnits, ...sectorUnitsToUse].filter(u => {
+            if (u.unit_id && u.unit_id.trim() !== '') return true;
+            if (u.id && !String(u.id).startsWith('NEW-')) return true;
+            if (u.tempId && u.tempId.startsWith('NEW-')) {
+              return (u.personnel1 && u.personnel1.trim() !== '') || (u.id && u.id.trim() !== '');
+            }
+            return true;
+          });
+          
+          lastSavedRef.current = JSON.stringify({ 
+            settings: finalSettings, 
+            units: normalizedUnits 
+          });
         })
         .getShiftData(dateStr, shift, currentSector);
     } else {
@@ -235,8 +266,13 @@ const App: React.FC = () => {
       return true;
     });
     const dataObj = { settings: newSettings, units: validUnits };
+    // Normalize data for comparison (remove transient fields if necessary)
     const dataStr = JSON.stringify(dataObj);
-    if (dataStr === lastSavedRef.current) return;
+    
+    if (dataStr === lastSavedRef.current) {
+      console.log('Skipping persistData — no changes detected.');
+      return;
+    }
 
     setSaving(true);
     if (typeof google !== 'undefined' && google.script && google.script.run) {
