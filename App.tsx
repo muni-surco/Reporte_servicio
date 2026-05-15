@@ -195,7 +195,7 @@ const App: React.FC = () => {
                 sector: currentSector,
                 plate: d.plate,
                 quadrant: d.quadrant,
-                status: UnitStatus.PATRULLANDO,
+                status: (d.status || UnitStatus.PATRULLANDO) as any,
                 kmStart: '0',
                 kmEnd: '0',
                 totalKm: '0',
@@ -354,7 +354,12 @@ const App: React.FC = () => {
         'FALTO',
         'ONOMASTICO',
         'ONOMÁSTICO',
-        'PERMISO'
+        'PERMISO',
+        UnitStatus.MANTENIMIENTO,
+        UnitStatus.CON_DESPERFECTOS,
+        UnitStatus.SIN_CONDUCTOR,
+        UnitStatus.SIN_VEHICULO,
+        UnitStatus.SINIESTRO
       ];
 
       // 1. Prioritize units being NEWLY created (unsaved and currently editing)
@@ -397,7 +402,7 @@ const App: React.FC = () => {
         sector: s,
         plate: d.plate,
         quadrant: d.quadrant,
-        status: UnitStatus.PATRULLANDO,
+        status: (d.status || UnitStatus.PATRULLANDO) as any,
         kmStart: '0',
         kmEnd: '0',
         totalKm: '0',
@@ -425,7 +430,7 @@ const App: React.FC = () => {
               sector: s,
               plate: d.plate,
               quadrant: d.quadrant,
-              status: UnitStatus.PATRULLANDO,
+              status: (d.status || UnitStatus.PATRULLANDO) as any,
               kmStart: '0',
               kmEnd: '0',
               totalKm: '0',

@@ -121,22 +121,21 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
         }
 
         // Choferes sin móvil
-        const noVehicle = units.filter(u => u.status === UnitStatus.CHOFER_SIN_MOVIL);
+        const noVehicle = units.filter(u => u.status === UnitStatus.SIN_VEHICULO);
         if (noVehicle.length > 0) {
             alerts.push({ type: 'warning', message: 'Choferes sin Móvil', count: noVehicle.length });
         }
 
         // Vehículos sin documentos
-        const noDocs = units.filter(u => u.status === UnitStatus.OPERATIVA_SIN_DOCUMENTOS);
+        const noDocs = units.filter(u => u.status === UnitStatus.SIN_DOCUMENTOS);
         if (noDocs.length > 0) {
             alerts.push({ type: 'error', message: 'Vehículos sin Documentos', count: noDocs.length });
         }
 
         // Vehículos en mantenimiento
         const inMaintenance = units.filter(u =>
-            u.status === UnitStatus.MAESTRANZA ||
-            u.status === UnitStatus.EN_PC_X_DESPERFECTOS ||
-            u.status === UnitStatus.TALLER_PARTICULAR
+            u.status === UnitStatus.MANTENIMIENTO ||
+            u.status === UnitStatus.CON_DESPERFECTOS
         );
         if (inMaintenance.length > 0) {
             alerts.push({ type: 'info', message: 'Vehículos en Mantenimiento', count: inMaintenance.length });
@@ -177,13 +176,11 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
     const getStatusColor = (status: string) => {
         switch (status) {
             case UnitStatus.PATRULLANDO: return 'bg-green-100 text-green-700 border-green-300';
-            case UnitStatus.MAESTRANZA: return 'bg-orange-100 text-orange-700 border-orange-300';
-            case UnitStatus.EN_PC_X_DESPERFECTOS: return 'bg-red-100 text-red-700 border-red-300';
-            case UnitStatus.TALLER_PARTICULAR: return 'bg-red-100 text-red-700 border-red-300';
-            case UnitStatus.OPERATIVA_SIN_CHOFER: return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-            case UnitStatus.CHOFER_SIN_MOVIL: return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-            case UnitStatus.OPERATIVA_SIN_DOCUMENTOS: return 'bg-red-100 text-red-700 border-red-300';
-            case UnitStatus.EXPLANADA: return 'bg-slate-100 text-slate-700 border-slate-300';
+            case UnitStatus.MANTENIMIENTO: return 'bg-orange-100 text-orange-700 border-orange-300';
+            case UnitStatus.CON_DESPERFECTOS: return 'bg-red-100 text-red-700 border-red-300';
+            case UnitStatus.SIN_CONDUCTOR: return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+            case UnitStatus.SIN_VEHICULO: return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+            case UnitStatus.SIN_DOCUMENTOS: return 'bg-red-100 text-red-700 border-red-300';
             case UnitStatus.APOYO_OTRA_AREA: return 'bg-blue-100 text-blue-700 border-blue-300';
             default: return 'bg-gray-100 text-gray-700 border-gray-300';
         }

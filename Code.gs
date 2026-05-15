@@ -410,6 +410,7 @@ function getMobileData() {
         radio: radioIdx !== -1 ? String(row[radioIdx] || '') : '',
         quadrant: cuadranteIdx !== -1 ? cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()) : '',
         sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
+        status: estadoIdx !== -1 ? String(row[estadoIdx] || '').trim() : '',
         type: getUnitType(id)
       });
     }

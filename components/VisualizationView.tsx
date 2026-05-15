@@ -10,28 +10,26 @@ interface VisualizationViewProps {
 
 const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings, mobileData }) => {
   const redStatusPatterns = [
-    UnitStatus.MAESTRANZA,
-    UnitStatus.TALLER_PARTICULAR,
-    UnitStatus.CHOFER_SIN_MOVIL,
-    UnitStatus.EN_PC_X_DESPERFECTOS,
+    UnitStatus.MANTENIMIENTO,
+    UnitStatus.SIN_VEHICULO,
+    UnitStatus.CON_DESPERFECTOS,
     'DESCANSO COMPENSATORIO',
     'DESCANSO MEDICO',
     'DESCANSO MÉDICO',
     'FALTO',
     'ONOMASTICO',
     'ONOMÁSTICO',
-    'PERMISO',
+    'PERMISO'
   ];
 
   const amberStatusPatterns = [
-    UnitStatus.OPERATIVA_SIN_DOCUMENTOS,
-    UnitStatus.OPERATIVA_SIN_CHOFER,
+    UnitStatus.SIN_DOCUMENTOS,
+    UnitStatus.SIN_CONDUCTOR,
   ];
 
   const getStatusColor = (status: string) => {
     if (status === UnitStatus.PATRULLANDO) return "bg-green-500 ring-2 ring-green-200";
-    if (status === UnitStatus.EXPLANADA || status === UnitStatus.APOYO_OTRA_AREA) return "bg-blue-500 ring-2 ring-blue-200";
-    if (status === UnitStatus.RETEN) return "bg-slate-400 ring-2 ring-slate-200";
+    if (status === UnitStatus.APOYO_OTRA_AREA) return "bg-blue-500 ring-2 ring-blue-200";
     if (redStatusPatterns.includes(status)) return "bg-red-500 ring-2 ring-red-200";
     if (amberStatusPatterns.includes(status)) return "bg-amber-500 ring-2 ring-amber-200";
     return "bg-slate-300 ring-2 ring-slate-100";
@@ -39,8 +37,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
   const ALLOWED_STATUSES = [
     UnitStatus.PATRULLANDO,
-    UnitStatus.APOYO_OTRA_AREA,
-    UnitStatus.EXPLANADA
+    UnitStatus.APOYO_OTRA_AREA
   ];
 
   const renderCompactUnit = (u: UnitData, type: string) => {

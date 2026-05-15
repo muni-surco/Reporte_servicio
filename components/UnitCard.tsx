@@ -142,8 +142,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
     const specialStatuses = [
       'CAMBIO DE TURNO',
-      'CHOFER SIN MOVIL',
-      UnitStatus.CHOFER_SIN_UNIDAD,
+      UnitStatus.SIN_VEHICULO,
       'DESCANSO COMPENSATORIO',
       'DESCANSO MEDICO',
       'DESCANSO MÉDICO',
@@ -151,18 +150,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'ONOMASTICO',
       'ONOMÁSTICO',
       'PERMISO',
-      UnitStatus.MAESTRANZA,
-      UnitStatus.TALLER_PARTICULAR,
-      UnitStatus.EN_PC_X_DESPERFECTOS,
-      UnitStatus.OPERATIVA_SIN_CHOFER
+      UnitStatus.MANTENIMIENTO,
+      UnitStatus.CON_DESPERFECTOS,
+      UnitStatus.SIN_CONDUCTOR
     ];
     const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
     const isNoPersonnelStatus = [
-      UnitStatus.OPERATIVA_SIN_CHOFER,
-      UnitStatus.MAESTRANZA,
-      UnitStatus.TALLER_PARTICULAR,
-      UnitStatus.EN_PC_X_DESPERFECTOS,
-      'FALTO', 'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO', 'PERMISO', 'ONOMASTICO', 'ONOMÁSTICO'
+      UnitStatus.SIN_CONDUCTOR,
+      UnitStatus.MANTENIMIENTO,
+      UnitStatus.CON_DESPERFECTOS,
+      'FALTO (INASISTENCIA)', 'DESCANSO COMPENSATORIO', 'DESCANSO MEDICO', 'DESCANSO MÉDICO', 'PERMISO', 'ONOMASTICO', 'ONOMÁSTICO'
     ].includes(formData.status?.toUpperCase());
 
     const isValidMobileId = !formData.id || String(formData.id).trim() === '' ||
@@ -204,19 +201,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
   const badgeColors: Record<string, string> = {
     [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
-    [UnitStatus.EXPLANADA]: "bg-blue-100 text-blue-700 border-blue-200",
     [UnitStatus.APOYO_OTRA_AREA]: "bg-blue-100 text-blue-700 border-blue-200",
-    [UnitStatus.RETEN]: "bg-slate-100 text-slate-700 border-slate-200",
-    [UnitStatus.OPERATIVA_SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
-    [UnitStatus.OPERATIVA_SIN_CHOFER]: "bg-amber-100 text-amber-700 border-amber-200",
+    [UnitStatus.SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
+    [UnitStatus.SIN_VEHICULO]: "bg-yellow-100 text-yellow-700 border-yellow-200",
   };
 
   const redStatusPatterns = [
-    UnitStatus.MAESTRANZA,
-    UnitStatus.TALLER_PARTICULAR,
-    UnitStatus.CHOFER_SIN_MOVIL,
-    UnitStatus.CHOFER_SIN_UNIDAD,
-    UnitStatus.EN_PC_X_DESPERFECTOS,
+    UnitStatus.MANTENIMIENTO,
+    UnitStatus.SIN_CONDUCTOR,
+    UnitStatus.SIN_VEHICULO,
+    UnitStatus.CON_DESPERFECTOS,
     'DESCANSO COMPENSATORIO',
     'DESCANSO MEDICO',
     'DESCANSO MÉDICO',
@@ -417,8 +411,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[12px] font-medium py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
               CANCELAR
             </button>
-            <button 
-              onClick={handleValidateAndSave} 
+            <button
+              onClick={handleValidateAndSave}
               disabled={isSaving}
               className={`bg-[#005cbb] text-white text-[12px] font-medium py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <lord-icon
