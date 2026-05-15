@@ -18,12 +18,13 @@ interface UnitCardProps {
   radioOptions?: string[];
   currentDate: string;
   currentShift: string;
+  isSaving?: boolean;
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions,
-  currentDate, currentShift
+  currentDate, currentShift, isSaving
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -414,14 +415,17 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[12px] font-medium py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
               CANCELAR
             </button>
-            <button onClick={handleValidateAndSave} className="bg-[#005cbb] text-white text-[12px] font-medium py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group">
+            <button 
+              onClick={handleValidateAndSave} 
+              disabled={isSaving}
+              className={`bg-[#005cbb] text-white text-[12px] font-medium py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <lord-icon
                 src="https://cdn.lordicon.com/egiwmiit.json"
                 trigger="hover"
                 colors="primary:#ffffff"
                 style={{ width: '16px', height: '16px' }}>
               </lord-icon>
-              {isNew ? 'GUARDAR' : 'GUARDAR'}
+              {isSaving ? 'GUARDANDO...' : (isNew ? 'GUARDAR' : 'GUARDAR')}
             </button>
           </div>
         </div>

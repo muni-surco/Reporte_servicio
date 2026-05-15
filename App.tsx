@@ -26,6 +26,10 @@ const getAutoTurno = () => {
   return 'NOCHE';
 };
 
+const generateUUID = () => {
+  return 'UID-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+};
+
 const App: React.FC = () => {
   const [units, setUnits] = useState<UnitData[]>([]);
   const [currentSector, setCurrentSector] = useState<Sector>('SECTOR 1A');
@@ -148,7 +152,8 @@ const App: React.FC = () => {
             expense: String(u.expense || 'S/ 0.00'),
             quadrant: String(u.quadrant || ''),
             mechanics: String(u.mechanics || ''),
-            model: String(u.model || '')
+            model: String(u.model || ''),
+            unit_id: u.unit_id
           }));
 
           const currentSectorNormalized = currentSector.trim().toUpperCase();
@@ -183,7 +188,8 @@ const App: React.FC = () => {
                   radio: d.radio || '',
                   reason: '',
                   mechanics: '',
-                  hours: '--:-- - --:--'
+                  hours: '--:-- - --:--',
+                  unit_id: `DEF-${currentSector.replace(/\s+/g, '')}-${d.id}`
                 }));
               sectorUnitsToUse = [...sectorUnitsToUse, ...typeDefaults];
             }
@@ -396,7 +402,8 @@ const App: React.FC = () => {
               radio: d.radio || '',
               reason: '',
               mechanics: '',
-              hours: '--:-- - --:--'
+              hours: '--:-- - --:--',
+              unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}`
             }));
           sectorUnits = [...sectorUnits, ...typeDefaults];
         }
@@ -443,6 +450,7 @@ const App: React.FC = () => {
       expense: 'S/ 0.00',
       quadrant: '',
       mechanics: '',
+      unit_id: generateUUID()
     };
     // Prepend the new unit to the list so it appears at the top of its section
     setUnits(prev => [newUnit, ...prev]);
@@ -568,6 +576,7 @@ const App: React.FC = () => {
                   radioOptions={radioOptions}
                   currentDate={selectedDate}
                   currentShift={settings.turno}
+                  isSaving={saving}
                 />
               {currentSector !== 'RESCATE' && (
                 <>
@@ -586,6 +595,7 @@ const App: React.FC = () => {
                     radioOptions={radioOptions}
                     currentDate={selectedDate}
                     currentShift={settings.turno}
+                    isSaving={saving}
                   />
                   <UnitSection
                     title="SERENOS" type="SERENO" icon="hail"
@@ -601,6 +611,7 @@ const App: React.FC = () => {
                     radioOptions={radioOptions}
                     currentDate={selectedDate}
                     currentShift={settings.turno}
+                    isSaving={saving}
                   />
                 </>
               )}
