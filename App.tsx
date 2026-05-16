@@ -468,6 +468,19 @@ const App: React.FC = () => {
   };
 
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {
+    // Guard: si ya existe una card en blanco (NEW-) del mismo tipo sin ID ni personal, no crear otra
+    const existingBlank = units.find(u =>
+      u.type === type &&
+      u.tempId?.startsWith('NEW-') &&
+      (!u.id || String(u.id).trim() === '') &&
+      (!u.personnel1 || String(u.personnel1).trim() === '')
+    );
+    if (existingBlank) {
+      // Solo activar edición sobre la card en blanco ya existente
+      setEditingId(existingBlank.tempId || existingBlank.unit_id || existingBlank.id);
+      return;
+    }
+
     const tempId = `NEW-${Date.now()}`;
     const newUnit: UnitData = {
       id: '',

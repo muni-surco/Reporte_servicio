@@ -165,12 +165,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
       'FALTO',
-      'FALTO (INASISTENCIA)', 
-      'DESCANSO COMPENSATORIO', 
-      'DESCANSO MEDICO', 
-      'DESCANSO MÉDICO', 
-      'PERMISO', 
-      'ONOMASTICO', 
+      'FALTO (INASISTENCIA)',
+      'DESCANSO COMPENSATORIO',
+      'DESCANSO MEDICO',
+      'DESCANSO MÉDICO',
+      'PERMISO',
+      'ONOMASTICO',
       'ONOMÁSTICO'
     ].includes(formData.status?.toUpperCase());
 
@@ -455,7 +455,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
-            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-medium text-[13px] shadow-sm`}>
+            <div className={`${typeConfig.idBadge} h-9 flex items-center justify-center rounded-lg font-medium text-[13px] shadow-sm`}>
               {unit.id}
             </div>
           </div>
