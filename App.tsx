@@ -163,32 +163,33 @@ const App: React.FC = () => {
           });
           const incomingUnits = Array.from(deduplicatedMap.values());
 
-          const currentSectorNormalized = currentSector.trim().toUpperCase();
-          const otherSectorsUnits = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() !== currentSectorNormalized);
-          const currentSectorUnitsFound = incomingUnits.filter(u => (u.sector || '').trim().toUpperCase() === currentSectorNormalized);
-
-          // 3. Granular Deduplication for current sector (by display ID to hide past duplicates)
-          const finalSectorUnitsMap = new Map<string, UnitData>();
-          currentSectorUnitsFound.forEach(u => {
-            const displayId = u.id.toUpperCase();
+          // 3. Granular Deduplication for ALL units (by display ID to hide past duplicates within same sector)
+          const finalUnitsMap = new Map<string, UnitData>();
+          incomingUnits.forEach(u => {
+            const displayId = (u.id || '').toUpperCase();
+            const sectorKey = (u.sector || '').trim().toUpperCase();
+            const uniqueKey = `${sectorKey}_${displayId}`; // Ensure separation by sector
+            
             if (displayId && !displayId.startsWith('NEW-')) {
                // If multiple rows exist for the same vehicle ID, prefer the one with more data or the last one
-               const existing = finalSectorUnitsMap.get(displayId);
+               const existing = finalUnitsMap.get(uniqueKey);
                if (!existing || (u.personnel1 && !existing.personnel1)) {
-                 finalSectorUnitsMap.set(displayId, u);
+                 finalUnitsMap.set(uniqueKey, u);
                }
             } else {
               // Units without ID or new units are kept by their unit_id
-              finalSectorUnitsMap.set(u.unit_id || `TEMP-${Math.random()}`, u);
+              finalUnitsMap.set(u.unit_id || `TEMP-${Math.random()}`, u);
             }
           });
 
-          // 4. Inject Missing Defaults
+          // 4. Inject Missing Defaults (Only for current sector to keep dashboard populated)
+          const currentSectorNormalized = currentSector.trim().toUpperCase();
           const defaults = mobileData.filter(m => (m.sector || '').trim().toUpperCase() === currentSectorNormalized);
           defaults.forEach(d => {
             const displayId = d.id.toUpperCase();
-            if (!finalSectorUnitsMap.has(displayId)) {
-              finalSectorUnitsMap.set(displayId, {
+            const uniqueKey = `${currentSectorNormalized}_${displayId}`;
+            if (!finalUnitsMap.has(uniqueKey)) {
+              finalUnitsMap.set(uniqueKey, {
                 id: d.id,
                 unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${d.id}`,
                 type: d.type as any,
@@ -214,8 +215,8 @@ const App: React.FC = () => {
             }
           });
 
-          const sectorUnitsToUse = Array.from(finalSectorUnitsMap.values());
-          setUnits([...otherSectorsUnits, ...sectorUnitsToUse]);
+          const allUnitsToUse = Array.from(finalUnitsMap.values());
+          setUnits(allUnitsToUse);
 
           if (data.allSectorSettings) {
             setSectorSettingsMap(data.allSectorSettings);
@@ -226,7 +227,7 @@ const App: React.FC = () => {
           setLoading(false);
 
           // Initialize lastSavedRef with the same structure used in persistData to prevent immediate redundant save
-          const normalizedUnits = [...otherSectorsUnits, ...sectorUnitsToUse].filter(u => {
+          const normalizedUnits = allUnitsToUse.filter(u => {
             if (u.unit_id && u.unit_id.trim() !== '') return true;
             if (u.id && !String(u.id).startsWith('NEW-')) return true;
             if (u.tempId && u.tempId.startsWith('NEW-')) {
