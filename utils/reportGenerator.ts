@@ -497,70 +497,107 @@ export const generatePersonnelAbsenceReport = (
       .trim()
       .toUpperCase()
       .replace(/\./g, '') // Remove dots (e.g., SOT. -> SOT)
+      .replace(/,/g, '')  // Remove commas
       .replace(/\s+/g, ' '); // Normalize spaces
   };
 
   // 1. Identify present vs explicitly absent personnel names
   const presentNames = new Set<string>();
   const explicitAbsentInUnits = new Set<string>();
+  // Map name -> { sector, status } for absent people from units
   const nameToSector = new Map<string, string>();
+  const nameToUnitStatus = new Map<string, string>();
 
   const absenceStatuses = [
     'FALTO',
+    'FALTO (INASISTENCIA)',
     'DESCANSO MEDICO',
     'DESCANSO MÉDICO',
     'DESCANSO FISICO',
+    'DESCANSO COMPENSATORIO',
+    'ONOMASTICO',
+    'ONOMÁSTICO',
+    'PERMISO',
   ];
 
   units.forEach(u => {
-    const names = [];
-    if (u.personnel1) names.push(normalize(u.personnel1));
-    if (u.personnel2) names.push(normalize(u.personnel2));
+    const names: string[] = [];
+    if (u.personnel1 && String(u.personnel1).trim() !== '') names.push(normalize(u.personnel1));
+    if (u.personnel2 && String(u.personnel2).trim() !== '') names.push(normalize(u.personnel2));
 
     // Store assigned sector for each person found in units
     const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
-    names.forEach(name => nameToSector.set(name, sector));
-
-    // Check status robustly
     const status = (u.status || '').toString().trim().toUpperCase();
 
     if (absenceStatuses.includes(status)) {
-      names.forEach(name => explicitAbsentInUnits.add(name));
+      // Explicit absence: add to absent set and store sector/status
+      names.forEach(name => {
+        explicitAbsentInUnits.add(name);
+        nameToSector.set(name, sector);
+        nameToUnitStatus.set(name, status);
+      });
     } else {
-      names.forEach(name => presentNames.add(name));
+      // Only mark as present if NOT already marked as explicitly absent
+      names.forEach(name => {
+        if (!explicitAbsentInUnits.has(name)) {
+          presentNames.add(name);
+          nameToSector.set(name, sector);
+        }
+      });
     }
   });
 
-  // 2. Filter personnel for "ABSENT"
+  // 2. Filter personnel list for "ABSENT" — explicit unit absences take priority
   const absents = personnel.filter(p => {
     const name = normalize(p.apellidos_nombres);
 
-    // Check spreadsheet status robustly
-    const statusSS = (p.estado || '').toString().trim().toUpperCase();
-    const isExplicitFaltoSS = absenceStatuses.includes(statusSS);
-    const isExplicitFaltoUnit = explicitAbsentInUnits.has(name);
+    // If explicitly absent in a unit record → always include (overrides presentNames)
+    if (explicitAbsentInUnits.has(name)) return true;
 
-    // Avoid including people who are actually marked as present in another unit row
+    // If present in an active unit → exclude
     if (presentNames.has(name)) return false;
 
-    return isExplicitFaltoSS || isExplicitFaltoUnit;
+    // Check spreadsheet/personnel status as fallback
+    const statusSS = (p.estado || '').toString().trim().toUpperCase();
+    return absenceStatuses.includes(statusSS);
   });
 
-  // 3. Group by regime
+  // 3. Find absent people from units who are NOT in the personnel list (unmatched)
+  const personnelNormalizedNames = new Set(personnel.map(p => normalize(p.apellidos_nombres)));
+  explicitAbsentInUnits.forEach(name => {
+    if (!personnelNormalizedNames.has(name)) {
+      absents.push({
+        apellidos_nombres: name,
+        regimen_laboral: 'OS', // Default to ORDEN DE SERVICIO
+        rol_operativo: '--',
+        estado: nameToUnitStatus.get(name) || 'FALTO',
+        n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: ''
+      });
+    }
+  });
+
+  // 4. Group by regime
   const getRegime = (p: any) => {
     const reg = (p.regimen_laboral || '').toString().toUpperCase();
     if (/276/.test(reg)) return '276';
     if (/728/.test(reg)) return '728';
-    if (/1057|CAS|CONTRATO/i.test(reg)) return 'CAS';
-    // Todo lo demás se considera Orden de Servicio (OS)
+    // 1057 subtypes — check INDETERMINADO before DETERMINADO to avoid partial match
+    if (/1057.*INDETERMINADO/i.test(reg)) return '1057-INDETERMINADO';
+    if (/1057.*DETERMINADO/i.test(reg)) return '1057-DETERMINADO';
+    if (/1057.*CONFIANZA/i.test(reg)) return '1057-CONFIANZA';
+    if (/1057|CAS/i.test(reg)) return '1057-OTRO'; // fallback genérico 1057
+    // Orden de servicio
     return 'OS';
   };
 
   const groupsToDraw = [
-    { data: absents.filter(p => getRegime(p) === '276'), label: 'FALTOS PLANILLA D.L. 276', color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === '728'), label: 'FALTOS PLANILLA D.L. 728', color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === 'CAS'), label: 'FALTOS D.L. 1057 (CAS)', color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === 'OS'), label: ' FALTOS ORDEN DE SERVICIO', color: [0, 92, 187] }
+    { data: absents.filter(p => getRegime(p) === '276'),               label: 'FALTOS PLANILLA D.L. N° 276',                color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === '728'),               label: 'FALTOS PLANILLA D.L. N° 728',                color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === '1057-CONFIANZA'),    label: 'FALTOS D.L. N° 1057 (Confianza)',            color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === '1057-DETERMINADO'),  label: 'FALTOS D.L. N° 1057 (Determinado)',          color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === '1057-INDETERMINADO'),label: 'FALTOS D.L. N° 1057 (Indeterminado)',        color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === '1057-OTRO'),         label: 'FALTOS D.L. N° 1057',                       color: [0, 92, 187] },
+    { data: absents.filter(p => getRegime(p) === 'OS'),                label: 'FALTOS ORDEN DE SERVICIO',                  color: [0, 92, 187] }
   ];
 
   let currentY = 10;
@@ -609,13 +646,14 @@ export const generatePersonnelAbsenceReport = (
         p.apellidos_nombres?.toUpperCase() || '',
         (p.rol_operativo || '').toUpperCase() || '',
         shift.toUpperCase(), // MAÑANA, TARDE, NOCHE
-        nameToSector.get(nameNorm) || '--'
+        nameToSector.get(nameNorm) || '--',
+        nameToUnitStatus.get(nameNorm) || '--'
       ];
     });
 
     (doc as any).autoTable({
       startY: currentY,
-      head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR']],
+      head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR', 'MOTIVO']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -634,7 +672,8 @@ export const generatePersonnelAbsenceReport = (
         0: { cellWidth: 'auto' },
         1: { cellWidth: 35, halign: 'center' },
         2: { cellWidth: 20, halign: 'center' },
-        3: { cellWidth: 30, halign: 'center' }
+        3: { cellWidth: 25, halign: 'center' },
+        4: { cellWidth: 35, halign: 'center' }
       },
       margin: { left: margin, right: margin },
       didDrawPage: (data: any) => {
@@ -645,8 +684,11 @@ export const generatePersonnelAbsenceReport = (
     currentY = (doc as any).lastAutoTable.finalY + 8;
   });
 
+
+
   doc.save(`REPORTE_ASISTENCIA_REGIMEN_${shift}_${date}.pdf`);
 };
+
 
 export const generateObservationsReport = (
   units: UnitData[],

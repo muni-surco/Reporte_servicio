@@ -558,8 +558,22 @@ const App: React.FC = () => {
         } else if (type === 'moviles') {
           generateVehicleReport(data.units, data.allSectorSettings || {}, date, shift);
         } else if (type === 'asistencia_regimen') {
-          // Use personnelList already loaded in state — getShiftData no longer includes it
-          generatePersonnelAbsenceReport(data.units, personnelList, date, shift);
+          if (personnelList.length > 0) {
+            generatePersonnelAbsenceReport(data.units, personnelList, date, shift);
+          } else {
+            setIsGeneratingStructuredReport(true);
+            google.script.run
+              .withSuccessHandler((loadedPersonnel: PersonnelData[]) => {
+                setPersonnelList(loadedPersonnel);
+                generatePersonnelAbsenceReport(data.units, loadedPersonnel, date, shift);
+                setIsGeneratingStructuredReport(false);
+              })
+              .withFailureHandler((err: any) => {
+                setIsGeneratingStructuredReport(false);
+                alert('Error al cargar datos del personal: ' + err);
+              })
+              .getPersonnelList();
+          }
         } else if (type === 'observaciones') {
           generateObservationsReport(data.units, date, shift);
         } else if (type === 'general') {
