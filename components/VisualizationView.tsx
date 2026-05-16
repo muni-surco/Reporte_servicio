@@ -73,7 +73,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
               <span className="text-[11px] font-medium text-slate-400 tracking-tighter uppercase leading-none mb-1">RADIO</span>
               <span className="text-[13px] font-medium text-slate-700 font-mono leading-none">{displayRadio}</span>
             </div>
-            {u.sector !== 'RESCATE' && (
+            {u.sector !== 'RESCATE' && type !== 'SERENO' && (
               <div className="flex flex-col items-end min-w-[70px] border-l border-slate-200 pl-6">
                 <span className="text-[11px] font-medium text-slate-400 tracking-tighter uppercase leading-none mb-1">CUADRANTE</span>
                 <span className="text-[13px] font-medium text-slate-900 leading-none">{displayQuadrant}</span>
