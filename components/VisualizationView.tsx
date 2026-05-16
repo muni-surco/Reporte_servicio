@@ -16,6 +16,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     'DESCANSO COMPENSATORIO',
     'DESCANSO MEDICO',
     'DESCANSO MÉDICO',
+    'DESCANSO FISICO',
     'FALTO',
     'ONOMASTICO',
     'ONOMÁSTICO',

@@ -351,6 +351,7 @@ const App: React.FC = () => {
         'DESCANSO COMPENSATORIO',
         'DESCANSO MEDICO',
         'DESCANSO MÉDICO',
+        'DESCANSO FISICO',
         'FALTO',
         'ONOMASTICO',
         'ONOMÁSTICO',

@@ -146,6 +146,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'DESCANSO COMPENSATORIO',
       'DESCANSO MEDICO',
       'DESCANSO MÉDICO',
+      'DESCANSO FISICO',
       'FALTO',
       'FALTO (INASISTENCIA)',
       'ONOMASTICO',
@@ -169,6 +170,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'DESCANSO COMPENSATORIO',
       'DESCANSO MEDICO',
       'DESCANSO MÉDICO',
+      'DESCANSO FISICO',
       'PERMISO',
       'ONOMASTICO',
       'ONOMÁSTICO'
@@ -227,6 +229,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     'DESCANSO COMPENSATORIO',
     'DESCANSO MEDICO',
     'DESCANSO MÉDICO',
+    'DESCANSO FISICO',
     'FALTO',
     'FALTO (INASISTENCIA)',
     'ONOMASTICO',

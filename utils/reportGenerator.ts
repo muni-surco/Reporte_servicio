@@ -508,7 +508,8 @@ export const generatePersonnelAbsenceReport = (
   const absenceStatuses = [
     'FALTO',
     'DESCANSO MEDICO',
-    'DESCANSO MÉDICO'
+    'DESCANSO MÉDICO',
+    'DESCANSO FISICO',
   ];
 
   units.forEach(u => {
