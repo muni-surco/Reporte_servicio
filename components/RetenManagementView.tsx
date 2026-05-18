@@ -531,10 +531,11 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                         ) : (
                           <button
                             onClick={() => startEditing(r)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            className="flex items-center gap-1 px-3 py-1.5 mx-auto bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors border border-blue-100 text-[11px] font-bold uppercase tracking-wider"
                             title="Registrar Salida de Taller"
                           >
-                            <span className="material-symbols-outlined text-[20px]">edit_calendar</span>
+                            <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+                            SALIDA
                           </button>
                         )}
                       </td>
