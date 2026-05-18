@@ -178,6 +178,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'ONOMÁSTICO'
     ].includes(formData.status?.toUpperCase());
 
+    const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.CON_DESPERFECTOS;
+
     const isValidMobileId = !formData.id || String(formData.id).trim() === '' ||
       isSereno ||
       (mobileData && mobileData.some(m => m.id === formData.id));
@@ -187,7 +189,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: !isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === ''),
       radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
-      quadrant: !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
+      quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
     };
 
     // If ID is provided even in special status, still check for duplicates
