@@ -22,7 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     <aside
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
-      className={`bg-primary h-screen flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out z-[1030] shadow-2xl no-print overflow-hidden ${isExpanded ? 'w-[260px]' : 'w-[76px]'
+      className={`bg-primary h-screen fixed left-0 top-0 flex flex-col transition-all duration-300 ease-in-out z-[1030] shadow-2xl no-print overflow-hidden ${isExpanded ? 'w-[260px]' : 'w-[76px]'
         }`}
     >
       {/* Logo Area */}

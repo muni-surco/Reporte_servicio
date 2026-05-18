@@ -659,19 +659,16 @@ const App: React.FC = () => {
     };
   }, [personnelList]);
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-primary text-white">
-        <div className="w-12 h-12 border-4 border-secondary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-[14px] font-medium tracking-[0.2em] animate-pulse uppercase">Cargando Datos...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex h-screen bg-[#f8fafc]">
+    <div className="h-screen bg-[#f8fafc] relative">
+      {loading && (
+        <div className="absolute inset-0 z-[1050] flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm transition-opacity">
+          <div className="w-12 h-12 border-4 border-secondary border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-[14px] font-medium tracking-[0.2em] animate-pulse uppercase text-slate-600">Cargando Datos...</p>
+        </div>
+      )}
       <Sidebar currentView={currentView} onViewChange={setCurrentView} />
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="ml-[76px] flex flex-col h-screen">
         <Header
           settings={settings}
           onSaveSettings={handleSaveSettings}
