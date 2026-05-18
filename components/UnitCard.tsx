@@ -19,12 +19,13 @@ interface UnitCardProps {
   currentDate: string;
   currentShift: string;
   isSaving?: boolean;
+  saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions,
-  currentDate, currentShift, isSaving
+  currentDate, currentShift, isSaving, saveStatus
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -557,7 +558,17 @@ const UnitCard: React.FC<UnitCardProps> = ({
           )}
 
           {/* Columna Acciones */}
-          <div className="text-right flex justify-end gap-2">
+          <div className="text-right flex justify-end gap-2 items-center">
+            {(() => {
+              const key = unit.unit_id || unit.tempId || unit.id || '';
+              const status = saveStatus?.[key];
+              if (!status) return null;
+              return status === 'saving'
+                ? <span className="text-amber-500 text-[11px] animate-pulse font-medium">⏳</span>
+                : status === 'saved'
+                ? <span className="text-green-500 text-[11px] font-medium">✅</span>
+                : <span className="text-red-500 text-[11px] font-medium" title="Error al guardar">❌</span>;
+            })()}
             <button onClick={onEdit} title="Editar" className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">
               <lord-icon
                 src="https://cdn.lordicon.com/puvaffet.json"

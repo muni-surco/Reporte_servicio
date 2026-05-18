@@ -574,7 +574,6 @@ function getPersonnelList() {
 function saveShiftData(dateStr, shift, settings, units) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
 
-  // Phase 1: Read everything upfront (no lock needed for reads)
   const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
   if (!settingsSheet) {
     return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.settings}. Ejecuta la función initialSetup desde el editor de código.` };
@@ -586,99 +585,86 @@ function saveShiftData(dateStr, shift, settings, units) {
 
   const targetSector = toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
+  const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
 
-  // Phase 2: Acquire lock for BOTH reads and writes to ensure consistency
+  // Acquire lock FIRST for consistency (reads + writes inside lock)
   const lock = LockService.getScriptLock();
   try {
-    // We use a longer timeout (30s) to handle concurrent traffic
-    if (!lock.tryLock(30000)) {
-      return { success: false, error: 'LOCK_TIMEOUT', retry: true };
-    }
+    lock.waitLock(30000);
 
-    // --- READ INSIDE LOCK (Always get the latest state) ---
-    const settingsLastRow = settingsSheet.getLastRow();
-    const settingsRows = settingsLastRow > 1 
-      ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues() 
-      : [];
+    // --- READ SETTINGS (last 5000 rows from bottom) ---
+    const SETTINGS_SCAN = 5000;
+    const sLastRow = settingsSheet.getLastRow();
+    const sStart = Math.max(2, sLastRow - SETTINGS_SCAN + 1);
+    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(sStart, 1, sLastRow - sStart + 1, 6).getValues() : [];
 
-    const dataLastRow = dataSheet.getLastRow();
-    const dataRowsFull = dataLastRow > 1 
-      ? dataSheet.getRange(2, 1, dataLastRow - 1, 24).getValues() 
-      : [];
-
-    // --- PRE-PROCESS SETTINGS ---
     let settingsFoundIdx = -1;
-    const permanenciaUpdates = [];
+    const permanenciaRows = [];
     for (let i = 0; i < settingsRows.length; i++) {
       const row = settingsRows[i];
       if (!row[0]) continue;
       try {
         const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
         if (rowDate === dateStr && String(row[1]) === shift) {
-          permanenciaUpdates.push(i + 2);
-          if (toStorageSector(row[2]) === targetSector) {
-            settingsFoundIdx = i + 2;
-          }
+          permanenciaRows.push(sStart + i);
+          if (toStorageSector(row[2]) === targetSector) settingsFoundIdx = sStart + i;
         }
       } catch (e) {}
     }
 
-    // --- PRE-PROCESS UNITS MAP ---
-    const unitIdToRowMap = new Map();
-    const sectorRowIndices = [];
-    for (let i = 0; i < dataRowsFull.length; i++) {
-      const row = dataRowsFull[i];
-      if (!row[0]) continue;
-      try {
-        const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
-        if (rowDate === dateStr && String(row[1]) === shift) {
-          const uId = String(row[23] || '').trim(); // UNIT_ID column
-          if (uId) {
-            unitIdToRowMap.set(uId, i + 2);
-          }
-          if (toStorageSector(row[2]) === targetSector) {
-            sectorRowIndices.push({ index: i + 2, unitId: uId });
-          }
-        }
-      } catch (e) {}
-    }
-
-    // --- Settings: Update/Append target sector row ---
-    const settingsValues = [dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia];
+    // --- Settings write ---
     if (settingsFoundIdx > -1) {
-      settingsSheet.getRange(settingsFoundIdx, 1, 1, settingsValues.length).setValues([settingsValues]);
+      settingsSheet.getRange(settingsFoundIdx, 1, 1, 6).setValues([[dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]]);
     } else {
-      settingsSheet.appendRow(settingsValues);
-      permanenciaUpdates.push(settingsSheet.getLastRow());
+      settingsSheet.appendRow([dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]);
+      permanenciaRows.push(settingsSheet.getLastRow());
     }
 
     // --- Permanencia Sync ---
-    if (permanenciaUpdates.length > 0) {
-      permanenciaUpdates.forEach(rowIdx => {
-        settingsSheet.getRange(rowIdx, 6).setValue(settings.permanencia);
-      });
+    if (permanenciaRows.length > 1) {
+      const sortedP = [...permanenciaRows].sort((a, b) => a - b);
+      let pStart = sortedP[0], pCount = 1;
+      for (let i = 1; i < sortedP.length; i++) {
+        if (sortedP[i] === pStart + pCount) { pCount++; }
+        else {
+          settingsSheet.getRange(pStart, 6, pCount, 1).setValues(Array.from({ length: pCount }, () => [settings.permanencia]));
+          pStart = sortedP[i]; pCount = 1;
+        }
+      }
+      settingsSheet.getRange(pStart, 6, pCount, 1).setValues(Array.from({ length: pCount }, () => [settings.permanencia]));
+    } else if (permanenciaRows.length === 1) {
+      settingsSheet.getRange(permanenciaRows[0], 6).setValue(settings.permanencia);
     }
 
-    // --- Mileage Bridge: Find previous shift records ---
-    const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
+    // --- READ UNIT DATA (last 10000 rows from bottom) ---
+    const SCAN_LIMIT = 10000;
+    const dLastRow = dataSheet.getLastRow();
+    const dStart = Math.max(2, dLastRow - SCAN_LIMIT + 1);
+    const dRows = dLastRow > 1 ? dataSheet.getRange(dStart, 1, dLastRow - dStart + 1, 24).getValues() : [];
+
+    const unitIdToRowMap = new Map();
     const prevShiftRecords = new Map();
-    for (let i = 0; i < dataRowsFull.length; i++) {
-      const row = dataRowsFull[i];
+    for (let i = 0; i < dRows.length; i++) {
+      const row = dRows[i];
+      const absIdx = dStart + i;
       if (!row[0]) continue;
+      let rowDate, rowShift;
       try {
-        const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
-        if (rowDate === prevShiftInfo.date && String(row[1]) === prevShiftInfo.shift) {
-          const unitInternalId = String(row[3] || '').trim().toUpperCase(); // ID de unidad (101, etc)
-          if (unitInternalId) {
-            prevShiftRecords.set(unitInternalId, { rowIndex: i + 2, rowData: [...row] });
-          }
-        }
-      } catch (e) {}
+        rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
+        rowShift = String(row[1]);
+      } catch (e) { continue; }
+      if (rowDate === dateStr && rowShift === shift) {
+        const unit_id = String(row[23] || '').trim();
+        if (unit_id) unitIdToRowMap.set(unit_id, absIdx);
+      }
+      if (rowDate === prevShiftInfo.date && rowShift === prevShiftInfo.shift) {
+        const unitId = String(row[3] || '').trim().toUpperCase();
+        if (unitId) prevShiftRecords.set(unitId, { rowIndex: absIdx, rowData: [...row] });
+      }
     }
 
     const unitUpdates = [];
     const rowsToAppend = [];
-    const processedUnitIds = new Set();
     const sectorUnits = units.filter(u => toStorageSector(u.sector) === targetSector);
 
     // --- Unit Sync by UNIT_ID ---
@@ -687,7 +673,6 @@ function saveShiftData(dateStr, shift, settings, units) {
       if (!unit_id || unit_id === 'undefined') {
         unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
       }
-      processedUnitIds.add(unit_id);
 
       const unitRow = [
         dateStr, shift, targetSector,
@@ -716,19 +701,21 @@ function saveShiftData(dateStr, shift, settings, units) {
 
     // Handle deletions: DISABLED per user request. Records are only created or updated.
 
-    // Batch Updates: Optimized to write the entire block at once
+    // Write updated rows in contiguous batches (minimizes API round-trips)
     if (unitUpdates.length > 0) {
-      unitUpdates.forEach(u => {
-        const arrayIdx = u.rowIndex - 2;
-        if (arrayIdx >= 0 && arrayIdx < dataRowsFull.length) {
-          dataRowsFull[arrayIdx] = u.values;
+      const sorted = [...unitUpdates].sort((a, b) => a.rowIndex - b.rowIndex);
+      let batchStart = sorted[0].rowIndex;
+      let batchValues = [sorted[0].values];
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].rowIndex === batchStart + batchValues.length) {
+          batchValues.push(sorted[i].values);
         } else {
-          // Fallback for safety (though shouldn't happen with our logic)
-          dataSheet.getRange(u.rowIndex, 1, 1, u.values.length).setValues([u.values]);
+          dataSheet.getRange(batchStart, 1, batchValues.length, 24).setValues(batchValues);
+          batchStart = sorted[i].rowIndex;
+          batchValues = [sorted[i].values];
         }
-      });
-      // Single write operation for all updates
-      dataSheet.getRange(2, 1, dataRowsFull.length, 24).setValues(dataRowsFull);
+      }
+      dataSheet.getRange(batchStart, 1, batchValues.length, 24).setValues(batchValues);
     }
 
     if (rowsToAppend.length > 0) {
@@ -840,6 +827,72 @@ function getLastUnitTallerEntry(unitId) {
   } catch (err) {
     console.error('[getLastUnitTallerEntry] ERROR', err);
     return null;
+  }
+}
+
+/**
+ * Fast single-unit save: reads only 3 columns to find the row, updates in-place or appends.
+ * ~1s vs ~5-8s for saveShiftData. Does NOT handle KM bridge (handled by global save).
+ */
+function updateUnit(dateStr, shift, settings, unit) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+  if (!dataSheet) return { success: false, error: 'No se encontró UNIT_DATA' };
+
+  const targetSector = toStorageSector(settings.nombrePuesto || '1A');
+  const timeZone = ss.getSpreadsheetTimeZone();
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+
+    let unit_id = unit.unit_id || '';
+    if (!unit_id || unit_id === 'undefined') {
+      unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+    }
+
+    const unitRow = [
+      dateStr, shift, targetSector,
+      unit.id, unit.type, unit.model || '', unit.personnel1 || '', unit.personnel2 || '', unit.plate || '', unit.indicative || '', unit.radio || '',
+      unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
+      unit_id
+    ];
+
+    const lastRow = dataSheet.getLastRow();
+    if (lastRow <= 1) {
+      dataSheet.appendRow(unitRow);
+      return { success: true, unit_id: unit_id, created: true };
+    }
+
+    // Read only cols A(1), B(2), X(24) — 3 columns instead of 24
+    const dateShiftData = dataSheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    const idData = dataSheet.getRange(2, 24, lastRow - 1, 1).getValues();
+
+    let foundRow = -1;
+    for (let i = 0; i < dateShiftData.length; i++) {
+      if (!dateShiftData[i][0]) continue;
+      const rowDate = (dateShiftData[i][0] instanceof Date) ? Utilities.formatDate(dateShiftData[i][0], timeZone, 'yyyy-MM-dd') : String(dateShiftData[i][0]);
+      if (rowDate !== dateStr || String(dateShiftData[i][1]) !== shift) continue;
+
+      const storedId = String(idData[i][0] || '').trim();
+      if (storedId === unit_id || (unit.id && storedId === unit.id)) {
+        foundRow = i + 2;
+        break;
+      }
+    }
+
+    if (foundRow > -1) {
+      dataSheet.getRange(foundRow, 1, 1, 24).setValues([unitRow]);
+      return { success: true, unit_id: unit_id, created: false };
+    } else {
+      dataSheet.appendRow(unitRow);
+      return { success: true, unit_id: unit_id, created: true };
+    }
+  } catch (e) {
+    console.error('Error in updateUnit:', e);
+    return { success: false, error: e.toString() };
+  } finally {
+    lock.releaseLock();
   }
 }
 

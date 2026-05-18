@@ -250,8 +250,9 @@ const App: React.FC = () => {
   };
 
   const persistData = (newSettings: AppSettings, newUnits: UnitData[], retryCount = 0) => {
-    // Usar unit_id como ancla principal de persistencia
-    const validUnits = newUnits.filter(u => {
+    // Filtrar solo unidades del sector actual (reduce payload y tiempo de proceso)
+    const sectorUnits = newUnits.filter(u => !u.sector || u.sector === currentSector);
+    const validUnits = sectorUnits.filter(u => {
       // Si ya tiene un unit_id del servidor, es un registro existente que debemos mantener
       if (u.unit_id && u.unit_id !== 'undefined' && u.unit_id.trim() !== '') return true;
       
@@ -320,13 +321,72 @@ const App: React.FC = () => {
     }
   };
 
+  // Save queue (non-blocking, sequential)
+  const saveQueueRef = useRef<Array<{ unit: UnitData }>>([]);
+  const isSavingRef = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
+
+  const processQueue = () => {
+    if (isSavingRef.current || saveQueueRef.current.length === 0) return;
+    isSavingRef.current = true;
+
+    const item = saveQueueRef.current.shift()!;
+    const unitKey = item.unit.unit_id || item.unit.tempId || item.unit.id || 'unknown';
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res: { success: boolean, unit_id?: string, error?: string }) => {
+          if (res.success) {
+            if (res.unit_id && res.unit_id !== item.unit.unit_id) {
+              setUnits(prev => prev.map(u => {
+                const matchKey = u.unit_id || u.tempId || u.id;
+                const itemKey = item.unit.unit_id || item.unit.tempId || item.unit.id;
+                if (matchKey === itemKey) return { ...u, unit_id: res.unit_id };
+                return u;
+              }));
+            }
+            setSaveStatus(prev => ({ ...prev, [unitKey]: 'saved' }));
+            setTimeout(() => setSaveStatus(prev => {
+              const next = { ...prev };
+              delete next[unitKey];
+              return next;
+            }), 2000);
+          } else {
+            setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
+          }
+          isSavingRef.current = false;
+          processQueue();
+        })
+        .withFailureHandler(() => {
+          setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
+          isSavingRef.current = false;
+          processQueue();
+        })
+        .updateUnit(selectedDate, settings.turno, settings, item.unit);
+    } else {
+      isSavingRef.current = false;
+      processQueue();
+    }
+  };
+
+  const enqueueSave = (unit: UnitData) => {
+    const unitKey = unit.unit_id || unit.tempId || unit.id || 'unknown';
+    // Remove any pending saves for the same unit
+    saveQueueRef.current = saveQueueRef.current.filter(q => {
+      const qKey = q.unit.unit_id || q.unit.tempId || q.unit.id;
+      return qKey !== unitKey;
+    });
+    saveQueueRef.current.push({ unit });
+    setSaveStatus(prev => ({ ...prev, [unitKey]: 'saving' }));
+    if (!isSavingRef.current) processQueue();
+  };
+
   const handleSave = (updatedUnit: UnitData) => {
     const unitWithSector = { ...updatedUnit, sector: currentSector };
-    // Usar tempId o id para identificar la unidad que se estaba editando
+    // Identificar la unidad que se estaba editando
     let newUnits = units.map(u => {
       if ((u.unit_id && u.unit_id === editingId) || (u.tempId && u.tempId === editingId) || (u.id && u.id === editingId)) {
         const savedUnit = { ...unitWithSector };
-        // Si borró el ID, necesitamos mantener un identificador para que siga siendo editable
         if (!savedUnit.id || String(savedUnit.id).trim() === '') {
           savedUnit.tempId = u.tempId || `TEMP-${Date.now()}`;
         }
@@ -336,7 +396,8 @@ const App: React.FC = () => {
     });
     setUnits(newUnits);
     setEditingId(null);
-    persistData(settings, newUnits);
+    // Non-blocking save via queue (does NOT freeze the UI)
+    enqueueSave(unitWithSector);
   };
 
   const currentSectorUnits = units
@@ -618,6 +679,7 @@ const App: React.FC = () => {
                   currentDate={selectedDate}
                   currentShift={settings.turno}
                   isSaving={saving}
+                  saveStatus={saveStatus}
                 />
               {currentSector !== 'RESCATE' && (
                 <>
@@ -653,6 +715,7 @@ const App: React.FC = () => {
                     currentDate={selectedDate}
                     currentShift={settings.turno}
                     isSaving={saving}
+                    saveStatus={saveStatus}
                   />
                 </>
               )}

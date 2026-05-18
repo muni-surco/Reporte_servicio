@@ -23,6 +23,7 @@ interface UnitSectionProps {
   currentDate: string;
   currentShift: string;
   isSaving?: boolean;
+  saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -45,7 +46,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   radioOptions,
   currentDate,
   currentShift,
-  isSaving
+  isSaving,
+  saveStatus
 }) => {
   // Configuración de colores claros según el tipo
   const colorConfig = {
@@ -118,6 +120,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
                 currentDate={currentDate}
                 currentShift={currentShift}
                 isSaving={isSaving}
+                saveStatus={saveStatus}
               />
             );
           })
