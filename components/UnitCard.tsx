@@ -349,7 +349,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   name="personnel2"
                   value={formData.personnel2 || ''}
                   onChange={(e) => {
-                    const cleaned = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s.]/g, '');
+                    const cleaned = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.]/g, '');
                     setFormData(prev => ({ ...prev, personnel2: cleaned }));
                   }}
                   className={inputStyle('personnel2')}
