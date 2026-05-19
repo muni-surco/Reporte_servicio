@@ -114,7 +114,7 @@ const VehicleSearchView: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
               <thead>
-                <tr className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                <tr className="bg-[#005ea5] text-white font-bold uppercase tracking-wider text-[10px]">
                   <th className="text-left px-4 py-3">SADE</th>
                   <th className="text-left px-4 py-3">FECHA</th>
                   <th className="text-left px-4 py-3">TIPO</th>
