@@ -458,7 +458,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[140px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.1fr_90px]'}`}>
+        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[140px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.1fr_90px] max-[1399px]:grid-cols-[48px_1fr_2fr_auto_0.7fr_1.1fr_90px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
@@ -482,7 +482,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </div>
             </div>
             {isChofer && (
-              <div className="flex flex-col flex-1 min-w-[130px]">
+              <div className="flex flex-col flex-1 min-w-[130px] max-[1399px]:hidden">
                 <label className={labelStyle}>Copiloto</label>
                 <div className={infoValueStyle}>{unit.personnel2 || '--'}</div>
               </div>
@@ -505,7 +505,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna Placa */}
           {hasPlate && (
-            <div className="border-r border-slate-100 px-2 whitespace-nowrap">
+            <div className="border-r border-slate-100 px-2 whitespace-nowrap max-[1399px]:hidden">
               <label className={labelStyle}>Placa</label>
               <div className="text-[10px] font-medium text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">
                 {mobileData?.find(m => m.id === unit.id)?.plate || ''}
@@ -536,7 +536,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </div>
 
               {/* Columna Combustible Centrada con Recarga integrada */}
-              <div className="border-r border-slate-100 px-2">
+              <div className="border-r border-slate-100 px-2 max-[1399px]:hidden">
                 <label className={labelStyle}>Combustible</label>
                 <div className="flex items-center gap-1 text-[13px] font-medium">
                   <div className="flex items-center gap-1 text-slate-500">
