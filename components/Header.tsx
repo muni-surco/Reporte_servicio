@@ -133,10 +133,10 @@ const Header: React.FC<HeaderProps> = ({
                       {isPersonnel ? 'VISTA DE PERSONAL' : isStatistics ? 'ESTADÍSTICAS OPERATIVAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : isVehicleSearch ? 'BUSCADOR DE VEHÍCULOS SOSPECHOSOS' : 'VISTA DE DESPACHADOR'}
                     </h2>
                     {isVisualization && (
-                      <span className="text-[16px] font-bold text-blue-700 bg-blue-50/50 px-3 py-1 rounded-xl border border-blue-100 uppercase tracking-tighter flex items-center gap-3">
-                        <span className="text-blue-400 font-medium">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                        <div className="w-1 h-1 bg-blue-200 rounded-full"></div>
-                        <span>TURNO: {settings.turno}</span>
+                      <span className="text-[16px] font-bold text-blue-700 bg-blue-50/50 px-3 py-1 rounded-xl border border-blue-100 uppercase tracking-tighter flex items-center gap-3 leading-none">
+                        <span className="text-blue-400 font-medium leading-none">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                        <div className="w-1 h-1 bg-blue-200 rounded-full shrink-0"></div>
+                        <span className="leading-none">TURNO: {settings.turno}</span>
                       </span>
                     )}
                   </div>
@@ -150,45 +150,59 @@ const Header: React.FC<HeaderProps> = ({
           {!isStatistics && !isVisualization && currentView !== 'REPORTS' && !isVehicleSearch && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-1 lg:border-l lg:border-slate-100 lg:pl-8 min-w-0">
               {!isPersonnel && (
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="flex flex-col w-[110px] md:w-[150px]">
-                    <span className={labelStyle}>FECHA</span>
-                    <input
-                      type="date"
-                      value={localDate}
-                      onChange={(e) => setLocalDate(e.target.value)}
-                      onBlur={(e) => {
-                        if (e.target.value && e.target.value !== selectedDate) {
-                          onDateChange(e.target.value);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.currentTarget.blur();
-                        }
-                      }}
-                      className={inputBaseStyle.replace('shadow-sm appearance-none', 'shadow-sm')}
-                    />
-                  </div>
-                  <div className="flex flex-col w-[85px] md:w-[110px]">
-                    <span className={labelStyle}>TURNO</span>
-                    <div className="relative">
-                      <select
-                        value={settings.turno}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const updated = { ...tempSettingsRef.current, turno: val };
-                          setTempSettings(updated);
-                          tempSettingsRef.current = updated;
-                          onSaveSettings(updated);
+                <div className="flex items-center gap-4 bg-gradient-to-r from-blue-50/70 to-indigo-50/40 border border-blue-100 p-2 rounded-2xl shadow-sm shrink-0">
+                  {/* Campo Fecha */}
+                  <div className="flex items-center gap-2 px-2">
+                    <span className="material-symbols-outlined text-primary text-[20px] shrink-0 select-none">calendar_today</span>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-none mb-1">FECHA</span>
+                      <input
+                        type="date"
+                        value={localDate}
+                        onChange={(e) => setLocalDate(e.target.value)}
+                        onBlur={(e) => {
+                          if (e.target.value && e.target.value !== selectedDate) {
+                            onDateChange(e.target.value);
+                          }
                         }}
-                        className={`${inputBaseStyle} w-full pr-8 cursor-pointer`}
-                      >
-                        <option value="MAÑANA">MAÑANA</option>
-                        <option value="TARDE">TARDE</option>
-                        <option value="NOCHE">NOCHE</option>
-                      </select>
-                      <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">expand_more</span>
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          }
+                        }}
+                        className="bg-transparent border-none text-[13px] font-bold text-[#002d5a] focus:outline-none p-0 cursor-pointer h-5 w-[120px] md:w-[125px] focus:ring-0 leading-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Divisor Vertical */}
+                  <div className="w-px h-8 bg-blue-100/80"></div>
+
+                  {/* Selector de Turnos Segmentado */}
+                  <div className="flex flex-col px-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-none mb-1">TURNO</span>
+                    <div className="bg-slate-200/60 p-0.5 rounded-lg flex items-center gap-0.5 h-6 mt-0.5 select-none">
+                      {['MAÑANA', 'TARDE', 'NOCHE'].map((t) => {
+                        const isActive = settings.turno === t;
+                        return (
+                          <button
+                            key={t}
+                            onClick={() => {
+                              const updated = { ...tempSettingsRef.current, turno: t };
+                              setTempSettings(updated);
+                              tempSettingsRef.current = updated;
+                              onSaveSettings(updated);
+                            }}
+                            className={`px-2.5 h-full rounded text-[11px] font-bold tracking-wider transition-all duration-200 uppercase ${
+                              isActive
+                                ? 'bg-primary text-white shadow-sm'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-300/40'
+                            }`}
+                          >
+                            {t}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
