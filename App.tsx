@@ -10,6 +10,7 @@ import { generateMotoReport, generateVehicleReport, generatePersonnelAbsenceRepo
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import RetenManagementView from './components/RetenManagementView';
+import VehicleSearchView from './components/VehicleSearchView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS } from './types';
 import { Users, LayoutDashboard, FileText } from 'lucide-react';
 
@@ -772,6 +773,8 @@ const App: React.FC = () => {
               mobileData={mobileData}
               motivoTallerOptions={motivoTallerOptions}
             />
+          ) : currentView === 'VEHICLE_SEARCH' ? (
+            <VehicleSearchView />
           ) : (
             <StatisticsView units={units} />
           )}

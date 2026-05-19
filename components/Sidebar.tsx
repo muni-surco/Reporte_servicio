@@ -16,6 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: 'STATISTICS' as ViewMode, icon: 'bar_chart', label: 'Estadísticas' },
     { id: 'PERSONNEL' as ViewMode, icon: 'group', label: 'Vista de Personal' },
     { id: 'REPORTS' as ViewMode, icon: 'summarize', label: 'Centro de Reportes' },
+    { id: 'VEHICLE_SEARCH' as ViewMode, icon: 'search', label: 'Buscador Vehículos' },
   ];
 
   return (

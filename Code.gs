@@ -4,6 +4,7 @@ const APP_CONFIG = {
     unitData: 'UNIT_DATA',
     referenceData: 'DATA',
     retenLog: 'RETEN_LOG',
+    vehiculosRQ: 'VEHICULOS_RQ',
   },
   EXTERNAL_PERSONNEL_SPREADSHEET_ID: '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ',
   MOBILE_DATA_SPREADSHEET_ID: '11j6Ipd3J6HjUnG91RCliCbjrgzJWhzUwktCgfnAESKU',
@@ -894,6 +895,48 @@ function updateUnit(dateStr, shift, settings, unit) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Searches VEHICULOS_RQ sheet by plate (partial match).
+ */
+function searchVehicles(searchTerm) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.vehiculosRQ);
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+
+  const headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
+  var colMap = {};
+  headers.forEach(function(h, i) { colMap[h] = i; });
+
+  var term = String(searchTerm || '').toLowerCase().trim();
+  var results = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var plate = colMap['placa'] !== undefined ? String(row[colMap['placa']] || '').toLowerCase().trim() : '';
+    if (!term || plate.indexOf(term) !== -1) {
+      results.push({
+        sade: colMap['sade'] !== undefined ? cellToStr(row[colMap['sade']], ss.getSpreadsheetTimeZone()) : '',
+        fecha: colMap['fecha'] !== undefined ? cellToStr(row[colMap['fecha']], ss.getSpreadsheetTimeZone()) : '',
+        tipo: colMap['tipo'] !== undefined ? String(row[colMap['tipo']] || '') : '',
+        marca: colMap['marca'] !== undefined ? String(row[colMap['marca']] || '') : '',
+        modelo: colMap['modelo'] !== undefined ? String(row[colMap['modelo']] || '') : '',
+        color: colMap['color'] !== undefined ? String(row[colMap['color']] || '') : '',
+        placa: colMap['placa'] !== undefined ? String(row[colMap['placa']] || '') : '',
+        relato: colMap['relato'] !== undefined ? String(row[colMap['relato']] || '') : '',
+        tipoDelito: colMap['tipo_delito'] !== undefined ? String(row[colMap['tipo_delito']] || '') : '',
+        subtipoDelito: colMap['subtipo_delito'] !== undefined ? String(row[colMap['subtipo_delito']] || '') : '',
+        sector: colMap['sector'] !== undefined ? String(row[colMap['sector']] || '') : '',
+        cuadrante: colMap['cuadrante'] !== undefined ? cellToStr(row[colMap['cuadrante']], ss.getSpreadsheetTimeZone()) : '',
+      });
+    }
+  }
+
+  return results;
 }
 
 /**

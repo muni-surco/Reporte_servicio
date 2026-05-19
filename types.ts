@@ -21,7 +21,22 @@ export type Sector =
   | 'GIR'
   | string;
 
-export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN';
+export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH';
+
+export interface VehicleRQ {
+  sade: string;
+  fecha: string;
+  tipo: string;
+  marca: string;
+  modelo: string;
+  color: string;
+  placa: string;
+  relato: string;
+  tipoDelito: string;
+  subtipoDelito: string;
+  sector: string;
+  cuadrante: string;
+}
 
 export interface PersonnelData {
   n: string;
