@@ -122,6 +122,7 @@ const VehicleSearchView: React.FC = () => {
                   <th className="text-left px-4 py-3">MODELO</th>
                   <th className="text-left px-4 py-3">COLOR</th>
                   <th className="text-left px-4 py-3">PLACA</th>
+                  <th className="text-left px-4 py-3">ESTADO</th>
                   <th className="text-left px-4 py-3">RELATO</th>
                   <th className="text-left px-4 py-3">TIPO DELITO</th>
                   <th className="text-left px-4 py-3">SUBTIPO</th>
@@ -157,6 +158,9 @@ const VehicleSearchView: React.FC = () => {
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="font-bold text-slate-800 tracking-wider">{v.placa}</span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${v.estado?.toUpperCase() === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{v.estado || '--'}</span>
                     </td>
                     <td className="px-4 py-2.5 text-slate-600 max-w-[250px] truncate" title={v.relato}>{v.relato}</td>
                     <td className="px-4 py-2.5 text-slate-700">{v.tipoDelito}</td>

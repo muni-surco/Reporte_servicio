@@ -31,6 +31,7 @@ export interface VehicleRQ {
   modelo: string;
   color: string;
   placa: string;
+  estado: string;
   relato: string;
   tipoDelito: string;
   subtipoDelito: string;

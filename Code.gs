@@ -928,6 +928,7 @@ function searchVehicles(searchTerm) {
         modelo: colMap['modelo'] !== undefined ? String(row[colMap['modelo']] || '') : '',
         color: colMap['color'] !== undefined ? String(row[colMap['color']] || '') : '',
         placa: colMap['placa'] !== undefined ? String(row[colMap['placa']] || '') : '',
+        estado: colMap['estado'] !== undefined ? String(row[colMap['estado']] || '') : '',
         relato: colMap['relato'] !== undefined ? String(row[colMap['relato']] || '') : '',
         tipoDelito: colMap['tipo_delito'] !== undefined ? String(row[colMap['tipo_delito']] || '') : '',
         subtipoDelito: colMap['subtipo_delito'] !== undefined ? String(row[colMap['subtipo_delito']] || '') : '',
