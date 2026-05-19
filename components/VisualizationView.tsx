@@ -67,8 +67,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex-1 flex items-center gap-2">
             {u.personnel1}
             {u.type === 'CHOFER' && u.personnel2?.toUpperCase().includes('PNP') && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200 leading-none shrink-0">
-                <span className="material-symbols-outlined text-[12px]">local_police</span>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200 leading-none shrink-0">
                 PNP
               </span>
             )}
