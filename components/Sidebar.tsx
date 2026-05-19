@@ -13,10 +13,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: 'DASHBOARD' as ViewMode, icon: 'dashboard', label: 'Panel de Edición' },
     { id: 'RETEN' as ViewMode, icon: 'swap_horizontal_circle', label: 'Gestión de Retenes' },
     { id: 'VISUALIZATION' as ViewMode, icon: 'description', label: 'Vista Despachador' },
+    { id: 'VEHICLE_SEARCH' as ViewMode, icon: 'search', label: 'Buscador Vehículos' },
     { id: 'STATISTICS' as ViewMode, icon: 'bar_chart', label: 'Estadísticas' },
     { id: 'PERSONNEL' as ViewMode, icon: 'group', label: 'Vista de Personal' },
     { id: 'REPORTS' as ViewMode, icon: 'summarize', label: 'Centro de Reportes' },
-    { id: 'VEHICLE_SEARCH' as ViewMode, icon: 'search', label: 'Buscador Vehículos' },
   ];
 
   return (

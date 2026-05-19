@@ -9,11 +9,35 @@ const VehicleSearchView: React.FC = () => {
   const [results, setResults] = useState<VehicleRQ[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [plates, setPlates] = useState<string[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((data: string[]) => setPlates(data || []))
+        .withFailureHandler(() => {})
+        .getVehiclePlates();
+    }
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredPlates = searchTerm.trim()
+    ? plates.filter(p => p.includes(searchTerm.toUpperCase())).slice(0, 50)
+    : [];
 
   const handleSearch = () => {
     const term = searchTerm.trim();
@@ -21,6 +45,7 @@ const VehicleSearchView: React.FC = () => {
 
     setLoading(true);
     setSearched(true);
+    setShowDropdown(false);
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
@@ -41,13 +66,36 @@ const VehicleSearchView: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch();
+    if (showDropdown && filteredPlates.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev + 1) % filteredPlates.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev - 1 + filteredPlates.length) % filteredPlates.length);
+        return;
+      }
+      if (e.key === 'Enter' && activeIndex >= 0) {
+        e.preventDefault();
+        setSearchTerm(filteredPlates[activeIndex]);
+        setShowDropdown(false);
+        setActiveIndex(-1);
+        return;
+      }
+    }
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   const handleClear = () => {
     setSearchTerm('');
     setResults([]);
     setSearched(false);
+    setShowDropdown(false);
+    setActiveIndex(-1);
     inputRef.current?.focus();
   };
 
@@ -56,17 +104,42 @@ const VehicleSearchView: React.FC = () => {
       {/* Search Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <div className="flex items-center gap-3 max-w-2xl mx-auto">
-          <div className="relative flex-1">
+          <div className="relative flex-1" ref={containerRef}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               ref={inputRef}
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowDropdown(true);
+                setActiveIndex(-1);
+              }}
+              onFocus={() => searchTerm.trim() && setShowDropdown(true)}
               onKeyDown={handleKeyDown}
               placeholder="Buscar por placa (ej: ABC-123)..."
               className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
+            {showDropdown && filteredPlates.length > 0 && (
+              <div className="absolute z-[9999] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl max-h-[220px] overflow-y-auto ring-1 ring-black ring-opacity-5">
+                {filteredPlates.map((plate, idx) => (
+                  <div
+                    key={plate}
+                    onMouseEnter={() => setActiveIndex(idx)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setSearchTerm(plate);
+                      setShowDropdown(false);
+                      setActiveIndex(-1);
+                    }}
+                    className={`px-4 py-2.5 text-[13px] font-mono cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${activeIndex === idx ? 'bg-primary text-white' : 'text-slate-700 hover:bg-blue-50'
+                    }`}
+                  >
+                    {plate}
+                  </div>
+                ))}
+              </div>
+            )}
             {searchTerm && (
               <button onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                 <XCircle className="w-5 h-5" />

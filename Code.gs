@@ -942,6 +942,33 @@ function searchVehicles(searchTerm) {
 }
 
 /**
+ * Returns all unique plates from VEHICULOS_RQ for autocomplete.
+ */
+function getVehiclePlates() {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.VEHICLE_RQ_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('RQ');
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+
+  const headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
+  var placaIdx = headers.indexOf('placa');
+  if (placaIdx === -1) return [];
+
+  var plates = [];
+  var seen = {};
+  for (var i = 1; i < data.length; i++) {
+    var plate = String(data[i][placaIdx] || '').trim().toUpperCase();
+    if (plate && !seen[plate]) {
+      seen[plate] = true;
+      plates.push(plate);
+    }
+  }
+  return plates.sort();
+}
+
+/**
  * Serves the web application.
  */
 function doGet() {
