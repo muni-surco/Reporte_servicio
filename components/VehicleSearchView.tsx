@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { VehicleRQ } from '../types';
-import { Search, XCircle, AlertCircle } from 'lucide-react';
+import { Search, XCircle, AlertCircle, Plus, X, ChevronDown } from 'lucide-react';
 
 declare const google: any;
 
@@ -12,6 +12,17 @@ const VehicleSearchView: React.FC = () => {
   const [plates, setPlates] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
+  const [showQuadrantDropdown, setShowQuadrantDropdown] = useState(false);
+  const [quadrantActiveIndex, setQuadrantActiveIndex] = useState(-1);
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
+  const quadrantRef = useRef<HTMLDivElement>(null);
+  const [formData, setFormData] = useState<VehicleRQ>({
+    sade: '', fecha: '', tipo: '', marca: '', modelo: '', color: '', placa: '',
+    estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: ''
+  });
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -22,6 +33,10 @@ const VehicleSearchView: React.FC = () => {
         .withSuccessHandler((data: string[]) => setPlates(data || []))
         .withFailureHandler(() => {})
         .getVehiclePlates();
+      google.script.run
+        .withSuccessHandler((data: string[]) => setQuadrantOptions(data || []))
+        .withFailureHandler(() => {})
+        .getQuadrantList();
     }
   }, []);
 
@@ -29,6 +44,9 @@ const VehicleSearchView: React.FC = () => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
+      }
+      if (quadrantRef.current && !quadrantRef.current.contains(e.target as Node)) {
+        setShowQuadrantDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -99,6 +117,39 @@ const VehicleSearchView: React.FC = () => {
     inputRef.current?.focus();
   };
 
+  const handleSaveVehicle = () => {
+    const required = ['sade', 'fecha', 'tipo', 'placa', 'estado'];
+    const errors: Record<string, boolean> = {};
+    required.forEach(key => { if (!(formData as any)[key]?.toString().trim()) errors[key] = true; });
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
+    setSaving(true);
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(() => {
+          setSaving(false);
+          setShowAddModal(false);
+          setFormData({ sade: '', fecha: '', tipo: '', marca: '', modelo: '', color: '', placa: '', estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '' });
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run
+              .withSuccessHandler((data: string[]) => setPlates(data || []))
+              .withFailureHandler(() => {})
+              .getVehiclePlates();
+          }
+        })
+        .withFailureHandler((err: any) => {
+          console.error('Save failed', err);
+          setSaving(false);
+        })
+        .saveVehicleRQ(formData);
+    } else {
+      setSaving(false);
+      setShowAddModal(false);
+    }
+  };
+
+  const inputModalStyle = "w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all";
+
   return (
     <div className="space-y-4">
       {/* Search Bar */}
@@ -157,6 +208,13 @@ const VehicleSearchView: React.FC = () => {
               <Search className="w-5 h-5" />
             )}
             {loading ? 'Buscando...' : 'Buscar'}
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-3 bg-emerald-600 text-white rounded-lg text-[13px] font-bold uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm shrink-0"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden md:inline">AGREGAR</span>
           </button>
         </div>
       </div>
@@ -256,6 +314,134 @@ const VehicleSearchView: React.FC = () => {
           <Search className="w-16 h-16 mb-4 text-slate-200" />
           <p className="text-[15px] font-medium text-slate-500">Buscador de Vehículos Sospechosos</p>
           <p className="text-[12px] text-slate-400 mt-1">Ingrese una placa para buscar en el registro histórico</p>
+        </div>
+      )}
+
+      {/* Add Vehicle Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => !saving && setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
+              <h3 className="text-[15px] font-bold uppercase tracking-wider text-slate-700">Agregar Vehículo</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              {[
+                { key: 'sade', label: 'SADE', type: 'number', required: true },
+                { key: 'fecha', label: 'FECHA', type: 'date', required: true },
+                { key: 'tipo', label: 'TIPO', type: 'select', options: ['AUTO', 'CAMIONETA', 'MOTOTAXI', 'MOTO'], required: true },
+                { key: 'marca', label: 'MARCA', type: 'text' },
+                { key: 'modelo', label: 'MODELO', type: 'text' },
+                { key: 'color', label: 'COLOR', type: 'text' },
+                { key: 'placa', label: 'PLACA', type: 'text', required: true },
+                { key: 'estado', label: 'ESTADO', type: 'select', options: ['IMPLICADO', 'ROBADO', 'SOSPECHOSO', 'REQUISITORIADO'], required: true },
+                { key: 'relato', label: 'RELATO', type: 'text' },
+                { key: 'tipoDelito', label: 'TIPO DELITO', type: 'text' },
+                { key: 'subtipoDelito', label: 'SUBTIPO DELITO', type: 'text' },
+                { key: 'sector', label: 'SECTOR', type: 'select', options: ['1A', '1B', '2', '3', '4', '5', '6', '7', '8', '9A', '9B'] },
+                { key: 'cuadrante', label: 'CUADRANTE', type: 'autocomplete' },
+              ].map(({ key, label, type, options, required }) => (
+                <div key={key} className={key === 'relato' ? 'md:col-span-2' : ''}>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
+                    {label}
+                    {required && <span className="text-red-500 ml-0.5">*</span>}
+                  </label>
+                  {type === 'select' ? (
+                    <div className="relative">
+                      <select
+                        value={(formData as any)[key]}
+                        onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
+                        className={`${inputModalStyle} cursor-pointer pr-8 appearance-none${formErrors[key] ? ' border-red-400' : ''}`}
+                      >
+                        <option value="">--</option>
+                        {options!.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                        <ChevronDown className="w-4 h-4" />
+                      </span>
+                    </div>
+                  ) : type === 'autocomplete' ? (
+                    <div className="relative" ref={quadrantRef}>
+                      <input
+                        type="text"
+                        value={(formData as any)[key]}
+                        onChange={(e) => {
+                          setFormData(prev => ({ ...prev, [key]: e.target.value }));
+                          setShowQuadrantDropdown(true);
+                          setQuadrantActiveIndex(-1);
+                        }}
+                        onFocus={() => setShowQuadrantDropdown(true)}
+                        onKeyDown={(e) => {
+                          if (!showQuadrantDropdown) return;
+                          const filtered = quadrantOptions.filter(q => q.toLowerCase().includes((formData.cuadrante || '').toLowerCase()));
+                          if (e.key === 'ArrowDown') { e.preventDefault(); setQuadrantActiveIndex(prev => (prev + 1) % filtered.length); }
+                          if (e.key === 'ArrowUp') { e.preventDefault(); setQuadrantActiveIndex(prev => (prev - 1 + filtered.length) % filtered.length); }
+                          if (e.key === 'Enter' && quadrantActiveIndex >= 0) { e.preventDefault(); setFormData(prev => ({ ...prev, cuadrante: filtered[quadrantActiveIndex] })); setShowQuadrantDropdown(false); }
+                        }}
+                        className={`${inputModalStyle}${formErrors[key] ? ' border-red-400' : ''}`}
+                        placeholder="Escriba o seleccione..."
+                      />
+                      {showQuadrantDropdown && (() => {
+                        const filtered = quadrantOptions.filter(q => q.toLowerCase().includes((formData.cuadrante || '').toLowerCase()));
+                        return filtered.length > 0 ? (
+                          <div className="absolute z-[9999] w-full bottom-full mb-1 bg-white border border-slate-200 rounded-lg shadow-2xl max-h-[180px] overflow-y-auto ring-1 ring-black ring-opacity-5">
+                            {filtered.slice(0, 30).map((q, idx) => (
+                              <div
+                                key={q}
+                                onMouseEnter={() => setQuadrantActiveIndex(idx)}
+                                onMouseDown={(e) => { e.preventDefault(); setFormData(prev => ({ ...prev, cuadrante: q })); setShowQuadrantDropdown(false); }}
+                                className={`px-3 py-2 text-[12px] cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${quadrantActiveIndex === idx ? 'bg-primary text-white' : 'text-slate-700 hover:bg-blue-50'}`}
+                              >
+                                {q}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : type === 'number' ? (
+                    <input
+                      type="number"
+                      value={(formData as any)[key]}
+                      onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
+                      className={`${inputModalStyle}${formErrors[key] ? ' border-red-400' : ''}`}
+                      min="0"
+                    />
+                  ) : (
+                    <input
+                      type={type}
+                      value={(formData as any)[key]}
+                      onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
+                      className={`${inputModalStyle}${formErrors[key] ? ' border-red-400' : ''}`}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => setShowAddModal(false)}
+                disabled={saving}
+                className="px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveVehicle}
+                disabled={saving || !formData.placa.trim()}
+                className="px-6 py-2.5 bg-primary text-white rounded-lg text-[12px] font-bold uppercase tracking-wider hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+              >
+                {saving ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : null}
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

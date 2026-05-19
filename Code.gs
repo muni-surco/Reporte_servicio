@@ -969,6 +969,79 @@ function getVehiclePlates() {
 }
 
 /**
+ * Returns all unique cuadrante values from the DATA sheet for autocomplete.
+ */
+function getQuadrantList() {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.referenceData);
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+
+  const headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
+  var idx = headers.indexOf('cuadrante');
+  if (idx === -1) return [];
+
+  var seen = {};
+  var list = [];
+  for (var i = 1; i < data.length; i++) {
+    var val = String(data[i][idx] || '').trim();
+    if (val && !seen[val]) {
+      seen[val] = true;
+      list.push(val);
+    }
+  }
+  return list.sort();
+}
+
+/**
+ * Appends a new vehicle record to the RQ sheet.
+ * @param {Object} data - Vehicle data with all fields.
+ */
+function saveVehicleRQ(data) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.VEHICLE_RQ_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('RQ');
+  if (!sheet) throw new Error('Sheet RQ not found');
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var colMap = {};
+  headers.forEach(function(h, i) { colMap[String(h).toLowerCase().trim()] = i + 1; });
+
+  var row = [];
+  for (var i = 0; i < headers.length; i++) {
+    row.push('');
+  }
+
+  var fieldMapping = {
+    sade: 'sade',
+    fecha: 'fecha',
+    tipo: 'tipo',
+    marca: 'marca',
+    modelo: 'modelo',
+    color: 'color',
+    placa: 'placa',
+    estado: 'estado',
+    relato: 'relato',
+    tipoDelito: 'tipo_delito',
+    subtipoDelito: 'subtipo_delito',
+    sector: 'sector',
+    cuadrante: 'cuadrante'
+  };
+
+  Object.keys(fieldMapping).forEach(function(key) {
+    var colName = fieldMapping[key];
+    var colIdx = colMap[colName];
+    if (colIdx !== undefined) {
+      row[colIdx - 1] = String(data[key] || '');
+    }
+  });
+
+  sheet.appendRow(row);
+  return { success: true };
+}
+
+/**
  * Serves the web application.
  */
 function doGet() {
