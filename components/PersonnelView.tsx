@@ -92,6 +92,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                         <thead className="sticky top-0 z-10">
                             <tr>
                                 <th className={`${columnHeaderStyle} w-12 text-center`}>#</th>
+                                <th className={columnHeaderStyle}>Foto</th>
                                 <th className={columnHeaderStyle}>DNI</th>
                                 <th className={columnHeaderStyle}>Apellidos y Nombres</th>
                                 <th className={columnHeaderStyle}>Régimen Laboral</th>
@@ -104,14 +105,14 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                         <tbody className="divide-y divide-slate-50">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={8} className="py-20 text-center">
+                                    <td colSpan={9} className="py-20 text-center">
                                         <div className="inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                         <p className="mt-4 text-[13px] font-medium text-slate-400 uppercase tracking-widest">Cargando Personal...</p>
                                     </td>
                                 </tr>
                             ) : filteredData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="py-20 text-center">
+                                    <td colSpan={9} className="py-20 text-center">
                                         <span className="material-symbols-outlined text-slate-200 text-5xl mb-4">person_search</span>
                                         <p className="text-[13px] font-medium text-slate-300 uppercase tracking-widest">No se encontraron registros</p>
                                     </td>
@@ -120,6 +121,29 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                 filteredData.map((person, idx) => (
                                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
                                         <td className={`${cellStyle} text-center text-slate-300 font-medium w-12`}>{idx + 1}</td>
+                                        <td className={`${cellStyle} w-14`}>
+                                            {person.foto_url ? (
+                                                <div className="relative group cursor-pointer">
+                                                    <img
+                                                        src={person.foto_url}
+                                                        alt={person.apellidos_nombres}
+                                                        className="w-10 h-10 rounded-full object-cover border-2 border-slate-200"
+                                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                                    />
+                                                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 hidden group-hover:block z-50 shadow-2xl rounded-xl overflow-hidden border-2 border-white">
+                                                        <img
+                                                            src={person.foto_url}
+                                                            alt={person.apellidos_nombres}
+                                                            className="w-auto h-auto max-w-48 max-h-48 object-contain"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
+                                                    <span className="material-symbols-outlined text-[18px]">person</span>
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className={`${cellStyle} font-mono text-slate-500`}>{person.dni}</td>
                                         <td className={`${cellStyle} text-[#004b93] uppercase`}>{person.apellidos_nombres}</td>
                                         <td className={cellStyle}>{person.regimen_laboral}</td>

@@ -544,7 +544,8 @@ function getPersonnelList() {
       estado: findHeader('estado'),
       rol_operativo: findHeader('funcion_actual'), // Mapped to funcion_actual per user request
       codigo_interno: findHeader('codigo_interno'),
-      sector_id: findHeader('sector_id')
+      sector_id: findHeader('sector_id'),
+      foto_url: findHeader('foto_url')
     };
 
     const personnelList = [];

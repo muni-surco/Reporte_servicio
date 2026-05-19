@@ -54,6 +54,7 @@ export interface PersonnelData {
   pin_operativo: string;
   fecha_alta: string;
   fecha_baja: string;
+  foto_url: string;
 }
 
 export interface UnitData {
