@@ -93,6 +93,7 @@ const Header: React.FC<HeaderProps> = ({
   const isReports = currentView === 'REPORTS';
   const isVisualization = currentView === 'VISUALIZATION';
   const isReten = currentView === 'RETEN';
+  const isVehicleSearch = currentView === 'VEHICLE_SEARCH';
 
   const labelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-widest block mb-1 whitespace-nowrap leading-none";
   const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-medium text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-9 shadow-sm appearance-none flex items-center";
@@ -129,7 +130,7 @@ const Header: React.FC<HeaderProps> = ({
                 ) : (
                   <div className="flex items-baseline gap-3">
                     <h2 className="text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none truncate">
-                      {isPersonnel ? 'VISTA DE PERSONAL' : isStatistics ? 'ESTADÍSTICAS OPERATIVAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : 'VISTA DE DESPACHADOR'}
+                      {isPersonnel ? 'VISTA DE PERSONAL' : isStatistics ? 'ESTADÍSTICAS OPERATIVAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : isVehicleSearch ? 'BUSCADOR DE VEHÍCULOS SOSPECHOSOS' : 'VISTA DE DESPACHADOR'}
                     </h2>
                     {isVisualization && (
                       <span className="text-[16px] font-bold text-blue-700 bg-blue-50/50 px-3 py-1 rounded-xl border border-blue-100 uppercase tracking-tighter flex items-center gap-3">
@@ -146,7 +147,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Info Section */}
-          {!isStatistics && !isVisualization && currentView !== 'REPORTS' && (
+          {!isStatistics && !isVisualization && currentView !== 'REPORTS' && !isVehicleSearch && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-1 lg:border-l lg:border-slate-100 lg:pl-8 min-w-0">
               {!isPersonnel && (
                 <div className="flex items-center gap-3 shrink-0">
@@ -287,7 +288,7 @@ const Header: React.FC<HeaderProps> = ({
                       <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
                     </button>
                   </>
-                ) : !isReports && !isReten ? (
+                ) : !isReports && !isReten && !isVehicleSearch ? (
                   <button
                     onClick={handleRefreshClick}
                     disabled={isRefreshing}
