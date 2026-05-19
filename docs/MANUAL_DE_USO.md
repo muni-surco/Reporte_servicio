@@ -146,7 +146,7 @@ Al hacer clic en el botón ✏️, la tarjeta se expande a modo edición con tod
   - SIN CONDUCTOR (ámbar)
   - MANTENIMIENTO (rojo)
   - SINIESTRO (rojo)
-  - **Otros:** CAMBIO DE TURNO, DESCANSO COMPENSATORIO, DESCANSO MEDICO, FALTO, PERMISO, TALLER, etc.
+  - **Otros:** CAMBIO DE TURNO, DESCANSO COMPENSATORIO, DESCANSO MEDICO, FALTO, PERMISO, etc.
 - **Motivo:** Razón o nota adicional
 - **KM Inicio:** Kilraje inicial — se autocompleta desde el turno anterior si existe (puente de kilraje)
 - **KM Fin:** Kilraje final
@@ -171,7 +171,7 @@ Al hacer clic en el botón ✏️, la tarjeta se expande a modo edición con tod
 | PATRULLANDO | Verde |
 | APOYO A OTRA AREA | Azul |
 | SIN DOCUMENTOS, SIN CONDUCTOR, SIN VEHICULO | Ámbar |
-| MANTENIMIENTO, SINIESTRO, FALTO, PERMISO, CON DESPERFECTOS, TALLER | Rojo |
+| MANTENIMIENTO, SINIESTRO, FALTO, PERMISO, CON DESPERFECTOS | Rojo |
 | DESCANSO COMPENSATORIO, DESCANSO MEDICO, CAMBIO DE TURNO, ONOMASTICO | Gris |
 | CHOFER SIN MOVIL | Gris |
 
@@ -468,7 +468,7 @@ Use el menú desplegable de sectores en la barra superior. El sistema guardará 
 - **Verde:** PATRULLANDO (unidad operativa)
 - **Azul:** APOYO A OTRA AREA
 - **Ámbar:** SIN DOCUMENTOS, SIN CONDUCTOR, SIN VEHICULO
-- **Rojo:** MANTENIMIENTO, SINIESTRO, FALTO, PERMISO, CON DESPERFECTOS, TALLER
+- **Rojo:** MANTENIMIENTO, SINIESTRO, FALTO, PERMISO, CON DESPERFECTOS
 - **Gris:** DESCANSO COMPENSATORIO, DESCANSO MEDICO, CAMBIO DE TURNO, ONOMASTICO, CHOFER SIN MOVIL
 
 ### ¿Cómo se calcula el KM total?
