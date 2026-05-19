@@ -4,10 +4,10 @@ const APP_CONFIG = {
     unitData: 'UNIT_DATA',
     referenceData: 'DATA',
     retenLog: 'RETEN_LOG',
-    vehiculosRQ: 'VEHICULOS_RQ',
   },
   EXTERNAL_PERSONNEL_SPREADSHEET_ID: '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ',
   MOBILE_DATA_SPREADSHEET_ID: '11j6Ipd3J6HjUnG91RCliCbjrgzJWhzUwktCgfnAESKU',
+  VEHICLE_RQ_SPREADSHEET_ID: '1ZdHMyeGTrz6ylAhP3J-h3coTmN0w6w_KrDOFQo-T75k',
 };
 
 function cellToStr(val, tz) {
@@ -901,8 +901,8 @@ function updateUnit(dateStr, shift, settings, unit) {
  * Searches VEHICULOS_RQ sheet by plate (partial match).
  */
 function searchVehicles(searchTerm) {
-  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.vehiculosRQ);
+  const ss = SpreadsheetApp.openById(APP_CONFIG.VEHICLE_RQ_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('RQ');
   if (!sheet) return [];
 
   const data = sheet.getDataRange().getValues();
