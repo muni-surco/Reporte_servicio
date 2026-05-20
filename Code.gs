@@ -585,7 +585,9 @@ function saveShiftData(dateStr, shift, settings, units) {
     return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.unitData}. Ejecuta la función initialSetup desde el editor de código.` };
   }
 
-  const targetSector = toStorageSector(settings.nombrePuesto || '1A');
+  // Derivar targetSector de las unidades primero, con fallback a settings
+  const unitsTargetSector = units.reduce((acc, u) => u && u.sector ? toStorageSector(u.sector) : acc, '');
+  const targetSector = unitsTargetSector || toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
   const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
 
@@ -841,7 +843,8 @@ function updateUnit(dateStr, shift, settings, unit) {
   const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
   if (!dataSheet) return { success: false, error: 'No se encontró UNIT_DATA' };
 
-  const targetSector = toStorageSector(settings.nombrePuesto || '1A');
+  // USAR el sector de la unidad, NO settings.nombrePuesto
+  const targetSector = unit.sector ? toStorageSector(unit.sector) : toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
 
   const lock = LockService.getScriptLock();
@@ -866,18 +869,35 @@ function updateUnit(dateStr, shift, settings, unit) {
       return { success: true, unit_id: unit_id, created: true };
     }
 
-    // Read only cols A(1), B(2), X(24) — 3 columns instead of 24
+    // Read cols A(1), B(2), C(3=targetSector), D(4=displayId), X(24=unit_id)
     const dateShiftData = dataSheet.getRange(2, 1, lastRow - 1, 2).getValues();
-    const idData = dataSheet.getRange(2, 24, lastRow - 1, 1).getValues();
+    const sectorData = dataSheet.getRange(2, 3, lastRow - 1, 1).getValues();
+    const idDisplayData = dataSheet.getRange(2, 4, lastRow - 1, 1).getValues();
+    const unitIdData = dataSheet.getRange(2, 24, lastRow - 1, 1).getValues();
 
     let foundRow = -1;
+    const unitDisplayId = unit.id ? String(unit.id).trim().toUpperCase() : '';
+    const targetSectorStr = String(targetSector).trim();
+
     for (let i = 0; i < dateShiftData.length; i++) {
       if (!dateShiftData[i][0]) continue;
       const rowDate = (dateShiftData[i][0] instanceof Date) ? Utilities.formatDate(dateShiftData[i][0], timeZone, 'yyyy-MM-dd') : String(dateShiftData[i][0]);
       if (rowDate !== dateStr || String(dateShiftData[i][1]) !== shift) continue;
 
-      const storedId = String(idData[i][0] || '').trim();
-      if (storedId === unit_id || (unit.id && storedId === unit.id)) {
+      // Solo considerar filas del mismo sector
+      const rowSector = String(toStorageSector(sectorData[i][0])).trim();
+      if (rowSector !== targetSectorStr) continue;
+
+      // Match prioritario por UNIT_ID (único global)
+      const storedUnitId = String(unitIdData[i][0] || '').trim();
+      if (storedUnitId === unit_id) {
+        foundRow = i + 2;
+        break;
+      }
+
+      // Fallback seguro: match por display ID SOLO si estamos en el mismo sector
+      const storedDisplayId = String(idDisplayData[i][0] || '').trim().toUpperCase();
+      if (storedDisplayId && storedDisplayId === unitDisplayId) {
         foundRow = i + 2;
         break;
       }
