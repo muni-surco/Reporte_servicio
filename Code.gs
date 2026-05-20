@@ -188,12 +188,13 @@ function getShiftData(dateStr, shift, sector) {
       }
     }
 
-    // 2. Get Unit Data - Optimized single-phase batch read
+    // 2. Get Unit Data — filtrando por fecha + turno + sector
     const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
     const allUnits = [];
 
     if (dataSheet) {
       const dataLastRow = dataSheet.getLastRow();
+      const targetSectorStorage = toStorageSector(sector);
       // Read all columns (up to 24) for all rows once
       const dataRowsFull = dataLastRow > 1
         ? dataSheet.getRange(2, 1, dataLastRow - 1, 24).getValues()
@@ -205,7 +206,7 @@ function getShiftData(dateStr, shift, sector) {
         
         try {
           const rowDateStr = Utilities.formatDate(new Date(fullRow[0]), timeZone, 'yyyy-MM-dd');
-          if (rowDateStr === dateStr && String(fullRow[1]) === shift) {
+          if (rowDateStr === dateStr && String(fullRow[1]) === shift && toStorageSector(fullRow[2]) === targetSectorStorage) {
             // Convert all values to String to avoid serialization issues
             allUnits.push({
               id: String(fullRow[3] || ''),
@@ -640,14 +641,15 @@ function saveShiftData(dateStr, shift, settings, units) {
       settingsSheet.getRange(permanenciaRows[0], 6).setValue(settings.permanencia);
     }
 
-    // --- READ UNIT DATA (last 10000 rows from bottom) ---
-    const SCAN_LIMIT = 10000;
+    // --- READ UNIT DATA (last 3000 rows from bottom) ---
+    const SCAN_LIMIT = 3000;
     const dLastRow = dataSheet.getLastRow();
     const dStart = Math.max(2, dLastRow - SCAN_LIMIT + 1);
     const dRows = dLastRow > 1 ? dataSheet.getRange(dStart, 1, dLastRow - dStart + 1, 24).getValues() : [];
 
     const unitIdToRowMap = new Map();
     const prevShiftRecords = new Map();
+    const targetSectorStr = String(targetSector).trim();
     for (let i = 0; i < dRows.length; i++) {
       const row = dRows[i];
       const absIdx = dStart + i;
@@ -657,10 +659,12 @@ function saveShiftData(dateStr, shift, settings, units) {
         rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
         rowShift = String(row[1]);
       } catch (e) { continue; }
-      if (rowDate === dateStr && rowShift === shift) {
+      // Solo filas del sector objetivo para el mapa de unidades actuales
+      if (rowDate === dateStr && rowShift === shift && toStorageSector(row[2]) === targetSectorStr) {
         const unit_id = String(row[23] || '').trim();
         if (unit_id) unitIdToRowMap.set(unit_id, absIdx);
       }
+      // Para KM bridge: prev shift sin filtrar por sector (la unidad pudo cambiar de sector)
       if (rowDate === prevShiftInfo.date && rowShift === prevShiftInfo.shift) {
         const unitId = String(row[3] || '').trim().toUpperCase();
         if (unitId) prevShiftRecords.set(unitId, { rowIndex: absIdx, rowData: [...row] });
