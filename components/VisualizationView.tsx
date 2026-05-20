@@ -64,14 +64,30 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
         {/* Contenedor de información */}
         <div className="flex-1 flex items-center justify-between min-w-0 gap-6">
-          <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex-1 flex items-center gap-2">
-            {u.personnel1}
-            {u.type === 'CHOFER' && u.personnel2?.toUpperCase().includes('PNP') && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200 leading-none shrink-0">
-                PNP
-              </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex items-center gap-2">
+              {u.personnel1}
+              {u.type === 'CHOFER' && u.personnel2?.toUpperCase().includes('PNP') && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 border border-blue-200 leading-none shrink-0">
+                  PNP
+                </span>
+              )}
+            </p>
+            {u.type === 'CHOFER' && (u.indicative || u.personnel2) && (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {u.indicative && (
+                  <span className="inline-flex items-center px-1.5 py-[1px] rounded text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200 leading-none shrink-0">
+                    {u.indicative}
+                  </span>
+                )}
+                {u.personnel2 && (
+                  <span className="text-[10px] text-slate-500 truncate uppercase leading-none">
+                    {u.personnel2}
+                  </span>
+                )}
+              </div>
             )}
-          </p>
+          </div>
 
           <div className="flex items-center gap-6 shrink-0">
             <div className="flex flex-col items-end min-w-[60px]">
