@@ -37,8 +37,30 @@ const VehicleSearchView: React.FC = () => {
         .withSuccessHandler((data: string[]) => setQuadrantOptions(data || []))
         .withFailureHandler(() => {})
         .getQuadrantList();
+      loadAll();
     }
   }, []);
+
+  const loadAll = () => {
+    setLoading(true);
+    setSearched(true);
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((data: VehicleRQ[]) => {
+          setResults(data || []);
+          setLoading(false);
+        })
+        .withFailureHandler((err: any) => {
+          console.error('Failed to load vehicles', err);
+          setResults([]);
+          setLoading(false);
+        })
+        .searchVehicles('');
+    } else {
+      setResults([]);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -59,8 +81,6 @@ const VehicleSearchView: React.FC = () => {
 
   const handleSearch = () => {
     const term = searchTerm.trim();
-    if (!term) return;
-
     setLoading(true);
     setSearched(true);
     setShowDropdown(false);
