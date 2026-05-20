@@ -144,6 +144,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
     const specialStatuses = [
       'CAMBIO DE TURNO',
+      'CAMBIO DESCANSO',
       UnitStatus.SIN_VEHICULO,
       'DESCANSO COMPENSATORIO',
       'DESCANSO MEDICO',
@@ -154,6 +155,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'ONOMASTICO',
       'ONOMÁSTICO',
       'PERMISO',
+      'PPFF',
       UnitStatus.MANTENIMIENTO,
       UnitStatus.CON_DESPERFECTOS,
       UnitStatus.SIN_CONDUCTOR,
