@@ -65,8 +65,8 @@ const App: React.FC = () => {
   const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
 
   useEffect(() => {
-    loadData(selectedDate, settings.turno);
-  }, [selectedDate, settings.turno, currentSector, mobileData.length]);
+    loadData(selectedDate, settings.turno, currentView);
+  }, [selectedDate, settings.turno, currentSector, mobileData.length, currentView]);
 
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -118,14 +118,14 @@ const App: React.FC = () => {
     }
   };
 
-  const loadData = (dateStr: string, shift: string) => {
+  const loadData = (dateStr: string, shift: string, view?: string) => {
     setLoading(true);
+    const needsFullData = view && view !== 'DASHBOARD';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler((data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] } | null) => {
+      const successHandler = (data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] } | null) => {
           // Guard: GAS may return null if the payload is too large or an error occurs server-side
           if (!data) {
-            console.warn('getShiftData returned null — no data for this date/shift or a server error occurred.');
+            console.warn('getShiftData/getSectorData returned null — no data for this date/shift or a server error occurred.');
             setUnits([]);
             setLoading(false);
             return;
@@ -241,8 +241,19 @@ const App: React.FC = () => {
             settings: finalSettings, 
             units: normalizedUnits 
           });
-        })
-        .getShiftData(dateStr, shift, currentSector);
+        };
+
+        const runner = google.script.run.withSuccessHandler(successHandler).withFailureHandler((err: any) => {
+          console.error('Failed to get data', err);
+          setUnits([]);
+          setLoading(false);
+        });
+
+        if (needsFullData) {
+          runner.getShiftData(dateStr, shift, currentSector);
+        } else {
+          runner.getSectorData(dateStr, shift, currentSector);
+        }
     } else {
       setTimeout(() => {
         setUnits([]);

@@ -188,14 +188,12 @@ function getShiftData(dateStr, shift, sector) {
       }
     }
 
-    // 2. Get Unit Data — filtrando por fecha + turno + sector
+    // 2. Get Unit Data
     const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
     const allUnits = [];
 
     if (dataSheet) {
       const dataLastRow = dataSheet.getLastRow();
-      const targetSectorStorage = toStorageSector(sector);
-      // Read all columns (up to 24) for all rows once
       const dataRowsFull = dataLastRow > 1
         ? dataSheet.getRange(2, 1, dataLastRow - 1, 24).getValues()
         : [];
@@ -206,7 +204,7 @@ function getShiftData(dateStr, shift, sector) {
         
         try {
           const rowDateStr = Utilities.formatDate(new Date(fullRow[0]), timeZone, 'yyyy-MM-dd');
-          if (rowDateStr === dateStr && String(fullRow[1]) === shift && toStorageSector(fullRow[2]) === targetSectorStorage) {
+          if (rowDateStr === dateStr && String(fullRow[1]) === shift) {
             // Convert all values to String to avoid serialization issues
             allUnits.push({
               id: String(fullRow[3] || ''),
@@ -251,6 +249,111 @@ function getShiftData(dateStr, shift, sector) {
     };
   } catch (err) {
     console.error('[getShiftData] ERROR', err);
+    throw err;
+  }
+}
+
+/**
+ * Like getShiftData but only returns units for the requested sector (faster).
+ * Settings are still read for all sectors (needed for sector switching).
+ */
+function getSectorData(dateStr, shift, sector) {
+  try {
+    console.log('[getSectorData] START — dateStr=' + dateStr + ' shift=' + shift + ' sector=' + sector);
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const timeZone = ss.getSpreadsheetTimeZone();
+    const targetSectorStorage = toStorageSector(sector);
+
+    // 1. Get Settings (same as getShiftData — needed for sectorSettingsMap)
+    const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
+    let shiftSettings = {
+      turno: shift,
+      operador: '',
+      supervisor: '',
+      nombrePuesto: toDisplaySector(sector || '1A'),
+      permanencia: ''
+    };
+    const allSectorSettings = {};
+
+    if (settingsSheet) {
+      const settingsLastRow = settingsSheet.getLastRow();
+      const settingsRows = settingsLastRow > 1
+        ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues()
+        : [];
+      let commonPermanencia = '';
+      for (let i = 0; i < settingsRows.length; i++) {
+        const row = settingsRows[i];
+        if (!row[0]) continue;
+        try {
+          const rowDateStr = Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd');
+          if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
+        } catch (e) { continue; }
+        const permanenciaVal = String(row[5] || '');
+        if (permanenciaVal) commonPermanencia = permanenciaVal;
+        const sectorName = toDisplaySector(row[2]);
+        if (sectorName) {
+          allSectorSettings[sectorName] = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: permanenciaVal };
+        }
+        if (toStorageSector(sectorName) === targetSectorStorage) {
+          shiftSettings = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: permanenciaVal };
+        }
+      }
+      if (commonPermanencia) {
+        if (!shiftSettings.permanencia) shiftSettings.permanencia = commonPermanencia;
+        Object.keys(allSectorSettings).forEach(key => {
+          if (!allSectorSettings[key].permanencia) allSectorSettings[key].permanencia = commonPermanencia;
+        });
+      }
+    }
+
+    // 2. Get Unit Data — filter by sector
+    const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+    const allUnits = [];
+
+    if (dataSheet) {
+      const dataLastRow = dataSheet.getLastRow();
+      const dataRowsFull = dataLastRow > 1
+        ? dataSheet.getRange(2, 1, dataLastRow - 1, 24).getValues()
+        : [];
+
+      for (let i = 0; i < dataRowsFull.length; i++) {
+        const fullRow = dataRowsFull[i];
+        if (!fullRow[0]) continue;
+        try {
+          const rowDateStr = Utilities.formatDate(new Date(fullRow[0]), timeZone, 'yyyy-MM-dd');
+          if (rowDateStr === dateStr && String(fullRow[1]) === shift && toStorageSector(fullRow[2]) === targetSectorStorage) {
+            allUnits.push({
+              id: String(fullRow[3] || ''),
+              unit_id: String(fullRow[23] || ''),
+              sector: toDisplaySector(fullRow[2]),
+              type: String(fullRow[4] || ''),
+              model: String(fullRow[5] || ''),
+              personnel1: String(fullRow[6] || ''),
+              personnel2: String(fullRow[7] || ''),
+              plate: String(fullRow[8] || ''),
+              indicative: String(fullRow[9] || ''),
+              radio: String(fullRow[10] || ''),
+              status: String(fullRow[11] || ''),
+              reason: String(fullRow[12] || ''),
+              kmStart: String(fullRow[13] || '0'),
+              kmEnd: String(fullRow[14] || '0'),
+              totalKm: String(fullRow[15] || '0'),
+              kmRecarga: String(fullRow[16] || '0'),
+              hours: String(fullRow[17] || ''),
+              fuel: String(fullRow[18] || '-- / --'),
+              expense: String(fullRow[19] || 'S/ 0.00'),
+              quadrant: cellToStr(fullRow[21], timeZone),
+              mechanics: String(fullRow[22] || '')
+            });
+          }
+        } catch (e) { continue; }
+      }
+    }
+
+    console.log('[getSectorData] OK — units=' + allUnits.length + ' sector=' + sector);
+    return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
+  } catch (err) {
+    console.error('[getSectorData] ERROR', err);
     throw err;
   }
 }
@@ -641,33 +744,37 @@ function saveShiftData(dateStr, shift, settings, units) {
       settingsSheet.getRange(permanenciaRows[0], 6).setValue(settings.permanencia);
     }
 
-    // --- READ UNIT DATA (last 3000 rows from bottom) ---
-    const SCAN_LIMIT = 3000;
+    // --- READ UNIT DATA (columnas A-O + X; evita leer 24 columnas completas) ---
     const dLastRow = dataSheet.getLastRow();
-    const dStart = Math.max(2, dLastRow - SCAN_LIMIT + 1);
-    const dRows = dLastRow > 1 ? dataSheet.getRange(dStart, 1, dLastRow - dStart + 1, 24).getValues() : [];
+    const unitKMData = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 15).getValues() : [];
+    const unitIdCol = dLastRow > 1 ? dataSheet.getRange(2, 24, dLastRow - 1, 1).getValues() : [];
 
     const unitIdToRowMap = new Map();
     const prevShiftRecords = new Map();
     const targetSectorStr = String(targetSector).trim();
-    for (let i = 0; i < dRows.length; i++) {
-      const row = dRows[i];
-      const absIdx = dStart + i;
+    const KM_START_IDX = 13;   // Col N (14) in 1-based → index 13 in 0-based 15-col array
+    const KM_END_IDX = 14;     // Col O (15)
+
+    for (let i = 0; i < unitKMData.length; i++) {
+      const row = unitKMData[i];
+      const absIdx = i + 2;
       if (!row[0]) continue;
       let rowDate, rowShift;
       try {
         rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
         rowShift = String(row[1]);
       } catch (e) { continue; }
-      // Solo filas del sector objetivo para el mapa de unidades actuales
       if (rowDate === dateStr && rowShift === shift && toStorageSector(row[2]) === targetSectorStr) {
-        const unit_id = String(row[23] || '').trim();
+        const unit_id = String(unitIdCol[i][0] || '').trim();
         if (unit_id) unitIdToRowMap.set(unit_id, absIdx);
       }
-      // Para KM bridge: prev shift sin filtrar por sector (la unidad pudo cambiar de sector)
+      // KM bridge: prev shift sin filtrar por sector (la unidad pudo cambiar de sector)
       if (rowDate === prevShiftInfo.date && rowShift === prevShiftInfo.shift) {
-        const unitId = String(row[3] || '').trim().toUpperCase();
-        if (unitId) prevShiftRecords.set(unitId, { rowIndex: absIdx, rowData: [...row] });
+        const displayId = String(row[3] || '').trim().toUpperCase();
+        if (displayId) prevShiftRecords.set(displayId, {
+          rowIndex: absIdx,
+          kmStart: String(row[KM_START_IDX] || '0')
+        });
       }
     }
 
@@ -696,14 +803,13 @@ function saveShiftData(dateStr, shift, settings, units) {
         rowsToAppend.push(unitRow);
       }
 
-      // KM_FIN bridge
+      // KM_FIN bridge — escribe solo columnas O(15)=km_end y P(16)=total_km
       if (unit.id && unit.kmStart && unit.kmStart !== '0' && prevShiftRecords.has(unit.id.toUpperCase())) {
         const prev = prevShiftRecords.get(unit.id.toUpperCase());
-        prev.rowData[14] = unit.kmStart;
-        const prevKmStart = parseFloat(prev.rowData[13]) || 0;
-        const prevKmEnd = parseFloat(unit.kmStart) || 0;
-        prev.rowData[15] = prevKmEnd >= prevKmStart ? (prevKmEnd - prevKmStart).toFixed(1) : '0';
-        unitUpdates.push({ rowIndex: prev.rowIndex, values: prev.rowData });
+        const newKmEnd = parseFloat(unit.kmStart) || 0;
+        const origKmStart = parseFloat(prev.kmStart) || 0;
+        const newTotal = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
+        dataSheet.getRange(prev.rowIndex, 15, 1, 2).setValues([[unit.kmStart, newTotal]]);
       }
     });
 
