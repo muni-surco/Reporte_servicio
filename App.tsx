@@ -330,7 +330,7 @@ const App: React.FC = () => {
     if (specificSettings) {
       setSettings(prev => ({ ...specificSettings, turno: prev.turno }));
     } else {
-      setSettings(prev => ({ ...prev, nombrePuesto: sector, operador: '', supervisor: '' }));
+      setSettings(prev => ({ ...prev, nombrePuesto: sector, operador: '', supervisor: '', permanencia: '' }));
     }
   };
 
@@ -465,7 +465,8 @@ const App: React.FC = () => {
       ...settings,
       nombrePuesto: s,
       operador: '',
-      supervisor: ''
+      supervisor: '',
+      permanencia: ''
     };
     let sectorUnits = units.filter(u => u.sector === s);
     const defaults = mobileData.filter(m => m.sector === s);

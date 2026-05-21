@@ -140,8 +140,6 @@ function getShiftData(dateStr, shift, sector) {
         ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues()
         : [];
 
-      let commonPermanencia = '';
-
       for (let i = 0; i < settingsRows.length; i++) {
         const row = settingsRows[i];
         if (!row[0]) continue;
@@ -152,10 +150,7 @@ function getShiftData(dateStr, shift, sector) {
           continue;
         }
 
-        // Convert all values to strings to avoid GAS serialization issues with Date/Number cell values
         const permanenciaVal = String(row[5] || '');
-        if (permanenciaVal) commonPermanencia = permanenciaVal;
-
         const sectorName = toDisplaySector(row[2]);
         if (sectorName) {
           allSectorSettings[sectorName] = {
@@ -176,15 +171,6 @@ function getShiftData(dateStr, shift, sector) {
             permanencia: permanenciaVal
           };
         }
-      }
-
-      if (commonPermanencia) {
-        if (!shiftSettings.permanencia) shiftSettings.permanencia = commonPermanencia;
-        Object.keys(allSectorSettings).forEach(key => {
-          if (!allSectorSettings[key].permanencia) {
-            allSectorSettings[key].permanencia = commonPermanencia;
-          }
-        });
       }
     }
 
@@ -280,7 +266,6 @@ function getSectorData(dateStr, shift, sector) {
       const settingsRows = settingsLastRow > 1
         ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues()
         : [];
-      let commonPermanencia = '';
       for (let i = 0; i < settingsRows.length; i++) {
         const row = settingsRows[i];
         if (!row[0]) continue;
@@ -289,7 +274,6 @@ function getSectorData(dateStr, shift, sector) {
           if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
         } catch (e) { continue; }
         const permanenciaVal = String(row[5] || '');
-        if (permanenciaVal) commonPermanencia = permanenciaVal;
         const sectorName = toDisplaySector(row[2]);
         if (sectorName) {
           allSectorSettings[sectorName] = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: permanenciaVal };
@@ -297,12 +281,6 @@ function getSectorData(dateStr, shift, sector) {
         if (toStorageSector(sectorName) === targetSectorStorage) {
           shiftSettings = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: permanenciaVal };
         }
-      }
-      if (commonPermanencia) {
-        if (!shiftSettings.permanencia) shiftSettings.permanencia = commonPermanencia;
-        Object.keys(allSectorSettings).forEach(key => {
-          if (!allSectorSettings[key].permanencia) allSectorSettings[key].permanencia = commonPermanencia;
-        });
       }
     }
 
@@ -707,15 +685,13 @@ function saveShiftData(dateStr, shift, settings, units) {
     const settingsRows = sLastRow > 1 ? settingsSheet.getRange(sStart, 1, sLastRow - sStart + 1, 6).getValues() : [];
 
     let settingsFoundIdx = -1;
-    const permanenciaRows = [];
     for (let i = 0; i < settingsRows.length; i++) {
       const row = settingsRows[i];
       if (!row[0]) continue;
       try {
         const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
-        if (rowDate === dateStr && String(row[1]) === shift) {
-          permanenciaRows.push(sStart + i);
-          if (toStorageSector(row[2]) === targetSector) settingsFoundIdx = sStart + i;
+        if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
+          settingsFoundIdx = sStart + i;
         }
       } catch (e) {}
     }
@@ -725,23 +701,6 @@ function saveShiftData(dateStr, shift, settings, units) {
       settingsSheet.getRange(settingsFoundIdx, 1, 1, 6).setValues([[dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]]);
     } else {
       settingsSheet.appendRow([dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]);
-      permanenciaRows.push(settingsSheet.getLastRow());
-    }
-
-    // --- Permanencia Sync ---
-    if (permanenciaRows.length > 1) {
-      const sortedP = [...permanenciaRows].sort((a, b) => a - b);
-      let pStart = sortedP[0], pCount = 1;
-      for (let i = 1; i < sortedP.length; i++) {
-        if (sortedP[i] === pStart + pCount) { pCount++; }
-        else {
-          settingsSheet.getRange(pStart, 6, pCount, 1).setValues(Array.from({ length: pCount }, () => [settings.permanencia]));
-          pStart = sortedP[i]; pCount = 1;
-        }
-      }
-      settingsSheet.getRange(pStart, 6, pCount, 1).setValues(Array.from({ length: pCount }, () => [settings.permanencia]));
-    } else if (permanenciaRows.length === 1) {
-      settingsSheet.getRange(permanenciaRows[0], 6).setValue(settings.permanencia);
     }
 
     // --- READ UNIT DATA (columnas A-O + X; evita leer 24 columnas completas) ---
