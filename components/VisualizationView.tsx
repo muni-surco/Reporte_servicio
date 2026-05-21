@@ -38,7 +38,8 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
   const ALLOWED_STATUSES = [
     UnitStatus.PATRULLANDO,
-    UnitStatus.APOYO_OTRA_AREA
+    UnitStatus.APOYO_OTRA_AREA,
+    'PP.FF.'
   ];
 
   const renderCompactUnit = (u: UnitData, type: string) => {
