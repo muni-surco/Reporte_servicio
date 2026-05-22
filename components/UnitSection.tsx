@@ -14,7 +14,7 @@ interface UnitSectionProps {
   onCancel: () => void;
   onAdd: (type: 'CHOFER' | 'MOTO' | 'SERENO') => void;
   editingId: string | null;
-  mobileData?: { id: string; plate: string; }[]; // Original type
+  mobileData?: { id: string; plate: string; }[];
   statusOptions?: string[];
   indicativeOptions?: string[];
   personnelOptions?: string[];
@@ -24,6 +24,7 @@ interface UnitSectionProps {
   currentShift: string;
   isSaving?: boolean;
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
+  readOnly?: boolean;
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -47,7 +48,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   currentDate,
   currentShift,
   isSaving,
-  saveStatus
+  saveStatus,
+  readOnly
 }) => {
   // Configuración de colores claros según el tipo
   const colorConfig = {
@@ -82,18 +84,20 @@ const UnitSection: React.FC<UnitSectionProps> = ({
             </h2>
           </div>
         </div>
-        <button
-          onClick={() => onAdd(type)}
-          className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-medium hover:opacity-70 group transition-all`}
-        >
-          <lord-icon
-            src="https://cdn.lordicon.com/zrkkrrpl.json"
-            trigger="hover"
-            colors={`primary:${colorConfig.textAccent === 'text-blue-700' ? '#1d4ed8' : colorConfig.textAccent === 'text-violet-700' ? '#7c3aed' : '#0f766e'}`}
-            style={{ width: '20px', height: '20px' }}>
-          </lord-icon>
-          NUEVO REGISTRO
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => onAdd(type)}
+            className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-medium hover:opacity-70 group transition-all`}
+          >
+            <lord-icon
+              src="https://cdn.lordicon.com/zrkkrrpl.json"
+              trigger="hover"
+              colors={`primary:${colorConfig.textAccent === 'text-blue-700' ? '#1d4ed8' : colorConfig.textAccent === 'text-violet-700' ? '#7c3aed' : '#0f766e'}`}
+              style={{ width: '20px', height: '20px' }}>
+            </lord-icon>
+            NUEVO REGISTRO
+          </button>
+        )}
       </div>
 
       <div className="p-3 bg-slate-50/30">
@@ -121,6 +125,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
                 currentShift={currentShift}
                 isSaving={isSaving}
                 saveStatus={saveStatus}
+                readOnly={readOnly}
               />
             );
           })

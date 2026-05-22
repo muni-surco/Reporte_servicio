@@ -25,6 +25,7 @@ interface HeaderProps {
   personnelOptions?: string[];
   operatorOptions?: string[];
   personnelStats?: { total: number; activos: number; inactivos: number };
+  readOnly?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -41,7 +42,8 @@ const Header: React.FC<HeaderProps> = ({
   onDateChange,
   personnelOptions,
   operatorOptions,
-  personnelStats
+  personnelStats,
+  readOnly
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
@@ -225,26 +227,26 @@ const Header: React.FC<HeaderProps> = ({
                   <>
                     <div className="flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>OPERADOR</span>
-                      {editingField === 'operador' ? (
+                      {!readOnly && editingField === 'operador' ? (
                         <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
                       ) : (
-                        <div className={displayBoxStyle} onClick={() => setEditingField('operador')}><p className={valueStyle}>{settings.operador || '--'}</p></div>
+                        <div className={displayBoxStyle} onClick={() => !readOnly && setEditingField('operador')}><p className={valueStyle}>{settings.operador || '--'}</p></div>
                       )}
                     </div>
                     <div className="hidden sm:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>SUPERVISOR</span>
-                      {editingField === 'supervisor' ? (
+                      {!readOnly && editingField === 'supervisor' ? (
                         <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
                       ) : (
-                        <div className={displayBoxStyle} onClick={() => setEditingField('supervisor')}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
+                        <div className={displayBoxStyle} onClick={() => !readOnly && setEditingField('supervisor')}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
                       )}
                     </div>
                     <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>JEFE DE ÁREA O PERMANENCIA</span>
-                      {editingField === 'permanencia' ? (
+                      {!readOnly && editingField === 'permanencia' ? (
                         <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
                       ) : (
-                        <div className={displayBoxStyle} onClick={() => setEditingField('permanencia')}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
+                        <div className={displayBoxStyle} onClick={() => !readOnly && setEditingField('permanencia')}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
                       )}
                     </div>
                   </>
@@ -283,24 +285,28 @@ const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-2 justify-end w-full md:w-auto">
                 {isDashboard ? (
                   <>
-                    <button
-                      onClick={handleRefreshClick}
-                      disabled={isRefreshing || isSaving}
-                      title="Sincronizar"
-                      className={`${btnIconStyle} bg-slate-50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary border border-transparent max-[1399px]:hidden`}
-                    >
-                      <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>sync</span>
-                      <span className="hidden xl:inline">SINCRONIZAR</span>
-                    </button>
-                    <button
-                      onClick={() => onGlobalSave(tempSettingsRef.current)}
-                      disabled={isSaving || isRefreshing}
-                      title="Guardar"
-                      className={`${btnIconStyle} bg-primary hover:bg-primary-dark text-white xl:px-6 shadow-blue-100`}
-                    >
-                      <span className="material-symbols-outlined text-[18px]">save</span>
-                      <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
-                    </button>
+                    {!readOnly && (
+                      <button
+                        onClick={handleRefreshClick}
+                        disabled={isRefreshing || isSaving}
+                        title="Sincronizar"
+                        className={`${btnIconStyle} bg-slate-50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary border border-transparent max-[1399px]:hidden`}
+                      >
+                        <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>sync</span>
+                        <span className="hidden xl:inline">SINCRONIZAR</span>
+                      </button>
+                    )}
+                    {!readOnly && (
+                      <button
+                        onClick={() => onGlobalSave(tempSettingsRef.current)}
+                        disabled={isSaving || isRefreshing}
+                        title="Guardar"
+                        className={`${btnIconStyle} bg-primary hover:bg-primary-dark text-white xl:px-6 shadow-blue-100`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">save</span>
+                        <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
+                      </button>
+                    )}
                   </>
                 ) : !isReports && !isReten && !isVehicleSearch ? (
                   <button

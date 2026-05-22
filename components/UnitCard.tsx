@@ -21,12 +21,13 @@ interface UnitCardProps {
   currentShift: string;
   isSaving?: boolean;
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
+  readOnly?: boolean;
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions,
-  currentDate, currentShift, isSaving, saveStatus
+  currentDate, currentShift, isSaving, saveStatus, readOnly
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -578,14 +579,16 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 ? <CheckCircle className="w-4 h-4 text-green-500" />
                 : <XCircle className="w-4 h-4 text-red-500" title="Error al guardar" />;
             })()}
-            <button onClick={onEdit} title="Editar" className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">
-              <lord-icon
-                src="https://cdn.lordicon.com/puvaffet.json"
-                trigger="hover"
-                colors="primary:#2563eb,secondary:#1d4ed8"
-                style={{ width: '20px', height: '20px' }}>
-              </lord-icon>
-            </button>
+            {!readOnly && (
+              <button onClick={onEdit} title="Editar" className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">
+                <lord-icon
+                  src="https://cdn.lordicon.com/puvaffet.json"
+                  trigger="hover"
+                  colors="primary:#2563eb,secondary:#1d4ed8"
+                  style={{ width: '20px', height: '20px' }}>
+                </lord-icon>
+              </button>
+            )}
           </div>
         </div>
       </div>

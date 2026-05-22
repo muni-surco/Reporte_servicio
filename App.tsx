@@ -64,6 +64,23 @@ const App: React.FC = () => {
   const [loadingPersonnel, setLoadingPersonnel] = useState(false);
   const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
 
+  const isReadOnly = (() => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const now = new Date();
+    const totalMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentShift = getAutoTurno();
+
+    let activeShiftDate = today;
+    if (currentShift === 'NOCHE' && totalMinutes < 390) {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      activeShiftDate = d.toLocaleDateString('en-CA');
+    }
+
+    if (selectedDate !== activeShiftDate) return true;
+    return settings.turno !== currentShift;
+  })();
+
   useEffect(() => {
     loadData(selectedDate, settings.turno, currentView);
   }, [selectedDate, settings.turno, currentSector, mobileData.length, currentView]);
@@ -322,8 +339,9 @@ const App: React.FC = () => {
   };
 
   const handleSectorChange = (sector: Sector) => {
-    // Save current sector data before switching
-    persistData(settings, units);
+    if (!isReadOnly) {
+      persistData(settings, units);
+    }
     
     setCurrentSector(sector);
     const specificSettings = sectorSettingsMap[sector];
@@ -395,6 +413,7 @@ const App: React.FC = () => {
   };
 
   const handleSave = (updatedUnit: UnitData) => {
+    if (isReadOnly) return;
     const unitWithSector = { ...updatedUnit, sector: updatedUnit.sector || currentSector };
     // Identificar la unidad que se estaba editando
     let newUnits = units.map(u => {
@@ -539,11 +558,13 @@ const App: React.FC = () => {
   };
 
   const handleGlobalSave = (currentSettings?: AppSettings) => {
+    if (isReadOnly) return;
     const settingsToSave = currentSettings || settings;
     persistData(settingsToSave, units);
   };
 
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {
+    if (isReadOnly) return;
     // Guard: si ya existe una card en blanco (NEW-) del mismo tipo sin ID ni personal, no crear otra
     const existingBlank = units.find(u =>
       u.type === type &&
@@ -588,7 +609,7 @@ const App: React.FC = () => {
   };
 
   const handleEdit = (id: string) => {
-    // El id que viene puede ser el id real o el tempId
+    if (isReadOnly) return;
     setEditingId(id);
   };
 
@@ -697,6 +718,7 @@ const App: React.FC = () => {
           personnelOptions={personnelOptions}
           operatorOptions={operatorOptions}
           personnelStats={personnelStats}
+          readOnly={isReadOnly}
         />
 
         <div className="flex-1 overflow-y-auto scroll-smooth p-4" id="report-content">
@@ -719,6 +741,7 @@ const App: React.FC = () => {
                   currentShift={settings.turno}
                   isSaving={saving}
                   saveStatus={saveStatus}
+                  readOnly={isReadOnly}
                 />
               {currentSector !== 'RESCATE' && (
                 <>
@@ -738,6 +761,7 @@ const App: React.FC = () => {
                     currentDate={selectedDate}
                     currentShift={settings.turno}
                     isSaving={saving}
+                    readOnly={isReadOnly}
                   />
                   <UnitSection
                     title="SERENOS" type="SERENO" icon="hail"
@@ -755,6 +779,7 @@ const App: React.FC = () => {
                     currentShift={settings.turno}
                     isSaving={saving}
                     saveStatus={saveStatus}
+                    readOnly={isReadOnly}
                   />
                 </>
               )}
