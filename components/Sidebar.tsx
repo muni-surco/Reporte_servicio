@@ -68,7 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
 
       {/* User / Footer */}
       <div className="p-4 border-t border-white/10">
-        <div className="flex items-center gap-4 px-2">
+        <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center text-[12px] font-bold border border-white/20 shrink-0">
             MSS
           </div>
