@@ -97,6 +97,13 @@ const App: React.FC = () => {
           if (data.quadrants) setQuadrantOptions(data.quadrants);
           if (data.motivoTallerOptions) setMotivoTallerOptions(data.motivoTallerOptions);
           if (data.radios) setRadioOptions(data.radios);
+          // Cargar lista de personal para regimen laboral
+          google.script.run
+            .withSuccessHandler((personnel: PersonnelData[]) => {
+              setPersonnelList(personnel);
+            })
+            .withFailureHandler(() => {})
+            .getPersonnelList();
         })
         .withFailureHandler((err: any) => {
           console.error('Failed to get mobile data', err);
@@ -693,6 +700,15 @@ const App: React.FC = () => {
     };
   }, [personnelList]);
 
+  const personnelRegimenMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    personnelList.forEach(p => {
+      const key = p.apellidos_nombres.trim().toUpperCase();
+      if (key && p.regimen_laboral) map[key] = p.regimen_laboral;
+    });
+    return map;
+  }, [personnelList]);
+
   return (
     <div className="h-screen bg-[#f8fafc] relative">
       {loading && (
@@ -742,6 +758,7 @@ const App: React.FC = () => {
                   isSaving={saving}
                   saveStatus={saveStatus}
                   readOnly={isReadOnly}
+                  personnelRegimenMap={personnelRegimenMap}
                 />
               {currentSector !== 'RESCATE' && (
                 <>
@@ -762,6 +779,7 @@ const App: React.FC = () => {
                     currentShift={settings.turno}
                     isSaving={saving}
                     readOnly={isReadOnly}
+                    personnelRegimenMap={personnelRegimenMap}
                   />
                   <UnitSection
                     title="SERENOS" type="SERENO" icon="hail"
@@ -780,6 +798,7 @@ const App: React.FC = () => {
                     isSaving={saving}
                     saveStatus={saveStatus}
                     readOnly={isReadOnly}
+                    personnelRegimenMap={personnelRegimenMap}
                   />
                 </>
               )}

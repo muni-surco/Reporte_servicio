@@ -22,12 +22,13 @@ interface UnitCardProps {
   isSaving?: boolean;
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
   readOnly?: boolean;
+  personnelRegimenMap?: Record<string, string>;
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions,
-  currentDate, currentShift, isSaving, saveStatus, readOnly
+  currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -475,6 +476,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
           <div className="border-r border-slate-100 pr-2 min-w-0">
             <label className={labelStyle}>{isSereno ? 'Sereno' : isMoto ? 'Motorizado' : 'Chofer'}</label>
             <div className={infoValueStyle}>{unit.personnel1 || '--'}</div>
+            {unit.personnel1 && personnelRegimenMap?.[unit.personnel1.trim().toUpperCase()] && (
+              <div className="text-[9px] text-slate-400 uppercase tracking-tight leading-tight mt-0.5">
+                {personnelRegimenMap[unit.personnel1.trim().toUpperCase()]}
+              </div>
+            )}
           </div>
 
           {/* Columna Logística Radio/Indicativo/Cuadrante */}

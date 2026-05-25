@@ -25,6 +25,7 @@ interface UnitSectionProps {
   isSaving?: boolean;
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
   readOnly?: boolean;
+  personnelRegimenMap?: Record<string, string>;
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -49,7 +50,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   currentShift,
   isSaving,
   saveStatus,
-  readOnly
+  readOnly,
+  personnelRegimenMap
 }) => {
   // Configuración de colores claros según el tipo
   const colorConfig = {
@@ -126,6 +128,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
                 isSaving={isSaving}
                 saveStatus={saveStatus}
                 readOnly={readOnly}
+                personnelRegimenMap={personnelRegimenMap}
               />
             );
           })
