@@ -144,7 +144,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                   </div>
 
                   <div className="flex flex-col min-w-[180px]">
-                    <span className={infoLabelStyle}>JEFE DE ÁREA /PERMANENCIA</span>
+                    <span className={infoLabelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
                     <span className={infoValueStyle}>{data.settings.permanencia || '--'}</span>
                   </div>
                 </div>

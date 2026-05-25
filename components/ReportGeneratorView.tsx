@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, Download, PieChart, Users } from 'lucide-react';
-import { UnitData, PersonnelData } from '../types';
+import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound } from 'lucide-react';
+import AutocompleteInput from './AutocompleteInput';
 
 interface ReportGeneratorViewProps {
   selectedDate: string;
   selectedShift: string;
-  onGenerateReport: (type: string, date: string, shift: string) => void;
+  onGenerateReport: (type: string, date: string, shift: string, operatorName?: string) => void;
   isGenerating?: boolean;
+  operatorOptions?: string[];
 }
 
 const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   selectedDate,
   selectedShift,
   onGenerateReport,
-  isGenerating = false
+  isGenerating = false,
+  operatorOptions = [],
 }) => {
   const [activeReport, setActiveReport] = useState<string | null>(null);
   const [localDate, setLocalDate] = useState(selectedDate);
   const [localShift, setLocalShift] = useState(selectedShift);
+  const [localOperator, setLocalOperator] = useState<string>('');
 
   const reportTypes = [
     {
@@ -90,7 +93,11 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
 
   const handleGenerate = (id: string) => {
     setActiveReport(id);
-    onGenerateReport(id, localDate, localShift);
+    onGenerateReport(id, localDate, localShift, localOperator || undefined);
+  };
+
+  const handleOperatorChange = (value: string) => {
+    setLocalOperator(value);
   };
 
   return (
@@ -139,6 +146,22 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
               </div>
             </div>
           </div>
+
+          <div className="flex flex-col">
+            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest ml-1 mb-1">OPERADOR</span>
+            <div className="relative group flex items-center">
+              <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none z-10" />
+              <div className="pl-10 w-[350px]">
+                <AutocompleteInput
+                  value={localOperator}
+                  onChange={handleOperatorChange}
+                  suggestions={operatorOptions}
+                  placeholder="SELECCIONE OPERADOR"
+                  className="h-10 bg-white border-slate-200 rounded-xl text-sm font-medium shadow-sm"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -165,7 +188,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
               </div>
 
               <div className="flex-1 mb-6">
-                <p className="text-slate-500 text-[11px] leading-relaxed">
+                <p className="text-slate-500 text-[12px] leading-relaxed">
                   {report.description}
                 </p>
               </div>

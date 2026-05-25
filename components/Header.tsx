@@ -49,16 +49,28 @@ const Header: React.FC<HeaderProps> = ({
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [localDate, setLocalDate] = useState(selectedDate);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
   const tempSettingsRef = useRef<AppSettings>(settings);
 
   useEffect(() => {
     setTempSettings(settings);
     tempSettingsRef.current = settings;
+    setFieldErrors({});
   }, [settings]);
 
   useEffect(() => {
     setLocalDate(selectedDate);
   }, [selectedDate]);
+
+  const validateFields = (): boolean => {
+    const s = tempSettingsRef.current;
+    const errors: Record<string, boolean> = {};
+    if (!s.operador.trim()) errors.operador = true;
+    if (!s.supervisor.trim()) errors.supervisor = true;
+    if (!s.permanencia.trim()) errors.permanencia = true;
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleBlur = () => {
     const currentTemp = tempSettingsRef.current;
@@ -72,6 +84,7 @@ const Header: React.FC<HeaderProps> = ({
     const updated = { ...tempSettingsRef.current, [field]: value };
     setTempSettings(updated);
     tempSettingsRef.current = updated;
+    setFieldErrors(prev => ({ ...prev, [field]: false }));
   };
 
   const handleRefreshClick = () => {
@@ -228,26 +241,29 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>OPERADOR</span>
                       {!readOnly && editingField === 'operador' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
+                        <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.operador} />
                       ) : (
-                        <div className={displayBoxStyle} onClick={() => !readOnly && setEditingField('operador')}><p className={valueStyle}>{settings.operador || '--'}</p></div>
+                        <div className={`${displayBoxStyle} ${fieldErrors.operador ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('operador'); setFieldErrors(prev => ({ ...prev, operador: false })); }}><p className={valueStyle}>{settings.operador || '--'}</p></div>
                       )}
+                      {fieldErrors.operador && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
                     <div className="hidden sm:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>SUPERVISOR</span>
                       {!readOnly && editingField === 'supervisor' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
+                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.supervisor} />
                       ) : (
-                        <div className={displayBoxStyle} onClick={() => !readOnly && setEditingField('supervisor')}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
+                        <div className={`${displayBoxStyle} ${fieldErrors.supervisor ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('supervisor'); setFieldErrors(prev => ({ ...prev, supervisor: false })); }}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
                       )}
+                      {fieldErrors.supervisor && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
                     <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1">
-                      <span className={labelStyle}>JEFE DE ÁREA O PERMANENCIA</span>
+                      <span className={labelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
                       {!readOnly && editingField === 'permanencia' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" />
+                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.permanencia} />
                       ) : (
-                        <div className={displayBoxStyle} onClick={() => !readOnly && setEditingField('permanencia')}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
+                        <div className={`${displayBoxStyle} ${fieldErrors.permanencia ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('permanencia'); setFieldErrors(prev => ({ ...prev, permanencia: false })); }}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
                       )}
+                      {fieldErrors.permanencia && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
                   </>
                 ) : null}
@@ -298,7 +314,13 @@ const Header: React.FC<HeaderProps> = ({
                     )}
                     {!readOnly && (
                       <button
-                        onClick={() => onGlobalSave(tempSettingsRef.current)}
+                        onClick={() => {
+                          if (!validateFields()) {
+                            setEditingField(null);
+                            return;
+                          }
+                          onGlobalSave(tempSettingsRef.current);
+                        }}
                         disabled={isSaving || isRefreshing}
                         title="Guardar"
                         className={`${btnIconStyle} bg-primary hover:bg-primary-dark text-white xl:px-6 shadow-blue-100`}

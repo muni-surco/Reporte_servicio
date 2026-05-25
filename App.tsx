@@ -347,6 +347,9 @@ const App: React.FC = () => {
 
   const handleSectorChange = (sector: Sector) => {
     if (!isReadOnly) {
+      if (!settings.operador.trim() || !settings.supervisor.trim() || !settings.permanencia.trim()) {
+        return;
+      }
       persistData(settings, units);
     }
     
@@ -551,6 +554,16 @@ const App: React.FC = () => {
     };
   });
 
+  const allOperatorNames = useMemo(() => {
+    const names = new Set<string>();
+    Object.values(allSectorsData).forEach(sd => {
+      sd.units.forEach(u => {
+        if (u.personnel1 && u.personnel1.trim() !== '') names.add(u.personnel1.trim());
+      });
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [allSectorsData]);
+
   const handleSaveSettings = (newSettings: AppSettings) => {
     setSettings(newSettings);
     // Removed immediate persistData(newSettings, units) to avoid multiple server calls on focus loss
@@ -560,6 +573,9 @@ const App: React.FC = () => {
   const handleGlobalSave = (currentSettings?: AppSettings) => {
     if (isReadOnly) return;
     const settingsToSave = currentSettings || settings;
+    if (!settingsToSave.operador.trim() || !settingsToSave.supervisor.trim() || !settingsToSave.permanencia.trim()) {
+      return;
+    }
     persistData(settingsToSave, units);
   };
 
@@ -621,7 +637,7 @@ const App: React.FC = () => {
     setEditingId(null);
   };
 
-  const handleGenerateReport = async (type: string, date: string, shift: string) => {
+  const handleGenerateReport = async (type: string, date: string, shift: string, operatorName?: string) => {
     setIsGeneratingStructuredReport(true);
 
     if (typeof google === 'undefined' || !google.script || !google.script.run) {
@@ -630,15 +646,17 @@ const App: React.FC = () => {
         setIsGeneratingStructuredReport(false);
         console.log(`MOCK: Generando reporte ${type} para ${date} / ${shift}`);
         if (type === 'motos') {
-          generateMotoReport(units, sectorSettingsMap, date, shift, 'XTZ150', 'YAMAHA XTZ150');
+          generateMotoReport(units, sectorSettingsMap, date, shift, 'XTZ150', 'YAMAHA XTZ150', operatorName);
         } else if (type === 'motos_honda') {
-          generateMotoReport(units, sectorSettingsMap, date, shift, 'SAHARA XRE 300', 'HONDA SAHARA XRE 300');
+          generateMotoReport(units, sectorSettingsMap, date, shift, 'SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
         } else if (type === 'moviles') {
-          generateVehicleReport(units, sectorSettingsMap, date, shift);
+          generateVehicleReport(units, sectorSettingsMap, date, shift, operatorName);
         } else if (type === 'asistencia_regimen') {
-          generatePersonnelAbsenceReport(units, personnelList, date, shift);
+          generatePersonnelAbsenceReport(units, personnelList, date, shift, operatorName);
+        } else if (type === 'observaciones') {
+          generateObservationsReport(units, date, shift, operatorName);
         } else if (type === 'general') {
-          generateAllRecordsReport(units, sectorSettingsMap, date, shift);
+          generateAllRecordsReport(units, sectorSettingsMap, date, shift, operatorName);
         }
       }, 1000);
       return;
@@ -648,20 +666,20 @@ const App: React.FC = () => {
       .withSuccessHandler((data: any) => {
         setIsGeneratingStructuredReport(false);
         if (type === 'motos') {
-          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150');
+          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
         } else if (type === 'motos_honda') {
-          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300');
+          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
         } else if (type === 'moviles') {
-          generateVehicleReport(data.units, data.allSectorSettings || {}, date, shift);
+          generateVehicleReport(data.units, data.allSectorSettings || {}, date, shift, operatorName);
         } else if (type === 'asistencia_regimen') {
           if (personnelList.length > 0) {
-            generatePersonnelAbsenceReport(data.units, personnelList, date, shift);
+            generatePersonnelAbsenceReport(data.units, personnelList, date, shift, operatorName);
           } else {
             setIsGeneratingStructuredReport(true);
             google.script.run
               .withSuccessHandler((loadedPersonnel: PersonnelData[]) => {
                 setPersonnelList(loadedPersonnel);
-                generatePersonnelAbsenceReport(data.units, loadedPersonnel, date, shift);
+                generatePersonnelAbsenceReport(data.units, loadedPersonnel, date, shift, operatorName);
                 setIsGeneratingStructuredReport(false);
               })
               .withFailureHandler((err: any) => {
@@ -670,10 +688,10 @@ const App: React.FC = () => {
               })
               .getPersonnelList();
           }
-        } else if (type === 'observaciones') {
-          generateObservationsReport(data.units, date, shift);
+         } else if (type === 'observaciones') {
+          generateObservationsReport(data.units, date, shift, operatorName);
         } else if (type === 'general') {
-          generateAllRecordsReport(data.units, data.allSectorSettings || {}, date, shift);
+          generateAllRecordsReport(data.units, data.allSectorSettings || {}, date, shift, operatorName);
         } else {
           alert(`El reporte de "${type}" se encuentra en desarrollo.`);
         }
@@ -808,6 +826,7 @@ const App: React.FC = () => {
               selectedShift={settings.turno}
               onGenerateReport={handleGenerateReport}
               isGenerating={isGeneratingStructuredReport}
+              operatorOptions={allOperatorNames}
             />
           ) : currentView === 'PERSONNEL' ? (
             <PersonnelView

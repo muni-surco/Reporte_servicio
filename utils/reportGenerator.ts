@@ -22,7 +22,7 @@ export const generateMotoReport = (
   const margin = 10;
 
   // Filter specifically for the selected model
-  const motoUnits = units.filter(u => u.type === 'MOTO' && (u.model || '').toUpperCase().includes(modelFilter.toUpperCase()));
+  const motoUnits = units.filter(u => u.type === 'MOTO' && (u.model || '').toUpperCase().includes(titleSuffix.toUpperCase()));
 
   const formatLongDate = (dateStr: string) => {
     try {
@@ -146,14 +146,15 @@ export const generateMotoReport = (
 
   let finalY = (doc as any).lastAutoTable.finalY + 8;
 
-  // --- PERMANENCIA ---
+  // --- PERMANENCIA / JEFE DE ÁREA ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
+  const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setDrawColor(0);
   doc.rect(margin, finalY, pageWidth - (margin * 2), 10);
-  doc.text('PERMANENCIA :', margin + 5, finalY + 6.5);
+  doc.text(`${permanenciaLabel} :`, margin + 5, finalY + 6.5);
   doc.setFont('helvetica', 'normal');
   doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 6.5);
 
@@ -214,7 +215,7 @@ export const generateMotoReport = (
   doc.setFontSize(7);
   doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
 
-  const fileName = `REPORTE_MOTOS_${modelFilter.toUpperCase()}_${shift}_${date}.pdf`;
+  const fileName = `REPORTE_MOTOS_${titleSuffix.toUpperCase()}_${shift}_${date}.pdf`;
   doc.save(fileName);
 };
 
@@ -382,15 +383,16 @@ export const generateVehicleReport = (
 
   finalY += 9;
 
-  // --- PERMANENCIA ---
+  // --- PERMANENCIA / JEFE DE ÁREA ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
+  const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setFillColor(38, 70, 83);
   doc.rect(margin, finalY, 40, 7, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.text(' P E R M A N E N C I A :', margin + 2, finalY + 4.8);
+  doc.text(` ${permanenciaLabel} :`, margin + 2, finalY + 4.8);
 
   doc.setDrawColor(0);
   doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
@@ -509,7 +511,15 @@ export const generatePersonnelAbsenceReport = (
   const nameToUnitStatus = new Map<string, string>();
 
   const absenceStatuses = [
+    'FALTO',
     'FALTO (INASISTENCIA)',
+    'DESCANSO MEDICO',
+    'DESCANSO MÉDICO',
+    'DESCANSO FISICO',
+    'DESCANSO COMPENSATORIO',
+    'ONOMASTICO',
+    'ONOMÁSTICO',
+    'PERMISO',
   ];
 
   units.forEach(u => {
@@ -562,7 +572,7 @@ export const generatePersonnelAbsenceReport = (
         apellidos_nombres: name,
         regimen_laboral: 'OS', // Default to ORDEN DE SERVICIO
         rol_operativo: '--',
-        estado: nameToUnitStatus.get(name) || 'FALTO (INASISTENCIA)',
+        estado: nameToUnitStatus.get(name) || 'FALTO',
         n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: ''
       });
     }
@@ -854,6 +864,7 @@ export const generateAllRecordsReport = (
 
   const firstSettings = Object.values(settingsMap)[0] || {} as AppSettings;
   const permanencia = firstSettings.permanencia || '--';
+  const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
 
   let currentY = 15;
 
@@ -862,7 +873,7 @@ export const generateAllRecordsReport = (
   doc.text(`REPORTE GENERAL DE REGISTROS - TURNO ${shift.toUpperCase()}`, pageWidth / 2, currentY, { align: 'center' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`FECHA: ${formatShortDate(date)}   |   PERMANENCIA: ${permanencia}`, pageWidth / 2, currentY + 5, { align: 'center' });
+  doc.text(`FECHA: ${formatShortDate(date)}   |   ${permanenciaLabel}: ${permanencia}`, pageWidth / 2, currentY + 5, { align: 'center' });
 
   currentY += 12;
 

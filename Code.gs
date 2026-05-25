@@ -667,6 +667,9 @@ function saveShiftData(dateStr, shift, settings, units) {
     return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.unitData}. Ejecuta la función initialSetup desde el editor de código.` };
   }
 
+  // Force quadrant column (V) as plain text so values like "12, 11" aren't auto-converted to dates
+  dataSheet.getRange('V:V').setNumberFormat('@');
+
   // Derivar targetSector de las unidades primero, con fallback a settings
   const unitsTargetSector = units.reduce((acc, u) => u && u.sector ? toStorageSector(u.sector) : acc, '');
   const targetSector = unitsTargetSector || toStorageSector(settings.nombrePuesto || '1A');
@@ -911,6 +914,9 @@ function updateUnit(dateStr, shift, settings, unit) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
   if (!dataSheet) return { success: false, error: 'No se encontró UNIT_DATA' };
+
+  // Force quadrant column (V) as plain text so values like "12, 11" aren't auto-converted to dates
+  dataSheet.getRange('V:V').setNumberFormat('@');
 
   // USAR el sector de la unidad, NO settings.nombrePuesto
   const targetSector = unit.sector ? toStorageSector(unit.sector) : toStorageSector(settings.nombrePuesto || '1A');
