@@ -30,7 +30,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
   const getStatusColor = (status: string) => {
     if (status === UnitStatus.PATRULLANDO) return "bg-green-500 ring-2 ring-green-200";
-    if (status === UnitStatus.APOYO_OTRA_AREA) return "bg-blue-500 ring-2 ring-blue-200";
+    if (status === UnitStatus.APOYO_OTRA_AREA || status === 'APOYO OTRA AREA') return "bg-blue-500 ring-2 ring-blue-200";
     if (redStatusPatterns.includes(status)) return "bg-red-500 ring-2 ring-red-200";
     if (amberStatusPatterns.includes(status)) return "bg-amber-500 ring-2 ring-amber-200";
     return "bg-slate-300 ring-2 ring-slate-100";
@@ -38,6 +38,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
   const ALLOWED_STATUSES = [
     UnitStatus.PATRULLANDO,
+    'APOYO OTRA AREA',
     UnitStatus.APOYO_OTRA_AREA,
     'PP.FF.'
   ];

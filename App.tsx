@@ -655,9 +655,9 @@ const App: React.FC = () => {
       .withSuccessHandler((data: any) => {
         setIsGeneratingStructuredReport(false);
         if (type === 'motos') {
-          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'XTZ150', 'YAMAHA XTZ150');
+          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150');
         } else if (type === 'motos_honda') {
-          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'SAHARA XRE 300', 'HONDA SAHARA XRE 300');
+          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300');
         } else if (type === 'moviles') {
           generateVehicleReport(data.units, data.allSectorSettings || {}, date, shift);
         } else if (type === 'asistencia_regimen') {

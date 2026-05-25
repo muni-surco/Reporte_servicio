@@ -158,6 +158,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'ONOMÁSTICO',
       'PERMISO',
       'PP.FF.',
+      'APOYO OTRA AREA',
       UnitStatus.APOYO_OTRA_AREA,
       UnitStatus.MANTENIMIENTO,
       UnitStatus.CON_DESPERFECTOS,
@@ -225,6 +226,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const badgeColors: Record<string, string> = {
     [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
     [UnitStatus.APOYO_OTRA_AREA]: "bg-blue-100 text-blue-700 border-blue-200",
+    'APOYO OTRA AREA': "bg-blue-100 text-blue-700 border-blue-200",
     [UnitStatus.SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
     [UnitStatus.SIN_VEHICULO]: "bg-yellow-100 text-yellow-700 border-yellow-200",
   };

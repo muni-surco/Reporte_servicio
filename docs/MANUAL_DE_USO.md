@@ -19,18 +19,19 @@ Versión: v2.5.0-PRO
 10. [Vista de Personal](#10-vista-de-personal)
 11. [Centro de Reportes](#11-centro-de-reportes)
 12. [Cómo Guardar la Información](#12-cómo-guardar-la-información)
-13. [Preguntas Frecuentes](#13-preguntas-frecuentes)
+13. [Turnos Pasados — Solo Lectura](#13-turnos-pasados--solo-lectura)
+14. [Preguntas Frecuentes](#14-preguntas-frecuentes)
 
 ---
 
 ## 1. Introducción
 
-**Reporte Integrado MSS** es un sistema web para la gestión y reporte del servicio de seguridad ciudadana. Permite registrar el estado operativo de las unidades (CHOFRES, MOTORIZADOS, SERENOS), gestionar reemplazos de vehículos (retenes), consultar personal, buscar vehículos sospechosos, generar estadísticas y exportar reportes en PDF.
+**Reporte Integrado MSS** es un sistema web para la gestión y reporte del servicio de seguridad ciudadana. Permite registrar el estado operativo de las unidades (CHOFERES, MOTORIZADOS, SERENOS), gestionar reemplazos de vehículos (retenes), consultar personal, buscar vehículos sospechosos, generar estadísticas y exportar reportes en PDF.
 
 **Funcionalidades principales:**
 
 - Registro diario de unidades por sector y turno
-- Asignación de personal, radios, combustible y kilraje
+- Asignación de personal, radios, combustible y kilometraje
 - Gestión de reemplazos de vehículos (retenes) con control de taller
 - Vista consolidada de todos los sectores (Despachador)
 - Búsqueda de vehículos sospechosos en base de datos RQ
@@ -39,7 +40,7 @@ Versión: v2.5.0-PRO
 - Generación de reportes PDF (5 tipos)
 - Exportación de datos a Excel
 - Autocompletado de datos desde hoja de referencia móvil
-- Puente de kilraje entre turnos
+- Puente de kilometraje entre turnos
 
 ---
 
@@ -78,12 +79,14 @@ La barra superior contiene los controles principales:
 - **Selector de Sector:** Menú desplegable para elegir el sector a editar (1A, 1B, 2A, 2B, 3–9B, RESCATE, GIR)
 - **Selector de Fecha:** Calendario para elegir el día del reporte
 - **Selector de Turno:** Botones segmentados MAÑANA / TARDE / NOCHE
-- **Operador:** Campo editable con autocompletado para el operador a cargo
-- **Supervisor:** Campo editable con autocompletado para el supervisor
-- **Permanencia:** Campo editable con autocompletado para el jefe de área
-- **Botón Actualizar (↻):** Recarga los datos del sector actual
-- **Botón Guardar (💾):** Guarda todos los cambios del sector actual (visible solo en edición)
-- **Botón SINCRONIZAR:** Sincroniza datos con el sistema externo (oculto en pantallas menores a 1400px)
+- **Operador:** Campo editable con autocompletado para el operador a cargo (específico del sector)
+- **Supervisor:** Campo editable con autocompletado para el supervisor (específico del sector)
+- **Jefe de Área / Permanencia:** Campo editable con autocompletado para el jefe de área o permanencia (específico del sector, ya no se replica entre sectores)
+- **Botón Sincronizar (↻):** Recarga los datos del sector actual (oculto en modo solo lectura)
+- **Botón Guardar (💾):** Guarda todos los cambios del sector actual (visible solo en edición y turno actual)
+- **Botón ACTUALIZAR:** Recarga los datos (visible en vistas de solo lectura)
+
+**Nota:** Los campos OPERADOR, SUPERVISOR y PERMANENCIA son independientes por cada sector. Ya no se replica el valor de PERMANENCIA entre sectores.
 
 ---
 
@@ -101,27 +104,27 @@ Las unidades están organizadas en tres secciones:
 | **MOTORIZADOS** | Violeta | Motociclistas (H-01, H-02, ...) |
 | **SERENOS** | Verde | Personal de serenazgo a pie (S-01, S-02, ...) |
 
-Cada sección muestra un encabezado con el nombre, un badge con la cantidad de unidades y un botón **+ NUEVO REGISTRO** para añadir una unidad nueva.
+Cada sección muestra un encabezado con el nombre, un badge con la cantidad de unidades y un botón **+ NUEVO REGISTRO** para añadir una unidad nueva (oculto en modo solo lectura).
 
-### 4.2 Tarjeta de Unidad (UnitCard)
+### 4.2 Tarjeta de Unidad (UnitCard) — Vista Lectura
 
 Cada unidad se muestra como una tarjeta en modo vista con las siguientes columnas:
 
 | Columna | Descripción |
 |---|---|
 | **ID** | Código de la unidad (ej. M-01, H-03) |
-| **CHOFER** | Nombre del personal asignado |
+| **CHOFER** | Nombre del personal asignado (con régimen laboral en texto pequeño debajo) |
 | **COPILOTO** | Copiloto (solo CHOFER) |
 | **RADIO** | Código de radio |
 | **PLACA** | Placa del vehículo |
 | **ESTADO** | Estado operativo (con badge de color) |
-| **KM** | Kilraje: inicio / fin / total / recarga |
+| **KM** | Kilometraje: inicio / fin / total / recarga |
 | **COMBUSTIBLE** | Tipo y cantidad de combustible (GL) |
 | **HORAS** | Horario trabajado |
 | **GASTO** | Gastos registrados (S/ 0.00) |
 | **CUADRANTE** | Cuadrante asignado |
 | **OBSERVACIONES** | Notas mecánicas adicionales |
-| **✏️** | Botón para editar la unidad |
+| **✏️** | Botón para editar la unidad (oculto en modo solo lectura) |
 | **Indicador de Guardado** | Icono de spinner, check o error |
 
 **Nota:** En pantallas menores a 1400px, las columnas COPILOTO, PLACA y COMBUSTIBLE se ocultan automáticamente para mejor visualización.
@@ -132,52 +135,92 @@ Al hacer clic en el botón ✏️, la tarjeta se expande a modo edición con tod
 
 - **ID:** Código de la unidad (con autocompletado para CHOFER y MOTO)
 - **Modelo:** Modelo del vehículo (autocompletado al escribir el ID)
-- **Personal 1 (CHOFER):** Nombre del personal — para estados especiales (CHOFER SIN MOVIL, CAMBIO DE TURNO, ONOMASTICO, etc.) solo se requiere el nombre
+- **Personal 1 (CHOFER):** Nombre del personal
 - **Personal 2 (COPILOTO):** Copiloto (solo CHOFER) — acepta letras y números (para casos como "PNP-12345")
 - **Placa:** Placa del vehículo (autocompletado al escribir el ID)
 - **Indicativo:** Indicativo de radio del copiloto
 - **Radio:** Código de radio
-- **Estado:** Menú desplegable con opciones:
-  - PATRULLANDO (verde)
-  - APOYO A OTRA AREA (azul)
-  - CON DESPERFECTOS (rojo)
-  - SIN VEHICULO (ámbar)
-  - SIN DOCUMENTOS (ámbar)
-  - SIN CONDUCTOR (ámbar)
-  - MANTENIMIENTO (rojo)
-  - SINIESTRO (rojo)
-  - **Otros:** CAMBIO DE TURNO, DESCANSO COMPENSATORIO, DESCANSO MEDICO, FALTO, PERMISO, etc.
+- **Estado:** Menú desplegable con opciones operativas
 - **Motivo:** Razón o nota adicional
-- **KM Inicio:** Kilraje inicial — se autocompleta desde el turno anterior si existe (puente de kilraje)
-- **KM Fin:** Kilraje final
-- **KM Recarga:** Kilraje en el que se recargó combustible
+- **KM Inicio:** Kilometraje inicial — se autocompleta desde el turno anterior si existe (puente de kilometraje)
+- **KM Fin:** Kilometraje final
+- **KM Recarga:** Kilometraje en el que se recargó combustible
 - **Horario:** Horas trabajadas (formato "HH:MM - HH:MM")
 - **Combustible:** Tipo (GLP/GASOLINA/PETROLEO) y cantidad en galones
 - **Gasto:** Monto en soles (formato "S/ 0.00")
 - **Cuadrante:** Cuadrante asignado (soporta múltiples valores separados por coma)
-- **Observaciones:** Notas adicionales (visible en modo vista después de la columna COMBUSTIBLE)
+- **Observaciones:** Notas adicionales
 
 **Validaciones:**
 
 - El campo ID es obligatorio y se valida contra duplicados
 - Para CHOFER y MOTO, el ID debe existir en los datos de referencia
-- El estado CON DESPERFECTOS no requiere cuadrante
 - Los campos CHOFER (personal1), RADIO y CUADRANTE son obligatorios según el estado
+- **Excepciones:** Los estados **PP.FF.** y **APOYO OTRA AREA** no requieren los campos ID, RADIO ni CUADRANTE
+- El estado CON DESPERFECTOS no requiere cuadrante
 
-### 4.3 Estados y Colores
+### 4.4 Catálogo de Estados
 
-| Estado | Color del Badge |
+Cada estado tiene un escenario de uso específico. A continuación se definen todos los estados disponibles y cuándo debe usar cada uno:
+
+#### Estados Operativos (Unidad en Servicio)
+
+| Estado | Color | ¿Cuándo usarlo? | ¿Requiere ID? | ¿Requiere Radio? | ¿Requiere Cuadrante? |
+|---|---|---|---|---|---|
+| **PATRULLANDO** | Verde | La unidad se encuentra operativa y realizando patrullaje normal en su sector asignado. Es el estado por defecto al crear una unidad. | Sí | Sí | Sí |
+| **APOYO A OTRA AREA** | Azul | La unidad fue comisionada temporalmente a otra área o sector para brindar apoyo operativo. El personal sigue asignado pero su ubicación es distinta. | No | No | No |
+| **PP.FF.** | Azul | La unidad está asignada a la Policía Fiscal (PP.FF.) para labores de apoyo interinstitucional. El personal sigue registrado pero opera bajo coordinación externa. | No | No | No |
+
+#### Estados de Unidad no Operativa
+
+| Estado | Color | ¿Cuándo usarlo? | ¿Requiere ID? | ¿Requiere Radio? | ¿Requiere Cuadrante? |
+|---|---|---|---|---|---|
+| **SIN VEHICULO** | Ámbar | El personal está presente pero no tiene vehículo asignado (por falta de unidades disponibles, no por daño). | Sí | Sí | Sí |
+| **SIN CONDUCTOR** | Ámbar | El vehículo está disponible pero no hay chofer asignado (ej. el chofer faltó). Se debe registrar el vehículo y dejar el campo de personal vacío o con observación. | Sí | Sí | Sí |
+| **SIN DOCUMENTOS** | Ámbar | La unidad está operativa pero le falta documentación (SOAT, revisión técnica, licencia, etc.). Se recomienda detallar el documento faltante en Observaciones. | Sí | Sí | Sí |
+
+#### Estados de Fuera de Servicio por Avería
+
+| Estado | Color | ¿Cuándo usarlo? | ¿Requiere ID? | ¿Requiere Radio? | ¿Requiere Cuadrante? |
+|---|---|---|---|---|---|
+| **CON DESPERFECTOS** | Rojo | La unidad presenta fallas mecánicas menores pero aún puede circular. Detallar la avería en Observaciones. El cuadrante no es obligatorio en este caso. | Sí | Sí | No |
+| **MANTENIMIENTO** | Rojo | La unidad se encuentra en mantenimiento programado o correctivo en el taller. No está disponible para servicio. | Sí | No | No |
+| **SINIESTRO** | Rojo | La unidad ha sufrido un accidente de tránsito (choque, vuelco, etc.). Se encuentra fuera de servicio hasta evaluación de daños. Detallar en Observaciones. | Sí | No | No |
+
+#### Estados de Personal (Unidad sin operador asignado)
+
+| Estado | Color | ¿Cuándo usarlo? | ¿Requiere ID? | ¿Requiere Personal? | ¿Requiere Cuadrante? |
+|---|---|---|---|---|---|
+| **CAMBIO DE TURNO** | Gris | El personal se encuentra en el cambio de turno (transición entre turno saliente y entrante). Se registra solo el nombre del personal. | No | Sí | No |
+| **CAMBIO DESCANSO** | Gris | El personal está tomando su descanso dentro del turno (refrigerio, descanso médico breve). Se registra solo el nombre. | No | Sí | No |
+| **FALTO** | Rojo | El personal no se presentó a laborar sin aviso previo. Se registra solo el nombre para llevar control de asistencia. | No | Sí | No |
+| **FALTO (INASISTENCIA)** | Rojo | El personal registró inasistencia formal (con justificación o documentación). Similar a FALTO pero con registro administrativo. | No | Sí | No |
+| **PERMISO** | Rojo | El personal solicitó permiso para ausentarse durante el turno (personal, médico, etc.). Se registra solo el nombre. | No | Sí | No |
+| **DESCANSO COMPENSATORIO** | Rojo | El personal está gozando de un descanso compensatorio por haber trabajado en día feriado o sobretiempo. | No | Sí | No |
+| **DESCANSO MEDICO / MÉDICO** | Rojo | El personal se encuentra con descanso médico recetado. Se registra solo el nombre. | No | Sí | No |
+| **DESCANSO FISICO** | Rojo | El personal tiene descanso físico por disposición (ej. después de servicio nocturno extenso). | No | Sí | No |
+| **ONOMASTICO / ONOMÁSTICO** | Rojo | El personal está de onomástico (cumpleaños) y se le ha concedido el día libre. | No | Sí | No |
+
+#### Resumen Visual por Color
+
+| Color | Categoría |
 |---|---|
-| PATRULLANDO | Verde |
-| APOYO A OTRA AREA | Azul |
-| SIN DOCUMENTOS, SIN CONDUCTOR, SIN VEHICULO | Ámbar |
-| MANTENIMIENTO, SINIESTRO, FALTO, PERMISO, CON DESPERFECTOS | Rojo |
-| DESCANSO COMPENSATORIO, DESCANSO MEDICO, CAMBIO DE TURNO, ONOMASTICO | Gris |
-| CHOFER SIN MOVIL | Gris |
+| 🟢 Verde | Unidad operativa patrullando |
+| 🔵 Azul | Unidad en comisión externa (apoyo/PP.FF.) — campos ID, radio y cuadrante no requeridos |
+| 🟡 Ámbar | Unidad presente pero con limitaciones (sin vehículo, sin documentos, sin chofer) |
+| 🔴 Rojo | Fuera de servicio (mantenimiento, siniestro, falta, permiso, descanso, onomástico) |
+| ⚪ Gris | Personal en transición o descanso dentro del turno |
 
-### 4.4 Puente de Kilraje
+**Reglas generales:**
+- Los estados de personal (FALTO, PERMISO, DESCANSO, etc.) solo requieren el nombre del trabajador
+- Los estados operativos (PATRULLANDO, APOYO, SIN VEHICULO, etc.) requieren ID, radio y cuadrante
+- **Excepciones:** PP.FF. y APOYO OTRA AREA eximen ID, radio y cuadrante
+- CON DESPERFECTOS no requiere cuadrante
+- Los estados MANTENIMIENTO, SINIESTRO y SIN CONDUCTOR no requieren radio
 
-Cuando se crea una unidad nueva (o se carga un sector), el sistema busca automáticamente el **KM_FIN** de la unidad en el turno anterior y lo coloca como **KM_INICIO** del turno actual. Esto permite llevar un control continuo del kilraje.
+### 4.5 Puente de Kilometraje
+
+Cuando se crea una unidad nueva (o se carga un sector), el sistema busca automáticamente el **KM_FIN** de la unidad en el turno anterior y lo coloca como **KM_INICIO** del turno actual. Esto permite llevar un control continuo del kilometraje.
 
 ---
 
@@ -185,7 +228,7 @@ Cuando se crea una unidad nueva (o se carga un sector), el sistema busca automá
 
 ### 5.1 Selector de Sector
 
-El menú de sectores lista los 14 sectores operativos. Al seleccionar uno, el sistema guarda automáticamente los cambios del sector actual antes de cambiar.
+El menú de sectores lista los 14 sectores operativos. Al seleccionar uno, el sistema guarda automáticamente los cambios del sector actual antes de cambiar (solo si está en modo edición).
 
 ### 5.2 Selector de Turno
 
@@ -199,9 +242,11 @@ Tres botones segmentados:
 
 El sistema detecta automáticamente el turno actual basado en la hora del día.
 
-### 5.3 Personal a Cargo
+### 5.3 Personal a Cargo por Sector
 
 Los campos OPERADOR, SUPERVISOR y PERMANENCIA son editables y cuentan con autocompletado desde la base de datos de personal de la municipalidad.
+
+**Importante:** Cada sector tiene sus propios valores independientes para estos tres campos. El cambio de operador/supervisor/permanencia en un sector no afecta a los demás sectores.
 
 ---
 
@@ -260,17 +305,26 @@ La **Vista Despachador** muestra una lectura consolidada de **todos los sectores
 
 En la parte superior hay botones de acceso rápido para saltar a cualquier sector (1A, 1B, 2, 3, 4, 5, 6, 7, 8, 9A, 9B, RESCATE, GIR).
 
-### 7.2 Información por Sector
+### 7.2 Unidades Mostradas
+
+La vista del despachador muestra únicamente las unidades con los siguientes estados operativos:
+
+- **PATRULLANDO** — Unidades en servicio activo
+- **APOYO A OTRA AREA** — Unidades comisionadas a otra área
+- **PP.FF.** — Personal de Policía Fiscal (PP.FF.)
+
+Unidades en otros estados (mantenimiento, falta, descanso, etc.) no se muestran en esta vista.
+
+### 7.3 Información por Sector
 
 Cada sector muestra:
 
-- **Encabezado:** Nombre del sector, OPERADOR, SUPERVISOR, JEFE DE ÁREA
+- **Encabezado:** Nombre del sector, OPERADOR, SUPERVISOR, JEFE DE ÁREA / PERMANENCIA
 - **Estadísticas:** Total de unidades y porcentaje de operatividad
 - **Tarjetas de unidades** compactas con:
+  - Indicador de estado (círculo de color)
   - ID y CHOFER (con badge "PNP" si el copiloto contiene "PNP")
-  - ESTADO con badge de color
-  - PLACA, RADIO, HORAS, CUADRANTE
-  - KM y COMBUSTIBLE
+  - RADIO y CUADRANTE
 
 ---
 
@@ -335,7 +389,7 @@ Lista de situaciones que requieren atención:
 - Unidades con estado crítico (MANTENIMIENTO, SINIESTRO, FALTO)
 - Personal ausente
 - Unidades sin chofer asignado
-- Problemas de combustible o kilraje
+- Problemas de combustible o kilometraje
 
 ### 9.3 Tasas de Disponibilidad
 
@@ -434,10 +488,11 @@ El sistema maneja el guardado de datos de forma automática y manual:
 
 - Haga clic en el botón **💾** (Guardar) en la barra superior para forzar un guardado completo del sector actual
 - El botón muestra "GUARDANDO..." mientras se procesa
+- El botón Guardar solo está visible para el turno actual
 
 ### 12.3 Sincronización
 
-El botón **SINCRONIZAR** (oculto en pantallas menores a 1400px) sincroniza los datos con el sistema externo de recolección de datos móviles.
+El botón **SINCRONIZAR** sincroniza los datos con el sistema externo de recolección de datos móviles. Solo está visible en el turno actual (oculto en turnos pasados y en pantallas menores a 1400px).
 
 ### 12.4 Solución de Problemas de Guardado
 
@@ -447,7 +502,42 @@ El botón **SINCRONIZAR** (oculto en pantallas menores a 1400px) sincroniza los 
 
 ---
 
-## 13. Preguntas Frecuentes
+## 13. Turnos Pasados — Solo Lectura
+
+Cuando se selecciona una fecha o turno que ya ha pasado, el sistema automáticamente bloquea la edición de toda la información:
+
+### 13.1 Comportamiento
+
+- **Campos de personal** (OPERADOR, SUPERVISOR, PERMANENCIA): se muestran como texto, no permiten edición
+- **Unidades:** el botón de editar (✏️) y el de nuevo registro (+ NUEVO REGISTRO) no se muestran
+- **Botón GUARDAR:** oculto
+- **Botón SINCRONIZAR:** oculto
+- **Navegación:** aún puede cambiar de sector, fecha y turno para consultar información pasada
+
+### 13.2 Lógica de Turno Actual
+
+El sistema determina el turno actual según la hora del día:
+
+| Turno | Horario |
+|---|---|
+| **MAÑANA** | 06:30 – 14:29 |
+| **TARDE** | 14:30 – 22:29 |
+| **NOCHE** | 22:30 – 06:29 (día siguiente) |
+
+Para la NOCHE que cruza la medianoche, el sistema considera que el turno activo pertenece al día anterior (hasta las 06:29).
+
+### 13.3 ¿Qué se puede hacer en modo solo lectura?
+
+- Ver todas las unidades registradas
+- Consultar el régimen laboral del personal asignado
+- Cambiar de sector para ver otros sectores
+- Cambiar de fecha o turno para ver datos históricos
+- Navegar a otras vistas (Despachador, Estadísticas, etc.)
+- Generar reportes PDF
+
+---
+
+## 14. Preguntas Frecuentes
 
 ### ¿Cómo agrego una unidad nueva?
 
@@ -456,24 +546,33 @@ En el Panel de Edición, dentro de la sección correspondiente (CHOFER/MOTORIZAD
 ### ¿Por qué no puedo editar ciertos campos?
 
 - La **Vista Despachador**, **Estadísticas** y **Vista de Personal** son de solo lectura
-- Solo el **Panel de Edición** y **Gestión de Retenes** permiten modificar datos
+- Los turnos pasados también son de solo lectura — solo puede editar el turno actual
+- Solo el **Panel de Edición** y **Gestión de Retenes** permiten modificar datos (en el turno actual)
 - El **Buscador de Vehículos** permite agregar nuevos registros pero no editar existentes
 
 ### ¿Cómo cambio de sector?
 
-Use el menú desplegable de sectores en la barra superior. El sistema guardará automáticamente los cambios del sector actual antes de cambiar.
+Use el menú desplegable de sectores en la barra superior. El sistema guardará automáticamente los cambios del sector actual antes de cambiar (solo si está en el turno actual).
 
 ### ¿Qué significa cada color en los badges de estado?
 
 - **Verde:** PATRULLANDO (unidad operativa)
-- **Azul:** APOYO A OTRA AREA
+- **Azul:** APOYO A OTRA AREA, PP.FF.
 - **Ámbar:** SIN DOCUMENTOS, SIN CONDUCTOR, SIN VEHICULO
 - **Rojo:** MANTENIMIENTO, SINIESTRO, FALTO, PERMISO, CON DESPERFECTOS
 - **Gris:** DESCANSO COMPENSATORIO, DESCANSO MEDICO, CAMBIO DE TURNO, ONOMASTICO, CHOFER SIN MOVIL
 
+### ¿Cuándo no son obligatorios el ID, radio y cuadrante?
+
+Cuando la unidad tiene estado **PP.FF.** o **APOYO OTRA AREA**, los campos ID, radio y cuadrante no son requeridos. Estos estados eximen de la validación estándar.
+
+### ¿El régimen laboral aparece en las tarjetas de unidad?
+
+Sí. En la vista de lectura de cada tarjeta de unidad, debajo del nombre del personal se muestra el régimen laboral en texto pequeño (ej. "276", "728", "1057", "OS").
+
 ### ¿Cómo se calcula el KM total?
 
-El sistema resta **KM_INICIO** de **KM_FIN** automáticamente. El KM_INICIO se hereda del turno anterior automáticamente (puente de kilraje).
+El sistema resta **KM_INICIO** de **KM_FIN** automáticamente. El KM_INICIO se hereda del turno anterior automáticamente (puente de kilometraje).
 
 ### ¿El sistema funciona sin Internet?
 
@@ -487,7 +586,11 @@ Puede generar reportes PDF desde el **Centro de Reportes** o exportar la tabla d
 
 Es normal cuando múltiples usuarios guardan al mismo tiempo. El sistema reintenta automáticamente. Espere unos segundos y verifique que los datos se hayan guardado (icono ✅). Si el error persiste, actualice la página.
 
+### ¿El valor de Permanencia se replica entre sectores?
+
+No. Desde la versión actual, cada sector tiene su propio valor independiente de OPERADOR, SUPERVISOR y PERMANENCIA. El cambio en un sector no afecta a los demás.
+
 ---
 
-*Documento generado el 19 de mayo de 2026*  
+*Documento actualizado el 25 de mayo de 2026*  
 *Municipalidad de Santiago de Surco — Subgerencia de Seguridad Ciudadana*
