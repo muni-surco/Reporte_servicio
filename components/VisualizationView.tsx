@@ -32,6 +32,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
   const ALLOWED_STATUSES = [
     UnitStatus.PATRULLANDO,
+    UnitStatus.SIN_VEHICULO,
   ];
 
   const renderCompactUnit = (u: UnitData, type: string) => {

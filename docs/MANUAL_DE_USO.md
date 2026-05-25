@@ -179,6 +179,7 @@ Cada estado tiene un escenario de uso específico. A continuación se definen to
 | **FALTO (INASISTENCIA)** | 🔴 Rojo | No | No | No | No | Personal que no se presentó a laborar. Solo se registra el nombre. |
 | **CAMBIO DE TURNO** | ⚪ Gris | No | No | No | Sí | Personal en transición entre turnos. Solo se registra el nombre. |
 | **CAMBIO DESCANSO** | ⚪ Gris | No | No | No | Sí | Personal en descanso dentro del turno. Solo se registra el nombre. |
+| **FIN RETEN** | ⚪ Gris | No | No | No | No | Retén termina de patrullar y se reemplaza por retorno de unidad móvil del sector. |
 
 \* *Exento para SERENO y RESCATE.*
 
@@ -190,7 +191,7 @@ Cada estado tiene un escenario de uso específico. A continuación se definen to
 | 🔵 Azul | Unidad o personal en Apoyo a otra área (APOYO OTRA AREA) |
 | 🟡 Ámbar | Unidad o personal presente pero con limitaciones (sin vehículo, sin documentos, sin chofer) |
 | 🔴 Rojo | Fuera de servicio (Con desperfectos, Mantenimiento, Siniestro, Falta) |
-| ⚪ Gris | Personal en cambio de turno o descanso |
+| ⚪ Gris | Personal en cambio de turno, descanso o fin de retén |
 
 **Reglas generales (según validación del código):**
 - Solo **PATRULLANDO** exige ID, radio y cuadrante (cuadrante exento para SERENO y RESCATE)
@@ -534,7 +535,7 @@ Use el menú desplegable de sectores en la barra superior. El sistema guardará 
 - **Azul:** APOYO OTRA AREA
 - **Ámbar:** SIN DOCUMENTOS, SIN CONDUCTOR, SIN VEHICULO
 - **Rojo:** MANTENIMIENTO, SINIESTRO, FALTO (INASISTENCIA), CON DESPERFECTOS
-- **Gris:** CAMBIO DE TURNO, CAMBIO DESCANSO
+- **Gris:** CAMBIO DE TURNO, CAMBIO DESCANSO, FIN RETEN
 
 ### ¿Cuándo no son obligatorios el ID, radio y cuadrante?
 
