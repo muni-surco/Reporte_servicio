@@ -148,17 +148,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       'CAMBIO DE TURNO',
       'CAMBIO DESCANSO',
       UnitStatus.SIN_VEHICULO,
-      'DESCANSO COMPENSATORIO',
-      'DESCANSO MEDICO',
-      'DESCANSO MÉDICO',
-      'DESCANSO FISICO',
-      'FALTO',
       'FALTO (INASISTENCIA)',
-      'ONOMASTICO',
-      'ONOMÁSTICO',
-      'PERMISO',
-      'PP.FF.',
-      'APOYO OTRA AREA',
       UnitStatus.APOYO_OTRA_AREA,
       UnitStatus.MANTENIMIENTO,
       UnitStatus.CON_DESPERFECTOS,
@@ -173,15 +163,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.CON_DESPERFECTOS,
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
-      'FALTO',
       'FALTO (INASISTENCIA)',
-      'DESCANSO COMPENSATORIO',
-      'DESCANSO MEDICO',
-      'DESCANSO MÉDICO',
-      'DESCANSO FISICO',
-      'PERMISO',
-      'ONOMASTICO',
-      'ONOMÁSTICO'
     ].includes(formData.status?.toUpperCase());
 
     const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.CON_DESPERFECTOS;
@@ -226,32 +208,28 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const badgeColors: Record<string, string> = {
     [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
     [UnitStatus.APOYO_OTRA_AREA]: "bg-blue-100 text-blue-700 border-blue-200",
-    'APOYO OTRA AREA': "bg-blue-100 text-blue-700 border-blue-200",
     [UnitStatus.SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
     [UnitStatus.SIN_VEHICULO]: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    [UnitStatus.SIN_CONDUCTOR]: "bg-amber-100 text-amber-700 border-amber-200",
   };
 
   const redStatusPatterns = [
     UnitStatus.MANTENIMIENTO,
-    UnitStatus.SIN_CONDUCTOR,
-    UnitStatus.SIN_VEHICULO,
     UnitStatus.CON_DESPERFECTOS,
     UnitStatus.SINIESTRO,
-    'DESCANSO COMPENSATORIO',
-    'DESCANSO MEDICO',
-    'DESCANSO MÉDICO',
-    'DESCANSO FISICO',
-    'FALTO',
     'FALTO (INASISTENCIA)',
-    'ONOMASTICO',
-    'ONOMÁSTICO',
-    'PERMISO',
+  ];
+
+  const grayStatusPatterns = [
+    'CAMBIO DE TURNO',
+    'CAMBIO DESCANSO',
   ];
 
   const getBadgeClass = (status: string) => {
     const s = String(status || '').toUpperCase();
     if (badgeColors[status]) return badgeColors[status];
     if (redStatusPatterns.includes(s)) return "bg-red-100 text-red-700 border-red-200";
+    if (grayStatusPatterns.includes(s)) return "bg-slate-100 text-slate-700 border-slate-200";
     return "bg-slate-100 text-slate-700 border-slate-200";
   };
 

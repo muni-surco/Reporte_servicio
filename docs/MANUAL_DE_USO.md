@@ -153,70 +153,50 @@ Al hacer clic en el botón ✏️, la tarjeta se expande a modo edición con tod
 
 **Validaciones:**
 
-- El campo ID es obligatorio y se valida contra duplicados
+- El campo ID es obligatorio para **PATRULLANDO** y se valida contra duplicados
 - Para CHOFER y MOTO, el ID debe existir en los datos de referencia
-- Los campos CHOFER (personal1), RADIO y CUADRANTE son obligatorios según el estado
-- **Excepciones:** Los estados **PP.FF.** y **APOYO OTRA AREA** no requieren los campos ID, RADIO ni CUADRANTE
-- El estado CON DESPERFECTOS no requiere cuadrante
+- Los campos CHOFER (personal1), RADIO y CUADRANTE son obligatorios solo para el estado **PATRULLANDO**
+- **CON DESPERFECTOS** requiere ID y radio, pero no cuadrante
+- **SIN VEHICULO**, **APOYO OTRA AREA**, **CAMBIO DE TURNO** y **CAMBIO DESCANSO** requieren personal pero no ID, radio ni cuadrante
+- **SIN CONDUCTOR**, **MANTENIMIENTO**, **SINIESTRO**, **SIN DOCUMENTOS** y **FALTO (INASISTENCIA)** no requieren personal ni ID, radio o cuadrante
 
 ### 4.4 Catálogo de Estados
 
 Cada estado tiene un escenario de uso específico. A continuación se definen todos los estados disponibles y cuándo debe usar cada uno:
 
-#### Estados Operativos (Unidad en Servicio)
+#### Catálogo completo de estados
 
-| Estado | Color | ¿Cuándo usarlo? | ¿Requiere ID? | ¿Requiere Radio? | ¿Requiere Cuadrante? |
-|---|---|---|---|---|---|
-| **PATRULLANDO** | Verde | La unidad se encuentra operativa y realizando patrullaje normal en su sector asignado. Es el estado por defecto al crear una unidad. | Sí | Sí | Sí |
-| **APOYO A OTRA AREA** | Azul | La unidad fue comisionada temporalmente a otra área o sector para brindar apoyo operativo. El personal sigue asignado pero su ubicación es distinta. | No | No | No |
-| **PP.FF.** | Azul | La unidad está asignada a la Policía Fiscal (PP.FF.) para labores de apoyo interinstitucional. El personal sigue registrado pero opera bajo coordinación externa. | No | No | No |
+| Estado | Color | ID | Radio | Cuadrante | Personal | ¿Cuándo usarlo? |
+|---|---|---|---|---|---|---|---|
+| **PATRULLANDO** | 🟢 Verde | Sí | Sí | Sí* | Sí | Unidad operativa realizando patrullaje normal en su sector. Estado por defecto. |
+| **APOYO OTRA AREA** | 🔵 Azul | No | No | No | Sí | Personal comisionado temporalmente a otra área. |
+| **SIN VEHICULO** | 🟡 Ámbar | No | No | No | Sí | Personal presente sin vehículo asignado (falta de unidades). |
+| **SIN CONDUCTOR** | 🟡 Ámbar | No | No | No | No | Vehículo disponible sin chofer. Dejar personal vacío. |
+| **SIN DOCUMENTOS** | 🟡 Ámbar | No | No | No | No | Unidad disponible sin documentación (SOAT, revisión técnica). |
+| **CON DESPERFECTOS** | 🔴 Rojo | Sí | Sí | No | No | Unidad con fallas mecánicas/electrónicas. Detallar en Observaciones. |
+| **MANTENIMIENTO** | 🔴 Rojo | No | No | No | No | Unidad en taller (mantenimiento programado o correctivo). |
+| **SINIESTRO** | 🔴 Rojo | No | No | No | No | Unidad accidentada (choque, vuelco). Detallar en Observaciones. |
+| **FALTO (INASISTENCIA)** | 🔴 Rojo | No | No | No | No | Personal que no se presentó a laborar. Solo se registra el nombre. |
+| **CAMBIO DE TURNO** | ⚪ Gris | No | No | No | Sí | Personal en transición entre turnos. Solo se registra el nombre. |
+| **CAMBIO DESCANSO** | ⚪ Gris | No | No | No | Sí | Personal en descanso dentro del turno. Solo se registra el nombre. |
 
-#### Estados de Unidad no Operativa
-
-| Estado | Color | ¿Cuándo usarlo? | ¿Requiere ID? | ¿Requiere Radio? | ¿Requiere Cuadrante? |
-|---|---|---|---|---|---|
-| **SIN VEHICULO** | Ámbar | El personal está presente pero no tiene vehículo asignado (por falta de unidades disponibles, no por daño). | Sí | Sí | Sí |
-| **SIN CONDUCTOR** | Ámbar | El vehículo está disponible pero no hay chofer asignado (ej. el chofer faltó). Se debe registrar el vehículo y dejar el campo de personal vacío o con observación. | Sí | Sí | Sí |
-| **SIN DOCUMENTOS** | Ámbar | La unidad está operativa pero le falta documentación (SOAT, revisión técnica, licencia, etc.). Se recomienda detallar el documento faltante en Observaciones. | Sí | Sí | Sí |
-
-#### Estados de Fuera de Servicio por Avería
-
-| Estado | Color | ¿Cuándo usarlo? | ¿Requiere ID? | ¿Requiere Radio? | ¿Requiere Cuadrante? |
-|---|---|---|---|---|---|
-| **CON DESPERFECTOS** | Rojo | La unidad presenta fallas mecánicas menores pero aún puede circular. Detallar la avería en Observaciones. El cuadrante no es obligatorio en este caso. | Sí | Sí | No |
-| **MANTENIMIENTO** | Rojo | La unidad se encuentra en mantenimiento programado o correctivo en el taller. No está disponible para servicio. | Sí | No | No |
-| **SINIESTRO** | Rojo | La unidad ha sufrido un accidente de tránsito (choque, vuelco, etc.). Se encuentra fuera de servicio hasta evaluación de daños. Detallar en Observaciones. | Sí | No | No |
-
-#### Estados de Personal (Unidad sin operador asignado)
-
-| Estado | Color | ¿Cuándo usarlo? | ¿Requiere ID? | ¿Requiere Personal? | ¿Requiere Cuadrante? |
-|---|---|---|---|---|---|
-| **CAMBIO DE TURNO** | Gris | El personal se encuentra en el cambio de turno (transición entre turno saliente y entrante). Se registra solo el nombre del personal. | No | Sí | No |
-| **CAMBIO DESCANSO** | Gris | El personal está tomando su descanso dentro del turno (refrigerio, descanso médico breve). Se registra solo el nombre. | No | Sí | No |
-| **FALTO** | Rojo | El personal no se presentó a laborar sin aviso previo. Se registra solo el nombre para llevar control de asistencia. | No | Sí | No |
-| **FALTO (INASISTENCIA)** | Rojo | El personal registró inasistencia formal (con justificación o documentación). Similar a FALTO pero con registro administrativo. | No | Sí | No |
-| **PERMISO** | Rojo | El personal solicitó permiso para ausentarse durante el turno (personal, médico, etc.). Se registra solo el nombre. | No | Sí | No |
-| **DESCANSO COMPENSATORIO** | Rojo | El personal está gozando de un descanso compensatorio por haber trabajado en día feriado o sobretiempo. | No | Sí | No |
-| **DESCANSO MEDICO / MÉDICO** | Rojo | El personal se encuentra con descanso médico recetado. Se registra solo el nombre. | No | Sí | No |
-| **DESCANSO FISICO** | Rojo | El personal tiene descanso físico por disposición (ej. después de servicio nocturno extenso). | No | Sí | No |
-| **ONOMASTICO / ONOMÁSTICO** | Rojo | El personal está de onomástico (cumpleaños) y se le ha concedido el día libre. | No | Sí | No |
+\* *Exento para SERENO y RESCATE.*
 
 #### Resumen Visual por Color
 
 | Color | Categoría |
 |---|---|
-| 🟢 Verde | Unidad operativa patrullando |
-| 🔵 Azul | Unidad en comisión externa (apoyo/PP.FF.) — campos ID, radio y cuadrante no requeridos |
-| 🟡 Ámbar | Unidad presente pero con limitaciones (sin vehículo, sin documentos, sin chofer) |
-| 🔴 Rojo | Fuera de servicio (mantenimiento, siniestro, falta, permiso, descanso, onomástico) |
-| ⚪ Gris | Personal en transición o descanso dentro del turno |
+| 🟢 Verde | Unidad o personal operativo patrullando |
+| 🔵 Azul | Unidad o personal en Apoyo a otra área (APOYO OTRA AREA) |
+| 🟡 Ámbar | Unidad o personal presente pero con limitaciones (sin vehículo, sin documentos, sin chofer) |
+| 🔴 Rojo | Fuera de servicio (Con desperfectos, Mantenimiento, Siniestro, Falta) |
+| ⚪ Gris | Personal en cambio de turno o descanso |
 
-**Reglas generales:**
-- Los estados de personal (FALTO, PERMISO, DESCANSO, etc.) solo requieren el nombre del trabajador
-- Los estados operativos (PATRULLANDO, APOYO, SIN VEHICULO, etc.) requieren ID, radio y cuadrante
-- **Excepciones:** PP.FF. y APOYO OTRA AREA eximen ID, radio y cuadrante
-- CON DESPERFECTOS no requiere cuadrante
-- Los estados MANTENIMIENTO, SINIESTRO y SIN CONDUCTOR no requieren radio
+**Reglas generales (según validación del código):**
+- Solo **PATRULLANDO** exige ID, radio y cuadrante (cuadrante exento para SERENO y RESCATE)
+- **CON DESPERFECTOS** exige ID y radio, pero no cuadrante ni personal
+- **APOYO OTRA AREA, SIN VEHICULO, CAMBIO DE TURNO, CAMBIO DESCANSO** requieren personal pero no ID, radio ni cuadrante
+- **SIN CONDUCTOR, SIN DOCUMENTOS, MANTENIMIENTO, SINIESTRO, FALTO (INASISTENCIA)** no requieren personal, ID, radio ni cuadrante
 
 ### 4.5 Puente de Kilometraje
 
@@ -307,13 +287,7 @@ En la parte superior hay botones de acceso rápido para saltar a cualquier secto
 
 ### 7.2 Unidades Mostradas
 
-La vista del despachador muestra únicamente las unidades con los siguientes estados operativos:
-
-- **PATRULLANDO** — Unidades en servicio activo
-- **APOYO A OTRA AREA** — Unidades comisionadas a otra área
-- **PP.FF.** — Personal de Policía Fiscal (PP.FF.)
-
-Unidades en otros estados (mantenimiento, falta, descanso, etc.) no se muestran en esta vista.
+La vista del despachador muestra únicamente las unidades en estado **PATRULLANDO** o **APOYO OTRA AREA**. Unidades en cualquier otro estado (mantenimiento, falta, descanso, etc.) quedan ocultas.
 
 ### 7.3 Información por Sector
 
@@ -557,14 +531,14 @@ Use el menú desplegable de sectores en la barra superior. El sistema guardará 
 ### ¿Qué significa cada color en los badges de estado?
 
 - **Verde:** PATRULLANDO (unidad operativa)
-- **Azul:** APOYO A OTRA AREA, PP.FF.
+- **Azul:** APOYO OTRA AREA
 - **Ámbar:** SIN DOCUMENTOS, SIN CONDUCTOR, SIN VEHICULO
-- **Rojo:** MANTENIMIENTO, SINIESTRO, FALTO, PERMISO, CON DESPERFECTOS
-- **Gris:** DESCANSO COMPENSATORIO, DESCANSO MEDICO, CAMBIO DE TURNO, ONOMASTICO, CHOFER SIN MOVIL
+- **Rojo:** MANTENIMIENTO, SINIESTRO, FALTO (INASISTENCIA), CON DESPERFECTOS
+- **Gris:** CAMBIO DE TURNO, CAMBIO DESCANSO
 
 ### ¿Cuándo no son obligatorios el ID, radio y cuadrante?
 
-Cuando la unidad tiene estado **PP.FF.** o **APOYO OTRA AREA**, los campos ID, radio y cuadrante no son requeridos. Estos estados eximen de la validación estándar.
+Solo el estado **PATRULLANDO** exige ID, radio y cuadrante. Todos los demás estados (APOYO OTRA AREA, SIN VEHICULO, SIN CONDUCTOR, SIN DOCUMENTOS, CON DESPERFECTOS, MANTENIMIENTO, SINIESTRO, FALTO (INASISTENCIA), CAMBIO DE TURNO, CAMBIO DESCANSO) eximen de estos campos según las reglas específicas de cada uno.
 
 ### ¿El régimen laboral aparece en las tarjetas de unidad?
 

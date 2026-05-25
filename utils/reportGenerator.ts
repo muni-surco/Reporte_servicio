@@ -509,15 +509,7 @@ export const generatePersonnelAbsenceReport = (
   const nameToUnitStatus = new Map<string, string>();
 
   const absenceStatuses = [
-    'FALTO',
     'FALTO (INASISTENCIA)',
-    'DESCANSO MEDICO',
-    'DESCANSO MÉDICO',
-    'DESCANSO FISICO',
-    'DESCANSO COMPENSATORIO',
-    'ONOMASTICO',
-    'ONOMÁSTICO',
-    'PERMISO',
   ];
 
   units.forEach(u => {
@@ -570,7 +562,7 @@ export const generatePersonnelAbsenceReport = (
         apellidos_nombres: name,
         regimen_laboral: 'OS', // Default to ORDEN DE SERVICIO
         rol_operativo: '--',
-        estado: nameToUnitStatus.get(name) || 'FALTO',
+        estado: nameToUnitStatus.get(name) || 'FALTO (INASISTENCIA)',
         n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: ''
       });
     }

@@ -448,14 +448,7 @@ const App: React.FC = () => {
     .sort((a, b) => {
       const specialStatuses = [
         'CAMBIO DE TURNO',
-        'DESCANSO COMPENSATORIO',
-        'DESCANSO MEDICO',
-        'DESCANSO MÉDICO',
-        'DESCANSO FISICO',
-        'FALTO',
-        'ONOMASTICO',
-        'ONOMÁSTICO',
-        'PERMISO',
+        'CAMBIO DESCANSO',
         UnitStatus.MANTENIMIENTO,
         UnitStatus.CON_DESPERFECTOS,
         UnitStatus.SIN_CONDUCTOR,
