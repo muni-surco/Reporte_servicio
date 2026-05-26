@@ -399,14 +399,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
           <div className="grid grid-cols-12 gap-1.5 pt-0.5">
             {!isSereno ? (
               <>
-                <div className="col-span-4 grid grid-cols-4 gap-1">
+                <div className={`col-span-4 grid ${isChofer || isMoto ? 'grid-cols-2' : 'grid-cols-4'} gap-1`}>
                   <div>
                     <label className={labelStyleEdit}>Placa</label>
                     <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
                   </div>
                   <div><label className={labelStyleEdit}>KM INICIO</label><input type="number" value={kmStart} onChange={(e) => setKmStart(e.target.value)} className={inputStyle('kmStart')} /></div>
-                  <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>
-                  <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[13px] font-medium text-blue-700 h-[32px] flex items-center justify-center">{kmDiff}</div></div>
+                  {!(isChofer || isMoto) && <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>}
+                  {!(isChofer || isMoto) && <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[13px] font-medium text-blue-700 h-[32px] flex items-center justify-center">{kmDiff}</div></div>}
                 </div>
                 <div className="col-span-8 grid grid-cols-5 gap-1">
                   <div><label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
