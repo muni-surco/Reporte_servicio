@@ -418,7 +418,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
               })()}
             </div>
 
-            <div className={isChofer ? "col-span-0" : isRescate ? "col-span-4" : "col-span-3"}></div>
+            {isSereno && (
+              <div className="col-span-2">
+                <label className={labelStyleEdit}>Observaciones</label>
+                <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
+              </div>
+            )}
+
+            <div className={isChofer ? "col-span-0" : isSereno ? "col-span-1" : "col-span-3"}></div>
           </div>
 
           {/* Línea 2: Operatividad Detallada (Exactamente 12 cols o menos) */}
