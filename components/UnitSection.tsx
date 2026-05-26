@@ -20,6 +20,8 @@ interface UnitSectionProps {
   personnelOptions?: string[];
   quadrantOptions?: string[];
   radioOptions?: string[];
+  lugarOptions?: string[];
+  motivoStatusOptions?: Record<string, string[]>;
   currentDate: string;
   currentShift: string;
   isSaving?: boolean;
@@ -46,6 +48,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   personnelOptions,
   quadrantOptions,
   radioOptions,
+  lugarOptions,
+  motivoStatusOptions,
   currentDate,
   currentShift,
   isSaving,
@@ -123,6 +127,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
                 personnelOptions={personnelOptions}
                 quadrantOptions={quadrantOptions}
                 radioOptions={radioOptions}
+                lugarOptions={lugarOptions}
+                motivoStatusOptions={motivoStatusOptions}
                 currentDate={currentDate}
                 currentShift={currentShift}
                 isSaving={isSaving}

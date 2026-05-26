@@ -17,6 +17,8 @@ interface UnitCardProps {
   personnelOptions?: string[];
   quadrantOptions?: string[];
   radioOptions?: string[];
+  lugarOptions?: string[];
+  motivoStatusOptions?: Record<string, string[]>;
   currentDate: string;
   currentShift: string;
   isSaving?: boolean;
@@ -27,7 +29,7 @@ interface UnitCardProps {
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
-  statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions,
+  statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions, lugarOptions, motivoStatusOptions,
   currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
@@ -145,28 +147,28 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const isIdDuplicate = formData.id && allUnits.some(u => u.id === formData.id && u.id !== unit.id);
 
     const specialStatuses = [
-      'CAMBIO DE TURNO',
-      'CAMBIO DESCANSO',
       UnitStatus.SIN_VEHICULO,
-      'FALTO (INASISTENCIA)',
+      UnitStatus.FALTO,
       UnitStatus.APOYO_OTRA_AREA,
       UnitStatus.MANTENIMIENTO,
-      UnitStatus.CON_DESPERFECTOS,
+      UnitStatus.DESPERFECTOS,
       UnitStatus.SIN_CONDUCTOR,
       UnitStatus.SIN_DOCUMENTOS,
-      UnitStatus.SINIESTRO
+      UnitStatus.SINIESTRO,
+      UnitStatus.FIN_RETEN
     ];
     const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
     const isNoPersonnelStatus = [
       UnitStatus.SIN_CONDUCTOR,
       UnitStatus.MANTENIMIENTO,
-      UnitStatus.CON_DESPERFECTOS,
+      UnitStatus.DESPERFECTOS,
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
-      'FALTO (INASISTENCIA)',
+      UnitStatus.FALTO,
+      UnitStatus.FIN_RETEN
     ].includes(formData.status?.toUpperCase());
 
-    const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.CON_DESPERFECTOS;
+    const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.DESPERFECTOS;
 
     const isValidMobileId = !formData.id || String(formData.id).trim() === '' ||
       isSereno ||
@@ -215,14 +217,13 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
   const redStatusPatterns = [
     UnitStatus.MANTENIMIENTO,
-    UnitStatus.CON_DESPERFECTOS,
+    UnitStatus.DESPERFECTOS,
     UnitStatus.SINIESTRO,
-    'FALTO (INASISTENCIA)',
+    UnitStatus.FALTO,
   ];
 
   const grayStatusPatterns = [
-    'CAMBIO DE TURNO',
-    'CAMBIO DESCANSO',
+    UnitStatus.FIN_RETEN,
   ];
 
   const getBadgeClass = (status: string) => {
@@ -367,7 +368,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
               </div>
             )}
-            {isSereno && unit.sector !== 'RESCATE' && (
+            {isSereno && (
               <div className="col-span-1">
                 <label className={labelStyleEdit}>Cuadrante</label>
                 <MultiSelectAutocomplete
@@ -379,20 +380,45 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </div>
             )}
 
-            <div className="col-span-2">
+            <div className="col-span-1">
               <label className={labelStyleEdit}>Estado</label>
-              <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
+              <select name="status" value={formData.status} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
                 <option value="">--</option>
                 {formData.status && !activeStatusOptions.includes(formData.status) && <option value={formData.status}>{formData.status}</option>}
                 {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
-            <div className="col-span-2">
-              <label className={labelStyleEdit}>Observaciones</label>
-              <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Lugar Estado</label>
+              {lugarOptions && lugarOptions.length > 0 ? (
+                <select name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('lugarEstado')} py-0 text-[11px]`}>
+                  <option value="">--</option>
+                  {lugarOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : (
+                <input name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} className={inputStyle('lugarEstado')} placeholder="Lugar..." />
+              )}
             </div>
-            <div className={isChofer ? "col-span-1" : isSereno ? "col-span-4" : "col-span-3"}></div>
+
+            <div className="col-span-2">
+              <label className={labelStyleEdit}>Motivo Estado</label>
+              {(() => {
+                const statusKey = formData.status?.toUpperCase();
+                const motivoList = motivoStatusOptions && statusKey ? motivoStatusOptions[statusKey] : undefined;
+                if (motivoList && motivoList.length > 0) {
+                  return (
+                    <select name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('motivoEstado')} py-0 text-[11px]`}>
+                      <option value="">--</option>
+                      {motivoList.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  );
+                }
+                return <input name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} className={inputStyle('motivoEstado')} placeholder="Motivo..." />;
+              })()}
+            </div>
+
+            <div className={isChofer ? "col-span-0" : isRescate ? "col-span-4" : "col-span-3"}></div>
           </div>
 
           {/* Línea 2: Operatividad Detallada (Exactamente 12 cols o menos) */}
@@ -408,7 +434,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   {!(isChofer || isMoto) && <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>}
                   {!(isChofer || isMoto) && <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[13px] font-medium text-blue-700 h-[32px] flex items-center justify-center">{kmDiff}</div></div>}
                 </div>
-                <div className="col-span-8 grid grid-cols-5 gap-1">
+                <div className="col-span-8 grid grid-cols-6 gap-1">
                   <div><label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
                   <div><label className={labelStyleEdit}>COMBUSTIBLE</label>
                     <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
@@ -418,6 +444,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   </div>
                   <div><label className={labelStyleEdit}>CANTIDAD</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} /></div>
                   <div><label className={labelStyleEdit}>GASTO</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
+                  <div className="col-span-2">
+                    <label className={labelStyleEdit}>Observaciones</label>
+                    <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
+                  </div>
                 </div>
               </>
             ) : (
@@ -454,7 +484,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[140px_1.5fr_1.5fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.1fr_90px] max-[1399px]:grid-cols-[48px_1fr_2fr_auto_0.7fr_1.1fr_90px]'}`}>
+        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[140px_1.5fr_2fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.1fr_90px] max-[1399px]:grid-cols-[48px_1fr_2fr_auto_0.7fr_1.1fr_90px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
@@ -495,7 +525,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               </div>
             )}
             {!isRescate && (
-              <div className="flex flex-col flex-1">
+              <div className="flex flex-col flex-1 min-w-[80px]">
                 <label className={labelStyle}>Cuadrante</label>
                 <div className={infoValueStyle}>
                   {unit.quadrant || mobileData?.find(m => m.id === unit.id)?.quadrant || '--'}
@@ -520,6 +550,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <span className={`px-1.5 rounded text-[13px] font-medium border uppercase inline-block ${getBadgeClass(unit.status)}`} style={{ whiteSpace: 'normal', lineHeight: '1.2' }}>
               {unit.status}
             </span>
+            {unit.lugarEstado && <div className="text-[9px] text-slate-500 mt-0.5 leading-tight">Lugar: {unit.lugarEstado}</div>}
+            {unit.motivoEstado && <div className="text-[9px] text-slate-500 leading-tight">Motivo: {unit.motivoEstado}</div>}
           </div>
 
           {!isSereno && (

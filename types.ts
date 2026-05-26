@@ -1,13 +1,15 @@
 
 export enum UnitStatus {
-  APOYO_OTRA_AREA = 'APOYO OTRA AREA',
-  CON_DESPERFECTOS = 'CON DESPERFECTOS',
-  SIN_VEHICULO = 'SIN VEHICULO',
-  SIN_DOCUMENTOS = 'SIN DOCUMENTOS',
   PATRULLANDO = 'PATRULLANDO',
-  SIN_CONDUCTOR = 'SIN CONDUCTOR',
+  FALTO = 'FALTO',
+  APOYO_OTRA_AREA = 'APOYO OTRA AREA',
   MANTENIMIENTO = 'MANTENIMIENTO',
-  SINIESTRO = 'SINIESTRO'
+  DESPERFECTOS = 'DESPERFECTOS',
+  SINIESTRO = 'SINIESTRO',
+  SIN_CONDUCTOR = 'SIN CONDUCTOR',
+  SIN_DOCUMENTOS = 'SIN DOCUMENTOS',
+  SIN_VEHICULO = 'SIN VEHICULO',
+  FIN_RETEN = 'FIN RETEN'
 }
 
 export type Sector =
@@ -82,6 +84,8 @@ export interface UnitData {
   expense: string;
   quadrant: string;
   mechanics: string;
+  lugarEstado?: string;
+  motivoEstado?: string;
 }
 
 export interface AppSettings {

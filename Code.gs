@@ -76,7 +76,8 @@ function initialSetup() {
   const dataHeaders = [
     'FECHA', 'TURNO', 'SECTOR', 'ID', 'TIPO', 'MODELO', 'PERSONAL_1', 'PERSONAL_2', 
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
-    'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID'
+    'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID',
+    'LUGAR_ESTADO', 'MOTIVO_ESTADO'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -181,7 +182,7 @@ function getShiftData(dateStr, shift, sector) {
     if (dataSheet) {
       const dataLastRow = dataSheet.getLastRow();
       const dataRowsFull = dataLastRow > 1
-        ? dataSheet.getRange(2, 1, dataLastRow - 1, 24).getValues()
+        ? dataSheet.getRange(2, 1, dataLastRow - 1, 26).getValues()
         : [];
 
       for (let i = 0; i < dataRowsFull.length; i++) {
@@ -213,7 +214,9 @@ function getShiftData(dateStr, shift, sector) {
               fuel: String(fullRow[18] || '-- / --'),
               expense: String(fullRow[19] || 'S/ 0.00'),
               quadrant: cellToStr(fullRow[21], timeZone),
-              mechanics: String(fullRow[22] || '')
+              mechanics: String(fullRow[22] || ''),
+              lugarEstado: String(fullRow[24] || ''),
+              motivoEstado: String(fullRow[25] || '')
             });
           }
         } catch (e) {
@@ -291,7 +294,7 @@ function getSectorData(dateStr, shift, sector) {
     if (dataSheet) {
       const dataLastRow = dataSheet.getLastRow();
       const dataRowsFull = dataLastRow > 1
-        ? dataSheet.getRange(2, 1, dataLastRow - 1, 24).getValues()
+        ? dataSheet.getRange(2, 1, dataLastRow - 1, 26).getValues()
         : [];
 
       for (let i = 0; i < dataRowsFull.length; i++) {
@@ -321,7 +324,9 @@ function getSectorData(dateStr, shift, sector) {
               fuel: String(fullRow[18] || '-- / --'),
               expense: String(fullRow[19] || 'S/ 0.00'),
               quadrant: cellToStr(fullRow[21], timeZone),
-              mechanics: String(fullRow[22] || '')
+              mechanics: String(fullRow[22] || ''),
+              lugarEstado: String(fullRow[24] || ''),
+              motivoEstado: String(fullRow[25] || '')
             });
           }
         } catch (e) { continue; }
@@ -472,6 +477,13 @@ function getMobileData() {
   const estadoIdx = headers.indexOf('estado');
   const modeloIdx = headers.indexOf('modelo');
   const motivoTallerIdx = headers.indexOf('motivo_taller');
+  const lugarIdx = headers.indexOf('lugar');
+  const motivoFaltoIdx = headers.indexOf('motivo_falto');
+  const motivoDesperfectosIdx = headers.indexOf('motivo_desperfectos');
+  const motivoMantenimientoIdx = headers.indexOf('motivo_mantenimiento');
+  const motivoSiniestroIdx = headers.indexOf('motivo_siniestro');
+  const motivoSinDocumentosIdx = headers.indexOf('motivo_sin_documentos');
+  const motivoSinVehiculoIdx = headers.indexOf('motivo_sin_vehiculo');
   
   const mobileData = [];
   const indicativesSet = new Set();
@@ -479,6 +491,13 @@ function getMobileData() {
   const quadrantsSet = new Set();
   const motivoTallerSet = new Set();
   const radiosSet = new Set();
+  const lugarSet = new Set();
+  const motivoFaltoSet = new Set();
+  const motivoDesperfectosSet = new Set();
+  const motivoMantenimientoSet = new Set();
+  const motivoSiniestroSet = new Set();
+  const motivoSinDocumentosSet = new Set();
+  const motivoSinVehiculoSet = new Set();
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -516,6 +535,31 @@ function getMobileData() {
     // Collect Unique Motivo Taller
     if (motivoTallerIdx !== -1 && row[motivoTallerIdx]) {
       motivoTallerSet.add(String(row[motivoTallerIdx]).trim());
+    }
+
+    // Collect Unique Lugar
+    if (lugarIdx !== -1 && row[lugarIdx]) {
+      lugarSet.add(String(row[lugarIdx]).trim());
+    }
+
+    // Collect Unique Motivos by status
+    if (motivoFaltoIdx !== -1 && row[motivoFaltoIdx]) {
+      motivoFaltoSet.add(String(row[motivoFaltoIdx]).trim());
+    }
+    if (motivoDesperfectosIdx !== -1 && row[motivoDesperfectosIdx]) {
+      motivoDesperfectosSet.add(String(row[motivoDesperfectosIdx]).trim());
+    }
+    if (motivoMantenimientoIdx !== -1 && row[motivoMantenimientoIdx]) {
+      motivoMantenimientoSet.add(String(row[motivoMantenimientoIdx]).trim());
+    }
+    if (motivoSiniestroIdx !== -1 && row[motivoSiniestroIdx]) {
+      motivoSiniestroSet.add(String(row[motivoSiniestroIdx]).trim());
+    }
+    if (motivoSinDocumentosIdx !== -1 && row[motivoSinDocumentosIdx]) {
+      motivoSinDocumentosSet.add(String(row[motivoSinDocumentosIdx]).trim());
+    }
+    if (motivoSinVehiculoIdx !== -1 && row[motivoSinVehiculoIdx]) {
+      motivoSinVehiculoSet.add(String(row[motivoSinVehiculoIdx]).trim());
     }
 
     // Collect ALL Unique Radios (even if no movil ID is present)
@@ -576,6 +620,13 @@ function getMobileData() {
     operators: Array.from(operatorsSet).sort(),
     quadrants: Array.from(quadrantsSet).sort(),
     motivoTallerOptions: Array.from(motivoTallerSet).sort(),
+    lugarOptions: Array.from(lugarSet).sort(),
+    motivoFaltoOptions: Array.from(motivoFaltoSet).sort(),
+    motivoDesperfectosOptions: Array.from(motivoDesperfectosSet).sort(),
+    motivoMantenimientoOptions: Array.from(motivoMantenimientoSet).sort(),
+    motivoSiniestroOptions: Array.from(motivoSiniestroSet).sort(),
+    motivoSinDocumentosOptions: Array.from(motivoSinDocumentosSet).sort(),
+    motivoSinVehiculoOptions: Array.from(motivoSinVehiculoSet).sort(),
     radios: Array.from(radiosSet).sort()
   };
 }
@@ -755,7 +806,9 @@ function saveShiftData(dateStr, shift, settings, units) {
         dateStr, shift, targetSector,
         unit.id, unit.type, unit.model || '', unit.personnel1 || '', unit.personnel2 || '', unit.plate || '', unit.indicative || '', unit.radio || '',
         unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
-        unit_id // Column 24
+        unit_id, // Column 24
+        unit.lugarEstado || '', // Column 25
+        unit.motivoEstado || ''  // Column 26
       ];
 
       const existingRowIdx = unitIdToRowMap.get(unit_id);
@@ -786,12 +839,12 @@ function saveShiftData(dateStr, shift, settings, units) {
         if (sorted[i].rowIndex === batchStart + batchValues.length) {
           batchValues.push(sorted[i].values);
         } else {
-          dataSheet.getRange(batchStart, 1, batchValues.length, 24).setValues(batchValues);
+          dataSheet.getRange(batchStart, 1, batchValues.length, 26).setValues(batchValues);
           batchStart = sorted[i].rowIndex;
           batchValues = [sorted[i].values];
         }
       }
-      dataSheet.getRange(batchStart, 1, batchValues.length, 24).setValues(batchValues);
+      dataSheet.getRange(batchStart, 1, batchValues.length, 26).setValues(batchValues);
     }
 
     if (rowsToAppend.length > 0) {
@@ -935,7 +988,9 @@ function updateUnit(dateStr, shift, settings, unit) {
       dateStr, shift, targetSector,
       unit.id, unit.type, unit.model || '', unit.personnel1 || '', unit.personnel2 || '', unit.plate || '', unit.indicative || '', unit.radio || '',
       unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
-      unit_id
+      unit_id,
+      unit.lugarEstado || '',
+      unit.motivoEstado || ''
     ];
 
     const lastRow = dataSheet.getLastRow();
@@ -979,7 +1034,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     }
 
     if (foundRow > -1) {
-      dataSheet.getRange(foundRow, 1, 1, 24).setValues([unitRow]);
+      dataSheet.getRange(foundRow, 1, 1, 26).setValues([unitRow]);
       return { success: true, unit_id: unit_id, created: false };
     } else {
       dataSheet.appendRow(unitRow);

@@ -61,7 +61,7 @@ export const generateMotoReport = (
     'SECTOR 9A', 'GIR'
   ];
 
-  const inoperativeStatuses = ['MANTENIMIENTO', 'CON DESPERFECTOS', 'SINIESTRO'];
+  const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
 
   const summaryRows = sectors.map(s => {
     const sectorCode = s.replace('SECTOR ', '');
@@ -273,7 +273,7 @@ export const generateVehicleReport = (
     '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'GIR', 'RESCATE'
   ];
 
-  const inoperativeStatuses = ['MANTENIMIENTO', 'CON DESPERFECTOS', 'SINIESTRO'];
+  const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
 
   const summaryRows = sectors.map(s => {
     const sectorUnits = vehicleUnits.filter(u => (u.sector || '').toUpperCase().includes(s));
@@ -512,7 +512,6 @@ export const generatePersonnelAbsenceReport = (
 
   const absenceStatuses = [
     'FALTO',
-    'FALTO (INASISTENCIA)',
     'DESCANSO MEDICO',
     'DESCANSO MÉDICO',
     'DESCANSO FISICO',

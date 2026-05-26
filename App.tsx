@@ -61,6 +61,13 @@ const App: React.FC = () => {
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
   const [motivoTallerOptions, setMotivoTallerOptions] = useState<string[]>([]);
   const [radioOptions, setRadioOptions] = useState<string[]>([]);
+  const [lugarOptions, setLugarOptions] = useState<string[]>([]);
+  const [motivoFaltoOptions, setMotivoFaltoOptions] = useState<string[]>([]);
+  const [motivoDesperfectosOptions, setMotivoDesperfectosOptions] = useState<string[]>([]);
+  const [motivoMantenimientoOptions, setMotivoMantenimientoOptions] = useState<string[]>([]);
+  const [motivoSiniestroOptions, setMotivoSiniestroOptions] = useState<string[]>([]);
+  const [motivoSinDocumentosOptions, setMotivoSinDocumentosOptions] = useState<string[]>([]);
+  const [motivoSinVehiculoOptions, setMotivoSinVehiculoOptions] = useState<string[]>([]);
   const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
   const [loadingPersonnel, setLoadingPersonnel] = useState(false);
   const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
@@ -89,7 +96,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[] }) => {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[] }) => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
@@ -98,6 +105,13 @@ const App: React.FC = () => {
           if (data.quadrants) setQuadrantOptions(data.quadrants);
           if (data.motivoTallerOptions) setMotivoTallerOptions(data.motivoTallerOptions);
           if (data.radios) setRadioOptions(data.radios);
+          if (data.lugarOptions) setLugarOptions(data.lugarOptions);
+          if (data.motivoFaltoOptions) setMotivoFaltoOptions(data.motivoFaltoOptions);
+          if (data.motivoDesperfectosOptions) setMotivoDesperfectosOptions(data.motivoDesperfectosOptions);
+          if (data.motivoMantenimientoOptions) setMotivoMantenimientoOptions(data.motivoMantenimientoOptions);
+          if (data.motivoSiniestroOptions) setMotivoSiniestroOptions(data.motivoSiniestroOptions);
+          if (data.motivoSinDocumentosOptions) setMotivoSinDocumentosOptions(data.motivoSinDocumentosOptions);
+          if (data.motivoSinVehiculoOptions) setMotivoSinVehiculoOptions(data.motivoSinVehiculoOptions);
           // Cargar lista de personal para regimen laboral
           google.script.run
             .withSuccessHandler((personnel: PersonnelData[]) => {
@@ -181,7 +195,9 @@ const App: React.FC = () => {
             expense: String(u.expense || 'S/ 0.00'),
             quadrant: String(u.quadrant || ''),
             mechanics: String(u.mechanics || ''),
-            model: String(u.model || '')
+            model: String(u.model || ''),
+            lugarEstado: String(u.lugarEstado || ''),
+            motivoEstado: String(u.motivoEstado || '')
           }));
 
           // 2. Deduplicate by unit_id (keep last)
@@ -238,7 +254,9 @@ const App: React.FC = () => {
                 reason: '',
                 mechanics: '',
                 hours: '--:-- - --:--',
-                model: d.model || ''
+                model: d.model || '',
+                lugarEstado: '',
+                motivoEstado: ''
               });
             }
           });
@@ -451,10 +469,8 @@ const App: React.FC = () => {
     })
     .sort((a, b) => {
       const specialStatuses = [
-        'CAMBIO DE TURNO',
-        'CAMBIO DESCANSO',
         UnitStatus.MANTENIMIENTO,
-        UnitStatus.CON_DESPERFECTOS,
+        UnitStatus.DESPERFECTOS,
         UnitStatus.SIN_CONDUCTOR,
         UnitStatus.SIN_VEHICULO,
         UnitStatus.SINIESTRO
@@ -580,6 +596,17 @@ const App: React.FC = () => {
     persistData(settingsToSave, units);
   };
 
+  const motivoStatusOptions = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    if (motivoFaltoOptions.length) map['FALTO'] = motivoFaltoOptions;
+    if (motivoDesperfectosOptions.length) map['DESPERFECTOS'] = motivoDesperfectosOptions;
+    if (motivoMantenimientoOptions.length) map['MANTENIMIENTO'] = motivoMantenimientoOptions;
+    if (motivoSiniestroOptions.length) map['SINIESTRO'] = motivoSiniestroOptions;
+    if (motivoSinDocumentosOptions.length) map['SIN DOCUMENTOS'] = motivoSinDocumentosOptions;
+    if (motivoSinVehiculoOptions.length) map['SIN VEHICULO'] = motivoSinVehiculoOptions;
+    return map;
+  }, [motivoFaltoOptions, motivoDesperfectosOptions, motivoMantenimientoOptions, motivoSiniestroOptions, motivoSinDocumentosOptions, motivoSinVehiculoOptions]);
+
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {
     if (isReadOnly) return;
     // Guard: si ya existe una card en blanco (NEW-) del mismo tipo sin ID ni personal, no crear otra
@@ -606,7 +633,7 @@ const App: React.FC = () => {
       plate: '',
       indicative: '',
       radio: '',
-      status: UnitStatus.PATRULLANDO,
+      status: '',
       reason: '',
       km: '0 / 0 / 0',
       kmStart: '0',
@@ -618,6 +645,8 @@ const App: React.FC = () => {
       expense: 'S/ 0.00',
       quadrant: '',
       mechanics: '',
+      lugarEstado: '',
+      motivoEstado: '',
       unit_id: generateUUID()
     };
     // Prepend the new unit to the list so it appears at the top of its section
@@ -736,7 +765,7 @@ const App: React.FC = () => {
           onSaveSettings={handleSaveSettings}
           onGlobalSave={handleGlobalSave}
           onGeneratePDF={() => setCurrentView('REPORTS')}
-          onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno)}
+          onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno, currentView)}
           isSaving={saving}
           currentSector={currentSector}
           onSectorChange={handleSectorChange}
@@ -765,6 +794,8 @@ const App: React.FC = () => {
                   personnelOptions={personnelOptions}
                   quadrantOptions={quadrantOptions}
                   radioOptions={radioOptions}
+                  lugarOptions={lugarOptions}
+                  motivoStatusOptions={motivoStatusOptions}
                   currentDate={selectedDate}
                   currentShift={settings.turno}
                   isSaving={saving}
@@ -787,6 +818,8 @@ const App: React.FC = () => {
                     personnelOptions={personnelOptions}
                     quadrantOptions={quadrantOptions}
                     radioOptions={radioOptions}
+                    lugarOptions={lugarOptions}
+                    motivoStatusOptions={motivoStatusOptions}
                     currentDate={selectedDate}
                     currentShift={settings.turno}
                     isSaving={saving}
@@ -805,6 +838,8 @@ const App: React.FC = () => {
                     indicativeOptions={indicativeOptions}
                     personnelOptions={personnelOptions}
                     radioOptions={radioOptions}
+                    lugarOptions={lugarOptions}
+                    motivoStatusOptions={motivoStatusOptions}
                     currentDate={selectedDate}
                     currentShift={settings.turno}
                     isSaving={saving}

@@ -11,9 +11,9 @@ interface VisualizationViewProps {
 const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings, mobileData }) => {
   const redStatusPatterns = [
     UnitStatus.MANTENIMIENTO,
-    UnitStatus.CON_DESPERFECTOS,
+    UnitStatus.DESPERFECTOS,
     UnitStatus.SINIESTRO,
-    'FALTO (INASISTENCIA)'
+    UnitStatus.FALTO,
   ];
 
   const amberStatusPatterns = [
@@ -44,7 +44,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
     const refInfo = mobileData?.find(m => m.id === u.id);
     const displayRadio = u.radio || '--';
-    const displayQuadrant = u.quadrant || refInfo?.quadrant || '';
+    const displayQuadrant = u.quadrant || refInfo?.quadrant || '--';
 
     return (
       <div key={u.id} className="flex items-center gap-4 py-3 px-4 hover:bg-blue-50/50 border-b border-slate-100 last:border-0 transition-colors group odd:bg-white even:bg-slate-50/50">
@@ -83,7 +83,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
               <span className="text-[11px] font-medium text-slate-400 tracking-tighter uppercase leading-none mb-1">RADIO</span>
               <span className="text-[13px] font-medium text-slate-700 font-mono leading-none">{displayRadio}</span>
             </div>
-            {u.sector !== 'RESCATE' && type !== 'SERENO' && (
+            {u.sector !== 'RESCATE' && (
               <div className="flex flex-col items-end min-w-[70px] border-l border-slate-200 pl-6">
                 <span className="text-[11px] font-medium text-slate-400 tracking-tighter uppercase leading-none mb-1">CUADRANTE</span>
                 <span className="text-[13px] font-medium text-slate-900 leading-none">{displayQuadrant}</span>
