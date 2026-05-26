@@ -367,6 +367,17 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
               </div>
             )}
+            {isSereno && unit.sector !== 'RESCATE' && (
+              <div className="col-span-1">
+                <label className={labelStyleEdit}>Cuadrante</label>
+                <MultiSelectAutocomplete
+                  value={formData.quadrant || ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
+                  suggestions={activeQuadrantOptions}
+                  placeholder="Selec..."
+                />
+              </div>
+            )}
 
             <div className="col-span-2">
               <label className={labelStyleEdit}>Estado</label>
@@ -483,7 +494,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 <div className={infoValueStyle}>{unit.indicative || '--'}</div>
               </div>
             )}
-            {!isRescate && !isSereno && (
+            {!isRescate && (
               <div className="flex flex-col flex-1">
                 <label className={labelStyle}>Cuadrante</label>
                 <div className={infoValueStyle}>

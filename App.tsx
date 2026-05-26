@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const lastSavedRef = useRef<string>('');
+  const loadingIdRef = useRef(0);
 
   const [sectorSettingsMap, setSectorSettingsMap] = useState<Record<string, AppSettings>>({});
 
@@ -143,10 +144,12 @@ const App: React.FC = () => {
   };
 
   const loadData = (dateStr: string, shift: string, view?: string) => {
+    const loadId = ++loadingIdRef.current;
     setLoading(true);
     const needsFullData = view && view !== 'DASHBOARD';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       const successHandler = (data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] } | null) => {
+          if (loadId !== loadingIdRef.current) return;
           // Guard: GAS may return null if the payload is too large or an error occurs server-side
           if (!data) {
             console.warn('getShiftData/getSectorData returned null — no data for this date/shift or a server error occurred.');
@@ -268,6 +271,7 @@ const App: React.FC = () => {
         };
 
         const runner = google.script.run.withSuccessHandler(successHandler).withFailureHandler((err: any) => {
+          if (loadId !== loadingIdRef.current) return;
           console.error('Failed to get data', err);
           setUnits([]);
           setLoading(false);
@@ -280,6 +284,7 @@ const App: React.FC = () => {
         }
     } else {
       setTimeout(() => {
+        if (loadId !== loadingIdRef.current) return;
         setUnits([]);
         setLoading(false);
       }, 500);
