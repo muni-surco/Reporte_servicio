@@ -347,12 +347,8 @@ const App: React.FC = () => {
 
   const handleSectorChange = (sector: Sector) => {
     if (!isReadOnly) {
-      if (!settings.operador.trim() || !settings.supervisor.trim() || !settings.permanencia.trim()) {
-        return;
-      }
       persistData(settings, units);
     }
-    
     setCurrentSector(sector);
     const specificSettings = sectorSettingsMap[sector];
     if (specificSettings) {
