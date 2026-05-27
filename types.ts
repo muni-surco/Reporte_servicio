@@ -9,7 +9,7 @@ export enum UnitStatus {
   SIN_CONDUCTOR = 'SIN CONDUCTOR',
   SIN_DOCUMENTOS = 'SIN DOCUMENTOS',
   SIN_VEHICULO = 'SIN VEHICULO',
-  FIN_RETEN = 'FIN RETEN'
+  FIN_APOYO = 'FIN APOYO'
 }
 
 export type Sector =

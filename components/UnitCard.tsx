@@ -155,7 +155,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.SIN_CONDUCTOR,
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
-      UnitStatus.FIN_RETEN
+      UnitStatus.FIN_APOYO
     ];
     const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
     const isNoPersonnelStatus = [
@@ -164,7 +164,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.DESPERFECTOS,
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
-      UnitStatus.FIN_RETEN
+      UnitStatus.FIN_APOYO
     ].includes(formData.status?.toUpperCase());
 
     const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.DESPERFECTOS;
@@ -227,7 +227,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   ];
 
   const grayStatusPatterns = [
-    UnitStatus.FIN_RETEN,
+    UnitStatus.FIN_APOYO,
   ];
 
   const getBadgeClass = (status: string) => {
