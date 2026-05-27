@@ -530,15 +530,16 @@ export const generatePersonnelAbsenceReport = (
     const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
     const status = (u.status || '').toString().trim().toUpperCase();
 
-    if (absenceStatuses.includes(status)) {
+    const motivo = (u.motivoEstado || '').toString().trim().toUpperCase();
+    if (status === 'FALTO' && motivo === 'INASISTENCIA') {
       // Explicit absence: add to absent set and store sector/status
       names.forEach(name => {
         explicitAbsentInUnits.add(name);
         nameToSector.set(name, sector);
         nameToUnitStatus.set(name, status);
       });
-    } else {
-      // Only mark as present if NOT already marked as explicitly absent
+    } else if (status !== 'FALTO') {
+      // Only mark as present if NOT FALTO (FALTO with other motivo should not be counted)
       names.forEach(name => {
         if (!explicitAbsentInUnits.has(name)) {
           presentNames.add(name);
