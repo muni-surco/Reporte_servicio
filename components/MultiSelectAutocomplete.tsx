@@ -8,6 +8,7 @@ interface MultiSelectAutocompleteProps {
     suggestions: string[];
     className?: string;
     error?: boolean;
+    strict?: boolean;
 }
 
 const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
@@ -16,7 +17,8 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
     placeholder,
     suggestions,
     className = "",
-    error
+    error,
+    strict = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -67,7 +69,16 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
                 toggleValue(filtered[activeIndex]);
                 setActiveIndex(-1);
             } else if (searchTerm.trim()) {
-                toggleValue(searchTerm.trim());
+                if (strict) {
+                    const matchedSuggestion = suggestions.find(s =>
+                        String(s).toLowerCase() === searchTerm.trim().toLowerCase()
+                    );
+                    if (matchedSuggestion && !selectedValues.includes(matchedSuggestion)) {
+                        toggleValue(matchedSuggestion);
+                    }
+                } else {
+                    toggleValue(searchTerm.trim());
+                }
                 setActiveIndex(-1);
             }
         } else if (e.key === 'Escape') {
@@ -110,7 +121,10 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
                         if (containerRef.current && containerRef.current.contains(e.relatedTarget as Node)) {
                             return;
                         }
-                        setTimeout(() => setIsOpen(false), 200);
+                        setTimeout(() => {
+                            setIsOpen(false);
+                            setSearchTerm('');
+                        }, 200);
                     }}
                     placeholder={selectedValues.length === 0 ? placeholder : ""}
                     className="flex-1 min-w-[30px] bg-transparent border-none outline-none text-[11px]  text-slate-800 p-0 h-full"

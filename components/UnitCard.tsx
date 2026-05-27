@@ -368,6 +368,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   suggestions={activeQuadrantOptions}
                   placeholder="Selec..."
                   error={errors.quadrant}
+                  strict={true}
                 />
                 {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
               </div>
@@ -380,6 +381,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
                   suggestions={activeQuadrantOptions}
                   placeholder="Selec..."
+                  strict={true}
                 />
               </div>
             )}
