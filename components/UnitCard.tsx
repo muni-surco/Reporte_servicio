@@ -164,7 +164,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.DESPERFECTOS,
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
-      UnitStatus.FALTO,
       UnitStatus.FIN_RETEN
     ].includes(formData.status?.toUpperCase());
 
@@ -174,12 +173,17 @@ const UnitCard: React.FC<UnitCardProps> = ({
       isSereno ||
       (mobileData && mobileData.some(m => m.id === formData.id));
 
+    const statusKey = formData.status?.toUpperCase();
+    const hasMotivoOptions = !!(motivoStatusOptions && statusKey && motivoStatusOptions[statusKey]?.length);
+
     const newErrors: Record<string, boolean> = {
       id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: !isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === ''),
       radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
+      lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
+      motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
     };
 
     // If ID is provided even in special status, still check for duplicates
@@ -399,6 +403,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               ) : (
                 <input name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} className={inputStyle('lugarEstado')} placeholder="Lugar..." />
               )}
+              {errors.lugarEstado && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
             <div className="col-span-2">
@@ -416,6 +421,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 }
                 return <input name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} className={inputStyle('motivoEstado')} placeholder="Motivo..." />;
               })()}
+              {errors.motivoEstado && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
             {isSereno && (
