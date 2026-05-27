@@ -471,7 +471,7 @@ function getMobileData() {
   const movilIdx = headers.indexOf('movil');
   const placaIdx = headers.indexOf('placa');
   const radioIdx = headers.indexOf('radio');
-  const cuadranteIdx = headers.indexOf('cuadrante');
+  const cuadranteIdx = headers.indexOf('cuadrante_sector');
   const sectorIdx = headers.indexOf('sector');
   const indicativoIdx = headers.indexOf('indicativo');
   const estadoIdx = headers.indexOf('estado');
@@ -1177,7 +1177,7 @@ function getQuadrantList() {
   if (data.length < 2) return [];
 
   const headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
-  var idx = headers.indexOf('cuadrante');
+  var idx = headers.indexOf('cuadrante_sector');
   if (idx === -1) return [];
 
   var seen = {};
