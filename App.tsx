@@ -58,6 +58,7 @@ const App: React.FC = () => {
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
   const [personnelOptions, setPersonnelOptions] = useState<string[]>([]);
   const [operatorOptions, setOperatorOptions] = useState<string[]>([]);
+const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([]);
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
   const [motivoTallerOptions, setMotivoTallerOptions] = useState<string[]>([]);
   const [radioOptions, setRadioOptions] = useState<string[]>([]);
@@ -100,9 +101,10 @@ const App: React.FC = () => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
-          if (data.personnel) setPersonnelOptions(data.personnel);
-          if (data.operators) setOperatorOptions(data.operators);
-          if (data.quadrants) setQuadrantOptions(data.quadrants);
+           if (data.personnel) setPersonnelOptions(data.personnel);
+           if (data.operators) setOperatorOptions(data.operators);
+           if (data.reportOperators) setReportOperatorOptions(data.reportOperators);
+           if (data.quadrants) setQuadrantOptions(data.quadrants);
           if (data.motivoTallerOptions) setMotivoTallerOptions(data.motivoTallerOptions);
           if (data.radios) setRadioOptions(data.radios);
           if (data.lugarOptions) setLugarOptions(data.lugarOptions);
@@ -888,15 +890,15 @@ const App: React.FC = () => {
               settings={settings}
               mobileData={mobileData}
             />
-          ) : currentView === 'REPORTS' ? (
-            <ReportGeneratorView
-              selectedDate={selectedDate}
-              selectedShift={settings.turno}
-              onGenerateReport={handleGenerateReport}
-              isGenerating={isGeneratingStructuredReport}
-              operatorOptions={allOperatorNames}
-            />
-          ) : currentView === 'PERSONNEL' ? (
+           ) : currentView === 'REPORTS' ? (
+             <ReportGeneratorView
+               selectedDate={selectedDate}
+               selectedShift={settings.turno}
+               onGenerateReport={handleGenerateReport}
+               isGenerating={isGeneratingStructuredReport}
+               operatorOptions={reportOperatorOptions}
+             />
+           ) : currentView === 'PERSONNEL' ? (
             <PersonnelView
               data={personnelList}
               isLoading={loadingPersonnel}

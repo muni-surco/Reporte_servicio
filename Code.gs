@@ -572,6 +572,7 @@ function getMobileData() {
   // Fetch External Personnel Data
   const personnelSet = new Set();
   const operatorsSet = new Set();
+  const reportOperatorsSet = new Set();
   try {
     const extSS = getExternalPersonnelSpreadsheet();
     let extSheet = extSS.getSheetByName('Personal');
@@ -605,6 +606,11 @@ function getMobileData() {
           if (name && estado === 'ACTIVO' && operatorRoles.includes(funcion)) {
             operatorsSet.add(name);
           }
+          
+          // Operator list for reports (only OPERADOR C4)
+          if (name && estado === 'ACTIVO' && funcion === 'OPERADOR C4') {
+            reportOperatorsSet.add(name);
+          }
         }
       }
     }
@@ -618,6 +624,7 @@ function getMobileData() {
     statuses: Array.from(statusesSet).sort(),
     personnel: Array.from(personnelSet).sort(),
     operators: Array.from(operatorsSet).sort(),
+    reportOperators: Array.from(reportOperatorsSet).sort(),
     quadrants: Array.from(quadrantsSet).sort(),
     motivoTallerOptions: Array.from(motivoTallerSet).sort(),
     lugarOptions: Array.from(lugarSet).sort(),
