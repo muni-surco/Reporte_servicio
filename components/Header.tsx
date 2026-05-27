@@ -14,6 +14,7 @@ interface HeaderProps {
   settings: AppSettings;
   onSaveSettings: (newSettings: AppSettings) => void;
   onGlobalSave: (currentSettings: AppSettings) => void;
+  onHeaderSave: (currentSettings: AppSettings) => void;
   onGeneratePDF: () => void;
   onRefresh?: () => void;
   isSaving?: boolean;
@@ -32,6 +33,7 @@ const Header: React.FC<HeaderProps> = ({
   settings,
   onSaveSettings,
   onGlobalSave,
+  onHeaderSave,
   onGeneratePDF,
   onRefresh,
   isSaving,
@@ -265,6 +267,22 @@ const Header: React.FC<HeaderProps> = ({
                       )}
                       {fieldErrors.permanencia && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
+                    {!readOnly && (
+                      <button
+                        onClick={() => {
+                          if (!validateFields()) {
+                            setEditingField(null);
+                            return;
+                          }
+                          onHeaderSave(tempSettingsRef.current);
+                        }}
+                        disabled={isSaving || isRefreshing}
+                        title="Guardar"
+                        className="h-9 px-4 bg-primary hover:bg-primary-dark text-white rounded-xl font-medium text-[12px] uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all shrink-0 max-xl:hidden"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">save</span>
+                      </button>
+                    )}
                   </>
                 ) : null}
               </div>
@@ -310,23 +328,6 @@ const Header: React.FC<HeaderProps> = ({
                       >
                         <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>sync</span>
                         <span className="hidden xl:inline">SINCRONIZAR</span>
-                      </button>
-                    )}
-                    {!readOnly && (
-                      <button
-                        onClick={() => {
-                          if (!validateFields()) {
-                            setEditingField(null);
-                            return;
-                          }
-                          onGlobalSave(tempSettingsRef.current);
-                        }}
-                        disabled={isSaving || isRefreshing}
-                        title="Guardar"
-                        className={`${btnIconStyle} bg-primary hover:bg-primary-dark text-white xl:px-6 shadow-blue-100`}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">save</span>
-                        <span className="hidden xl:inline">{isSaving ? 'GUARDANDO...' : 'GUARDAR'}</span>
                       </button>
                     )}
                   </>

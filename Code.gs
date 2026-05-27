@@ -861,6 +861,53 @@ function saveShiftData(dateStr, shift, settings, units) {
 }
 
 /**
+ * Saves only header settings (operador, supervisor, permanencia) without modifying unit data.
+ */
+function saveShiftSettings(dateStr, shift, settings) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
+  if (!settingsSheet) {
+    return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.settings}.` };
+  }
+
+  const targetSector = toStorageSector(settings.nombrePuesto || '1A');
+  const timeZone = ss.getSpreadsheetTimeZone();
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+
+    const SETTINGS_SCAN = 5000;
+    const sLastRow = settingsSheet.getLastRow();
+    const sStart = Math.max(2, sLastRow - SETTINGS_SCAN + 1);
+    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(sStart, 1, sLastRow - sStart + 1, 6).getValues() : [];
+
+    let settingsFoundIdx = -1;
+    for (let i = 0; i < settingsRows.length; i++) {
+      const row = settingsRows[i];
+      if (!row[0]) continue;
+      try {
+        const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
+        if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
+          settingsFoundIdx = sStart + i;
+        }
+      } catch (e) {}
+    }
+
+    if (settingsFoundIdx > -1) {
+      settingsSheet.getRange(settingsFoundIdx, 1, 1, 6).setValues([[dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]]);
+    } else {
+      settingsSheet.appendRow([dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]);
+    }
+
+    lock.releaseLock();
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
  * Helper to determine the previous shift and date.
  */
 function getPreviousShift(dateStr, shift, timeZone) {

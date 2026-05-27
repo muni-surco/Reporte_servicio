@@ -596,6 +596,37 @@ const App: React.FC = () => {
     persistData(settingsToSave, units);
   };
 
+  const persistSettingsOnly = (newSettings: AppSettings) => {
+    setSaving(true);
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res: { success: boolean, error?: string }) => {
+          setSaving(false);
+          if (res.success) {
+            setSectorSettingsMap(prev => ({
+              ...prev,
+              [newSettings.nombrePuesto || 'SECTOR 1A']: newSettings
+            }));
+          } else {
+            console.error('GAS Save Settings Error:', res.error);
+            alert('Error al guardar configuración: ' + res.error);
+          }
+        })
+        .saveShiftSettings(selectedDate, newSettings.turno, newSettings);
+    } else {
+      setTimeout(() => setSaving(false), 300);
+    }
+  };
+
+  const handleHeaderSave = (currentSettings?: AppSettings) => {
+    if (isReadOnly) return;
+    const settingsToSave = currentSettings || settings;
+    if (!settingsToSave.operador.trim() || !settingsToSave.supervisor.trim() || !settingsToSave.permanencia.trim()) {
+      return;
+    }
+    persistSettingsOnly(settingsToSave);
+  };
+
   const motivoStatusOptions = useMemo(() => {
     const map: Record<string, string[]> = {};
     if (motivoFaltoOptions.length) map['FALTO'] = motivoFaltoOptions;
@@ -764,6 +795,7 @@ const App: React.FC = () => {
           settings={settings}
           onSaveSettings={handleSaveSettings}
           onGlobalSave={handleGlobalSave}
+          onHeaderSave={handleHeaderSave}
           onGeneratePDF={() => setCurrentView('REPORTS')}
           onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno, currentView)}
           isSaving={saving}
