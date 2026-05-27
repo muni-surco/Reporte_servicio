@@ -177,6 +177,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const hasMotivoOptions = !!(motivoStatusOptions && statusKey && motivoStatusOptions[statusKey]?.length);
 
     const newErrors: Record<string, boolean> = {
+      status: !formData.status || String(formData.status).trim() === '',
       id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: !isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === ''),
@@ -387,12 +388,13 @@ const UnitCard: React.FC<UnitCardProps> = ({
             )}
 
             <div className="col-span-1">
-              <label className={labelStyleEdit}>Estado</label>
-              <select name="status" value={formData.status} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
+              <label className={labelStyleEdit}>Estado <span className="text-red-500">*</span></label>
+              <select name="status" value={formData.status} onChange={(e) => { handleChange(e); setErrors(prev => ({ ...prev, status: false })); }} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
                 <option value="">--</option>
                 {formData.status && !activeStatusOptions.includes(formData.status) && <option value={formData.status}>{formData.status}</option>}
                 {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+              {errors.status && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
             <div className="col-span-1">

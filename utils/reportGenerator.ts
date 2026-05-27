@@ -9,7 +9,8 @@ export const generateMotoReport = (
   date: string,
   shift: string,
   modelFilter: string = 'XTZ150',
-  titleSuffix: string = 'YAMAHA XTZ150'
+  titleSuffix: string = 'YAMAHA XTZ150',
+  operatorName?: string
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'portrait',
@@ -208,7 +209,7 @@ export const generateMotoReport = (
 
   doc.setFont('helvetica', 'normal');
   doc.text(firstSectorSettings.supervisor || '______________________', margin + 40, footerY + 10, { align: 'center' });
-  doc.text(firstSectorSettings.operador || '______________________', pageWidth - margin - 40, footerY + 10, { align: 'center' });
+  doc.text(operatorName || firstSectorSettings.operador || '______________________', pageWidth - margin - 40, footerY + 10, { align: 'center' });
 
   // Timestamp
   const now = new Date();
@@ -223,7 +224,8 @@ export const generateVehicleReport = (
   units: UnitData[],
   settingsMap: Record<string, AppSettings>,
   date: string,
-  shift: string
+  shift: string,
+  operatorName?: string
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'portrait',
@@ -450,7 +452,7 @@ export const generateVehicleReport = (
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.text(`SUPERVISOR CCO: ${firstSectorSettings.supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
-  doc.text(`OPERADOR CCO: ${firstSectorSettings.operador || '--'}`, pageWidth - margin, footerY + 3, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${operatorName || firstSectorSettings.operador || '--'}`, pageWidth - margin, footerY + 3, { align: 'right' });
 
   // Timestamp
   const now = new Date();
@@ -466,7 +468,8 @@ export const generatePersonnelAbsenceReport = (
   units: UnitData[],
   personnel: PersonnelData[],
   date: string,
-  shift: string
+  shift: string,
+  operatorName?: string
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'portrait',
@@ -686,7 +689,11 @@ export const generatePersonnelAbsenceReport = (
     currentY = (doc as any).lastAutoTable.finalY + 8;
   });
 
-
+  // --- FOOTER ---
+  const footerY = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
 
   doc.save(`REPORTE_ASISTENCIA_REGIMEN_${shift}_${date}.pdf`);
 };
@@ -695,7 +702,8 @@ export const generatePersonnelAbsenceReport = (
 export const generateObservationsReport = (
   units: UnitData[],
   date: string,
-  shift: string
+  shift: string,
+  operatorName?: string
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'landscape',
@@ -769,6 +777,13 @@ export const generateObservationsReport = (
     margin: { left: margin, right: margin }
   });
 
+  // --- FOOTER ---
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const footerY = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
+
   doc.save(`REPORTE_OBSERVACIONES_${shift}_${date}.pdf`);
 };
 
@@ -776,7 +791,8 @@ export const generateAllRecordsReport = (
   units: UnitData[],
   settingsMap: Record<string, AppSettings>,
   date: string,
-  shift: string
+  shift: string,
+  operatorName?: string
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'landscape',
@@ -972,13 +988,22 @@ export const generateAllRecordsReport = (
     currentY += 4;
   });
 
+  // --- FOOTER ---
+  const firstSectorSettings = (Object.values(settingsMap)[0] || { operador: '' }) as any;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const footerY = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`OPERADOR CCO: ${operatorName || firstSectorSettings.operador || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
+
   doc.save(`REPORTE_GENERAL_${shift}_${date}.pdf`);
 };
 
 export const generateRetenReport = (
   replacements: any[],
   date: string,
-  shift: string
+  shift: string,
+  operatorName?: string
 ) => {
   if (!replacements || replacements.length === 0) {
     alert("No hay registros para generar el reporte.");
@@ -1029,6 +1054,13 @@ export const generateRetenReport = (
       8: { halign: 'left', cellWidth: 'auto' }
     }
   });
+
+  // --- FOOTER ---
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const footerY = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
 
   doc.save(`REPORTE_RETEN_${shift}_${date}.pdf`);
 };

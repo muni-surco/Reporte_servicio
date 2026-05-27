@@ -471,7 +471,8 @@ function getMobileData() {
   const movilIdx = headers.indexOf('movil');
   const placaIdx = headers.indexOf('placa');
   const radioIdx = headers.indexOf('radio');
-  const cuadranteIdx = headers.indexOf('cuadrante_sector');
+  // Buscar primero columna 'cuadrante'; si no existe, usar 'cuadrante_sector'
+  const cuadranteIdx = headers.indexOf('cuadrante') !== -1 ? headers.indexOf('cuadrante') : headers.indexOf('cuadrante_sector');
   const sectorIdx = headers.indexOf('sector');
   const indicativoIdx = headers.indexOf('indicativo');
   const estadoIdx = headers.indexOf('estado');
