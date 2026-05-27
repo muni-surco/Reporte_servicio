@@ -49,9 +49,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const activePersonnelOptions = personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES;
   const activeQuadrantOptions = quadrantOptions && quadrantOptions.length > 0 ? quadrantOptions : (mobileData ? Array.from(new Set(mobileData.map(d => d.quadrant).filter(q => q))) as string[] : []);
 
+  const formatKmStartForEdit = (value: string | undefined) => {
+    const trimmed = String(value ?? '').trim();
+    return trimmed !== '' && trimmed !== '0' ? trimmed : '';
+  };
+
   useEffect(() => {
     if (isEditing) {
-      setKmStart(String(unit.kmStart || '0'));
+      setKmStart(formatKmStartForEdit(unit.kmStart));
       setKmEnd(String(unit.kmEnd || '0'));
       setKmRecarga(String(unit.kmRecarga || '0'));
 
@@ -185,6 +190,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
+      kmStart: !isSereno && String(kmStart).trim() === '',
     };
 
     // If ID is provided even in special status, still check for duplicates
@@ -447,7 +453,20 @@ const UnitCard: React.FC<UnitCardProps> = ({
                     <label className={labelStyleEdit}>Placa</label>
                     <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
                   </div>
-                  <div><label className={labelStyleEdit}>KM INICIO</label><input type="number" value={kmStart} onChange={(e) => setKmStart(e.target.value)} className={inputStyle('kmStart')} /></div>
+                  <div>
+                    <label className={labelStyleEdit}>KM INICIO <span className="text-red-500">*</span></label>
+                    <input
+                      type="number"
+                      name="kmStart"
+                      value={kmStart}
+                      min={0}
+                      step="0.1"
+                      placeholder="Km inicio"
+                      onChange={(e) => { setKmStart(e.target.value); setErrors(prev => ({ ...prev, kmStart: false })); }}
+                      className={inputStyle('kmStart')}
+                    />
+                    {errors.kmStart && <span className={errorMsgStyle}>Requerido</span>}
+                  </div>
                   {!(isChofer || isMoto) && <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>}
                   {!(isChofer || isMoto) && <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[13px] font-medium text-blue-700 h-[32px] flex items-center justify-center">{kmDiff}</div></div>}
                 </div>
