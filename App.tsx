@@ -49,6 +49,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [visualizationSectorsData, setVisualizationSectorsData] = useState<Record<string, { units: UnitData[], settings: AppSettings }>>({});
   const lastSavedRef = useRef<string>('');
   const loadingIdRef = useRef(0);
 
@@ -169,7 +170,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           // Guard: GAS may return null if the payload is too large or an error occurs server-side
           if (!data) {
             console.warn('getShiftData/getSectorData returned null — no data for this date/shift or a server error occurred.');
-            setUnits([]);
+            if (view !== 'VISUALIZATION') setUnits([]);
             setLoading(false);
             return;
           }
@@ -264,6 +265,72 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           });
 
           const allUnitsToUse = Array.from(finalUnitsMap.values());
+
+          if (view === 'VISUALIZATION') {
+            // Build visualization data without touching units state (preserves pending queue saves)
+            const updatedSettings = data.allSectorSettings || sectorSettingsMap;
+            const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
+
+            SECTORS.forEach(s => {
+              const sectorSpecificSettings = updatedSettings[s] || {
+                ...settings,
+                nombrePuesto: s,
+                operador: '',
+                supervisor: '',
+                permanencia: ''
+              };
+              let sectorUnits = allUnitsToUse.filter(u => u.sector === s);
+              const defaults = mobileData.filter(m => m.sector === s);
+
+              if (sectorUnits.length === 0) {
+                sectorUnits = defaults.map(d => ({
+                  id: d.id,
+                  unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}`,
+                  type: d.type as any,
+                  sector: s,
+                  plate: d.plate,
+                  quadrant: d.quadrant,
+                  status: UnitStatus.PATRULLANDO,
+                  kmStart: '0', kmEnd: '0', totalKm: '0', kmRecarga: '0',
+                  fuel: '-- / --', expense: 'S/ 0.00',
+                  personnel1: '', personnel2: '', indicative: '',
+                  radio: d.radio || '', reason: '', mechanics: '',
+                  hours: '--:-- - --:--'
+                }));
+              } else {
+                const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
+                typesToLoad.forEach(type => {
+                  if (!sectorUnits.some(u => u.type === type)) {
+                    const typeDefaults = defaults
+                      .filter(d => d.type === type)
+                      .map(d => ({
+                        id: d.id,
+                        unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}`,
+                        type: d.type as any,
+                        sector: s,
+                        plate: d.plate,
+                        quadrant: d.quadrant,
+                        status: '',
+                        kmStart: '0', kmEnd: '0', totalKm: '0', kmRecarga: '0',
+                        fuel: '-- / --', expense: 'S/ 0.00',
+                        personnel1: '', personnel2: '', indicative: '',
+                        radio: d.radio || '', reason: '', mechanics: '',
+                        hours: '--:-- - --:--'
+                      }));
+                    sectorUnits = [...sectorUnits, ...typeDefaults];
+                  }
+                });
+              }
+              visData[s] = { units: sectorUnits, settings: sectorSpecificSettings };
+            });
+
+            setVisualizationSectorsData(visData);
+            if (data.allSectorSettings) setSectorSettingsMap(data.allSectorSettings);
+            setSettings({ ...settings, ...data.settings, turno: shift });
+            setLoading(false);
+            return;
+          }
+
           setUnits(allUnitsToUse);
 
           if (data.allSectorSettings) {
@@ -293,7 +360,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         const runner = google.script.run.withSuccessHandler(successHandler).withFailureHandler((err: any) => {
           if (loadId !== loadingIdRef.current) return;
           console.error('Failed to get data', err);
-          setUnits([]);
+          if (view !== 'VISUALIZATION') setUnits([]);
           setLoading(false);
         });
 
@@ -305,7 +372,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     } else {
       setTimeout(() => {
         if (loadId !== loadingIdRef.current) return;
-        setUnits([]);
+        if (view !== 'VISUALIZATION') setUnits([]);
         setLoading(false);
       }, 500);
     }
@@ -886,7 +953,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             </>
           ) : currentView === 'VISUALIZATION' ? (
             <VisualizationView
-              allSectorsData={allSectorsData}
+              allSectorsData={Object.keys(visualizationSectorsData).length > 0 ? visualizationSectorsData : allSectorsData}
               settings={settings}
               mobileData={mobileData}
             />
