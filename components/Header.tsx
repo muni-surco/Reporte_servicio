@@ -324,7 +324,7 @@ const Header: React.FC<HeaderProps> = ({
                         onClick={handleRefreshClick}
                         disabled={isRefreshing || isSaving}
                         title="Sincronizar"
-                        className={`${btnIconStyle} bg-slate-50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary border border-transparent max-[1399px]:hidden`}
+                        className={`${btnIconStyle} hidden bg-slate-50 text-slate-400 hover:text-primary hover:bg-white hover:border-primary border border-transparent max-[1399px]:hidden`}
                       >
                         <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>sync</span>
                         <span className="hidden xl:inline">SINCRONIZAR</span>
