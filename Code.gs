@@ -807,7 +807,7 @@ function saveShiftData(dateStr, shift, settings, units) {
     sectorUnits.forEach((unit) => {
       let unit_id = unit.unit_id || '';
       if (!unit_id || unit_id === 'undefined') {
-        unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+        unit_id = 'UID-' + Utilities.getUuid().replace(/-/g, '').substring(0, 12).toUpperCase();
       }
 
       const unitRow = [
@@ -1036,7 +1036,7 @@ function updateUnit(dateStr, shift, settings, unit) {
 
     let unit_id = unit.unit_id || '';
     if (!unit_id || unit_id === 'undefined') {
-      unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+      unit_id = 'UID-' + Utilities.getUuid().replace(/-/g, '').substring(0, 12).toUpperCase();
     }
 
     const unitRow = [

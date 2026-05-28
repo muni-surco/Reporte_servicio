@@ -21,6 +21,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   const [localDate, setLocalDate] = useState(selectedDate);
   const [localShift, setLocalShift] = useState(selectedShift);
   const [localOperator, setLocalOperator] = useState<string>('');
+  const [operatorError, setOperatorError] = useState<string>('');
 
   const reportTypes = [
     {
@@ -92,12 +93,20 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   ];
 
   const handleGenerate = (id: string) => {
+    if (!localOperator || localOperator.trim() === '') {
+      setOperatorError('Debe seleccionar un operador para generar el reporte.');
+      return;
+    }
+    setOperatorError('');
     setActiveReport(id);
-    onGenerateReport(id, localDate, localShift, localOperator || undefined);
+    onGenerateReport(id, localDate, localShift, localOperator);
   };
 
   const handleOperatorChange = (value: string) => {
     setLocalOperator(value);
+    if (value && value.trim() !== '') {
+      setOperatorError('');
+    }
   };
 
   return (
@@ -148,7 +157,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
           </div>
 
           <div className="flex flex-col">
-            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest ml-1 mb-1">OPERADOR</span>
+            <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest ml-1 mb-1">OPERADOR <span className="text-red-500">*</span></span>
             <div className="relative group flex items-center">
               <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none z-10" />
               <div className="pl-10 w-[350px]">
@@ -158,7 +167,13 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                   suggestions={operatorOptions}
                   placeholder="SELECCIONE OPERADOR"
                   className="h-10 bg-white border-slate-200 rounded-xl text-sm font-medium shadow-sm"
+                  error={!!operatorError}
                 />
+                {operatorError && (
+                  <div className="mt-1 pl-10">
+                    <p className="text-[10px] text-red-500 font-medium">{operatorError}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

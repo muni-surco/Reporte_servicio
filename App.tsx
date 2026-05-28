@@ -28,7 +28,9 @@ const getAutoTurno = () => {
 };
 
 const generateUUID = () => {
-  return 'UID-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+  const ts = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).substring(2, 10).toUpperCase();
+  return 'UID-' + ts + rand;
 };
 
 const App: React.FC = () => {
@@ -98,7 +100,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[] }) => {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], reportOperators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[] }) => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
@@ -229,40 +231,47 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             }
           });
 
-          // 4. Inject Missing Defaults (Only for current sector to keep dashboard populated)
+          // 4. Inject Missing Defaults (Only when NO data exists for this sector+shift)
           const currentSectorNormalized = currentSector.trim().toUpperCase();
-          const defaults = mobileData.filter(m => (m.sector || '').trim().toUpperCase() === currentSectorNormalized);
-          defaults.forEach(d => {
-            const displayId = d.id.toUpperCase();
-            const uniqueKey = `${currentSectorNormalized}_${displayId}`;
-            if (!finalUnitsMap.has(uniqueKey)) {
-              finalUnitsMap.set(uniqueKey, {
-                id: d.id,
-                unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${d.id}`,
-                type: d.type as any,
-                sector: currentSector,
-                plate: d.plate,
-                quadrant: d.quadrant,
-                status: '',
-                kmStart: '0',
-                kmEnd: '0',
-                totalKm: '0',
-                kmRecarga: '0',
-                fuel: '-- / --',
-                expense: 'S/ 0.00',
-                personnel1: '',
-                personnel2: '',
-                indicative: '',
-                radio: d.radio || '',
-                reason: '',
-                mechanics: '',
-                hours: '--:-- - --:--',
-                model: d.model || '',
-                lugarEstado: '',
-                motivoEstado: ''
-              });
-            }
+          const currentSectorStorage = currentSectorNormalized.replace(/^SECTOR\s+/, '');
+          const hasDataForShift = rawIncomingUnits.some(u => {
+            const uSector = (u.sector || '').trim().toUpperCase();
+            return uSector === currentSectorNormalized || uSector === currentSectorStorage;
           });
+          if (!hasDataForShift) {
+            const defaults = mobileData.filter(m => (m.sector || '').trim().toUpperCase() === currentSectorNormalized);
+            defaults.forEach(d => {
+              const displayId = d.id.toUpperCase();
+              const uniqueKey = `${currentSectorStorage}_${displayId}`;
+              if (!finalUnitsMap.has(uniqueKey)) {
+                finalUnitsMap.set(uniqueKey, {
+                  id: d.id,
+                  unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${d.id}`,
+                  type: d.type as any,
+                  sector: currentSector,
+                  plate: d.plate,
+                  quadrant: d.quadrant,
+                  status: '',
+                  kmStart: '0',
+                  kmEnd: '0',
+                  totalKm: '0',
+                  kmRecarga: '0',
+                  fuel: '-- / --',
+                  expense: 'S/ 0.00',
+                  personnel1: '',
+                  personnel2: '',
+                  indicative: '',
+                  radio: d.radio || '',
+                  reason: '',
+                  mechanics: '',
+                  hours: '--:-- - --:--',
+                  model: d.model || '',
+                  lugarEstado: '',
+                  motivoEstado: ''
+                });
+              }
+            });
+          }
 
           const allUnitsToUse = Array.from(finalUnitsMap.values());
 
@@ -382,6 +391,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     // Filtrar solo unidades del sector actual (reduce payload y tiempo de proceso)
     const sectorUnits = newUnits.filter(u => !u.sector || u.sector === currentSector);
     const validUnits = sectorUnits.filter(u => {
+      // No guardar unidades default (DEF-) que nunca fueron editadas (sin nombre ni estado)
+      if (u.unit_id && u.unit_id.startsWith('DEF-') && (!u.personnel1 || String(u.personnel1).trim() === '') && (!u.status || String(u.status).trim() === '')) return false;
+
       // Si ya tiene un unit_id del servidor, es un registro existente que debemos mantener
       if (u.unit_id && u.unit_id !== 'undefined' && u.unit_id.trim() !== '') return true;
       
@@ -795,21 +807,28 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     google.script.run
       .withSuccessHandler((data: any) => {
         setIsGeneratingStructuredReport(false);
+        // Only remove true duplicates (same unit_id)
+        const cleanUnitsMap = new Map<string, UnitData>();
+        (data.units || []).forEach(u => {
+          const key = u.unit_id || `NOID-${Math.random()}`;
+          cleanUnitsMap.set(key, u);
+        });
+        const cleanUnits = Array.from(cleanUnitsMap.values());
         if (type === 'motos') {
-          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
+          generateMotoReport(cleanUnits, data.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
         } else if (type === 'motos_honda') {
-          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
+          generateMotoReport(cleanUnits, data.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
         } else if (type === 'moviles') {
-          generateVehicleReport(data.units, data.allSectorSettings || {}, date, shift, operatorName);
+          generateVehicleReport(cleanUnits, data.allSectorSettings || {}, date, shift, operatorName);
         } else if (type === 'asistencia_regimen') {
           if (personnelList.length > 0) {
-            generatePersonnelAbsenceReport(data.units, personnelList, date, shift, operatorName);
+            generatePersonnelAbsenceReport(cleanUnits, personnelList, date, shift, operatorName);
           } else {
             setIsGeneratingStructuredReport(true);
             google.script.run
               .withSuccessHandler((loadedPersonnel: PersonnelData[]) => {
                 setPersonnelList(loadedPersonnel);
-                generatePersonnelAbsenceReport(data.units, loadedPersonnel, date, shift, operatorName);
+                generatePersonnelAbsenceReport(cleanUnits, loadedPersonnel, date, shift, operatorName);
                 setIsGeneratingStructuredReport(false);
               })
               .withFailureHandler((err: any) => {
@@ -819,9 +838,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               .getPersonnelList();
           }
          } else if (type === 'observaciones') {
-          generateObservationsReport(data.units, date, shift, operatorName);
+          generateObservationsReport(cleanUnits, date, shift, operatorName);
         } else if (type === 'general') {
-          generateAllRecordsReport(data.units, data.allSectorSettings || {}, date, shift, operatorName);
+          generateAllRecordsReport(cleanUnits, data.allSectorSettings || {}, date, shift, operatorName);
         } else {
           alert(`El reporte de "${type}" se encuentra en desarrollo.`);
         }

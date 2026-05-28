@@ -1,5 +1,6 @@
 // We use the global jspdf and jspdf-autotable from the CDN in index.html
 declare const jspdf: any;
+declare const XLSX: any;
 
 import { UnitData, AppSettings, Sector, PersonnelData } from '../types';
 
@@ -209,7 +210,7 @@ export const generateMotoReport = (
 
   doc.setFont('helvetica', 'normal');
   doc.text(firstSectorSettings.supervisor || '______________________', margin + 40, footerY + 10, { align: 'center' });
-  doc.text(operatorName || firstSectorSettings.operador || '______________________', pageWidth - margin - 40, footerY + 10, { align: 'center' });
+  doc.text(operatorName || '______________________', pageWidth - margin - 40, footerY + 10, { align: 'center' });
 
   // Timestamp
   const now = new Date();
@@ -452,7 +453,7 @@ export const generateVehicleReport = (
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.text(`SUPERVISOR CCO: ${firstSectorSettings.supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
-  doc.text(`OPERADOR CCO: ${operatorName || firstSectorSettings.operador || '--'}`, pageWidth - margin, footerY + 3, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${operatorName || '--'}`, pageWidth - margin, footerY + 3, { align: 'right' });
 
   // Timestamp
   const now = new Date();
@@ -576,7 +577,7 @@ export const generatePersonnelAbsenceReport = (
         regimen_laboral: 'OS', // Default to ORDEN DE SERVICIO
         rol_operativo: '--',
         estado: nameToUnitStatus.get(name) || 'FALTO',
-        n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: ''
+        n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: '', foto_url: ''
       });
     }
   });
@@ -1004,7 +1005,7 @@ export const generateAllRecordsReport = (
   const footerY = pageHeight - 15;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text(`OPERADOR CCO: ${operatorName || firstSectorSettings.operador || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
 
   const now = new Date();
   doc.setFontSize(7);
