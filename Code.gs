@@ -77,7 +77,7 @@ function initialSetup() {
     'FECHA', 'TURNO', 'SECTOR', 'ID', 'TIPO', 'MODELO', 'PERSONAL_1', 'PERSONAL_2', 
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
     'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID',
-    'LUGAR_ESTADO', 'MOTIVO_ESTADO'
+    'LUGAR_ESTADO', 'MOTIVO_ESTADO', 'AUDIT_LOG'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -799,6 +799,10 @@ function saveShiftData(dateStr, shift, settings, units) {
       }
     }
 
+    const email = Session.getActiveUser().getEmail();
+    const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
+    const auditLog = email ? (email + ' @ ' + timestamp) : timestamp;
+
     const unitUpdates = [];
     const rowsToAppend = [];
     const sectorUnits = units.filter(u => toStorageSector(u.sector) === targetSector);
@@ -816,7 +820,8 @@ function saveShiftData(dateStr, shift, settings, units) {
         unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
         unit_id, // Column 24
         unit.lugarEstado || '', // Column 25
-        unit.motivoEstado || ''  // Column 26
+        unit.motivoEstado || '',  // Column 26
+        auditLog // Column 27
       ];
 
       const existingRowIdx = unitIdToRowMap.get(unit_id);
@@ -847,12 +852,12 @@ function saveShiftData(dateStr, shift, settings, units) {
         if (sorted[i].rowIndex === batchStart + batchValues.length) {
           batchValues.push(sorted[i].values);
         } else {
-          dataSheet.getRange(batchStart, 1, batchValues.length, 26).setValues(batchValues);
+          dataSheet.getRange(batchStart, 1, batchValues.length, 27).setValues(batchValues);
           batchStart = sorted[i].rowIndex;
           batchValues = [sorted[i].values];
         }
       }
-      dataSheet.getRange(batchStart, 1, batchValues.length, 26).setValues(batchValues);
+      dataSheet.getRange(batchStart, 1, batchValues.length, 27).setValues(batchValues);
     }
 
     if (rowsToAppend.length > 0) {
@@ -1034,9 +1039,20 @@ function updateUnit(dateStr, shift, settings, unit) {
   try {
     lock.waitLock(30000);
 
+    const email = Session.getActiveUser().getEmail();
+    const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
+    const auditLog = email ? (email + ' @ ' + timestamp) : timestamp;
+
     let unit_id = unit.unit_id || '';
-    if (!unit_id || unit_id === 'undefined') {
-      unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
+    if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('UID-') || !unit_id.includes(shift)) {
+      const cleanDate = dateStr.replace(/-/g, '');
+      const cleanId = String(unit.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      const cleanSector = String(targetSector || '').trim().toUpperCase();
+      if (cleanId) {
+        unit_id = cleanDate + '_' + shift + '_' + cleanSector + '_' + cleanId;
+      } else if (!unit_id || unit_id === 'undefined') {
+        unit_id = 'UID-' + cleanDate + '-' + Utilities.getUuid().substring(0, 5).toUpperCase();
+      }
     }
 
     const unitRow = [
@@ -1045,7 +1061,8 @@ function updateUnit(dateStr, shift, settings, unit) {
       unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
       unit_id,
       unit.lugarEstado || '',
-      unit.motivoEstado || ''
+      unit.motivoEstado || '',
+      auditLog
     ];
 
     const lastRow = dataSheet.getLastRow();
@@ -1089,7 +1106,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     }
 
     if (foundRow > -1) {
-      dataSheet.getRange(foundRow, 1, 1, 26).setValues([unitRow]);
+      dataSheet.getRange(foundRow, 1, 1, 27).setValues([unitRow]);
       return { success: true, unit_id: unit_id, created: false };
     } else {
       dataSheet.appendRow(unitRow);

@@ -27,8 +27,18 @@ const getAutoTurno = () => {
   return 'NOCHE';
 };
 
-const generateUUID = () => {
-  return 'UID-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+const generateUnitId = (type: string, id?: string, sector?: string) => {
+  const cleanId = String(id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  const cleanSector = String(sector || '').replace(/^SECTOR\s+/, '').trim().toUpperCase();
+  const cleanType = String(type || 'UNIT').trim().toUpperCase();
+
+  if (!cleanId) {
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `TEMP-${cleanType}-${ts}${rand}`;
+  }
+
+  return `${cleanType}_${cleanId}_${cleanSector}`;
 };
 
 const App: React.FC = () => {
@@ -733,7 +743,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       plate: '',
       indicative: '',
       radio: '',
-      status: '',
+      status: '' as any,
       reason: '',
       km: '0 / 0 / 0',
       kmStart: '0',
@@ -747,7 +757,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       mechanics: '',
       lugarEstado: '',
       motivoEstado: '',
-      unit_id: generateUUID()
+      unit_id: generateUnitId('', currentSector, selectedDate, settings.turno)
     };
     // Prepend the new unit to the list so it appears at the top of its section
     setUnits(prev => [newUnit, ...prev]);
