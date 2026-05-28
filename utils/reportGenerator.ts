@@ -695,6 +695,11 @@ export const generatePersonnelAbsenceReport = (
   doc.setFont('helvetica', 'bold');
   doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
 
+  const now = new Date();
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+
   doc.save(`REPORTE_ASISTENCIA_REGIMEN_${shift}_${date}.pdf`);
 };
 
@@ -783,6 +788,11 @@ export const generateObservationsReport = (
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
+
+  const now = new Date();
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
 
   doc.save(`REPORTE_OBSERVACIONES_${shift}_${date}.pdf`);
 };
@@ -996,6 +1006,11 @@ export const generateAllRecordsReport = (
   doc.setFont('helvetica', 'bold');
   doc.text(`OPERADOR CCO: ${operatorName || firstSectorSettings.operador || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
 
+  const now = new Date();
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+
   doc.save(`REPORTE_GENERAL_${shift}_${date}.pdf`);
 };
 
@@ -1062,6 +1077,11 @@ export const generateRetenReport = (
   doc.setFont('helvetica', 'bold');
   doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
 
+  const now = new Date();
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+
   doc.save(`REPORTE_RETEN_${shift}_${date}.pdf`);
 };
 
@@ -1098,6 +1118,9 @@ export const generateRetenExcel = (
   }));
 
   const worksheet = xlsxLib.utils.json_to_sheet(data);
+  const now = new Date();
+  xlsxLib.utils.sheet_add_aoa(worksheet, [['']], { origin: -1 });
+  xlsxLib.utils.sheet_add_aoa(worksheet, [[`Generado el: ${now.toLocaleString()}`]], { origin: -1 });
   const workbook = xlsxLib.utils.book_new();
   xlsxLib.utils.book_append_sheet(workbook, worksheet, "Relevos Retén");
 
