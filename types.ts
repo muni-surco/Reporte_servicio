@@ -86,6 +86,7 @@ export interface UnitData {
   mechanics: string;
   lugarEstado?: string;
   motivoEstado?: string;
+  auditLog?: string;
 }
 
 export interface AppSettings {

@@ -77,7 +77,7 @@ function initialSetup() {
     'FECHA', 'TURNO', 'SECTOR', 'ID', 'TIPO', 'MODELO', 'PERSONAL_1', 'PERSONAL_2', 
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
     'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID',
-    'LUGAR_ESTADO', 'MOTIVO_ESTADO'
+    'LUGAR_ESTADO', 'MOTIVO_ESTADO', 'AUDIT_LOG'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -182,7 +182,7 @@ function getShiftData(dateStr, shift, sector) {
     if (dataSheet) {
       const dataLastRow = dataSheet.getLastRow();
       const dataRowsFull = dataLastRow > 1
-        ? dataSheet.getRange(2, 1, dataLastRow - 1, 26).getValues()
+        ? dataSheet.getRange(2, 1, dataLastRow - 1, 27).getValues()
         : [];
 
       for (let i = 0; i < dataRowsFull.length; i++) {
@@ -216,7 +216,8 @@ function getShiftData(dateStr, shift, sector) {
               quadrant: cellToStr(fullRow[21], timeZone),
               mechanics: String(fullRow[22] || ''),
               lugarEstado: String(fullRow[24] || ''),
-              motivoEstado: String(fullRow[25] || '')
+              motivoEstado: String(fullRow[25] || ''),
+              auditLog: String(fullRow[26] || '')
             });
           }
         } catch (e) {
@@ -294,7 +295,7 @@ function getSectorData(dateStr, shift, sector) {
     if (dataSheet) {
       const dataLastRow = dataSheet.getLastRow();
       const dataRowsFull = dataLastRow > 1
-        ? dataSheet.getRange(2, 1, dataLastRow - 1, 26).getValues()
+        ? dataSheet.getRange(2, 1, dataLastRow - 1, 27).getValues()
         : [];
 
       for (let i = 0; i < dataRowsFull.length; i++) {
@@ -326,7 +327,8 @@ function getSectorData(dateStr, shift, sector) {
               quadrant: cellToStr(fullRow[21], timeZone),
               mechanics: String(fullRow[22] || ''),
               lugarEstado: String(fullRow[24] || ''),
-              motivoEstado: String(fullRow[25] || '')
+              motivoEstado: String(fullRow[25] || ''),
+              auditLog: String(fullRow[26] || '')
             });
           }
         } catch (e) { continue; }
@@ -733,6 +735,7 @@ function saveShiftData(dateStr, shift, settings, units) {
   const unitsTargetSector = units.reduce((acc, u) => u && u.sector ? toStorageSector(u.sector) : acc, '');
   const targetSector = unitsTargetSector || toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
+  const auditLogVal = getAuditLogValue(timeZone);
   const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
 
   // Acquire lock FIRST for consistency (reads + writes inside lock)
@@ -816,7 +819,8 @@ function saveShiftData(dateStr, shift, settings, units) {
         unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
         unit_id, // Column 24
         unit.lugarEstado || '', // Column 25
-        unit.motivoEstado || ''  // Column 26
+        unit.motivoEstado || '',  // Column 26
+        auditLogVal // Column 27
       ];
 
       const existingRowIdx = unitIdToRowMap.get(unit_id);
@@ -847,12 +851,12 @@ function saveShiftData(dateStr, shift, settings, units) {
         if (sorted[i].rowIndex === batchStart + batchValues.length) {
           batchValues.push(sorted[i].values);
         } else {
-          dataSheet.getRange(batchStart, 1, batchValues.length, 26).setValues(batchValues);
+          dataSheet.getRange(batchStart, 1, batchValues.length, 27).setValues(batchValues);
           batchStart = sorted[i].rowIndex;
           batchValues = [sorted[i].values];
         }
       }
-      dataSheet.getRange(batchStart, 1, batchValues.length, 26).setValues(batchValues);
+      dataSheet.getRange(batchStart, 1, batchValues.length, 27).setValues(batchValues);
     }
 
     if (rowsToAppend.length > 0) {
@@ -1034,6 +1038,8 @@ function updateUnit(dateStr, shift, settings, unit) {
   try {
     lock.waitLock(30000);
 
+    const auditLogVal = getAuditLogValue(timeZone);
+
     let unit_id = unit.unit_id || '';
     if (!unit_id || unit_id === 'undefined') {
       unit_id = 'UID-' + Utilities.getUuid().replace(/-/g, '').substring(0, 12).toUpperCase();
@@ -1045,7 +1051,8 @@ function updateUnit(dateStr, shift, settings, unit) {
       unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
       unit_id,
       unit.lugarEstado || '',
-      unit.motivoEstado || ''
+      unit.motivoEstado || '',
+      auditLogVal
     ];
 
     const lastRow = dataSheet.getLastRow();
@@ -1089,7 +1096,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     }
 
     if (foundRow > -1) {
-      dataSheet.getRange(foundRow, 1, 1, 26).setValues([unitRow]);
+      dataSheet.getRange(foundRow, 1, 1, 27).setValues([unitRow]);
       return { success: true, unit_id: unit_id, created: false };
     } else {
       dataSheet.appendRow(unitRow);
@@ -1262,4 +1269,23 @@ function doGet() {
  */
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+/**
+ * Returns the audit log value: user email - timestamp
+ */
+function getAuditLogValue(timeZone) {
+  let userEmail = '';
+  try {
+    userEmail = Session.getActiveUser().getEmail();
+  } catch (e) {}
+  if (!userEmail) {
+    try {
+      userEmail = Session.getEffectiveUser().getEmail();
+    } catch (e) {}
+  }
+  if (!userEmail) userEmail = 'unknown';
+  
+  const timestamp = Utilities.formatDate(new Date(), timeZone || 'America/Lima', 'yyyy-MM-dd HH:mm:ss');
+  return `${userEmail} - ${timestamp}`;
 }
