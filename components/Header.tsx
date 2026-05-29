@@ -134,15 +134,18 @@ const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center">
               <div className="flex flex-col min-w-0">
                 {isDashboard ? (
-                  <div className="relative group/sector flex items-center max-w-[200px] md:max-w-none">
-                    <select
-                      value={currentSector}
-                      onChange={(e) => onSectorChange(e.target.value as Sector)}
-                      className="appearance-none bg-transparent text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none pr-8 focus:outline-none cursor-pointer hover:text-primary transition-colors truncate"
-                    >
-                      {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-2xl md:text-3xl text-[#002d5a] pointer-events-none group-hover/sector:scale-110 transition-transform">expand_more</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[14px] font-bold text-slate-400 uppercase tracking-widest shrink-0">SECTOR</span>
+                    <div className="relative group/sector flex items-center max-w-[200px] md:max-w-none">
+                      <select
+                        value={currentSector}
+                        onChange={(e) => onSectorChange(e.target.value as Sector)}
+                        className="appearance-none bg-transparent text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none pr-8 focus:outline-none cursor-pointer hover:text-primary transition-colors truncate"
+                      >
+                        {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-2xl md:text-3xl text-[#002d5a] pointer-events-none group-hover/sector:scale-110 transition-transform">expand_more</span>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-baseline gap-3">
