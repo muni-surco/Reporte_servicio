@@ -776,6 +776,9 @@ function saveShiftData(dateStr, shift, settings, units) {
     const KM_START_IDX = 13;   // Col N (14) in 1-based → index 13 in 0-based 15-col array
     const KM_END_IDX = 14;     // Col O (15)
 
+    const shiftOrderVal = { 'MAÑANA': 0, 'TARDE': 1, 'NOCHE': 2 };
+    const currentShiftVal = shiftOrderVal[shift] !== undefined ? shiftOrderVal[shift] : -1;
+
     for (let i = 0; i < unitKMData.length; i++) {
       const row = unitKMData[i];
       const absIdx = i + 2;
@@ -785,12 +788,18 @@ function saveShiftData(dateStr, shift, settings, units) {
         rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
         rowShift = String(row[1]);
       } catch (e) { continue; }
+      
       if (rowDate === dateStr && rowShift === shift && toStorageSector(row[2]) === targetSectorStr) {
         const unit_id = String(unitIdCol[i][0] || '').trim();
         if (unit_id) unitIdToRowMap.set(unit_id, absIdx);
       }
-      // KM bridge: prev shift sin filtrar por sector (la unidad pudo cambiar de sector)
-      if (rowDate === prevShiftInfo.date && rowShift === prevShiftInfo.shift) {
+
+      // KM bridge: Buscar el registro más reciente antes del actual EN EL MISMO SECTOR
+      const rowShiftVal = shiftOrderVal[rowShift] !== undefined ? shiftOrderVal[rowShift] : -1;
+      const isBefore = (rowDate < dateStr) || (rowDate === dateStr && rowShiftVal < currentShiftVal);
+      const rowSector = String(toStorageSector(row[2])).trim();
+      
+      if (isBefore && rowSector === targetSectorStr) {
         const displayId = String(row[3] || '').trim().toUpperCase();
         if (displayId) prevShiftRecords.set(displayId, {
           rowIndex: absIdx,
@@ -1107,6 +1116,36 @@ function updateUnit(dateStr, shift, settings, unit) {
 
     if (foundRow > -1) {
       dataSheet.getRange(foundRow, 1, 1, 27).setValues([unitRow]);
+      
+      // KM_FIN bridge para updateUnit
+      if (unit.id && unit.kmStart && unit.kmStart !== '0' && unit.kmStart !== 'undefined') {
+        const searchId = String(unit.id).trim().toUpperCase();
+        const shiftOrderVal = { 'MAÑANA': 0, 'TARDE': 1, 'NOCHE': 2 };
+        const currentShiftVal = shiftOrderVal[shift] !== undefined ? shiftOrderVal[shift] : -1;
+        
+        // Buscar el registro más reciente antes del actual
+        for (let i = dateShiftData.length - 1; i >= 0; i--) {
+          const rowDate = (dateShiftData[i][0] instanceof Date) ? Utilities.formatDate(dateShiftData[i][0], timeZone, 'yyyy-MM-dd') : String(dateShiftData[i][0]);
+          const rowShift = String(dateShiftData[i][1]);
+          const rowShiftVal = shiftOrderVal[rowShift] !== undefined ? shiftOrderVal[rowShift] : -1;
+          
+          const isBefore = (rowDate < dateStr) || (rowDate === dateStr && rowShiftVal < currentShiftVal);
+          const rowSector = String(toStorageSector(sectorData[i][0])).trim();
+          
+          if (isBefore && String(idDisplayData[i][0]).trim().toUpperCase() === searchId && rowSector === targetSectorStr) {
+            const prevRowIdx = i + 2;
+            const prevKmStart = String(dataSheet.getRange(prevRowIdx, 14).getValue() || '0');
+            
+            const newKmEnd = parseFloat(unit.kmStart) || 0;
+            const origKmStart = parseFloat(prevKmStart) || 0;
+            const newTotal = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
+            
+            dataSheet.getRange(prevRowIdx, 15, 1, 2).setValues([[unit.kmStart, newTotal]]);
+            break; // Solo actualizar el más reciente
+          }
+        }
+      }
+
       return { success: true, unit_id: unit_id, created: false };
     } else {
       dataSheet.appendRow(unitRow);
