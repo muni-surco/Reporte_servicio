@@ -147,17 +147,26 @@ export const generateMotoReport = (
 
   let finalY = (doc as any).lastAutoTable.finalY + 8;
 
-  // --- PERMANENCIA / JEFE DE ÁREA ---
+  // --- PERMANENCIA / JEFE DE ÁREA + OPERADOR CCO ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
   const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
+  const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setDrawColor(0);
+  // Row 1: PERMANENCIA
   doc.rect(margin, finalY, pageWidth - (margin * 2), 10);
   doc.text(`${permanenciaLabel} :`, margin + 5, finalY + 6.5);
   doc.setFont('helvetica', 'normal');
   doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 6.5);
+  finalY += 10;
+  // Row 2: OPERADOR CCO
+  doc.setFont('helvetica', 'bold');
+  doc.rect(margin, finalY, pageWidth - (margin * 2), 10);
+  doc.text('OPERADOR CCO :', margin + 5, finalY + 6.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text(resolvedOperator, margin + 45, finalY + 6.5);
 
   finalY += 15;
 
@@ -209,7 +218,7 @@ export const generateMotoReport = (
 
   doc.setFont('helvetica', 'normal');
   doc.text(firstSectorSettings.supervisor || '______________________', margin + 40, footerY + 10, { align: 'center' });
-  doc.text(operatorName || firstSectorSettings.operador || '______________________', pageWidth - margin - 40, footerY + 10, { align: 'center' });
+  doc.text(resolvedOperator, pageWidth - margin - 40, footerY + 10, { align: 'center' });
 
   // Timestamp
   const now = new Date();
@@ -385,22 +394,35 @@ export const generateVehicleReport = (
 
   finalY += 9;
 
-  // --- PERMANENCIA / JEFE DE ÁREA ---
+  // --- PERMANENCIA / JEFE DE ÁREA + OPERADOR CCO ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
   const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
+  const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
+  // Row 1: PERMANENCIA
   doc.setFillColor(38, 70, 83);
   doc.rect(margin, finalY, 40, 7, 'F');
   doc.setTextColor(255, 255, 255);
   doc.text(` ${permanenciaLabel} :`, margin + 2, finalY + 4.8);
-
   doc.setDrawColor(0);
   doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'bold');
   doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 4.8);
+  finalY += 7;
+  // Row 2: OPERADOR CCO
+  doc.setFont('helvetica', 'bold');
+  doc.setFillColor(38, 70, 83);
+  doc.rect(margin, finalY, 40, 7, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.text(' OPERADOR CCO :', margin + 2, finalY + 4.8);
+  doc.setDrawColor(0);
+  doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text(resolvedOperator, margin + 45, finalY + 4.8);
 
   finalY += 9;
 
@@ -452,7 +474,7 @@ export const generateVehicleReport = (
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.text(`SUPERVISOR CCO: ${firstSectorSettings.supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
-  doc.text(`OPERADOR CCO: ${operatorName || firstSectorSettings.operador || '--'}`, pageWidth - margin, footerY + 3, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY + 3, { align: 'right' });
 
   // Timestamp
   const now = new Date();
@@ -605,6 +627,7 @@ export const generatePersonnelAbsenceReport = (
     { data: absents.filter(p => getRegime(p) === 'OS'),                label: 'FALTOS ORDEN DE SERVICIO',                  color: [0, 92, 187] }
   ];
 
+  const resolvedOperator = operatorName || '--';
   let currentY = 10;
 
   // Draw Main Report Header (Once)
@@ -623,7 +646,20 @@ export const generatePersonnelAbsenceReport = (
   doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
   doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
 
-  currentY += 25;
+  currentY += 22;
+
+  // Sub-header: OPERADOR CCO
+  doc.setFillColor(240, 240, 240);
+  doc.rect(margin, currentY, contentWidth, 7, 'F');
+  doc.setTextColor(50, 50, 50);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('OPERADOR CCO:', margin + 3, currentY + 4.8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(resolvedOperator, margin + 38, currentY + 4.8);
+  doc.setTextColor(0, 0, 0);
+
+  currentY += 11;
 
   groupsToDraw.forEach((groupInfo) => {
     if (groupInfo.data.length === 0) return;
@@ -693,7 +729,7 @@ export const generatePersonnelAbsenceReport = (
   const footerY = pageHeight - 15;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
 
   const now = new Date();
   doc.setFontSize(7);
@@ -728,6 +764,8 @@ export const generateObservationsReport = (
       return dateStr;
     }
   };
+
+  const resolvedOperator = operatorName || '--';
 
   // Filter units with observations (mechanics)
   const unitsWithObservations = units.filter(u => u.mechanics && u.mechanics.trim() !== '');
@@ -787,7 +825,7 @@ export const generateObservationsReport = (
   const footerY = pageHeight - 15;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
 
   const now = new Date();
   doc.setFontSize(7);
@@ -892,6 +930,8 @@ export const generateAllRecordsReport = (
   const permanencia = firstSettings.permanencia || '--';
   const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
 
+  const resolvedOperator = operatorName || firstSettings.operador || '--';
+
   let currentY = 15;
 
   doc.setFontSize(14);
@@ -899,7 +939,7 @@ export const generateAllRecordsReport = (
   doc.text(`REPORTE GENERAL DE REGISTROS - TURNO ${shift.toUpperCase()}`, pageWidth / 2, currentY, { align: 'center' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`FECHA: ${formatShortDate(date)}   |   ${permanenciaLabel}: ${permanencia}`, pageWidth / 2, currentY + 5, { align: 'center' });
+  doc.text(`FECHA: ${formatShortDate(date)}   |   ${permanenciaLabel}: ${permanencia}   |   OPERADOR CCO: ${resolvedOperator}`, pageWidth / 2, currentY + 5, { align: 'center' });
 
   currentY += 12;
 
@@ -1004,7 +1044,7 @@ export const generateAllRecordsReport = (
   const footerY = pageHeight - 15;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text(`OPERADOR CCO: ${operatorName || firstSectorSettings.operador || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
 
   const now = new Date();
   doc.setFontSize(7);

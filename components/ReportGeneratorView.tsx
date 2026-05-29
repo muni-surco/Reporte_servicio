@@ -21,6 +21,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   const [localDate, setLocalDate] = useState(selectedDate);
   const [localShift, setLocalShift] = useState(selectedShift);
   const [localOperator, setLocalOperator] = useState<string>('');
+  const [showError, setShowError] = useState(false);
 
   const reportTypes = [
     {
@@ -92,12 +93,20 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   ];
 
   const handleGenerate = (id: string) => {
+    if (!localOperator.trim()) {
+      setShowError(true);
+      // Auto-scroll to the top or highlight? For now just showing error.
+      return;
+    }
     setActiveReport(id);
-    onGenerateReport(id, localDate, localShift, localOperator || undefined);
+    onGenerateReport(id, localDate, localShift, localOperator);
   };
 
   const handleOperatorChange = (value: string) => {
     setLocalOperator(value);
+    if (showError && value.trim()) {
+      setShowError(false);
+    }
   };
 
   return (
@@ -150,17 +159,23 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
           <div className="flex flex-col">
             <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest ml-1 mb-1">OPERADOR</span>
             <div className="relative group flex items-center">
-              <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none z-10" />
+              <UserRound className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${showError ? 'text-red-500' : 'text-slate-400'} group-focus-within:text-blue-500 transition-colors pointer-events-none z-10`} />
               <div className="pl-10 w-[350px]">
                 <AutocompleteInput
                   value={localOperator}
                   onChange={handleOperatorChange}
                   suggestions={operatorOptions}
                   placeholder="SELECCIONE OPERADOR"
-                  className="h-10 bg-white border-slate-200 rounded-xl text-sm font-medium shadow-sm"
+                  error={showError}
+                  className={`h-10 bg-white border-slate-200 rounded-xl text-sm font-medium shadow-sm ${showError ? 'border-red-300 ring-red-50' : ''}`}
                 />
               </div>
             </div>
+            {showError && (
+              <span className="text-[10px] font-bold text-red-500 mt-1 ml-1 animate-pulse">
+                * EL OPERADOR ES OBLIGATORIO
+              </span>
+            )}
           </div>
         </div>
       </div>
