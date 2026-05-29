@@ -27,19 +27,22 @@ const getAutoTurno = () => {
   return 'NOCHE';
 };
 
-const generateUnitId = (type: string, id?: string, sector?: string) => {
+const generateUnitId = (type: string, id: string, sector: string, date: string, shift: string) => {
   const cleanId = String(id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-  const cleanSector = String(sector || '').replace(/^SECTOR\s+/, '').trim().toUpperCase();
+  const cleanSector = String(sector || '').replace(/^SECTOR\s+/, '').replace(/\s+/g, '').trim().toUpperCase();
+  const cleanDate = date.replace(/-/g, '');
+  const cleanShift = shift.toUpperCase();
   const cleanType = String(type || 'UNIT').trim().toUpperCase();
 
   if (!cleanId) {
     const ts = Date.now().toString(36).toUpperCase();
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `TEMP-${cleanType}-${ts}${rand}`;
+    return `NEW_${cleanType}_${cleanSector}_${cleanDate}_${cleanShift}_${ts}${rand}`;
   }
 
-  return `${cleanType}_${cleanId}_${cleanSector}`;
+  return `${cleanType}_${cleanId}_${cleanSector}_${cleanDate}_${cleanShift}`;
 };
+
 
 const App: React.FC = () => {
   const [units, setUnits] = useState<UnitData[]>([]);
@@ -248,7 +251,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             if (!finalUnitsMap.has(uniqueKey)) {
               finalUnitsMap.set(uniqueKey, {
                 id: d.id,
-                unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${d.id}`,
+                unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${d.id}-${dateStr.replace(/-/g, '')}-${shift}`,
                 type: d.type as any,
                 sector: currentSector,
                 plate: d.plate,
@@ -295,7 +298,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               if (sectorUnits.length === 0) {
                 sectorUnits = defaults.map(d => ({
                   id: d.id,
-                  unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}`,
+                  unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${dateStr.replace(/-/g, '')}-${shift}`,
                   type: d.type as any,
                   sector: s,
                   plate: d.plate,
@@ -315,7 +318,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                       .filter(d => d.type === type)
                       .map(d => ({
                         id: d.id,
-                        unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}`,
+                        unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${dateStr.replace(/-/g, '')}-${shift}`,
                         type: d.type as any,
                         sector: s,
                         plate: d.plate,
@@ -609,7 +612,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         radio: d.radio || '',
         reason: '',
         mechanics: '',
-        hours: '--:-- - --:--'
+        hours: '--:-- - --:--',
+        unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
       }));
     } else {
       const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
@@ -638,7 +642,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               reason: '',
               mechanics: '',
               hours: '--:-- - --:--',
-              unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}`
+              unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
             }));
           sectorUnits = [...sectorUnits, ...typeDefaults];
         }
@@ -757,7 +761,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       mechanics: '',
       lugarEstado: '',
       motivoEstado: '',
-      unit_id: generateUnitId('', currentSector, selectedDate, settings.turno)
+      unit_id: generateUnitId(type, '', currentSector, selectedDate, settings.turno)
     };
     // Prepend the new unit to the list so it appears at the top of its section
     setUnits(prev => [newUnit, ...prev]);
