@@ -41,10 +41,7 @@ function getUnitType(id) {
 }
 
 function toDisplaySector(value) {
-  const storageSector = toStorageSector(value);
-  if (!storageSector) return '';
-  if (storageSector === 'RESCATE' || storageSector === 'GIR') return storageSector;
-  return `SECTOR ${storageSector}`;
+  return toStorageSector(value);
 }
 
 /**

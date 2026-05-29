@@ -57,15 +57,15 @@ export const generateMotoReport = (
 
   // --- SUMMARY TABLE ---
   const sectors = [
-    'SECTOR 1A', 'SECTOR 1B', 'SECTOR 2A', 'SECTOR 2B', 'SECTOR 3',
-    'SECTOR 4', 'SECTOR 5', 'SECTOR 6', 'SECTOR 7', 'SECTOR 8',
-    'SECTOR 9A', 'GIR'
+    '1A', '1B', '2A', '2B', '3',
+    '4', '5', '6', '7', '8',
+    '9A', 'GIR'
   ];
 
   const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
 
   const summaryRows = sectors.map(s => {
-    const sectorCode = s.replace('SECTOR ', '');
+    const sectorCode = s;
     const sectorUnits = motoUnits.filter(u => (u.sector || '').toUpperCase().includes(sectorCode));
     const efectivo = sectorUnits.length;
     const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;

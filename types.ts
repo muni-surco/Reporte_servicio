@@ -13,12 +13,12 @@ export enum UnitStatus {
 }
 
 export type Sector =
-  | 'SECTOR 1A' | 'SECTOR 1B'
-  | 'SECTOR 2A' | 'SECTOR 2B'
-  | 'SECTOR 3' | 'SECTOR 4'
-  | 'SECTOR 5' | 'SECTOR 6'
-  | 'SECTOR 7' | 'SECTOR 8'
-  | 'SECTOR 9A' | 'SECTOR 9B'
+  | '1A' | '1B'
+  | '2A' | '2B'
+  | '3' | '4'
+  | '5' | '6'
+  | '7' | '8'
+  | '9A' | '9B'
   | 'RESCATE'
   | 'GIR'
   | string;
@@ -115,12 +115,12 @@ export interface MobileReference {
 
 // Configuration Constants
 export const SECTORS: Sector[] = [
-  'SECTOR 1A', 'SECTOR 1B',
-  'SECTOR 2A', 'SECTOR 2B',
-  'SECTOR 3', 'SECTOR 4',
-  'SECTOR 5', 'SECTOR 6',
-  'SECTOR 7', 'SECTOR 8',
-  'SECTOR 9A', 'SECTOR 9B',
+  '1A', '1B',
+  '2A', '2B',
+  '3', '4',
+  '5', '6',
+  '7', '8',
+  '9A', '9B',
   'RESCATE',
   'GIR'
 ];

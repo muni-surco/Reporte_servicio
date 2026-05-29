@@ -46,11 +46,11 @@ const generateUnitId = (type: string, id: string, sector: string, date: string, 
 
 const App: React.FC = () => {
   const [units, setUnits] = useState<UnitData[]>([]);
-  const [currentSector, setCurrentSector] = useState<Sector>('SECTOR 1A');
+  const [currentSector, setCurrentSector] = useState<Sector>('1A');
   const [currentView, setCurrentView] = useState<ViewMode>('DASHBOARD');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toLocaleDateString('en-CA'));
   const [settings, setSettings] = useState<AppSettings>({
-    nombrePuesto: 'SECTOR 1A',
+    nombrePuesto: '1A',
     operador: '',
     supervisor: '',
     permanencia: '',
@@ -192,7 +192,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             ...u,
             id: String(u.id || '').trim(),
             unit_id: u.unit_id || `LEGACY-${idx}`, // Fallback for old records
-            sector: (u.sector || '').trim().toUpperCase() === '' ? 'SECTOR 1A' : u.sector,
+            sector: (u.sector || '').trim().toUpperCase() === '' ? '1A' : u.sector,
             type: u.type as any,
             personnel1: String(u.personnel1 || ''),
             personnel2: String(u.personnel2 || ''),
@@ -391,69 +391,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     }
   };
 
-  const persistData = (newSettings: AppSettings, newUnits: UnitData[], retryCount = 0) => {
-    // Filtrar solo unidades del sector actual (reduce payload y tiempo de proceso)
-    const sectorUnits = newUnits.filter(u => !u.sector || u.sector === currentSector);
-    const validUnits = sectorUnits.filter(u => {
-      // Si ya tiene un unit_id del servidor, es un registro existente que debemos mantener
-      if (u.unit_id && u.unit_id !== 'undefined' && u.unit_id.trim() !== '') return true;
-      
-      // Si es una unidad cargada (no NEW-), la mantenemos para preservar la fila
-      if (u.id && !String(u.id).startsWith('NEW-')) return true;
-      
-      // Si es un registro nuevo (NEW-), solo lo guardamos si tiene contenido real
-      if (u.tempId && u.tempId.startsWith('NEW-')) {
-        return (u.personnel1 && u.personnel1.trim() !== '') || (u.id && u.id.trim() !== '');
-      }
-
-      return true;
-    });
-    const dataObj = { settings: newSettings, units: validUnits };
-    // Normalize data for comparison (remove transient fields if necessary)
-    const dataStr = JSON.stringify(dataObj);
-    
-    if (dataStr === lastSavedRef.current) {
-      console.log('Skipping persistData — no changes detected.');
-      return;
-    }
-
-    setSaving(true);
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler((res: { success: boolean, error?: string, retry?: boolean }) => {
-          if (res.success) {
-            setSaving(false);
-            lastSavedRef.current = dataStr;
-            setSectorSettingsMap(prev => ({
-              ...prev,
-              [newSettings.nombrePuesto || 'SECTOR 1A']: newSettings
-            }));
-          } else if (res.retry && retryCount < 5) {
-            // Retry with exponential backoff: 1000ms, 2000ms, 4000ms, 8000ms, 16000ms
-            const delay = 1000 * Math.pow(2, retryCount);
-            console.warn(`Lock timeout, retrying in ${delay}ms (attempt ${retryCount + 1}/5)`);
-            setTimeout(() => {
-              persistData(newSettings, newUnits, retryCount + 1);
-            }, delay);
-          } else {
-            setSaving(false);
-            console.error('GAS Save Error:', res.error);
-            alert('Error al guardar: ' + res.error);
-          }
-        })
-        .saveShiftData(selectedDate, newSettings.turno, newSettings, validUnits);
-    } else {
-      setTimeout(() => {
-        setSaving(false);
-        lastSavedRef.current = dataStr;
-      }, 300);
-    }
-  };
-
   const handleSectorChange = (sector: Sector) => {
-    if (!isReadOnly) {
-      persistData(settings, units);
-    }
     setCurrentSector(sector);
     const specificSettings = sectorSettingsMap[sector];
     if (specificSettings) {
@@ -676,7 +614,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     if (!settingsToSave.operador.trim() || !settingsToSave.supervisor.trim() || !settingsToSave.permanencia.trim()) {
       return;
     }
-    persistData(settingsToSave, units);
+    persistSettingsOnly(settingsToSave);
   };
 
   const persistSettingsOnly = (newSettings: AppSettings) => {
@@ -688,7 +626,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           if (res.success) {
             setSectorSettingsMap(prev => ({
               ...prev,
-              [newSettings.nombrePuesto || 'SECTOR 1A']: newSettings
+              [newSettings.nombrePuesto || '1A']: newSettings
             }));
           } else {
             console.error('GAS Save Settings Error:', res.error);
@@ -844,7 +782,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         setIsGeneratingStructuredReport(false);
         alert('Error al obtener datos: ' + err);
       })
-      .getShiftData(date, shift, 'SECTOR 1A'); // Passing a dummy sector is fine as it returns all units
+      .getShiftData(date, shift, '1A'); // Passing a dummy sector is fine as it returns all units
   };
 
   const personnelStats = useMemo(() => {
