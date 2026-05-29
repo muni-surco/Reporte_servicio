@@ -11,6 +11,7 @@ import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import RetenManagementView from './components/RetenManagementView';
 import VehicleSearchView from './components/VehicleSearchView';
+import MapView from './components/MapView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS } from './types';
 import { Users, LayoutDashboard, FileText } from 'lucide-react';
 
@@ -949,6 +950,11 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             />
           ) : currentView === 'VEHICLE_SEARCH' ? (
             <VehicleSearchView />
+          ) : currentView === 'MAP' ? (
+            <MapView 
+              allSectorsData={Object.keys(visualizationSectorsData).length > 0 ? visualizationSectorsData : allSectorsData}
+              settings={settings}
+            />
           ) : (
             <StatisticsView units={units} />
           )}

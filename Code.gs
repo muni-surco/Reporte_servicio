@@ -1316,3 +1316,16 @@ function doGet() {
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
+
+/**
+ * Get GeoJSON data for quadrants from a separate GAS file
+ */
+function getQuadrantsData() {
+  try {
+    // Busca el archivo 'quadrants_data.html' en el proyecto de GAS
+    return HtmlService.createHtmlOutputFromFile('quadrants_data').getContent();
+  } catch (e) {
+    console.error('Error loading quadrants_data:', e);
+    return JSON.stringify({ type: "FeatureCollection", features: [] });
+  }
+}
