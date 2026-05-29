@@ -417,20 +417,37 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       google.script.run
         .withSuccessHandler((res: { success: boolean, unit_id?: string, error?: string }) => {
           if (res.success) {
-            if (res.unit_id && res.unit_id !== item.unit.unit_id) {
+            const newId = res.unit_id;
+            if (newId && newId !== item.unit.unit_id) {
               setUnits(prev => prev.map(u => {
                 const matchKey = u.unit_id || u.tempId || u.id;
                 const itemKey = item.unit.unit_id || item.unit.tempId || item.unit.id;
-                if (matchKey === itemKey) return { ...u, unit_id: res.unit_id };
+                if (matchKey === itemKey) return { ...u, unit_id: newId };
                 return u;
               }));
+              
+              // Also update status for the new ID so it shows the checkmark
+              setSaveStatus(prev => ({ 
+                ...prev, 
+                [unitKey]: 'saved',
+                [newId]: 'saved' 
+              }));
+
+              // Clean up both keys after timeout
+              setTimeout(() => setSaveStatus(prev => {
+                const next = { ...prev };
+                delete next[unitKey];
+                delete next[newId];
+                return next;
+              }), 2500);
+            } else {
+              setSaveStatus(prev => ({ ...prev, [unitKey]: 'saved' }));
+              setTimeout(() => setSaveStatus(prev => {
+                const next = { ...prev };
+                delete next[unitKey];
+                return next;
+              }), 2500);
             }
-            setSaveStatus(prev => ({ ...prev, [unitKey]: 'saved' }));
-            setTimeout(() => setSaveStatus(prev => {
-              const next = { ...prev };
-              delete next[unitKey];
-              return next;
-            }), 2000);
           } else {
             setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
           }
