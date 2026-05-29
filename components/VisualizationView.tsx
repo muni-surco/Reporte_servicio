@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { UnitData, AppSettings, UnitStatus } from '../types';
+import { UnitData, AppSettings, UnitStatus, SECTORS } from '../types';
 
 interface VisualizationViewProps {
   allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }>;
@@ -100,14 +100,15 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     );
   };
 
-  const sectorEntries = Object.entries(allSectorsData) as [string, { units: UnitData[], settings: AppSettings }][];
-
   const infoLabelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5 block";
   const infoValueStyle = "text-[13px] font-medium text-slate-800 uppercase truncate leading-none bg-transparent border-none p-0 cursor-default";
 
   return (
     <div className="flex flex-col gap-6 mx-auto">
-      {sectorEntries.map(([sectorName, data]) => {
+      {SECTORS.map((sectorName) => {
+        const data = allSectorsData[sectorName];
+        if (!data) return null;
+
         const activeUnits = data.units.filter(u => ALLOWED_STATUSES.includes(u.status));
         const choferes = activeUnits.filter(u => u.type === 'CHOFER');
         const motos = activeUnits.filter(u => u.type === 'MOTO');
