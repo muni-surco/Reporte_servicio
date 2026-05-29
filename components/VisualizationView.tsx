@@ -127,7 +127,9 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 {/* SECTOR */}
                 <div className="flex items-center gap-3 shrink-0 min-w-[140px]">
                   <div className="w-2 h-8 bg-[#004b93] rounded-full shadow-sm shadow-blue-200"></div>
-                  <h2 className="text-[24px] font-medium tracking-tighter uppercase text-[#002d5a] leading-none">{sectorName}</h2>
+                  <h2 className="text-[24px] font-medium tracking-tighter uppercase text-[#002d5a] leading-none">
+                    {sectorName === 'GIR' || sectorName === 'RESCATE' ? sectorName : `SECTOR ${sectorName}`}
+                  </h2>
                 </div>
 
                 <div className="h-8 w-px bg-slate-200 shrink-0"></div>
