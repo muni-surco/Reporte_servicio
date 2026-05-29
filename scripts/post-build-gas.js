@@ -12,6 +12,18 @@ if (fs.existsSync(sourceGs)) {
     console.log('Copied Code.gs to dist/');
 }
 
+// 1b. Generate QuadrantsData.gs from utils/quadrants_data.html
+const quadrantsSource = path.join(process.cwd(), 'utils', 'quadrants_data.html');
+const quadrantsGsDest = path.join(distPath, 'QuadrantsData.gs');
+if (fs.existsSync(quadrantsSource)) {
+    const rawData = fs.readFileSync(quadrantsSource, 'utf-8');
+    // Escape for single-quoted JavaScript string: \ -> \\, ' -> \', newlines -> \n
+    const escaped = rawData.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n');
+    const gsContent = `var QUADRANTS_GEOJSON = '${escaped}';\n`;
+    fs.writeFileSync(quadrantsGsDest, gsContent);
+    console.log('Generated dist/QuadrantsData.gs from utils/quadrants_data.html (' + (rawData.length / 1024).toFixed(1) + ' KB)');
+}
+
 // 2. Process JS and CSS into .html files
 const files = fs.readdirSync(assetsPath);
 const xlsxLibPath = path.join(process.cwd(), 'libs', 'xlsx.full.min.js');

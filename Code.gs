@@ -1322,10 +1322,14 @@ function include(filename) {
  */
 function getQuadrantsData() {
   try {
-    // Busca el archivo 'quadrants_data.html' en el proyecto de GAS
-    return HtmlService.createHtmlOutputFromFile('quadrants_data').getContent();
+    if (typeof QUADRANTS_GEOJSON !== 'undefined' && QUADRANTS_GEOJSON) {
+      Logger.log('getQuadrantsData: returning QUADRANTS_GEOJSON (' + QUADRANTS_GEOJSON.length + ' chars)');
+      return QUADRANTS_GEOJSON;
+    }
+    Logger.log('getQuadrantsData: QUADRANTS_GEOJSON is empty, returning empty collection');
+    return JSON.stringify({ type: "FeatureCollection", features: [] });
   } catch (e) {
-    console.error('Error loading quadrants_data:', e);
+    Logger.log('getQuadrantsData error: ' + e.message);
     return JSON.stringify({ type: "FeatureCollection", features: [] });
   }
 }
