@@ -62,6 +62,11 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
               <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex items-center gap-2">
                 {u.personnel1}
               </p>
+            {u.status?.toUpperCase() === UnitStatus.SIN_VEHICULO && u.lugarEstado && (
+              <div className="text-[10px] font-bold text-red-500 uppercase leading-none mt-0.5">
+                {u.lugarEstado}
+              </div>
+            )}
             {u.type === 'CHOFER' && (u.indicative || u.personnel2) && (
               <div className="flex items-center gap-1.5 mt-0.5">
                 {u.indicative && (

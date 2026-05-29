@@ -533,11 +533,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
           <div className="border-r border-slate-100 pr-2 min-w-0">
             <label className={labelStyle}>{isSereno ? 'Sereno' : isMoto ? 'Motorizado' : 'Chofer'}</label>
             <div className={infoValueStyle}>{unit.personnel1 || '--'}</div>
-            {unit.status?.toUpperCase() === UnitStatus.SIN_VEHICULO && unit.lugarEstado && (
-              <div className="text-[10px] font-bold text-red-500 uppercase leading-none">
-                {unit.lugarEstado}
-              </div>
-            )}
             {unit.personnel1 && personnelRegimenMap?.[unit.personnel1.trim().toUpperCase()] && (
               <div className="text-[9px] text-slate-400 uppercase tracking-tight leading-tight mt-0.5">
                 {personnelRegimenMap[unit.personnel1.trim().toUpperCase()]}
