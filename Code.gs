@@ -807,7 +807,9 @@ function saveShiftData(dateStr, shift, settings, units) {
 
     const email = Session.getActiveUser().getEmail();
     const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
-    const auditLog = email ? (email + ' @ ' + timestamp) : timestamp;
+    let auditLog = timestamp;
+    if (email) auditLog = email + ' @ ' + auditLog;
+    if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
 
     const unitUpdates = [];
     const rowsToAppend = [];
@@ -1047,7 +1049,9 @@ function updateUnit(dateStr, shift, settings, unit) {
 
     const email = Session.getActiveUser().getEmail();
     const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
-    const auditLog = email ? (email + ' @ ' + timestamp) : timestamp;
+    let auditLog = timestamp;
+    if (email) auditLog = email + ' @ ' + auditLog;
+    if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
 
     let unit_id = unit.unit_id || '';
     if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('UID-') || unit_id.startsWith('DEF-') || !unit_id.includes(shift)) {
@@ -1316,3 +1320,5 @@ function doGet() {
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
+
+
