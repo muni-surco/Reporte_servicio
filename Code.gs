@@ -1050,7 +1050,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     const auditLog = email ? (email + ' @ ' + timestamp) : timestamp;
 
     let unit_id = unit.unit_id || '';
-    if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('UID-') || !unit_id.includes(shift)) {
+    if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('UID-') || unit_id.startsWith('DEF-') || !unit_id.includes(shift)) {
       const cleanDate = dateStr.replace(/-/g, '');
       const cleanId = String(unit.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
       const cleanSector = String(targetSector || '').trim().toUpperCase();
