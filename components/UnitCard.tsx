@@ -520,7 +520,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[140px_1.5fr_2fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.1fr_90px] max-[1399px]:grid-cols-[48px_1fr_2fr_auto_0.7fr_1.1fr_90px]'}`}>
+        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[140px_1.5fr_2fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.1fr_50px] max-[1399px]:grid-cols-[48px_1fr_2fr_auto_0.7fr_1.1fr_50px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
@@ -542,7 +542,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna Logística Radio/Indicativo/Cuadrante */}
           <div className="flex gap-4 border-r border-slate-100 px-2 min-w-0">
-            <div className="flex flex-col flex-1 min-w-[20px]">
+            <div className="flex flex-col flex-1 min-w-[50px]">
               <label className={labelStyle}>Radio</label>
               <div className={`${infoValueStyle} text-slate-800`}>
                 {unit.radio || '--'}
