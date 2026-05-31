@@ -27,6 +27,7 @@ interface HeaderProps {
   operatorOptions?: string[];
   personnelStats?: { total: number; activos: number; inactivos: number };
   readOnly?: boolean;
+  hasPendingChanges?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -45,7 +46,8 @@ const Header: React.FC<HeaderProps> = ({
   personnelOptions,
   operatorOptions,
   personnelStats,
-  readOnly
+  readOnly,
+  hasPendingChanges
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
@@ -320,6 +322,12 @@ const Header: React.FC<HeaderProps> = ({
           ) : (
             <div className="flex items-center gap-2 justify-end shrink-0 lg:ml-auto" data-html2canvas-ignore>
               <div className="flex items-center gap-2 justify-end w-full md:w-auto">
+                {hasPendingChanges && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg" title="Hay cambios sin guardar o guardados pendientes">
+                    <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+                    <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">Pendiente</span>
+                  </div>
+                )}
                 {isDashboard ? (
                   <>
                     {!readOnly && (

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../types';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
 
@@ -639,10 +638,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
               const status = saveStatus?.[key];
               if (!status) return null;
               return status === 'saving'
-                ? <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
+                ? <span className="material-symbols-outlined text-amber-500 text-[18px] animate-spin">progress_activity</span>
                 : status === 'saved'
-                ? <CheckCircle className="w-4 h-4 text-green-500" />
-                : <XCircle className="w-4 h-4 text-red-500" title="Error al guardar" />;
+                ? <span className="material-symbols-outlined text-green-500 text-[18px]">check_circle</span>
+                : <span className="material-symbols-outlined text-red-500 text-[18px]" title="Error al guardar">cancel</span>;
             })()}
             {!readOnly && (
               <button onClick={onEdit} title="Editar" className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">

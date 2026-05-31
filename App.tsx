@@ -13,6 +13,7 @@ import RetenManagementView from './components/RetenManagementView';
 import VehicleSearchView from './components/VehicleSearchView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS } from './types';
 import { Users, LayoutDashboard, FileText } from 'lucide-react';
+import ConfirmModal from './components/ConfirmModal';
 
 declare const google: any;
 
@@ -62,6 +63,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingViewChange, setPendingViewChange] = useState<ViewMode | null>(null);
   const [visualizationSectorsData, setVisualizationSectorsData] = useState<Record<string, { units: UnitData[], settings: AppSettings }>>({});
   const lastSavedRef = useRef<string>('');
   const loadingIdRef = useRef(0);
@@ -478,6 +480,47 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     if (!isSavingRef.current) processQueue();
   };
 
+  const hasPendingChanges = editingId !== null || Object.keys(saveStatus).length > 0;
+
+  const handleViewChange = (newView: ViewMode) => {
+    if (newView === currentView) return;
+    if (hasPendingChanges) {
+      setPendingViewChange(newView);
+    } else {
+      setCurrentView(newView);
+    }
+  };
+
+  const pendingViewMessage = pendingViewChange
+    ? (editingId
+        ? 'Tiene cambios sin guardar en una unidad. Si sale sin guardar, los cambios se perderán.'
+        : 'Hay una operación de guardado reciente. ¿Está seguro de cambiar de vista?')
+    : '';
+
+  const confirmViewChange = () => {
+    if (pendingViewChange) {
+      setCurrentView(pendingViewChange);
+      setPendingViewChange(null);
+    }
+  };
+
+  const cancelViewChange = () => {
+    setPendingViewChange(null);
+  };
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasPendingChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    if (hasPendingChanges) {
+      window.addEventListener('beforeunload', handler);
+    }
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasPendingChanges]);
+
   const handleSave = (updatedUnit: UnitData) => {
     if (isReadOnly) return;
     const unitWithSector = { ...updatedUnit, sector: updatedUnit.sector || currentSector };
@@ -827,14 +870,21 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           <p className="text-[14px] font-medium tracking-[0.2em] animate-pulse uppercase text-slate-600">Cargando Datos...</p>
         </div>
       )}
-      <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+      {pendingViewChange && (
+        <ConfirmModal
+          message={pendingViewMessage}
+          onConfirm={confirmViewChange}
+          onCancel={cancelViewChange}
+        />
+      )}
+      <Sidebar currentView={currentView} onViewChange={handleViewChange} />
       <main className="ml-[76px] flex flex-col h-screen">
         <Header
           settings={settings}
           onSaveSettings={handleSaveSettings}
           onGlobalSave={handleGlobalSave}
           onHeaderSave={handleHeaderSave}
-          onGeneratePDF={() => setCurrentView('REPORTS')}
+          onGeneratePDF={() => handleViewChange('REPORTS')}
           onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno, currentView)}
           isSaving={saving}
           currentSector={currentSector}
@@ -846,6 +896,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           operatorOptions={operatorOptions}
           personnelStats={personnelStats}
           readOnly={isReadOnly}
+          hasPendingChanges={hasPendingChanges}
         />
 
         <div className="flex-1 overflow-y-auto scroll-smooth p-4" id="report-content">
@@ -893,6 +944,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                     currentDate={selectedDate}
                     currentShift={settings.turno}
                     isSaving={saving}
+                    saveStatus={saveStatus}
                     readOnly={isReadOnly}
                     personnelRegimenMap={personnelRegimenMap}
                   />
