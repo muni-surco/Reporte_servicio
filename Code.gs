@@ -111,128 +111,134 @@ function setupRetenLogSheet(ss) {
  * Fetches all units and settings for a specific date, shift and sector.
  * Optimized to read only necessary columns for better performance.
  */
+/**
+ * Try reading settings from Firebase. Falls back to sheet for legacy data.
+ */
+function _loadSettings(dateStr, shift, sector, timeZone) {
+  let shiftSettings = { turno: shift, operador: '', supervisor: '', nombrePuesto: toDisplaySector(sector || '1A'), permanencia: '' };
+  const allSectorSettings = {};
+
+  try {
+    const fbSettings = fbQuery('shifts', [{ field: 'date', value: dateStr }, { field: 'shift', value: shift }]);
+    if (fbSettings && fbSettings.length > 0) {
+      fbSettings.forEach(s => {
+        const sectorName = toDisplaySector(s.sector);
+        if (sectorName) {
+          allSectorSettings[sectorName] = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
+        }
+        if (toStorageSector(sectorName) === toStorageSector(sector)) {
+          shiftSettings = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
+        }
+      });
+      return { settings: shiftSettings, allSettings: allSectorSettings, from: 'firebase' };
+    }
+  } catch (e) { /* fallback */ }
+
+  // Fallback: legacy sheet
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
+  if (settingsSheet) {
+    const sLastRow = settingsSheet.getLastRow();
+    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(2, 1, sLastRow - 1, 6).getValues() : [];
+    for (let i = 0; i < settingsRows.length; i++) {
+      const row = settingsRows[i];
+      if (!row[0]) continue;
+      try {
+        const rowDateStr = Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd');
+        if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
+      } catch (e) { continue; }
+      const sectorName = toDisplaySector(row[2]);
+      if (sectorName) {
+        allSectorSettings[sectorName] = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: String(row[5] || '') };
+      }
+      if (toStorageSector(sectorName) === toStorageSector(sector)) {
+        shiftSettings = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: String(row[5] || '') };
+      }
+    }
+  }
+  return { settings: shiftSettings, allSettings: allSectorSettings, from: 'sheet' };
+}
+
+/**
+ * Convert a Firestore unit doc (or sheet row) to the frontend UnitData format.
+ */
+function _toUnitData(obj) {
+  return {
+    id: String(obj.id || ''),
+    unit_id: String(obj.unit_id || ''),
+    sector: toDisplaySector(obj.sector || ''),
+    type: String(obj.type || ''),
+    model: String(obj.model || ''),
+    personnel1: String(obj.personnel1 || ''),
+    personnel2: String(obj.personnel2 || ''),
+    plate: String(obj.plate || ''),
+    indicative: String(obj.indicative || ''),
+    radio: String(obj.radio || ''),
+    status: String(obj.status || ''),
+    reason: String(obj.reason || ''),
+    kmStart: String(obj.kmStart || '0'),
+    kmEnd: String(obj.kmEnd || '0'),
+    totalKm: String(obj.totalKm || '0'),
+    kmRecarga: String(obj.kmRecarga || '0'),
+    hours: String(obj.hours || ''),
+    fuel: String(obj.fuel || '-- / --'),
+    expense: String(obj.expense || 'S/ 0.00'),
+    quadrant: String(obj.quadrant || ''),
+    mechanics: String(obj.mechanics || ''),
+    lugarEstado: String(obj.lugarEstado || ''),
+    motivoEstado: String(obj.motivoEstado || '')
+  };
+}
+
 function getShiftData(dateStr, shift, sector) {
   try {
     console.log('[getShiftData] START — dateStr=' + dateStr + ' shift=' + shift + ' sector=' + sector);
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-
-    // Cache timezone at function start
     const timeZone = ss.getSpreadsheetTimeZone();
 
-    // 1. Get Settings - read only columns 1-6 (FECHA, TURNO, SECTOR, OPERADOR, SUPERVISOR, PERMANENCIA)
-    const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
-    let shiftSettings = {
-      turno: shift,
-      operador: '',
-      supervisor: '',
-      nombrePuesto: toDisplaySector(sector || '1A'),
-      permanencia: ''
-    };
+    // 1. Settings
+    const settingsResult = _loadSettings(dateStr, shift, sector, timeZone);
+    const shiftSettings = settingsResult.settings;
+    const allSectorSettings = settingsResult.allSettings;
 
-    // Store settings for ALL sectors to support the Integrated Report view
-    const allSectorSettings = {};
+    // 2. Units — try Firebase first
+    let allUnits = [];
+    let fromFirebase = false;
+    try {
+      const fbUnits = fbQuery('units', [{ field: 'date', value: dateStr }, { field: 'shift', value: shift }]);
+      if (fbUnits && fbUnits.length > 0) {
+        allUnits = fbUnits.map(u => _toUnitData(u));
+        fromFirebase = true;
+      }
+    } catch (e) { /* fallback */ }
 
-    if (settingsSheet) {
-      const settingsLastRow = settingsSheet.getLastRow();
-      const settingsRows = settingsLastRow > 1
-        ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues()
-        : [];
-
-      for (let i = 0; i < settingsRows.length; i++) {
-        const row = settingsRows[i];
-        if (!row[0]) continue;
-        try {
-          const rowDateStr = Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd');
-          if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
-        } catch (e) {
-          continue;
-        }
-
-        const permanenciaVal = String(row[5] || '');
-        const sectorName = toDisplaySector(row[2]);
-        if (sectorName) {
-          allSectorSettings[sectorName] = {
-            turno: String(row[1] || ''),
-            operador: String(row[3] || ''),
-            supervisor: String(row[4] || ''),
-            nombrePuesto: sectorName,
-            permanencia: permanenciaVal
-          };
-        }
-
-        if (toStorageSector(sectorName) === toStorageSector(sector)) {
-          shiftSettings = {
-            turno: String(row[1] || ''),
-            operador: String(row[3] || ''),
-            supervisor: String(row[4] || ''),
-            nombrePuesto: sectorName,
-            permanencia: permanenciaVal
-          };
+    // Fallback: legacy sheet
+    if (!fromFirebase) {
+      const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+      if (dataSheet) {
+        const dLastRow = dataSheet.getLastRow();
+        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 26).getValues() : [];
+        for (let i = 0; i < dataRows.length; i++) {
+          const r = dataRows[i];
+          if (!r[0]) continue;
+          try {
+            if (Utilities.formatDate(new Date(r[0]), timeZone, 'yyyy-MM-dd') === dateStr && String(r[1]) === shift) {
+              allUnits.push(_toUnitData({
+                id: r[3], unit_id: r[23], sector: r[2], type: r[4], model: r[5],
+                personnel1: r[6], personnel2: r[7], plate: r[8], indicative: r[9], radio: r[10],
+                status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
+                kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19],
+                quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
+                lugarEstado: r[24], motivoEstado: r[25]
+              }));
+            }
+          } catch (e) { continue; }
         }
       }
     }
 
-    // 2. Get Unit Data
-    const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-    const allUnits = [];
-
-    if (dataSheet) {
-      const dataLastRow = dataSheet.getLastRow();
-      const dataRowsFull = dataLastRow > 1
-        ? dataSheet.getRange(2, 1, dataLastRow - 1, 26).getValues()
-        : [];
-
-      for (let i = 0; i < dataRowsFull.length; i++) {
-        const fullRow = dataRowsFull[i];
-        if (!fullRow[0]) continue;
-        
-        try {
-          const rowDateStr = Utilities.formatDate(new Date(fullRow[0]), timeZone, 'yyyy-MM-dd');
-          if (rowDateStr === dateStr && String(fullRow[1]) === shift) {
-            // Convert all values to String to avoid serialization issues
-            allUnits.push({
-              id: String(fullRow[3] || ''),
-              unit_id: String(fullRow[23] || ''), // New UNIT_ID column (24th)
-              sector: toDisplaySector(fullRow[2]),
-              type: String(fullRow[4] || ''),
-              model: String(fullRow[5] || ''),
-              personnel1: String(fullRow[6] || ''),
-              personnel2: String(fullRow[7] || ''),
-              plate: String(fullRow[8] || ''),
-              indicative: String(fullRow[9] || ''),
-              radio: String(fullRow[10] || ''),
-              status: String(fullRow[11] || ''),
-              reason: String(fullRow[12] || ''),
-              kmStart: String(fullRow[13] || '0'),
-              kmEnd: String(fullRow[14] || '0'),
-              totalKm: String(fullRow[15] || '0'),
-              kmRecarga: String(fullRow[16] || '0'),
-              hours: String(fullRow[17] || ''),
-              fuel: String(fullRow[18] || '-- / --'),
-              expense: String(fullRow[19] || 'S/ 0.00'),
-              quadrant: cellToStr(fullRow[21], timeZone),
-              mechanics: String(fullRow[22] || ''),
-              lugarEstado: String(fullRow[24] || ''),
-              motivoEstado: String(fullRow[25] || '')
-            });
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-    }
-
-    console.log('[getShiftData] OK — units=' + allUnits.length);
-    // ...
-
-
-    // NOTE: personnelList is NOT included here to keep the payload small.
-    // NOTE: retenData is loaded lazily by RetenManagementView.
-    return {
-      settings: shiftSettings,
-      allSectorSettings: allSectorSettings,
-      units: allUnits
-    };
+    console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
+    return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
   } catch (err) {
     console.error('[getShiftData] ERROR', err);
     throw err;
@@ -241,96 +247,59 @@ function getShiftData(dateStr, shift, sector) {
 
 /**
  * Like getShiftData but only returns units for the requested sector (faster).
- * Settings are still read for all sectors (needed for sector switching).
  */
 function getSectorData(dateStr, shift, sector) {
   try {
     console.log('[getSectorData] START — dateStr=' + dateStr + ' shift=' + shift + ' sector=' + sector);
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
     const timeZone = ss.getSpreadsheetTimeZone();
+
+    // 1. Settings
+    const settingsResult = _loadSettings(dateStr, shift, sector, timeZone);
+    const shiftSettings = settingsResult.settings;
+    const allSectorSettings = settingsResult.allSettings;
     const targetSectorStorage = toStorageSector(sector);
 
-    // 1. Get Settings (same as getShiftData — needed for sectorSettingsMap)
-    const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
-    let shiftSettings = {
-      turno: shift,
-      operador: '',
-      supervisor: '',
-      nombrePuesto: toDisplaySector(sector || '1A'),
-      permanencia: ''
-    };
-    const allSectorSettings = {};
+    // 2. Units — try Firebase first
+    let allUnits = [];
+    let fromFirebase = false;
+    try {
+      const fbUnits = fbQuery('units', [
+        { field: 'date', value: dateStr },
+        { field: 'shift', value: shift },
+        { field: 'sector', value: targetSectorStorage }
+      ]);
+      if (fbUnits && fbUnits.length > 0) {
+        allUnits = fbUnits.map(u => _toUnitData(u));
+        fromFirebase = true;
+      }
+    } catch (e) { /* fallback */ }
 
-    if (settingsSheet) {
-      const settingsLastRow = settingsSheet.getLastRow();
-      const settingsRows = settingsLastRow > 1
-        ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 6).getValues()
-        : [];
-      for (let i = 0; i < settingsRows.length; i++) {
-        const row = settingsRows[i];
-        if (!row[0]) continue;
-        try {
-          const rowDateStr = Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd');
-          if (rowDateStr !== dateStr || String(row[1]) !== shift) continue;
-        } catch (e) { continue; }
-        const permanenciaVal = String(row[5] || '');
-        const sectorName = toDisplaySector(row[2]);
-        if (sectorName) {
-          allSectorSettings[sectorName] = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: permanenciaVal };
-        }
-        if (toStorageSector(sectorName) === targetSectorStorage) {
-          shiftSettings = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: permanenciaVal };
+    if (!fromFirebase) {
+      const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+      if (dataSheet) {
+        const dLastRow = dataSheet.getLastRow();
+        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 26).getValues() : [];
+        for (let i = 0; i < dataRows.length; i++) {
+          const r = dataRows[i];
+          if (!r[0]) continue;
+          try {
+            if (Utilities.formatDate(new Date(r[0]), timeZone, 'yyyy-MM-dd') === dateStr && String(r[1]) === shift && toStorageSector(r[2]) === targetSectorStorage) {
+              allUnits.push(_toUnitData({
+                id: r[3], unit_id: r[23], sector: r[2], type: r[4], model: r[5],
+                personnel1: r[6], personnel2: r[7], plate: r[8], indicative: r[9], radio: r[10],
+                status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
+                kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19],
+                quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
+                lugarEstado: r[24], motivoEstado: r[25]
+              }));
+            }
+          } catch (e) { continue; }
         }
       }
     }
 
-    // 2. Get Unit Data — filter by sector
-    const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-    const allUnits = [];
-
-    if (dataSheet) {
-      const dataLastRow = dataSheet.getLastRow();
-      const dataRowsFull = dataLastRow > 1
-        ? dataSheet.getRange(2, 1, dataLastRow - 1, 26).getValues()
-        : [];
-
-      for (let i = 0; i < dataRowsFull.length; i++) {
-        const fullRow = dataRowsFull[i];
-        if (!fullRow[0]) continue;
-        try {
-          const rowDateStr = Utilities.formatDate(new Date(fullRow[0]), timeZone, 'yyyy-MM-dd');
-          if (rowDateStr === dateStr && String(fullRow[1]) === shift && toStorageSector(fullRow[2]) === targetSectorStorage) {
-            allUnits.push({
-              id: String(fullRow[3] || ''),
-              unit_id: String(fullRow[23] || ''),
-              sector: toDisplaySector(fullRow[2]),
-              type: String(fullRow[4] || ''),
-              model: String(fullRow[5] || ''),
-              personnel1: String(fullRow[6] || ''),
-              personnel2: String(fullRow[7] || ''),
-              plate: String(fullRow[8] || ''),
-              indicative: String(fullRow[9] || ''),
-              radio: String(fullRow[10] || ''),
-              status: String(fullRow[11] || ''),
-              reason: String(fullRow[12] || ''),
-              kmStart: String(fullRow[13] || '0'),
-              kmEnd: String(fullRow[14] || '0'),
-              totalKm: String(fullRow[15] || '0'),
-              kmRecarga: String(fullRow[16] || '0'),
-              hours: String(fullRow[17] || ''),
-              fuel: String(fullRow[18] || '-- / --'),
-              expense: String(fullRow[19] || 'S/ 0.00'),
-              quadrant: cellToStr(fullRow[21], timeZone),
-              mechanics: String(fullRow[22] || ''),
-              lugarEstado: String(fullRow[24] || ''),
-              motivoEstado: String(fullRow[25] || '')
-            });
-          }
-        } catch (e) { continue; }
-      }
-    }
-
-    console.log('[getSectorData] OK — units=' + allUnits.length + ' sector=' + sector);
+    console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
   } catch (err) {
     console.error('[getSectorData] ERROR', err);
@@ -710,222 +679,157 @@ function getPersonnelList() {
 
 /**
  * Saves all units and settings for a specific date and shift.
+ * Uses Firestore for storage.
  */
 function saveShiftData(dateStr, shift, settings, units) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
 
-  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
-  if (!settingsSheet) {
-    return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.settings}. Ejecuta la función initialSetup desde el editor de código.` };
-  }
-  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-  if (!dataSheet) {
-    return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.unitData}. Ejecuta la función initialSetup desde el editor de código.` };
-  }
-
-  // Force quadrant column (V) as plain text so values like "12, 11" aren't auto-converted to dates
-  dataSheet.getRange('V:V').setNumberFormat('@');
-
-  // Derivar targetSector de las unidades primero, con fallback a settings
   const unitsTargetSector = units.reduce((acc, u) => u && u.sector ? toStorageSector(u.sector) : acc, '');
   const targetSector = unitsTargetSector || toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
+
+  // --- Settings ---
+  const shiftDocId = dateStr + '_' + shift + '_' + targetSector;
+  fbSet('shifts', shiftDocId, {
+    date: dateStr,
+    shift: shift,
+    sector: targetSector,
+    operador: settings.operador || '',
+    supervisor: settings.supervisor || '',
+    permanencia: settings.permanencia || '',
+    updatedAt: Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss')
+  });
+
+  const email = Session.getActiveUser().getEmail();
+  const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
+  let auditLog = timestamp;
+  if (email) auditLog = email + ' @ ' + auditLog;
+  if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
+
+  // --- KM bridge: batch-read prev shift documents in parallel ---
   const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
+  const prevShiftDate = prevShiftInfo.date.replace(/-/g, '');
+  const sectorUnits = units.filter(u => toStorageSector(u.sector) === targetSector);
+  const firestoreWrites = [];
+  const kmBridgeLookups = [];
 
-  // Acquire lock FIRST for consistency (reads + writes inside lock)
-  const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
-
-    // --- READ SETTINGS (last 5000 rows from bottom) ---
-    const SETTINGS_SCAN = 5000;
-    const sLastRow = settingsSheet.getLastRow();
-    const sStart = Math.max(2, sLastRow - SETTINGS_SCAN + 1);
-    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(sStart, 1, sLastRow - sStart + 1, 6).getValues() : [];
-
-    let settingsFoundIdx = -1;
-    for (let i = 0; i < settingsRows.length; i++) {
-      const row = settingsRows[i];
-      if (!row[0]) continue;
-      try {
-        const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
-        if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
-          settingsFoundIdx = sStart + i;
-        }
-      } catch (e) {}
+  // First pass: build unit data and collect KM bridge candidates
+  sectorUnits.forEach((unit) => {
+    let unit_id = unit.unit_id || '';
+    if (!unit_id || unit_id === 'undefined') {
+      unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
     }
-
-    // --- Settings write ---
-    if (settingsFoundIdx > -1) {
-      settingsSheet.getRange(settingsFoundIdx, 1, 1, 6).setValues([[dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]]);
-    } else {
-      settingsSheet.appendRow([dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]);
-    }
-
-    // --- READ UNIT DATA (columnas A-O + X; evita leer 24 columnas completas) ---
-    const dLastRow = dataSheet.getLastRow();
-    const unitKMData = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 15).getValues() : [];
-    const unitIdCol = dLastRow > 1 ? dataSheet.getRange(2, 24, dLastRow - 1, 1).getValues() : [];
-
-    const unitIdToRowMap = new Map();
-    const prevShiftRecords = new Map();
-    const targetSectorStr = String(targetSector).trim();
-    const KM_START_IDX = 13;   // Col N (14) in 1-based → index 13 in 0-based 15-col array
-    const KM_END_IDX = 14;     // Col O (15)
-
-    const shiftOrderVal = { 'MAÑANA': 0, 'TARDE': 1, 'NOCHE': 2 };
-    const currentShiftVal = shiftOrderVal[shift] !== undefined ? shiftOrderVal[shift] : -1;
-
-    for (let i = 0; i < unitKMData.length; i++) {
-      const row = unitKMData[i];
-      const absIdx = i + 2;
-      if (!row[0]) continue;
-      let rowDate, rowShift;
-      try {
-        rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
-        rowShift = String(row[1]);
-      } catch (e) { continue; }
-      
-      if (rowDate === dateStr && rowShift === shift && toStorageSector(row[2]) === targetSectorStr) {
-        const unit_id = String(unitIdCol[i][0] || '').trim();
-        if (unit_id) unitIdToRowMap.set(unit_id, absIdx);
+    if (!unit_id.includes(shift)) {
+      const cleanDate = dateStr.replace(/-/g, '');
+      const cleanId = String(unit.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      if (cleanId) {
+        unit_id = cleanDate + '_' + shift + '_' + targetSector + '_' + cleanId;
+      } else {
+        unit_id = 'UID-' + cleanDate + '-' + Utilities.getUuid().substring(0, 5).toUpperCase();
       }
+    }
 
-      // KM bridge: Buscar el registro más reciente antes del actual EN EL MISMO SECTOR
-      const rowShiftVal = shiftOrderVal[rowShift] !== undefined ? shiftOrderVal[rowShift] : -1;
-      const isBefore = (rowDate < dateStr) || (rowDate === dateStr && rowShiftVal < currentShiftVal);
-      const rowSector = String(toStorageSector(row[2])).trim();
-      
-      if (isBefore && rowSector === targetSectorStr) {
-        const displayId = String(row[3] || '').trim().toUpperCase();
-        if (displayId) prevShiftRecords.set(displayId, {
-          rowIndex: absIdx,
-          kmStart: String(row[KM_START_IDX] || '0')
+    const data = {
+      date: dateStr,
+      shift: shift,
+      sector: targetSector,
+      id: unit.id,
+      type: unit.type,
+      model: unit.model || '',
+      personnel1: unit.personnel1 || '',
+      personnel2: unit.personnel2 || '',
+      plate: unit.plate || '',
+      indicative: unit.indicative || '',
+      radio: unit.radio || '',
+      status: unit.status || '',
+      reason: unit.reason || '',
+      kmStart: unit.kmStart || '0',
+      kmEnd: unit.kmEnd || '0',
+      totalKm: unit.totalKm || '0',
+      kmRecarga: unit.kmRecarga || '0',
+      hours: unit.hours || '',
+      fuel: unit.fuel || '',
+      expense: unit.expense || '',
+      partes: '0',
+      quadrant: unit.quadrant || '',
+      mechanics: unit.mechanics || '',
+      unit_id: unit_id,
+      lugarEstado: unit.lugarEstado || '',
+      motivoEstado: unit.motivoEstado || '',
+      auditLog: auditLog,
+      updatedAt: timestamp
+    };
+
+    firestoreWrites.push({ collection: 'units', docId: unit_id, data });
+
+    if (unit.id && unit.kmStart && unit.kmStart !== '0') {
+      const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      if (cleanId) {
+        kmBridgeLookups.push({
+          unitId: cleanId,
+          prevUnitId: prevShiftDate + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId,
+          currentKmStart: unit.kmStart
         });
       }
     }
+  });
 
-    const email = Session.getActiveUser().getEmail();
-    const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
-    let auditLog = timestamp;
-    if (email) auditLog = email + ' @ ' + auditLog;
-    if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
+  // Batch-read all prev shift units in parallel
+  if (kmBridgeLookups.length > 0) {
+    const token = _getFirebaseToken();
+    const config = _getFirebaseConfig();
+    const baseUrl = FIRESTORE_BASE + '/' + _fsEncode(config.project_id) + '/databases/(default)/documents/units/';
+    const getRequests = kmBridgeLookups.map(lookup => ({
+      url: baseUrl + _fsEncode(lookup.prevUnitId),
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    }));
+    const getResponses = UrlFetchApp.fetchAll(getRequests);
 
-    const unitUpdates = [];
-    const rowsToAppend = [];
-    const sectorUnits = units.filter(u => toStorageSector(u.sector) === targetSector);
+    for (let i = 0; i < getResponses.length; i++) {
+      if (getResponses[i].getResponseCode() !== 200) continue;
+      const prevDoc = _fromFields(JSON.parse(getResponses[i].getContentText()).fields);
+      if (!prevDoc || !prevDoc.kmStart) continue;
 
-    // --- Unit Sync by UNIT_ID ---
-    sectorUnits.forEach((unit) => {
-      let unit_id = unit.unit_id || '';
-      if (!unit_id || unit_id === 'undefined') {
-        unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
-      }
-
-      const unitRow = [
-        dateStr, shift, targetSector,
-        unit.id, unit.type, unit.model || '', unit.personnel1 || '', unit.personnel2 || '', unit.plate || '', unit.indicative || '', unit.radio || '',
-        unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
-        unit_id, // Column 24
-        unit.lugarEstado || '', // Column 25
-        unit.motivoEstado || '',  // Column 26
-        auditLog // Column 27
-      ];
-
-      const existingRowIdx = unitIdToRowMap.get(unit_id);
-      if (existingRowIdx) {
-        unitUpdates.push({ rowIndex: existingRowIdx, values: unitRow });
-      } else {
-        rowsToAppend.push(unitRow);
-      }
-
-      // KM_FIN bridge — escribe solo columnas O(15)=km_end y P(16)=total_km
-      if (unit.id && unit.kmStart && unit.kmStart !== '0' && prevShiftRecords.has(unit.id.toUpperCase())) {
-        const prev = prevShiftRecords.get(unit.id.toUpperCase());
-        const newKmEnd = parseFloat(unit.kmStart) || 0;
-        const origKmStart = parseFloat(prev.kmStart) || 0;
-        const newTotal = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
-        dataSheet.getRange(prev.rowIndex, 15, 1, 2).setValues([[unit.kmStart, newTotal]]);
-      }
-    });
-
-    // Handle deletions: DISABLED per user request. Records are only created or updated.
-
-    // Write updated rows in contiguous batches (minimizes API round-trips)
-    if (unitUpdates.length > 0) {
-      const sorted = [...unitUpdates].sort((a, b) => a.rowIndex - b.rowIndex);
-      let batchStart = sorted[0].rowIndex;
-      let batchValues = [sorted[0].values];
-      for (let i = 1; i < sorted.length; i++) {
-        if (sorted[i].rowIndex === batchStart + batchValues.length) {
-          batchValues.push(sorted[i].values);
-        } else {
-          dataSheet.getRange(batchStart, 1, batchValues.length, 27).setValues(batchValues);
-          batchStart = sorted[i].rowIndex;
-          batchValues = [sorted[i].values];
-        }
-      }
-      dataSheet.getRange(batchStart, 1, batchValues.length, 27).setValues(batchValues);
+      const lookup = kmBridgeLookups[i];
+      const newKmEnd = parseFloat(lookup.currentKmStart) || 0;
+      const origKmStart = parseFloat(prevDoc.kmStart) || 0;
+      const newTotal = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
+      prevDoc.kmEnd = lookup.currentKmStart;
+      prevDoc.totalKm = newTotal;
+      prevDoc.updatedAt = timestamp;
+      firestoreWrites.push({ collection: 'units', docId: lookup.prevUnitId, data: prevDoc });
     }
-
-    if (rowsToAppend.length > 0) {
-      dataSheet.getRange(dataSheet.getLastRow() + 1, 1, rowsToAppend.length, rowsToAppend[0].length).setValues(rowsToAppend);
-    }
-
-    return { success: true };
-  } catch (e) {
-    console.error('Error in saveShiftData:', e);
-    return { success: false, error: e.toString() };
-  } finally {
-    lock.releaseLock();
   }
+
+  // --- Batch write all units (current + KM updates) in parallel ---
+  if (firestoreWrites.length > 0) {
+    fbSetAll(firestoreWrites);
+  }
+
+  return { success: true };
 }
 
 /**
  * Saves only header settings (operador, supervisor, permanencia) without modifying unit data.
  */
 function saveShiftSettings(dateStr, shift, settings) {
-  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
-  if (!settingsSheet) {
-    return { success: false, error: `No se encontró la hoja ${APP_CONFIG.SHEETS.settings}.` };
-  }
-
   const targetSector = toStorageSector(settings.nombrePuesto || '1A');
-  const timeZone = ss.getSpreadsheetTimeZone();
+  const docId = dateStr + '_' + shift + '_' + targetSector;
 
-  const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
+  const data = {
+    date: dateStr,
+    shift: shift,
+    sector: targetSector,
+    operador: settings.operador || '',
+    supervisor: settings.supervisor || '',
+    permanencia: settings.permanencia || '',
+    updatedAt: Utilities.formatDate(new Date(), SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss')
+  };
 
-    const SETTINGS_SCAN = 5000;
-    const sLastRow = settingsSheet.getLastRow();
-    const sStart = Math.max(2, sLastRow - SETTINGS_SCAN + 1);
-    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(sStart, 1, sLastRow - sStart + 1, 6).getValues() : [];
-
-    let settingsFoundIdx = -1;
-    for (let i = 0; i < settingsRows.length; i++) {
-      const row = settingsRows[i];
-      if (!row[0]) continue;
-      try {
-        const rowDate = (row[0] instanceof Date) ? Utilities.formatDate(row[0], timeZone, 'yyyy-MM-dd') : String(row[0]);
-        if (rowDate === dateStr && String(row[1]) === shift && toStorageSector(row[2]) === targetSector) {
-          settingsFoundIdx = sStart + i;
-        }
-      } catch (e) {}
-    }
-
-    if (settingsFoundIdx > -1) {
-      settingsSheet.getRange(settingsFoundIdx, 1, 1, 6).setValues([[dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]]);
-    } else {
-      settingsSheet.appendRow([dateStr, shift, targetSector, settings.operador, settings.supervisor, settings.permanencia]);
-    }
-
-    lock.releaseLock();
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.toString() };
-  }
+  fbSet('shifts', docId, data);
+  return { success: true };
 }
 
 /**
@@ -952,33 +856,27 @@ function getPreviousShift(dateStr, shift, timeZone) {
 function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
   if (!unitId) return '0';
   try {
-    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-    const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-    if (!dataSheet) return '0';
-    
-    const data = dataSheet.getDataRange().getValues();
+    const searchId = String(unitId).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
     const targetSector = toStorageSector(sector);
-    const searchId = String(unitId).trim().toUpperCase();
-    
-    const shiftOrder = { 'MAÑANA': 0, 'TARDE': 1, 'NOCHE': 2 };
-    const currentShiftVal = shiftOrder[currentShift] !== undefined ? shiftOrder[currentShift] : -1;
-    
-    // Search from bottom up
-    for (let i = data.length - 1; i >= 1; i--) {
-      const row = data[i];
-      if (!row[0]) continue;
-      
-      const rowDate = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-      const rowShift = row[1];
-      const rowShiftVal = shiftOrder[rowShift] !== undefined ? shiftOrder[rowShift] : -1;
+    const shiftOrder = ['MAÑANA', 'TARDE', 'NOCHE'];
+    const currentIdx = shiftOrder.indexOf(currentShift);
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const timeZone = ss.getSpreadsheetTimeZone();
 
-      // Skip if it's the same or a future record
-      if (rowDate > currentDateStr) continue;
-      if (rowDate === currentDateStr && rowShiftVal >= currentShiftVal) continue;
-      
-      // row[3] is ID, row[14] is KM_FIN
-      if (String(row[3]).trim().toUpperCase() === searchId) {
-        return String(row[14] || '0');
+    // Walk back: same date prev shifts → previous dates all shifts
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const d = new Date(currentDateStr);
+      d.setDate(d.getDate() - dayOffset);
+      const dStr = Utilities.formatDate(d, timeZone, 'yyyy-MM-dd');
+      const dStamp = dStr.replace(/-/g, '');
+      const maxShift = dayOffset === 0 ? currentIdx - 1 : 2;
+
+      for (let si = maxShift; si >= 0; si--) {
+        const prevUnitId = dStamp + '_' + shiftOrder[si] + '_' + targetSector + '_' + searchId;
+        try {
+          const doc = fbGet('units', prevUnitId);
+          if (doc && doc.kmEnd) return String(doc.kmEnd);
+        } catch (e2) { /* not found */ }
       }
     }
   } catch (e) {
@@ -1028,136 +926,66 @@ function getLastUnitTallerEntry(unitId) {
 }
 
 /**
- * Fast single-unit save: reads only 3 columns to find the row, updates in-place or appends.
- * ~1s vs ~5-8s for saveShiftData. Does NOT handle KM bridge (handled by global save).
+ * Fast single-unit save: always appends a new row. No locks, no timeouts.
+ * The frontend deduplicates by unit_id on load, taking the most recent row.
  */
 function updateUnit(dateStr, shift, settings, unit) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-  if (!dataSheet) return { success: false, error: 'No se encontró UNIT_DATA' };
 
-  // Force quadrant column (V) as plain text so values like "12, 11" aren't auto-converted to dates
-  dataSheet.getRange('V:V').setNumberFormat('@');
-
-  // USAR el sector de la unidad, NO settings.nombrePuesto
   const targetSector = unit.sector ? toStorageSector(unit.sector) : toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
 
-  const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
+  const email = Session.getActiveUser().getEmail();
+  const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
+  let auditLog = timestamp;
+  if (email) auditLog = email + ' @ ' + auditLog;
+  if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
 
-    const email = Session.getActiveUser().getEmail();
-    const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
-    let auditLog = timestamp;
-    if (email) auditLog = email + ' @ ' + auditLog;
-    if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
-
-    let unit_id = unit.unit_id || '';
-    if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('UID-') || unit_id.startsWith('DEF-') || !unit_id.includes(shift)) {
-      const cleanDate = dateStr.replace(/-/g, '');
-      const cleanId = String(unit.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-      const cleanSector = String(targetSector || '').trim().toUpperCase();
-      if (cleanId) {
-        unit_id = cleanDate + '_' + shift + '_' + cleanSector + '_' + cleanId;
-      } else if (!unit_id || unit_id === 'undefined') {
-        unit_id = 'UID-' + cleanDate + '-' + Utilities.getUuid().substring(0, 5).toUpperCase();
-      }
+  let unit_id = unit.unit_id || '';
+  if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('UID-') || unit_id.startsWith('DEF-') || !unit_id.includes(shift)) {
+    const cleanDate = dateStr.replace(/-/g, '');
+    const cleanId = String(unit.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    const cleanSector = String(targetSector || '').trim().toUpperCase();
+    if (cleanId) {
+      unit_id = cleanDate + '_' + shift + '_' + cleanSector + '_' + cleanId;
+    } else if (!unit_id || unit_id === 'undefined') {
+      unit_id = 'UID-' + cleanDate + '-' + Utilities.getUuid().substring(0, 5).toUpperCase();
     }
-
-    const unitRow = [
-      dateStr, shift, targetSector,
-      unit.id, unit.type, unit.model || '', unit.personnel1 || '', unit.personnel2 || '', unit.plate || '', unit.indicative || '', unit.radio || '',
-      unit.status || '', unit.reason || '', unit.kmStart || '0', unit.kmEnd || '0', unit.totalKm || '0', unit.kmRecarga || '0', unit.hours || '', unit.fuel || '', unit.expense || '', '0', unit.quadrant || '', unit.mechanics || '',
-      unit_id,
-      unit.lugarEstado || '',
-      unit.motivoEstado || '',
-      auditLog
-    ];
-
-    const lastRow = dataSheet.getLastRow();
-    if (lastRow <= 1) {
-      dataSheet.appendRow(unitRow);
-      return { success: true, unit_id: unit_id, created: true };
-    }
-
-    // Read cols A(1), B(2), C(3=targetSector), D(4=displayId), X(24=unit_id)
-    const dateShiftData = dataSheet.getRange(2, 1, lastRow - 1, 2).getValues();
-    const sectorData = dataSheet.getRange(2, 3, lastRow - 1, 1).getValues();
-    const idDisplayData = dataSheet.getRange(2, 4, lastRow - 1, 1).getValues();
-    const unitIdData = dataSheet.getRange(2, 24, lastRow - 1, 1).getValues();
-
-    let foundRow = -1;
-    const unitDisplayId = unit.id ? String(unit.id).trim().toUpperCase() : '';
-    const targetSectorStr = String(targetSector).trim();
-
-    for (let i = 0; i < dateShiftData.length; i++) {
-      if (!dateShiftData[i][0]) continue;
-      const rowDate = (dateShiftData[i][0] instanceof Date) ? Utilities.formatDate(dateShiftData[i][0], timeZone, 'yyyy-MM-dd') : String(dateShiftData[i][0]);
-      if (rowDate !== dateStr || String(dateShiftData[i][1]) !== shift) continue;
-
-      // Solo considerar filas del mismo sector
-      const rowSector = String(toStorageSector(sectorData[i][0])).trim();
-      if (rowSector !== targetSectorStr) continue;
-
-      // Match prioritario por UNIT_ID (único global)
-      const storedUnitId = String(unitIdData[i][0] || '').trim();
-      if (storedUnitId === unit_id) {
-        foundRow = i + 2;
-        break;
-      }
-
-      // Fallback seguro: match por display ID SOLO si estamos en el mismo sector
-      const storedDisplayId = String(idDisplayData[i][0] || '').trim().toUpperCase();
-      if (storedDisplayId && storedDisplayId === unitDisplayId) {
-        foundRow = i + 2;
-        break;
-      }
-    }
-
-    if (foundRow > -1) {
-      dataSheet.getRange(foundRow, 1, 1, 27).setValues([unitRow]);
-      
-      // KM_FIN bridge para updateUnit
-      if (unit.id && unit.kmStart && unit.kmStart !== '0' && unit.kmStart !== 'undefined') {
-        const searchId = String(unit.id).trim().toUpperCase();
-        const shiftOrderVal = { 'MAÑANA': 0, 'TARDE': 1, 'NOCHE': 2 };
-        const currentShiftVal = shiftOrderVal[shift] !== undefined ? shiftOrderVal[shift] : -1;
-        
-        // Buscar el registro más reciente antes del actual
-        for (let i = dateShiftData.length - 1; i >= 0; i--) {
-          const rowDate = (dateShiftData[i][0] instanceof Date) ? Utilities.formatDate(dateShiftData[i][0], timeZone, 'yyyy-MM-dd') : String(dateShiftData[i][0]);
-          const rowShift = String(dateShiftData[i][1]);
-          const rowShiftVal = shiftOrderVal[rowShift] !== undefined ? shiftOrderVal[rowShift] : -1;
-          
-          const isBefore = (rowDate < dateStr) || (rowDate === dateStr && rowShiftVal < currentShiftVal);
-          const rowSector = String(toStorageSector(sectorData[i][0])).trim();
-          
-          if (isBefore && String(idDisplayData[i][0]).trim().toUpperCase() === searchId && rowSector === targetSectorStr) {
-            const prevRowIdx = i + 2;
-            const prevKmStart = String(dataSheet.getRange(prevRowIdx, 14).getValue() || '0');
-            
-            const newKmEnd = parseFloat(unit.kmStart) || 0;
-            const origKmStart = parseFloat(prevKmStart) || 0;
-            const newTotal = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
-            
-            dataSheet.getRange(prevRowIdx, 15, 1, 2).setValues([[unit.kmStart, newTotal]]);
-            break; // Solo actualizar el más reciente
-          }
-        }
-      }
-
-      return { success: true, unit_id: unit_id, created: false };
-    } else {
-      dataSheet.appendRow(unitRow);
-      return { success: true, unit_id: unit_id, created: true };
-    }
-  } catch (e) {
-    console.error('Error in updateUnit:', e);
-    return { success: false, error: e.toString() };
-  } finally {
-    lock.releaseLock();
   }
+
+  const data = {
+    date: dateStr,
+    shift: shift,
+    sector: targetSector,
+    id: unit.id,
+    type: unit.type,
+    model: unit.model || '',
+    personnel1: unit.personnel1 || '',
+    personnel2: unit.personnel2 || '',
+    plate: unit.plate || '',
+    indicative: unit.indicative || '',
+    radio: unit.radio || '',
+    status: unit.status || '',
+    reason: unit.reason || '',
+    kmStart: unit.kmStart || '0',
+    kmEnd: unit.kmEnd || '0',
+    totalKm: unit.totalKm || '0',
+    kmRecarga: unit.kmRecarga || '0',
+    hours: unit.hours || '',
+    fuel: unit.fuel || '',
+    expense: unit.expense || '',
+    partes: '0',
+    quadrant: unit.quadrant || '',
+    mechanics: unit.mechanics || '',
+    unit_id: unit_id,
+    lugarEstado: unit.lugarEstado || '',
+    motivoEstado: unit.motivoEstado || '',
+    auditLog: auditLog,
+    updatedAt: timestamp
+  };
+
+  fbSet('units', unit_id, data);
+  return { success: true, unit_id: unit_id, created: true };
 }
 
 /**
@@ -1306,12 +1134,270 @@ function saveVehicleRQ(data) {
 /**
  * Serves the web application.
  */
+/**
+ * Cleanup: removes test data created by StressTestFirebase and loadtest.
+ * Run from editor: cleanupTestData()
+ */
+function cleanupTestData() {
+  const testPrefixes = ['STRESS-FB-', 'STRESS-BATCH-', 'LOAD-'];
+  const dateStr = Utilities.formatDate(new Date(), SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  const dateStamp = dateStr.replace(/-/g, '');
+
+  // Query all units for today
+  const units = fbQuery('units', [{ field: 'date', value: dateStr }, { field: 'shift', value: 'MAÑANA' }]);
+  if (!units || units.length === 0) { console.log('No units found for today.'); return; }
+
+  let deleted = 0;
+  for (const unit of units) {
+    const id = (unit.id || '').toUpperCase();
+    const isTest = testPrefixes.some(p => id.startsWith(p));
+    if (isTest) {
+      try { fbDelete('units', unit._id); deleted++; } catch (e) { console.error('Error deleting ' + unit._id + ': ' + e); }
+    }
+  }
+
+  // Also clean shifts with test data
+  const shifts = fbQuery('shifts', [{ field: 'date', value: dateStr }, { field: 'shift', value: 'MAÑANA' }]);
+  let delShifts = 0;
+  for (const s of shifts || []) {
+    const op = (s.operador || '').toUpperCase();
+    if (op === 'TEST' || op === 'STRESS' || op === 'OP_STRESS' || op === 'OP_FINAL') {
+      try { fbDelete('shifts', s._id); delShifts++; } catch (e) { console.error('Error deleting shift: ' + e); }
+    }
+  }
+
+  console.log('Cleaned up: ' + deleted + ' units, ' + delShifts + ' shifts');
+  // Also clean up from sheets (legacy)
+  try {
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+    if (sheet) {
+      const rows = sheet.getDataRange().getValues();
+      let sheetDeletions = 0;
+      for (let i = rows.length - 1; i >= 1; i--) {
+        const id = String(rows[i][3] || '').toUpperCase();
+        if (testPrefixes.some(p => id.startsWith(p))) {
+          sheet.deleteRow(i + 1);
+          sheetDeletions++;
+        }
+      }
+      console.log('Cleaned from sheet: ' + sheetDeletions + ' rows');
+    }
+  } catch (e) { console.error('Sheet cleanup: ' + e); }
+}
+
+/**
+ * One-time migration: copies all UNIT_DATA and SHIFT_SETTINGS from Sheets to Firestore.
+ * Run once from the GAS editor after configuring Firebase.
+ */
+function migrateToFirebase() {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const timeZone = ss.getSpreadsheetTimeZone();
+
+  // Migrate SHIFT_SETTINGS
+  console.log('[migrate] Starting SHIFT_SETTINGS migration...');
+  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
+  if (settingsSheet) {
+    const rows = settingsSheet.getDataRange().getValues();
+    let count = 0;
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r[0]) continue;
+      try {
+        const dateStr = Utilities.formatDate(new Date(r[0]), timeZone, 'yyyy-MM-dd');
+        const shift = String(r[1] || '');
+        const sector = toStorageSector(r[2] || '');
+        const docId = dateStr + '_' + shift + '_' + sector;
+        fbSet('shifts', docId, {
+          date: dateStr, shift: shift, sector: sector,
+          operador: String(r[3] || ''), supervisor: String(r[4] || ''), permanencia: String(r[5] || ''),
+          updatedAt: Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss')
+        });
+        count++;
+      } catch (e) { console.error('migrate settings row ' + i + ': ' + e); }
+    }
+    console.log('[migrate] SHIFT_SETTINGS: ' + count + ' docs migrated');
+  }
+
+  // Migrate UNIT_DATA
+  console.log('[migrate] Starting UNIT_DATA migration...');
+  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+  if (dataSheet) {
+    const rows = dataSheet.getDataRange().getValues();
+    const batchSize = 20;
+    let total = 0;
+
+    for (let start = 1; start < rows.length; start += batchSize) {
+      const end = Math.min(start + batchSize, rows.length);
+      const batch = [];
+
+      for (let i = start; i < end; i++) {
+        const r = rows[i];
+        if (!r[0]) continue;
+        try {
+          const dateStr = Utilities.formatDate(new Date(r[0]), timeZone, 'yyyy-MM-dd');
+          const unit_id = String(r[23] || '');
+          if (!unit_id) continue;
+
+          batch.push({
+            collection: 'units',
+            docId: unit_id,
+            data: {
+              date: dateStr, shift: String(r[1] || ''), sector: String(r[2] || ''),
+              id: String(r[3] || ''), type: String(r[4] || ''), model: String(r[5] || ''),
+              personnel1: String(r[6] || ''), personnel2: String(r[7] || ''),
+              plate: String(r[8] || ''), indicative: String(r[9] || ''), radio: String(r[10] || ''),
+              status: String(r[11] || ''), reason: String(r[12] || ''),
+              kmStart: String(r[13] || '0'), kmEnd: String(r[14] || '0'), totalKm: String(r[15] || '0'),
+              kmRecarga: String(r[16] || '0'), hours: String(r[17] || ''),
+              fuel: String(r[18] || ''), expense: String(r[19] || ''), partes: String(r[20] || '0'),
+              quadrant: cellToStr(r[21], timeZone), mechanics: String(r[22] || ''),
+              unit_id: unit_id, lugarEstado: String(r[24] || ''), motivoEstado: String(r[25] || ''),
+              auditLog: String(r[26] || ''),
+              updatedAt: Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss')
+            }
+          });
+        } catch (e) { /* skip row */ }
+      }
+
+      if (batch.length > 0) {
+        fbSetAll(batch);
+        total += batch.length;
+      }
+    }
+    console.log('[migrate] UNIT_DATA: ' + total + ' docs migrated');
+  }
+
+  return { success: true, message: 'Migration complete. Settings + Units copied to Firestore.' };
+}
+
+/**
+ * STRESS TEST for Firebase backend.
+ * Ejecutar desde el editor GAS: StressTestFirebase()
+ */
+function StressTestFirebase() {
+  const now = new Date();
+  const dateStr = Utilities.formatDate(now, SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  const shift = 'MAÑANA';
+  const sector = '2A';
+
+  console.log('[StressTestFirebase] START — ' + dateStr + ' ' + shift + ' ' + sector);
+
+  // Test 1: 50 updateUnit saves
+  console.log('[StressTest] Test 1: 50x updateUnit...');
+  const ids = [];
+  let ok = 0, fail = 0;
+  for (let i = 0; i < 50; i++) {
+    const result = updateUnit(dateStr, shift, { nombrePuesto: sector, operador: 'STRESS' }, {
+      id: 'STRESS-FB-' + i, type: 'CHOFER', status: 'ACTIVO',
+      kmStart: String(100 + i), sector: sector
+    });
+    if (result.success) { ids.push(result.unit_id); ok++; }
+    else { fail++; console.error('FAIL ' + i + ': ' + result.error); }
+  }
+  console.log('[StressTest] Test 1 OK: ' + ok + ' success, ' + fail + ' fail');
+
+  // Test 2: saveShiftData (10 units + settings)
+  console.log('[StressTest] Test 2: saveShiftData...');
+  const units = [];
+  for (let i = 0; i < 10; i++) {
+    units.push({ id: 'STRESS-BATCH-' + i, type: 'MOTO', status: 'ACTIVO', sector: sector });
+  }
+  const batchResult = saveShiftData(dateStr, shift, {
+    nombrePuesto: sector, operador: 'OP_STRESS', supervisor: 'SUP_STRESS', permanencia: '2H'
+  }, units);
+  console.log('[StressTest] Test 2: ' + JSON.stringify(batchResult));
+
+  // Test 3: saveShiftSettings
+  console.log('[StressTest] Test 3: saveShiftSettings...');
+  const setResult = saveShiftSettings(dateStr, shift, {
+    nombrePuesto: sector, operador: 'OP_FINAL', supervisor: 'SUP_FINAL', permanencia: '3H'
+  });
+  console.log('[StressTest] Test 3: ' + JSON.stringify(setResult));
+
+  // Verification
+  console.log('[StressTest] Verification: reading back...');
+  const data = getSectorData(dateStr, shift, sector);
+  const unitIdCounts = {};
+  data.units.forEach(u => {
+    unitIdCounts[u.unit_id] = (unitIdCounts[u.unit_id] || 0) + 1;
+  });
+  const dupes = Object.entries(unitIdCounts).filter(([k, v]) => v > 1);
+  console.log('[StressTest] Verify — ' + data.units.length + ' rows, ' + Object.keys(unitIdCounts).length + ' unique unit_ids, ' + dupes.length + ' duplicates');
+
+  const settingsRead = data.settings;
+  console.log('[StressTest] Settings: ' + JSON.stringify(settingsRead));
+
+  return {
+    updateUnitOK: ok, updateUnitFAIL: fail,
+    totalUnits: data.units.length, uniqueUnitIds: Object.keys(unitIdCounts).length,
+    duplicates: dupes.length,
+    settingsOperador: settingsRead.operador
+  };
+}
+
+/**
+ * Web app doGet — sirve la app embedida en GAS
+ */
 function doGet() {
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
     .setTitle('Reporte Integrado MSS')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * Web app doPost — endpoint HTTP para pruebas de concurrencia externas.
+ * Body JSON con { action, dateStr, shift, settings, units, unit }.
+ * Ej: { action: "updateUnit", dateStr: "2026-06-01", shift: "MAÑANA", settings: {...}, unit: {...} }
+ */
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const action = data.action;
+    let result;
+
+    switch (action) {
+      case 'updateUnit':
+        result = updateUnit(data.dateStr, data.shift, data.settings || {}, data.unit);
+        break;
+      case 'saveShiftData':
+        result = saveShiftData(data.dateStr, data.shift, data.settings || {}, data.units || []);
+        break;
+      case 'saveShiftSettings':
+        result = saveShiftSettings(data.dateStr, data.shift, data.settings || {});
+        break;
+      case 'getSectorData':
+        result = getSectorData(data.dateStr, data.shift, data.sector);
+        break;
+      case 'getShiftData':
+        result = getShiftData(data.dateStr, data.shift, data.sector);
+        break;
+      case 'setupFirebase':
+        result = setupFirebaseFromString(data.jsonKey);
+        break;
+      case 'migrateToFirebase':
+        result = migrateToFirebase();
+        break;
+      case 'StressTestFirebase':
+        result = StressTestFirebase();
+        break;
+      case 'ping':
+        result = { success: true, pong: true, timestamp: new Date().toISOString() };
+        break;
+      default:
+        result = { success: false, error: 'Unknown action: ' + action };
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 /**

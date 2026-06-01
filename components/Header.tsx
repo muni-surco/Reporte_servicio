@@ -325,7 +325,7 @@ const Header: React.FC<HeaderProps> = ({
                 {hasPendingChanges && (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg" title="Hay cambios sin guardar o guardados pendientes">
                     <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
-                    <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">Pendiente</span>
+                    <span className="text-[11px] font-medium text-amber-700 uppercase tracking-wider">Guardando</span>
                   </div>
                 )}
                 {isDashboard ? (
