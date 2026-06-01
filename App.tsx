@@ -494,7 +494,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   const pendingViewMessage = pendingViewChange
     ? (editingId
         ? 'Tiene cambios sin guardar en una unidad. Si sale sin guardar, los cambios se perderán.'
-        : 'Hay una operación de guardado reciente. ¿Está seguro de cambiar de vista?')
+        : 'Hay una operación de guardado en proceso. ¿Está seguro de cambiar de vista?')
     : '';
 
   const confirmViewChange = () => {

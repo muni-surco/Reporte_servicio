@@ -1139,7 +1139,7 @@ function saveVehicleRQ(data) {
  * Run from editor: cleanupTestData()
  */
 function cleanupTestData() {
-  const testPrefixes = ['STRESS-FB-', 'STRESS-BATCH-', 'LOAD-'];
+  const testPrefixes = ['STRESS-FB-', 'STRESS-BATCH-', 'LOAD-', 'TEST-T'];
   const dateStr = Utilities.formatDate(new Date(), SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone(), 'yyyy-MM-dd');
   const dateStamp = dateStr.replace(/-/g, '');
 
