@@ -230,6 +230,7 @@ function getShiftData(dateStr, shift, sector) {
       try {
         const allUnits = JSON.parse(cached);
         console.log('[getShiftData] CACHE HIT — units=' + allUnits.length);
+        _fbLogUsage();
         return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
       } catch (e) { /* invalid cache, fall through */ }
     }
@@ -272,6 +273,7 @@ function getShiftData(dateStr, shift, sector) {
 
     cache.put(cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
+    _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
   } catch (err) {
     console.error('[getShiftData] ERROR', err);
@@ -302,6 +304,7 @@ function getSectorData(dateStr, shift, sector) {
       try {
         const allUnits = JSON.parse(cached);
         console.log('[getSectorData] CACHE HIT — units=' + allUnits.length);
+        _fbLogUsage();
         return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
       } catch (e) { /* invalid cache, fall through */ }
     }
@@ -347,6 +350,7 @@ function getSectorData(dateStr, shift, sector) {
 
     cache.put(cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
+    _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
   } catch (err) {
     console.error('[getSectorData] ERROR', err);
@@ -835,6 +839,7 @@ function saveShiftData(dateStr, shift, settings, units) {
     const getResponses = UrlFetchApp.fetchAll(getRequests);
 
     for (let i = 0; i < getResponses.length; i++) {
+      _fbReads++;
       if (getResponses[i].getResponseCode() !== 200) continue;
       const prevDoc = _fromFields(JSON.parse(getResponses[i].getContentText()).fields);
       if (!prevDoc || !prevDoc.kmStart) continue;
@@ -877,6 +882,7 @@ function saveShiftSettings(dateStr, shift, settings) {
 
   fbSet('shifts', docId, data);
   CacheService.getScriptCache().remove('SETTINGS_' + dateStr + '_' + shift);
+  _fbLogUsage();
   return { success: true };
 }
 
@@ -1036,6 +1042,7 @@ function updateUnit(dateStr, shift, settings, unit) {
   const cache = CacheService.getScriptCache();
   cache.remove('UNITS_' + dateStr + '_' + shift);
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
+  _fbLogUsage();
   return { success: true, unit_id: unit_id, created: true };
 }
 

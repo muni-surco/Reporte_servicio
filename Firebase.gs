@@ -8,6 +8,18 @@
 
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects';
 
+// --- Firebase usage counters (reset per script execution) ---
+var _fbReads = 0;
+var _fbWrites = 0;
+
+function _fbLogUsage() {
+  console.log('[FIREBASE_USAGE] reads=' + _fbReads + ' writes=' + _fbWrites);
+}
+
+function getFirebaseUsage() {
+  return { reads: _fbReads, writes: _fbWrites };
+}
+
 /**
  * Store service account JSON in script properties (run once from editor).
  * 
@@ -170,6 +182,7 @@ function fbGet(collection, docId) {
     muteHttpExceptions: true
   });
 
+  _fbReads++;
   if (res.getResponseCode() === 404) return null;
   if (res.getResponseCode() !== 200) {
     throw new Error('fbGet error: ' + res.getContentText());
@@ -201,6 +214,7 @@ function fbSet(collection, docId, data) {
     muteHttpExceptions: true
   });
 
+  _fbWrites++;
   if (res.getResponseCode() !== 200) {
     throw new Error('fbSet error: ' + res.getContentText());
   }
@@ -235,6 +249,7 @@ function fbSetAll(items) {
 
     const responses = UrlFetchApp.fetchAll(requests);
     for (let i = 0; i < responses.length; i++) {
+      _fbWrites++;
       if (responses[i].getResponseCode() !== 200) {
         throw new Error('fbSetAll error en ' + chunk[i].docId + ': ' + responses[i].getContentText());
       }
@@ -327,6 +342,7 @@ function fbQuery(collection, filters, orderByField, limit, orderDirection) {
       obj._id = r.document.name.split('/').pop();
       return obj;
     });
+    _fbReads += docs.length;
     allDocuments = allDocuments.concat(docs);
 
     // Check for cursor to continue pagination
