@@ -1139,51 +1139,56 @@ function saveVehicleRQ(data) {
  * Run from editor: cleanupTestData()
  */
 function cleanupTestData() {
-  const testPrefixes = ['STRESS-FB-', 'STRESS-BATCH-', 'LOAD-', 'TEST-T'];
-  const dateStr = Utilities.formatDate(new Date(), SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-  const dateStamp = dateStr.replace(/-/g, '');
+  const testPrefixes = ['STRESS-FB-', 'STRESS-BATCH-', 'LOAD-', 'TEST-T', 'PYTEST-', 'LTEST-', 'CTEST-'];
+  const testOpPrefixes = ['TEST', 'STRESS', 'OP_STRESS', 'OP_FINAL', 'PYOP-', 'LOP-', 'SUP-', 'COP-', 'CSUP-'];
+  const tz = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone();
+  const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+  const shifts = ['MAÑANA', 'TARDE', 'NOCHE'];
+  const testDates = [];
 
-  // Query all units for today
-  const units = fbQuery('units', [{ field: 'date', value: dateStr }, { field: 'shift', value: 'MAÑANA' }]);
-  if (!units || units.length === 0) { console.log('No units found for today.'); return; }
-
-  let deleted = 0;
-  for (const unit of units) {
-    const id = (unit.id || '').toUpperCase();
-    const isTest = testPrefixes.some(p => id.startsWith(p));
-    if (isTest) {
-      try { fbDelete('units', unit._id); deleted++; } catch (e) { console.error('Error deleting ' + unit._id + ': ' + e); }
-    }
+  // Collect dates with test data (today and recent days)
+  testDates.push(today);
+  for (let d = 1; d <= 7; d++) {
+    const date = new Date();
+    date.setDate(date.getDate() - d);
+    testDates.push(Utilities.formatDate(date, tz, 'yyyy-MM-dd'));
   }
 
-  // Also clean shifts with test data
-  const shifts = fbQuery('shifts', [{ field: 'date', value: dateStr }, { field: 'shift', value: 'MAÑANA' }]);
-  let delShifts = 0;
-  for (const s of shifts || []) {
-    const op = (s.operador || '').toUpperCase();
-    if (op === 'TEST' || op === 'STRESS' || op === 'OP_STRESS' || op === 'OP_FINAL') {
-      try { fbDelete('shifts', s._id); delShifts++; } catch (e) { console.error('Error deleting shift: ' + e); }
-    }
-  }
+  let delUnits = 0, delShifts = 0;
 
-  console.log('Cleaned up: ' + deleted + ' units, ' + delShifts + ' shifts');
-  // Also clean up from sheets (legacy)
-  try {
-    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-    if (sheet) {
-      const rows = sheet.getDataRange().getValues();
-      let sheetDeletions = 0;
-      for (let i = rows.length - 1; i >= 1; i--) {
-        const id = String(rows[i][3] || '').toUpperCase();
-        if (testPrefixes.some(p => id.startsWith(p))) {
-          sheet.deleteRow(i + 1);
-          sheetDeletions++;
+  for (const dateStr of testDates) {
+    for (const shift of shifts) {
+      // Clean units
+      const units = fbQuery('units', [
+        { field: 'date', value: dateStr },
+        { field: 'shift', value: shift }
+      ]);
+      for (const unit of units || []) {
+        const id = (unit.id || '').toUpperCase();
+        const isTestPrefix = testPrefixes.some(p => id.startsWith(p));
+        const isEmptyId = !unit.id || unit.id.trim() === '';
+        const isTestOp = testOpPrefixes.some(p => (unit.operador || '').toUpperCase().startsWith(p));
+        if (isTestPrefix || (isEmptyId && isTestOp)) {
+          try { fbDelete('units', unit._id); delUnits++; } catch (e) { console.error('Error deleting unit: ' + e); }
         }
       }
-      console.log('Cleaned from sheet: ' + sheetDeletions + ' rows');
+
+      // Clean shifts
+      const shiftsData = fbQuery('shifts', [
+        { field: 'date', value: dateStr },
+        { field: 'shift', value: shift }
+      ]);
+      for (const s of shiftsData || []) {
+        const op = (s.operador || '').toUpperCase();
+        const sup = (s.supervisor || '').toUpperCase();
+        if (testOpPrefixes.some(p => op.startsWith(p)) || testOpPrefixes.some(p => sup.startsWith(p))) {
+          try { fbDelete('shifts', s._id); delShifts++; } catch (e) { console.error('Error deleting shift: ' + e); }
+        }
+      }
     }
-  } catch (e) { console.error('Sheet cleanup: ' + e); }
+  }
+
+  console.log('Cleaned up: ' + delUnits + ' units, ' + delShifts + ' shifts');
 }
 
 /**
@@ -1337,6 +1342,147 @@ function StressTestFirebase() {
 }
 
 /**
+ * runLoadTest — Prueba de carga desde GAS (no necesita navegador).
+ * Corre en el editor de GAS o desde doPost.
+ * 
+ * @param {number} numWorkers — cuantos workers simultaneos (default 10)
+ * @param {number} savesPerWorker — saves por worker (default 10)
+ * @returns {object} resultados con timing
+ */
+function runLoadTest(numWorkers, savesPerWorker) {
+  numWorkers = numWorkers || 15;
+  savesPerWorker = savesPerWorker || 1;
+  const now = new Date();
+  const tz = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone();
+  const dateStr = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  const shift = 'MAÑANA';
+
+  // All 14 sectors
+  const sectors = ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'RESCATE', 'GIR'];
+
+  // Per sector: which sections and how many units of each
+  // [sectionType, idPrefix, count]
+  const sectionDefs = {
+    '1A':      [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '1B':      [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '2A':      [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '2B':      [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '3':       [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '4':       [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '5':       [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '6':       [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '7':       [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '8':       [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '9A':      [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    '9B':      [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+    'RESCATE': [['CHOFER', 'C', 10]],
+    'GIR':     [['CHOFER', 'C', 10], ['MOTO', 'H', 10], ['SERENO', 'S', 10]],
+  };
+
+  const statuses = ['ACTIVO', 'COMISION', 'PATIO', 'TALLER', 'DESPACHADO'];
+  const reasons = ['TRASLADO', 'MANTENIMIENTO', 'DESCANSO', 'COMBUSTIBLE', 'OTROS'];
+  const models = ['TOYOTA HILUX', 'NISSAN NP300', 'HYUNDAI TUCSON', 'KIA SPORTAGE', 'FORD RANGER'];
+  const personnels = ['Juan Perez', 'Maria Garcia', 'Carlos Lopez', 'Ana Martinez', 'Pedro Ramirez', 'Lucia Fernandez'];
+
+  const unitsPerSector = Object.values(sectionDefs).reduce((sum, defs) => sum + defs.reduce((s, d) => s + d[2], 0), 0);
+  const totalWrites = numWorkers * (sectors.length + unitsPerSector * savesPerWorker);
+
+  console.log('[runLoadTest] START — ' + numWorkers + ' workers, ' + sectors.length + ' sectores, ' + unitsPerSector + ' unidades c/u, ' + savesPerWorker + ' veces = ' + totalWrites + ' writes');
+  const startTime = Date.now();
+
+  const allItems = [];
+  for (let w = 1; w <= numWorkers; w++) {
+    for (let s = 0; s < savesPerWorker; s++) {
+      const ts = Utilities.formatDate(now, tz, 'yyyy-MM-dd HH:mm:ss');
+
+      for (const sector of sectors) {
+        const defs = sectionDefs[sector];
+        if (!defs) continue;
+
+        // Settings doc (shifts collection) — one per sector per save
+        if (s === 0) {
+          const settingsDocId = dateStr + '_' + shift + '_' + sector;
+          allItems.push({ collection: 'shifts', docId: settingsDocId, data: {
+            date: dateStr, shift: shift, sector: sector,
+            operador: 'LOP-W' + w,
+            supervisor: 'SUP-W' + w,
+            permanencia: String(Math.floor(Math.random() * 8) + 1) + 'H',
+            updatedAt: ts
+          }});
+        }
+
+        // Units per section
+        let idx = 0;
+        for (const [type, prefix, count] of defs) {
+          for (let u = 0; u < count; u++) {
+            idx++;
+            const unitRawId = prefix + String(100 + (s * 100) + idx);
+            const unitId = 'LTEST-W' + w + '-' + sector + '-' + unitRawId;
+            const cleanId = String(unitId).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            const finalUnitId = dateStr.replace(/-/g, '') + '_' + shift + '_' + sector + '_' + cleanId;
+            const status = statuses[Math.floor(Math.random() * statuses.length)];
+
+            allItems.push({ collection: 'units', docId: finalUnitId, data: {
+              date: dateStr, shift: shift, sector: sector,
+              id: unitId,
+              type: type,
+              model: models[Math.floor(Math.random() * models.length)],
+              personnel1: personnels[Math.floor(Math.random() * personnels.length)],
+              personnel2: personnels[Math.floor(Math.random() * personnels.length)],
+              plate: 'ABC-' + String(1000 + w * 100 + idx),
+              indicative: (sector + '-' + unitRawId).toUpperCase(),
+              radio: 'RAD-' + String(1000 + w * 100 + idx),
+              status: status,
+              reason: status !== 'ACTIVO' ? reasons[Math.floor(Math.random() * reasons.length)] : '',
+              kmStart: String(Math.floor(Math.random() * 500) + 100),
+              kmEnd: String(Math.floor(Math.random() * 200) + 600),
+              totalKm: String(Math.floor(Math.random() * 300) + 50),
+              kmRecarga: String(Math.floor(Math.random() * 100)),
+              hours: String(Math.floor(Math.random() * 12) + 1) + 'H',
+              fuel: String(Math.floor(Math.random() * 50) + 10) + 'GL',
+              expense: String(Math.floor(Math.random() * 200) + 20),
+              partes: '0',
+              quadrant: String(Math.floor(Math.random() * 4) + 1),
+              mechanics: Math.random() > 0.7 ? 'MEC-' + String(100 + w) : '',
+              unit_id: finalUnitId,
+              lugarEstado: status !== 'ACTIVO' ? 'SECTOR ' + sector : '',
+              motivoEstado: status !== 'ACTIVO' ? reasons[Math.floor(Math.random() * reasons.length)] : '',
+              auditLog: 'LOP-W' + w + ' / test@test.com @ ' + ts,
+              updatedAt: ts
+            }});
+          }
+        }
+      }
+    }
+  }
+
+  console.log('[runLoadTest] Preparados ' + allItems.length + ' documentos. Enviando...');
+
+  let ok = 0, fail = 0;
+  for (let i = 0; i < allItems.length; i += 50) {
+    const batch = allItems.slice(i, i + 50);
+    try {
+      const results = fbSetAll(batch);
+      ok += results.length;
+    } catch (e) {
+      fail += batch.length;
+      console.error('[runLoadTest] Batch error: ' + e);
+    }
+  }
+
+  const elapsed = (Date.now() - startTime) / 1000;
+
+  console.log('[runLoadTest] DONE — ' + elapsed + 's, ' + ok + ' OK, ' + fail + ' FAIL');
+
+  return {
+    total: totalWrites, written: ok, failed: fail,
+    elapsedSeconds: elapsed,
+    opsPerSecond: Math.round(totalWrites / elapsed),
+    workers: numWorkers, sectors: sectors.length, unitsPerSector: unitsPerSector, savesPerWorker: savesPerWorker
+  };
+}
+
+/**
  * Web app doGet — sirve la app embedida en GAS
  */
 function doGet() {
@@ -1382,6 +1528,12 @@ function doPost(e) {
         break;
       case 'StressTestFirebase':
         result = StressTestFirebase();
+        break;
+      case 'runLoadTest':
+        result = runLoadTest(data.numWorkers || 15, data.savesPerWorker || 10);
+        break;
+      case 'cleanupTestData':
+        result = cleanupTestData();
         break;
       case 'ping':
         result = { success: true, pong: true, timestamp: new Date().toISOString() };
