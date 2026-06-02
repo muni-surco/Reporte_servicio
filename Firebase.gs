@@ -217,26 +217,31 @@ function fbSetAll(items) {
   const token = _getFirebaseToken();
   const config = _getFirebaseConfig();
   const baseUrl = FIRESTORE_BASE + '/' + _fsEncode(config.project_id) + '/databases/(default)/documents';
-
-  const requests = items.map(item => ({
-    url: baseUrl + '/' + _fsEncode(item.collection) + '/' + _fsEncode(item.docId),
-    method: 'patch',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json'
-    },
-    payload: JSON.stringify({ fields: _toFields(item.data) }),
-    muteHttpExceptions: true
-  }));
-
-  const responses = UrlFetchApp.fetchAll(requests);
+  const CHUNK = 100;
   const results = [];
-  for (let i = 0; i < responses.length; i++) {
-    if (responses[i].getResponseCode() !== 200) {
-      throw new Error('fbSetAll error en ' + items[i].docId + ': ' + responses[i].getContentText());
+
+  for (let start = 0; start < items.length; start += CHUNK) {
+    const chunk = items.slice(start, start + CHUNK);
+    const requests = chunk.map(item => ({
+      url: baseUrl + '/' + _fsEncode(item.collection) + '/' + _fsEncode(item.docId),
+      method: 'patch',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify({ fields: _toFields(item.data) }),
+      muteHttpExceptions: true
+    }));
+
+    const responses = UrlFetchApp.fetchAll(requests);
+    for (let i = 0; i < responses.length; i++) {
+      if (responses[i].getResponseCode() !== 200) {
+        throw new Error('fbSetAll error en ' + chunk[i].docId + ': ' + responses[i].getContentText());
+      }
+      results.push(_fromFields(JSON.parse(responses[i].getContentText()).fields));
     }
-    results.push(_fromFields(JSON.parse(responses[i].getContentText()).fields));
   }
+
   return results;
 }
 
