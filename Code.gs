@@ -121,6 +121,19 @@ function setupRetenLogSheet(ss) {
  * Try reading settings from Firebase. Falls back to sheet for legacy data.
  */
 function _loadSettings(dateStr, shift, sector, timeZone) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'SETTINGS_' + dateStr + '_' + shift;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      const allSectorSettings = parsed.allSettings;
+      const sectorDisplay = toDisplaySector(sector || '1A');
+      const shiftSettings = allSectorSettings[sectorDisplay] || { turno: shift, operador: '', supervisor: '', nombrePuesto: sectorDisplay, permanencia: '' };
+      return { settings: shiftSettings, allSettings: allSectorSettings, from: 'cache' };
+    } catch (e) { /* invalid cache, fall through */ }
+  }
+
   let shiftSettings = { turno: shift, operador: '', supervisor: '', nombrePuesto: toDisplaySector(sector || '1A'), permanencia: '' };
   const allSectorSettings = {};
 
@@ -136,6 +149,7 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
           shiftSettings = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
         }
       });
+      cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), 300);
       return { settings: shiftSettings, allSettings: allSectorSettings, from: 'firebase' };
     }
   } catch (e) { /* fallback */ }
@@ -162,6 +176,7 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
       }
     }
   }
+  cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), 300);
   return { settings: shiftSettings, allSettings: allSectorSettings, from: 'sheet' };
 }
 
@@ -207,7 +222,19 @@ function getShiftData(dateStr, shift, sector) {
     const shiftSettings = settingsResult.settings;
     const allSectorSettings = settingsResult.allSettings;
 
-    // 2. Units — try Firebase first
+    // 2. Units — try cache first
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'UNITS_' + dateStr + '_' + shift;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try {
+        const allUnits = JSON.parse(cached);
+        console.log('[getShiftData] CACHE HIT — units=' + allUnits.length);
+        return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
+      } catch (e) { /* invalid cache, fall through */ }
+    }
+
+    // 3. Units — try Firebase first
     let allUnits = [];
     let fromFirebase = false;
     try {
@@ -243,6 +270,7 @@ function getShiftData(dateStr, shift, sector) {
       }
     }
 
+    cache.put(cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
   } catch (err) {
@@ -266,7 +294,19 @@ function getSectorData(dateStr, shift, sector) {
     const allSectorSettings = settingsResult.allSettings;
     const targetSectorStorage = toStorageSector(sector);
 
-    // 2. Units — try Firebase first
+    // 2. Units — try cache first
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'UNITS_' + dateStr + '_' + shift + '_' + targetSectorStorage;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try {
+        const allUnits = JSON.parse(cached);
+        console.log('[getSectorData] CACHE HIT — units=' + allUnits.length);
+        return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
+      } catch (e) { /* invalid cache, fall through */ }
+    }
+
+    // 3. Units — try Firebase first
     let allUnits = [];
     let fromFirebase = false;
     try {
@@ -305,6 +345,7 @@ function getSectorData(dateStr, shift, sector) {
       }
     }
 
+    cache.put(cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
   } catch (err) {
@@ -835,6 +876,7 @@ function saveShiftSettings(dateStr, shift, settings) {
   };
 
   fbSet('shifts', docId, data);
+  CacheService.getScriptCache().remove('SETTINGS_' + dateStr + '_' + shift);
   return { success: true };
 }
 
@@ -991,6 +1033,9 @@ function updateUnit(dateStr, shift, settings, unit) {
   };
 
   fbSet('units', unit_id, data);
+  const cache = CacheService.getScriptCache();
+  cache.remove('UNITS_' + dateStr + '_' + shift);
+  cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
   return { success: true, unit_id: unit_id, created: true };
 }
 
