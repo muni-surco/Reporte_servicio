@@ -10,6 +10,12 @@ const APP_CONFIG = {
   VEHICLE_RQ_SPREADSHEET_ID: '1ZdHMyeGTrz6ylAhP3J-h3coTmN0w6w_KrDOFQo-T75k',
 };
 
+const SHIFT_HOURS = {
+  MAÑANA: { start: 6.5, end: 14.5 },
+  TARDE:  { start: 14.5, end: 22.5 },
+  NOCHE:  { start: 22.5, end: 6.5 },
+};
+
 function cellToStr(val, tz) {
   if (val instanceof Date) {
     return tz ? Utilities.formatDate(val, tz, 'yyyy-MM-dd HH:mm') : String(val);
@@ -1535,6 +1541,12 @@ function doPost(e) {
       case 'cleanupTestData':
         result = cleanupTestData();
         break;
+      case 'backupFirestore':
+        result = backupFirestoreToSheets();
+        break;
+      case 'setupBackupTrigger':
+        result = setupBackupTrigger();
+        break;
       case 'ping':
         result = { success: true, pong: true, timestamp: new Date().toISOString() };
         break;
@@ -1550,6 +1562,126 @@ function doPost(e) {
       .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+/**
+ * Incremental backup: appends only new records from Firestore to UNIT_DATA and SHIFT_SETTINGS.
+ * Ignores existing records (turnos cerrados no se modifican nunca).
+ */
+function backupFirestoreToSheets() {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const timeZone = ss.getSpreadsheetTimeZone();
+  const now = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
+  console.log('[backup] Starting incremental backup at ' + now);
+
+  // --- Incremental SHIFT_SETTINGS ---
+  const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
+  if (settingsSheet) {
+    const existingKeys = new Set();
+    const existingData = settingsSheet.getDataRange().getValues();
+    for (let i = 1; i < existingData.length; i++) {
+      const row = existingData[i];
+      if (row[0]) existingKeys.add(String(row[0]) + '|' + String(row[1]) + '|' + String(row[2]));
+    }
+
+    const shifts = fbQuery('shifts', []);
+    const newRows = shifts.filter(s => {
+      const key = (s.date || '') + '|' + (s.shift || '') + '|' + toDisplaySector(s.sector || '');
+      return !existingKeys.has(key);
+    }).map(s => [
+      s.date || '', s.shift || '', toDisplaySector(s.sector || ''),
+      s.operador || '', s.supervisor || '', s.permanencia || ''
+    ]);
+
+    if (newRows.length > 0) {
+      const startRow = existingData.length + 1;
+      settingsSheet.getRange(startRow, 1, newRows.length, 6).setValues(newRows);
+    }
+    console.log('[backup] SHIFT_SETTINGS: ' + newRows.length + ' new rows');
+  }
+
+  // --- Incremental UNIT_DATA ---
+  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+  if (dataSheet) {
+    const existingIds = new Set();
+    const existingData = dataSheet.getDataRange().getValues();
+    for (let i = 1; i < existingData.length; i++) {
+      if (existingData[i][23]) existingIds.add(String(existingData[i][23]));
+    }
+
+    const units = fbQuery('units', []);
+    const newRows = units.filter(u => !existingIds.has(u.unit_id || '')).map(u => [
+      u.date || '', u.shift || '', toDisplaySector(u.sector || ''),
+      u.id || '', u.type || '', u.model || '',
+      u.personnel1 || '', u.personnel2 || '',
+      u.plate || '', u.indicative || '', u.radio || '',
+      u.status || '', u.reason || '',
+      u.kmStart || '0', u.kmEnd || '0', u.totalKm || '0',
+      u.kmRecarga || '0', u.hours || '',
+      u.fuel || '', u.expense || '', u.partes || '0',
+      u.quadrant || '', u.mechanics || '',
+      u.unit_id || '', u.lugarEstado || '', u.motivoEstado || '',
+      u.auditLog || ''
+    ]);
+
+    if (newRows.length > 0) {
+      const startRow = existingData.length + 1;
+      const chunkSize = 500;
+      for (let chunkStart = 0; chunkStart < newRows.length; chunkStart += chunkSize) {
+        const chunk = newRows.slice(chunkStart, chunkStart + chunkSize);
+        dataSheet.getRange(startRow + chunkStart, 1, chunk.length, 27).setValues(chunk);
+      }
+    }
+    console.log('[backup] UNIT_DATA: ' + newRows.length + ' new rows');
+  }
+
+  console.log('[backup] Backup completed at ' + now);
+  return { success: true };
+}
+
+/**
+ * Returns true if a given hour (0-23) is safe (outside the first 3 hours of any shift).
+ */
+function _isSafeBackupHour(hour) {
+  const critical = [
+    { start: 6.5, end: 9.5 },   // MAÑANA first 3h: 06:30-09:30
+    { start: 14.5, end: 17.5 }, // TARDE first 3h: 14:30-17:30
+    { start: 22.5, end: 1.5 },  // NOCHE first 3h: 22:30-01:30
+  ];
+  for (const c of critical) {
+    if (c.start <= c.end) {
+      if (hour >= c.start && hour < c.end) return false;
+    } else {
+      // wraps past midnight (NOCHE)
+      if (hour >= c.start || hour < c.end) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Creates time-driven triggers for backupFirestoreToSheets at safe hours.
+ * Runs at 02:00, 10:00, 18:00 — one per turno, all outside the first 3 critical hours.
+ * Run once from GAS editor: setupBackupTrigger()
+ */
+function setupBackupTrigger() {
+  const safeHours = [2, 10, 18];
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t => {
+    if (t.getHandlerFunction() === 'backupFirestoreToSheets') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  for (const hour of safeHours) {
+    ScriptApp.newTrigger('backupFirestoreToSheets')
+      .timeBased()
+      .atHour(hour)
+      .everyDays(1)
+      .inTimezone(Session.getScriptTimeZone())
+      .create();
+  }
+  console.log('[setupBackupTrigger] Triggers created at hours: ' + safeHours.join(', '));
+  return { success: true, safeHours: safeHours };
 }
 
 /**
