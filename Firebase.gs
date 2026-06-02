@@ -246,81 +246,97 @@ function fbSetAll(items) {
 }
 
 /**
- * Run a Firestore structured query.
+ * Run a Firestore structured query with automatic pagination.
+ * If no limit is given, fetches ALL matching documents (paginated internally).
  * @param {string} collection
  * @param {Array<{field:string, value:string, op?:string}>} filters
  *   op: 'EQUAL' (default), 'LESS_THAN', 'GREATER_THAN', 'ARRAY_CONTAINS', etc.
- * @param {string|null} orderByField — field to sort by DESCENDING
- * @param {number|null} limit — max results
+ * @param {string|null} orderByField — field to sort
+ * @param {number|null} limit — max results (null = all)
  * @param {string|null} orderDirection — 'DESCENDING' (default) or 'ASCENDING'
  * @returns {Array<object>} matching documents
  */
 function fbQuery(collection, filters, orderByField, limit, orderDirection) {
-  const token = _getFirebaseToken();
+  const PAGE_SIZE = 300;
+  let allDocuments = [];
+  let cursor = null;
   const config = _getFirebaseConfig();
-  const url = FIRESTORE_BASE + '/' + _fsEncode(config.project_id)
+  const baseUrl = FIRESTORE_BASE + '/' + _fsEncode(config.project_id)
     + '/databases/(default)/documents:runQuery';
 
-  const query = { structuredQuery: { from: [{ collectionId: collection }] } };
+  while (true) {
+    const token = _getFirebaseToken();
+    const query = { structuredQuery: { from: [{ collectionId: collection }] } };
 
-  if (filters && filters.length > 0) {
-    if (filters.length === 1) {
-      query.structuredQuery.where = {
-        fieldFilter: {
-          field: { fieldPath: filters[0].field },
-          op: filters[0].op || 'EQUAL',
-          value: _fbVal(filters[0].value)
-        }
-      };
-    } else {
-      query.structuredQuery.where = {
-        compositeFilter: {
-          op: 'AND',
-          filters: filters.map(f => ({
-            fieldFilter: {
-              field: { fieldPath: f.field },
-              op: f.op || 'EQUAL',
-              value: _fbVal(f.value)
-            }
-          }))
-        }
-      };
+    if (filters && filters.length > 0) {
+      if (filters.length === 1) {
+        query.structuredQuery.where = {
+          fieldFilter: {
+            field: { fieldPath: filters[0].field },
+            op: filters[0].op || 'EQUAL',
+            value: _fbVal(filters[0].value)
+          }
+        };
+      } else {
+        query.structuredQuery.where = {
+          compositeFilter: {
+            op: 'AND',
+            filters: filters.map(f => ({
+              fieldFilter: {
+                field: { fieldPath: f.field },
+                op: f.op || 'EQUAL',
+                value: _fbVal(f.value)
+              }
+            }))
+          }
+        };
+      }
     }
-  }
 
-  if (orderByField) {
-    query.structuredQuery.orderBy = [{
-      field: { fieldPath: orderByField },
-      direction: orderDirection || 'DESCENDING'
-    }];
-  }
+    if (orderByField) {
+      query.structuredQuery.orderBy = [{
+        field: { fieldPath: orderByField },
+        direction: orderDirection || 'DESCENDING'
+      }];
+    }
 
-  if (limit) {
-    query.structuredQuery.limit = limit;
-  }
+    const remaining = limit ? limit - allDocuments.length : PAGE_SIZE;
+    query.structuredQuery.limit = Math.min(remaining, PAGE_SIZE);
 
-  const res = UrlFetchApp.fetch(url, {
-    method: 'post',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json'
-    },
-    payload: JSON.stringify(query),
-    muteHttpExceptions: true
-  });
+    if (cursor) {
+      query.structuredQuery.startAfter = cursor;
+    }
 
-  if (res.getResponseCode() !== 200) {
-    throw new Error('fbQuery error: ' + res.getContentText());
-  }
+    const res = UrlFetchApp.fetch(baseUrl, {
+      method: 'post',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify(query),
+      muteHttpExceptions: true
+    });
 
-  const results = JSON.parse(res.getContentText());
-  return results
-    .filter(r => r.document)
-    .map(r => {
+    if (res.getResponseCode() !== 200) {
+      throw new Error('fbQuery error: ' + res.getContentText());
+    }
+
+    const raw = JSON.parse(res.getContentText());
+    const docs = raw.filter(r => r.document).map(r => {
       const obj = _fromFields(r.document.fields);
       obj._id = r.document.name.split('/').pop();
       return obj;
     });
+    allDocuments = allDocuments.concat(docs);
+
+    // Check for cursor to continue pagination
+    const entry = raw.find(r => r.cursor);
+    cursor = entry ? entry.cursor : null;
+
+    if (!cursor || (limit && allDocuments.length >= limit)) break;
+  }
+
+  return allDocuments;
 }
 
 /**

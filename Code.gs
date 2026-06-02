@@ -1500,9 +1500,37 @@ function doGet() {
 }
 
 /**
+ * Generates and stores a random API key for doPost authentication.
+ * Run once from GAS editor: setupApiKey()
+ * Then use the key in all POST requests: { action: "...", apiKey: "..." }
+ */
+function setupApiKey() {
+  const key = Utilities.getUuid();
+  PropertiesService.getScriptProperties().setProperty('API_KEY', key);
+  console.log('[API] Key generated: ' + key);
+  return { success: true, apiKey: key };
+}
+
+/**
+ * Returns the stored API key (requires the current key to verify).
+ */
+function getApiKey(currentKey) {
+  const stored = PropertiesService.getScriptProperties().getProperty('API_KEY');
+  if (!stored) return { success: false, error: 'No API key configured. Run setupApiKey() first.' };
+  if (currentKey !== stored) return { success: false, error: 'Invalid API key' };
+  return { success: true, apiKey: stored };
+}
+
+function _checkApiKey(provided) {
+  const stored = PropertiesService.getScriptProperties().getProperty('API_KEY');
+  if (!stored) return false;
+  return provided === stored;
+}
+
+/**
  * Web app doPost — endpoint HTTP para pruebas de concurrencia externas.
- * Body JSON con { action, dateStr, shift, settings, units, unit }.
- * Ej: { action: "updateUnit", dateStr: "2026-06-01", shift: "MAÑANA", settings: {...}, unit: {...} }
+ * Body JSON con { action, dateStr, shift, settings, units, unit, apiKey }.
+ * Ej: { action: "updateUnit", apiKey: "...", dateStr: "2026-06-01", shift: "MAÑANA", settings: {...}, unit: {...} }
  */
 function doPost(e) {
   try {
@@ -1510,7 +1538,30 @@ function doPost(e) {
     const action = data.action;
     let result;
 
+    // Public actions (no API key required)
     switch (action) {
+      case 'ping':
+        return ContentService
+          .createTextOutput(JSON.stringify({ success: true, pong: true, timestamp: new Date().toISOString() }))
+          .setMimeType(ContentService.MimeType.JSON);
+      case 'setupApiKey':
+        result = setupApiKey();
+        return ContentService
+          .createTextOutput(JSON.stringify(result))
+          .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // All other actions require API key
+    if (!_checkApiKey(data.apiKey)) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ success: false, error: 'Unauthorized: invalid or missing API key' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    switch (action) {
+      case 'getApiKey':
+        result = getApiKey(data.apiKey);
+        break;
       case 'updateUnit':
         result = updateUnit(data.dateStr, data.shift, data.settings || {}, data.unit);
         break;
@@ -1546,9 +1597,6 @@ function doPost(e) {
         break;
       case 'setupBackupTrigger':
         result = setupBackupTrigger();
-        break;
-      case 'ping':
-        result = { success: true, pong: true, timestamp: new Date().toISOString() };
         break;
       default:
         result = { success: false, error: 'Unknown action: ' + action };

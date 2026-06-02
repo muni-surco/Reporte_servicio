@@ -19,6 +19,9 @@ from datetime import datetime
 
 EXEC_URL = "https://script.google.com/macros/s/AKfycbwJvmN7e3A8LRSQmcESeum9ohZW_h4M4hTGcC5wZ16UcGewpmgdybDHrCTSQv65We8G/exec"
 
+# API key for doPost auth. Run setupApiKey() in GAS editor, then paste here.
+API_KEY = os.environ.get("GAS_API_KEY", "88cbce9a-09b9-4808-a2d0-47d81d93ebbb")
+
 SECTORS = ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'RESCATE', 'GIR']
 
 STATUSES = ['ACTIVO', 'COMISION', 'PATIO', 'TALLER', 'DESPACHADO']
@@ -90,7 +93,7 @@ def worker_updateUnit(worker_id):
     # save settings first
     try:
         requests.post(EXEC_URL, json={
-            "action": "saveShiftSettings", "dateStr": date_str, "shift": shift, "settings": settings
+            "action": "saveShiftSettings", "apiKey": API_KEY, "dateStr": date_str, "shift": shift, "settings": settings
         }, timeout=15)
     except:
         pass
@@ -102,7 +105,7 @@ def worker_updateUnit(worker_id):
         t0 = time.time()
         try:
             resp = requests.post(EXEC_URL, json={
-                "action": "updateUnit", "dateStr": date_str, "shift": shift, "settings": settings, "unit": unit
+                "action": "updateUnit", "apiKey": API_KEY, "dateStr": date_str, "shift": shift, "settings": settings, "unit": unit
             }, timeout=15)
             elapsed = time.time() - t0
             with stats_lock:
@@ -142,7 +145,7 @@ def worker_saveShiftData(worker_id):
     t0 = time.time()
     try:
         resp = requests.post(EXEC_URL, json={
-            "action": "saveShiftData", "dateStr": date_str, "shift": shift, "settings": settings, "units": units
+            "action": "saveShiftData", "apiKey": API_KEY, "dateStr": date_str, "shift": shift, "settings": settings, "units": units
         }, timeout=60)
         elapsed = time.time() - t0
         with stats_lock:
@@ -224,7 +227,13 @@ def main():
         if r.status_code != 200:
             log(f"ERROR: /exec responde HTTP {r.status_code}")
             return
-        log("OK - /exec responde\n")
+        log("OK - /exec responde")
+        # Verify API key
+        r2 = requests.post(EXEC_URL, json={"action": "getApiKey", "apiKey": API_KEY}, timeout=10)
+        if r2.status_code != 200 or not r2.json().get("success"):
+            log(f"ERROR: API key invalida. Corre setupApiKey() en el editor GAS y actualiza API_KEY en este script.")
+            return
+        log("OK - API key valida\n")
     except Exception as e:
         log(f"ERROR conectando a /exec: {e}")
         return
