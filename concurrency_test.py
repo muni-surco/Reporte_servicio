@@ -27,6 +27,7 @@ MODELS = ['TOYOTA HILUX', 'NISSAN NP300', 'HYUNDAI TUCSON', 'KIA SPORTAGE', 'FOR
 PERSONNEL = ['Juan Perez', 'Maria Garcia', 'Carlos Lopez', 'Ana Martinez', 'Pedro Ramirez', 'Lucia Fernandez']
 
 stats = {"ok": 0, "fail": 0, "total": 0, "errors": []}
+latencies = []
 stats_lock = threading.Lock()
 start_time = None
 
@@ -98,19 +99,24 @@ def worker_updateUnit(worker_id):
     random.shuffle(units)
 
     for unit in units:
+        t0 = time.time()
         try:
             resp = requests.post(EXEC_URL, json={
                 "action": "updateUnit", "dateStr": date_str, "shift": shift, "settings": settings, "unit": unit
             }, timeout=15)
+            elapsed = time.time() - t0
             with stats_lock:
                 stats["total"] += 1
+                latencies.append(elapsed)
                 if resp.status_code == 200 and resp.json().get("success"):
                     stats["ok"] += 1
                 else:
                     stats["fail"] += 1
         except Exception as e:
+            elapsed = time.time() - t0
             with stats_lock:
                 stats["total"] += 1
+                latencies.append(elapsed)
                 stats["fail"] += 1
 
         time.sleep(random.uniform(1.5, 4))
@@ -133,19 +139,24 @@ def worker_saveShiftData(worker_id):
 
     units = make_units(worker_id, sector, date_str, shift)
 
+    t0 = time.time()
     try:
         resp = requests.post(EXEC_URL, json={
             "action": "saveShiftData", "dateStr": date_str, "shift": shift, "settings": settings, "units": units
         }, timeout=60)
+        elapsed = time.time() - t0
         with stats_lock:
             stats["total"] += 1
+            latencies.append(elapsed)
             if resp.status_code == 200 and resp.json().get("success"):
                 stats["ok"] += 1
             else:
                 stats["fail"] += 1
     except Exception as e:
+        elapsed = time.time() - t0
         with stats_lock:
             stats["total"] += 1
+            latencies.append(elapsed)
             stats["fail"] += 1
 
     log(f"[U{worker_id}:{sector}] {len(units)} units OK ({int(time.time()-start_time)}s)")
@@ -181,10 +192,25 @@ def run_scenario(num_users, worker_fn, label):
     log(f"Total: {stats['total']} | OK: {stats['ok']} | FAIL: {stats['fail']}")
     if stats["total"] > 0:
         log(f"Tasa: {stats['ok']/elapsed:.1f} ops/s")
+    if latencies:
+        sorted_lats = sorted(latencies)
+        p50 = sorted_lats[len(sorted_lats)//2]
+        p95 = sorted_lats[int(len(sorted_lats)*0.95)]
+        p99 = sorted_lats[int(len(sorted_lats)*0.99)]
+        max_lat = sorted_lats[-1]
+        over_30 = sum(1 for l in latencies if l > 30)
+        log(f"Latencia (s): P50={p50:.1f} P95={p95:.1f} P99={p99:.1f} Max={max_lat:.1f}")
+        if over_30:
+            log(f"⚠  {over_30} requests >30s (riesgo de timeout en frontend)")
+        else:
+            log(f"  Todas las requests <30s (sin riesgo de timeout en frontend)")
     if stats["errors"]:
         log(f"Errores ({len(stats['errors'])}):")
         for e in stats["errors"][:5]:
             log(f"  {e}")
+    # reset for next scenario
+    stats.update({"ok": 0, "fail": 0, "total": 0, "errors": []})
+    latencies.clear()
     log("")
 
 
@@ -215,7 +241,6 @@ def main():
         for key in ["14u", "30u", "30f"]:
             n, fn, label = scenarios[key]
             run_scenario(n, fn, label)
-            stats.update({"ok": 0, "fail": 0, "total": 0, "errors": []})
     elif arg in scenarios:
         n, fn, label = scenarios[arg]
         run_scenario(n, fn, label)
