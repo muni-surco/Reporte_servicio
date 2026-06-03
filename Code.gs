@@ -532,6 +532,7 @@ function getMobileData() {
   const movilIdx = headers.indexOf('movil');
   const placaIdx = headers.indexOf('placa');
   const radioIdx = headers.indexOf('radio');
+  const tetraIdx = headers.indexOf('tetra'); // Nuevo
   // Buscar primero columna 'cuadrante'; si no existe, usar 'cuadrante_sector'
   const cuadranteIdx = headers.indexOf('cuadrante') !== -1 ? headers.indexOf('cuadrante') : headers.indexOf('cuadrante_sector');
   const sectorIdx = headers.indexOf('sector');
@@ -571,7 +572,7 @@ function getMobileData() {
         id: id,
         plate: placaIdx !== -1 ? String(row[placaIdx] || '') : '',
         model: modeloIdx !== -1 ? String(row[modeloIdx] || '') : '',
-        radio: radioIdx !== -1 ? String(row[radioIdx] || '') : '',
+        radio: (tetraIdx !== -1 ? String(row[tetraIdx] || '') : (radioIdx !== -1 ? String(row[radioIdx] || '') : '')),
         quadrant: cuadranteIdx !== -1 ? cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()) : '',
         sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
         status: estadoIdx !== -1 ? String(row[estadoIdx] || '').trim() : '',
@@ -625,8 +626,8 @@ function getMobileData() {
     }
 
     // Collect ALL Unique Radios (even if no movil ID is present)
-    if (radioIdx !== -1 && row[radioIdx]) {
-      radiosSet.add(String(row[radioIdx]).trim());
+    if ((tetraIdx !== -1 && row[tetraIdx]) || (radioIdx !== -1 && row[radioIdx])) {
+      radiosSet.add(String(row[tetraIdx] || row[radioIdx]).trim());
     }
   }
   
