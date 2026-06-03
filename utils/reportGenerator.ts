@@ -933,6 +933,8 @@ export const generateAllRecordsReport = (
       cuadrante,
       personnel,
       status,
+      lugarEstado: u.lugarEstado || '--',
+      motivoEstado: u.motivoEstado || '--',
       kmStr,
       fuelExp,
       mechanics
@@ -1007,6 +1009,8 @@ export const generateAllRecordsReport = (
         r.cuadrante,
         r.personnel,
         r.status,
+        r.lugarEstado,
+        r.motivoEstado,
         r.kmStr,
         r.fuelExp,
         r.mechanics
@@ -1015,7 +1019,7 @@ export const generateAllRecordsReport = (
       // Add a total row
       tableData.push([
         { content: `TOTAL UNIDADES: ${totalEfectivos}`, colSpan: 5, styles: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'right' } },
-        { content: '', colSpan: 4, styles: { fillColor: [240, 240, 240] } }
+        { content: '', colSpan: 6, styles: { fillColor: [240, 240, 240] } }
       ]);
 
       if (currentY > doc.internal.pageSize.getHeight() - 25) {
@@ -1026,9 +1030,9 @@ export const generateAllRecordsReport = (
       (doc as any).autoTable({
         startY: currentY,
         head: [[
-          { content: sec.label, colSpan: 9, styles: { halign: 'left', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 8 } }
+          { content: sec.label, colSpan: 11, styles: { halign: 'left', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 8 } }
         ], [
-          'UNIDAD', 'PLACA', 'RADIO', 'CUADRANTE', 'NOMBRES Y APELLIDOS / COPILOTO', 'ESTADO', 'KILOMETRAJE', 'COMBUSTIBLE / GASTO', 'OBSERVACIONES'
+          'UNIDAD', 'PLACA', 'RADIO', 'CUADRANTE', 'NOMBRES Y APELLIDOS / COPILOTO', 'ESTADO', 'LUGAR ESTADO', 'MOTIVO ESTADO', 'KILOMETRAJE', 'COMBUSTIBLE / GASTO', 'OBSERVACIONES'
         ]],
         body: tableData,
         theme: 'grid',
@@ -1039,11 +1043,13 @@ export const generateAllRecordsReport = (
           1: { cellWidth: 15 },
           2: { cellWidth: 12 },
           3: { cellWidth: 16 },
-          4: { cellWidth: 60, halign: 'left' },
-          5: { cellWidth: 22, halign: 'center' },
-          6: { cellWidth: 30 },
-          7: { cellWidth: 20 },
-          8: { cellWidth: 'auto', halign: 'left' }
+          4: { cellWidth: 50, halign: 'left' },
+          5: { cellWidth: 18, halign: 'center' },
+          6: { cellWidth: 18, halign: 'center' },
+          7: { cellWidth: 18, halign: 'center' },
+          8: { cellWidth: 22 },
+          9: { cellWidth: 18 },
+          10: { cellWidth: 'auto', halign: 'left' }
         },
         margin: { left: margin, right: margin }
       });
