@@ -972,15 +972,11 @@ function getPreviousShift(dateStr, shift, timeZone) {
  * ensuring it's from a previous shift/day.
  */
 /**
- * Returns the last updatedAt timestamp for a shift (tiny payload for polling).
+ * Lightweight check for shift timestamp changes.
  */
-function getShiftTimestamp(dateStr, shift) {
-  try {
-    const data = rtdbGet('_meta/units/' + dateStr + '_' + shift);
-    return { updatedAt: (data && data.updatedAt) || null };
-  } catch (e) {
-    return { updatedAt: null };
-  }
+function checkShiftTimestamp(dateStr, shift) {
+  const meta = rtdbGet('_meta/units/' + dateStr + '_' + shift);
+  return { updatedAt: meta ? meta.updatedAt : null };
 }
 
 function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {

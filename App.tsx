@@ -186,24 +186,29 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
               completed++;
               if (completed === SECTORS.length) {
-                // Aggregate and update state
-                const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
-                let finalSettings = settings;
-                const allSectorSettings: Record<string, AppSettings> = {};
+                try {
+                  // Aggregate and update state
+                  const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
+                  let finalSettings = settings;
+                  const allSectorSettings: Record<string, AppSettings> = {};
 
-                sectorResults.forEach((res, sIndex) => {
-                  const sName = SECTORS[sIndex];
-                  if (res && res.units) {
-                    visData[sName] = { units: res.units, settings: res.settings };
-                    allSectorSettings[sName] = res.settings;
-                    if (sIndex === 0) finalSettings = { ...settings, ...res.settings, turno: shift };
-                  }
-                });
+                  sectorResults.forEach((res, sIndex) => {
+                    const sName = SECTORS[sIndex];
+                    if (res && res.units) {
+                      visData[sName] = { units: res.units, settings: res.settings };
+                      allSectorSettings[sName] = res.settings;
+                      if (sIndex === 0) finalSettings = { ...settings, ...res.settings, turno: shift };
+                    }
+                  });
 
-                setVisualizationSectorsData(visData);
-                setSectorSettingsMap(allSectorSettings);
-                setSettings(finalSettings);
-                setLoading(false);
+                  setVisualizationSectorsData(visData);
+                  setSectorSettingsMap(allSectorSettings);
+                  setSettings(finalSettings);
+                } catch (e) {
+                  console.error('Error aggregating sector data:', e);
+                } finally {
+                  setLoading(false);
+                }
               }
             })
             .withFailureHandler((err) => {
@@ -214,6 +219,15 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             })
             .getSectorData(dateStr, shift, s, lastFetchedAtMap.current[s]);
         });
+        
+        // Safety timeout: force stop loading after 15 seconds to prevent hanging
+        setTimeout(() => {
+          if (loadingIdRef.current === currentLoadId) {
+            console.warn('Loading sector data timed out.');
+            setLoading(false);
+          }
+        }, 15000);
+        
         return;
       }
 
@@ -828,46 +842,69 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     setIsGeneratingStructuredReport(true);
 
     try {
-      const data: any = await new Promise((resolve, reject) => {
+      // 1. Check if data is up-to-date
+      const meta: any = await new Promise((resolve, reject) => {
         google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .getShiftData(date, shift, '1A', lastShiftTimestampRef.current);
+          .checkShiftTimestamp(date, shift);
       });
 
-      let finalData;
-      if (data && data.noChanges) {
-        finalData = { units, allSectorSettings: sectorSettingsMap };
+      let dataToUse: { units: UnitData[], allSectorSettings: Record<string, AppSettings> };
+      
+      if (meta.updatedAt && meta.updatedAt === lastShiftTimestampRef.current) {
+        // Data is fresh
+        dataToUse = { units, allSectorSettings: sectorSettingsMap };
       } else {
-        if (data && data.updatedAt) lastShiftTimestampRef.current = data.updatedAt;
-        finalData = data;
-        // Update local state to keep it in sync
-        setUnits(data.units);
-        setSectorSettingsMap(data.allSectorSettings || {});
+        // Data needs refresh - load sector by sector
+        const sectorResults: any[] = await Promise.all(SECTORS.map(s => 
+          new Promise((resolve, reject) => {
+            google.script.run
+              .withSuccessHandler(resolve)
+              .withFailureHandler(reject)
+              .getSectorData(date, shift, s);
+          })
+        ));
+
+        const aggregatedUnits: UnitData[] = [];
+        const aggregatedSettings: Record<string, AppSettings> = {};
+
+        sectorResults.forEach((res, sIndex) => {
+          const sName = SECTORS[sIndex];
+          if (res && res.units) {
+            aggregatedUnits.push(...res.units);
+            aggregatedSettings[sName] = res.settings;
+          }
+        });
+
+        dataToUse = { units: aggregatedUnits, allSectorSettings: aggregatedSettings };
+        
+        // Update local state and timestamp
+        setUnits(aggregatedUnits);
+        setSectorSettingsMap(aggregatedSettings);
+        if (meta.updatedAt) lastShiftTimestampRef.current = meta.updatedAt;
       }
 
       if (type === 'motos') {
-        generateMotoReport(finalData.units, finalData.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
+        generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
       } else if (type === 'motos_honda') {
-        generateMotoReport(finalData.units, finalData.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
+        generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
       } else if (type === 'moviles') {
-        generateVehicleReport(finalData.units, finalData.allSectorSettings || {}, date, shift, operatorName);
+        generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else if (type === 'asistencia_regimen') {
-        // ... (keep logic for personnelList)
         if (personnelList.length > 0) {
-            generatePersonnelAbsenceReport(finalData.units, personnelList, date, shift, operatorName);
+            generatePersonnelAbsenceReport(dataToUse.units, personnelList, date, shift, operatorName);
         } else {
-            // Re-fetch personnel if needed
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
                 google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
             });
             setPersonnelList(loadedPersonnel);
-            generatePersonnelAbsenceReport(finalData.units, loadedPersonnel, date, shift, operatorName);
+            generatePersonnelAbsenceReport(dataToUse.units, loadedPersonnel, date, shift, operatorName);
         }
       } else if (type === 'observaciones') {
-        generateObservationsReport(finalData.units, date, shift, operatorName);
+        generateObservationsReport(dataToUse.units, date, shift, operatorName);
       } else if (type === 'general') {
-        generateAllRecordsReport(finalData.units, finalData.allSectorSettings || {}, date, shift, operatorName);
+        generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else {
         alert(`El reporte de "${type}" se encuentra en desarrollo.`);
       }
