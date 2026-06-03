@@ -536,6 +536,78 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
   const hasPendingChanges = editingId !== null || Object.keys(saveStatus).length > 0;
 
+  const hasNewRecordInCurrentSector = useMemo(() => {
+    const sectorKey = currentSector.trim().toUpperCase();
+    return units.some(u => {
+      const unitSector = (u.sector || '').trim().toUpperCase();
+      const isNewRecord = !!u.tempId?.startsWith('NEW-');
+      return unitSector === sectorKey && isNewRecord;
+    });
+  }, [units, currentSector]);
+
+  const hasModifiedDefaultUnitInCurrentSector = useMemo(() => {
+    const sectorKey = currentSector.trim().toUpperCase();
+    const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
+
+    return units.some(u => {
+      const unitSector = normalize(u.sector);
+      const isDefaultLoaded = String(u.unit_id || '').startsWith('DEF-');
+      if (unitSector !== sectorKey || !isDefaultLoaded) return false;
+
+      const source = mobileData.find(m =>
+        normalize(m.sector) === sectorKey &&
+        normalize(m.id) === normalize(u.id) &&
+        normalize(m.plate) === normalize(u.plate)
+      );
+
+      const baseline = {
+        personnel1: '',
+        personnel2: '',
+        indicative: '',
+        radio: source?.radio || '',
+        status: '' as string,
+        reason: '',
+        km: '0 / 0 / 0',
+        kmStart: '0',
+        kmEnd: '0',
+        totalKm: '0',
+        kmRecarga: '0',
+        hours: '',
+        fuel: '-- / --',
+        expense: 'S/ 0.00',
+        quadrant: source?.quadrant || '',
+        mechanics: '',
+        lugarEstado: '',
+        motivoEstado: ''
+      };
+
+      return (
+        normalize(u.personnel1) !== normalize(baseline.personnel1) ||
+        normalize(u.personnel2) !== normalize(baseline.personnel2) ||
+        normalize(u.indicative) !== normalize(baseline.indicative) ||
+        normalize(u.radio) !== normalize(baseline.radio) ||
+        normalize(u.status) !== normalize(baseline.status) ||
+        normalize(u.reason) !== normalize(baseline.reason) ||
+        normalize(u.km) !== normalize(baseline.km) ||
+        normalize(u.kmStart) !== normalize(baseline.kmStart) ||
+        normalize(u.kmEnd) !== normalize(baseline.kmEnd) ||
+        normalize(u.totalKm) !== normalize(baseline.totalKm) ||
+        normalize(u.kmRecarga) !== normalize(baseline.kmRecarga) ||
+        normalize(u.hours) !== normalize(baseline.hours) ||
+        normalize(u.fuel) !== normalize(baseline.fuel) ||
+        normalize(u.expense) !== normalize(baseline.expense) ||
+        normalize(u.quadrant) !== normalize(baseline.quadrant) ||
+        normalize(u.mechanics) !== normalize(baseline.mechanics) ||
+        normalize(u.lugarEstado) !== normalize(baseline.lugarEstado) ||
+        normalize(u.motivoEstado) !== normalize(baseline.motivoEstado)
+      );
+    });
+  }, [units, currentSector, mobileData]);
+
+  const headerFieldsComplete = (appSettings: AppSettings) => {
+    return !!appSettings.operador.trim() && !!appSettings.supervisor.trim() && !!appSettings.permanencia.trim();
+  };
+
   const handleViewChange = (newView: ViewMode) => {
     if (newView === currentView) return;
     if (hasPendingChanges) {
@@ -970,6 +1042,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           personnelStats={personnelStats}
           readOnly={isReadOnly}
           hasPendingChanges={hasPendingChanges}
+          forceHeaderError={currentView === 'DASHBOARD' && (hasNewRecordInCurrentSector || hasModifiedDefaultUnitInCurrentSector) && !headerFieldsComplete(settings)}
         />
 
         <div className="flex-1 overflow-y-auto scroll-smooth p-4" id="report-content">

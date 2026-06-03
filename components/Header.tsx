@@ -29,6 +29,7 @@ interface HeaderProps {
   personnelStats?: { total: number; activos: number; inactivos: number };
   readOnly?: boolean;
   hasPendingChanges?: boolean;
+  forceHeaderError?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -49,7 +50,8 @@ const Header: React.FC<HeaderProps> = ({
   operatorOptions,
   personnelStats,
   readOnly,
-  hasPendingChanges
+  hasPendingChanges,
+  forceHeaderError
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
@@ -58,10 +60,20 @@ const Header: React.FC<HeaderProps> = ({
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
   const tempSettingsRef = useRef<AppSettings>(settings);
 
+  const normalizeRequiredField = (value: string) => {
+    const trimmed = String(value || '').trim();
+    return trimmed === '--' ? '' : trimmed;
+  };
+
   useEffect(() => {
-    setTempSettings(settings);
-    tempSettingsRef.current = settings;
-    setFieldErrors({});
+    const normalized = {
+      ...settings,
+      operador: normalizeRequiredField(settings.operador),
+      supervisor: normalizeRequiredField(settings.supervisor),
+      permanencia: normalizeRequiredField(settings.permanencia)
+    };
+    setTempSettings(normalized);
+    tempSettingsRef.current = normalized;
   }, [settings]);
 
   useEffect(() => {
@@ -71,9 +83,9 @@ const Header: React.FC<HeaderProps> = ({
   const validateFields = (): boolean => {
     const s = tempSettingsRef.current;
     const errors: Record<string, boolean> = {};
-    if (!s.operador.trim()) errors.operador = true;
-    if (!s.supervisor.trim()) errors.supervisor = true;
-    if (!s.permanencia.trim()) errors.permanencia = true;
+    if (!normalizeRequiredField(s.operador)) errors.operador = true;
+    if (!normalizeRequiredField(s.supervisor)) errors.supervisor = true;
+    if (!normalizeRequiredField(s.permanencia)) errors.permanencia = true;
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -87,7 +99,7 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const updateTempField = (field: keyof AppSettings, value: string) => {
-    const updated = { ...tempSettingsRef.current, [field]: value };
+    const updated = { ...tempSettingsRef.current, [field]: normalizeRequiredField(value) };
     setTempSettings(updated);
     tempSettingsRef.current = updated;
     setFieldErrors(prev => ({ ...prev, [field]: false }));
@@ -120,6 +132,8 @@ const Header: React.FC<HeaderProps> = ({
   const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-medium text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-9 shadow-sm appearance-none flex items-center";
   const displayBoxStyle = "bg-white border border-slate-200 rounded-lg px-3 flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm h-9";
   const valueStyle = "text-[13px] font-medium text-[#002d5a] leading-none truncate uppercase";
+  const showRequiredError = !!forceHeaderError;
+  const isFieldMissing = (field: keyof AppSettings) => showRequiredError && !normalizeRequiredField(tempSettings[field]);
 
   const getSectorCode = (sectorName: string) => {
     return sectorName.toUpperCase().replace('SECTOR ', '').trim();
@@ -252,33 +266,33 @@ const Header: React.FC<HeaderProps> = ({
                       {!readOnly && editingField === 'operador' ? (
                         <AutocompleteInput autoFocus value={tempSettings.operador} onChange={(v) => updateTempField('operador', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.operador} />
                       ) : (
-                        <div className={`${displayBoxStyle} ${fieldErrors.operador ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('operador'); setFieldErrors(prev => ({ ...prev, operador: false })); }}><p className={valueStyle}>{settings.operador || '--'}</p></div>
+                        <div className={`${displayBoxStyle} ${fieldErrors.operador || isFieldMissing('operador') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('operador'); setFieldErrors(prev => ({ ...prev, operador: false })); }}><p className={valueStyle}>{normalizeRequiredField(settings.operador) || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p></div>
                       )}
-                      {fieldErrors.operador && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
+                      {(fieldErrors.operador || isFieldMissing('operador')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
                     <div className="hidden sm:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>SUPERVISOR</span>
                       {!readOnly && editingField === 'supervisor' ? (
                         <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.supervisor} />
                       ) : (
-                        <div className={`${displayBoxStyle} ${fieldErrors.supervisor ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('supervisor'); setFieldErrors(prev => ({ ...prev, supervisor: false })); }}><p className={valueStyle}>{settings.supervisor || '--'}</p></div>
+                        <div className={`${displayBoxStyle} ${fieldErrors.supervisor || isFieldMissing('supervisor') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('supervisor'); setFieldErrors(prev => ({ ...prev, supervisor: false })); }}><p className={valueStyle}>{normalizeRequiredField(settings.supervisor) || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p></div>
                       )}
-                      {fieldErrors.supervisor && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
+                      {(fieldErrors.supervisor || isFieldMissing('supervisor')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
                     <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1">
                       <span className={labelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
                       {!readOnly && editingField === 'permanencia' ? (
                         <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.permanencia} />
                       ) : (
-                        <div className={`${displayBoxStyle} ${fieldErrors.permanencia ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('permanencia'); setFieldErrors(prev => ({ ...prev, permanencia: false })); }}><p className={valueStyle}>{settings.permanencia || '--'}</p></div>
+                        <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('permanencia'); setFieldErrors(prev => ({ ...prev, permanencia: false })); }}><p className={valueStyle}>{normalizeRequiredField(settings.permanencia) || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p></div>
                       )}
-                      {fieldErrors.permanencia && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
+                      {(fieldErrors.permanencia || isFieldMissing('permanencia')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
                     {!readOnly && (
                       <button
                         onClick={() => {
                           if (!validateFields()) {
-                            setEditingField(null);
+                            // Do not close editing if validation fails
                             return;
                           }
                           onHeaderSave(tempSettingsRef.current);
