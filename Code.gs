@@ -1775,15 +1775,36 @@ function doPost(e) {
   }
 }
 
+function _getLastThreeShiftRefs(baseDateStr, baseShift) {
+  const refs = [];
+  const tz = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone();
+  let cursorDate = baseDateStr;
+  let cursorShift = baseShift;
+
+  for (let i = 0; i < 3; i++) {
+    const prev = getPreviousShift(cursorDate, cursorShift, tz);
+    refs.push({ date: prev.date, shift: prev.shift });
+    cursorDate = prev.date;
+    cursorShift = prev.shift;
+  }
+
+  return refs;
+}
+
 /**
- * Incremental backup: appends only new records from Firestore to UNIT_DATA and SHIFT_SETTINGS.
- * Ignores existing records (turnos cerrados no se modifican nunca).
+ * Incremental backup: appends only new records from RTDB to UNIT_DATA and SHIFT_SETTINGS.
+ * It only processes the latest 3 turnos to keep network and quota usage low.
  */
 function backupFirestoreToSheets() {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   const timeZone = ss.getSpreadsheetTimeZone();
-  const now = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
+  const nowDate = new Date();
+  const now = Utilities.formatDate(nowDate, timeZone, 'yyyy-MM-dd HH:mm:ss');
+  const currentDate = Utilities.formatDate(nowDate, timeZone, 'yyyy-MM-dd');
+  const currentShift = getAutoTurno();
+  const shiftRefs = _getLastThreeShiftRefs(currentDate, currentShift);
   console.log('[backup] Starting incremental backup at ' + now);
+  console.log('[backup] Processing refs: ' + JSON.stringify(shiftRefs));
 
   // --- Incremental SHIFT_SETTINGS ---
   const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
@@ -1795,14 +1816,25 @@ function backupFirestoreToSheets() {
       if (row[0]) existingKeys.add(String(row[0]) + '|' + String(row[1]) + '|' + String(row[2]));
     }
 
-    const shifts = fbQuery('shifts', []);
-    const newRows = shifts.filter(s => {
-      const key = (s.date || '') + '|' + (s.shift || '') + '|' + toDisplaySector(s.sector || '');
-      return !existingKeys.has(key);
-    }).map(s => [
-      s.date || '', s.shift || '', toDisplaySector(s.sector || ''),
-      s.operador || '', s.supervisor || '', s.permanencia || ''
-    ]);
+    const newRows = [];
+    shiftRefs.forEach(ref => {
+      const shiftPath = 'shifts/' + ref.date + '_' + ref.shift;
+      const shifts = rtdbGet(shiftPath) || {};
+      Object.keys(shifts).forEach(sectorKey => {
+        const s = shifts[sectorKey] || {};
+        const key = (s.date || ref.date || '') + '|' + (s.shift || ref.shift || '') + '|' + toDisplaySector(s.sector || sectorKey || '');
+        if (existingKeys.has(key)) return;
+        existingKeys.add(key);
+        newRows.push([
+          s.date || ref.date || '',
+          s.shift || ref.shift || '',
+          toDisplaySector(s.sector || sectorKey || ''),
+          s.operador || '',
+          s.supervisor || '',
+          s.permanencia || ''
+        ]);
+      });
+    });
 
     if (newRows.length > 0) {
       const startRow = existingData.length + 1;
@@ -1820,20 +1852,49 @@ function backupFirestoreToSheets() {
       if (existingData[i][23]) existingIds.add(String(existingData[i][23]));
     }
 
-    const units = fbQuery('units', []);
-    const newRows = units.filter(u => !existingIds.has(u.unit_id || '')).map(u => [
-      u.date || '', u.shift || '', toDisplaySector(u.sector || ''),
-      u.id || '', u.type || '', u.model || '',
-      u.personnel1 || '', u.personnel2 || '',
-      u.plate || '', u.indicative || '', u.radio || '',
-      u.status || '', u.reason || '',
-      u.kmStart || '0', u.kmEnd || '0', u.totalKm || '0',
-      u.kmRecarga || '0', u.hours || '',
-      u.fuel || '', u.expense || '', u.partes || '0',
-      u.quadrant || '', u.mechanics || '',
-      u.unit_id || '', u.lugarEstado || '', u.motivoEstado || '',
-      u.auditLog || ''
-    ]);
+    const newRows = [];
+    shiftRefs.forEach(ref => {
+      const unitsPath = 'units/' + ref.date + '_' + ref.shift;
+      const unitsBySector = rtdbGet(unitsPath) || {};
+      Object.keys(unitsBySector).forEach(sectorKey => {
+        const sectorUnits = unitsBySector[sectorKey] || {};
+        Object.keys(sectorUnits).forEach(unitId => {
+          const u = sectorUnits[unitId] || {};
+          const uid = u.unit_id || unitId || '';
+          if (existingIds.has(uid)) return;
+          existingIds.add(uid);
+          newRows.push([
+            u.date || ref.date || '',
+            u.shift || ref.shift || '',
+            toDisplaySector(u.sector || sectorKey || ''),
+            u.id || '',
+            u.type || '',
+            u.model || '',
+            u.personnel1 || '',
+            u.personnel2 || '',
+            u.plate || '',
+            u.indicative || '',
+            u.radio || '',
+            u.status || '',
+            u.reason || '',
+            u.kmStart || '0',
+            u.kmEnd || '0',
+            u.totalKm || '0',
+            u.kmRecarga || '0',
+            u.hours || '',
+            u.fuel || '',
+            u.expense || '',
+            u.partes || '0',
+            u.quadrant || '',
+            u.mechanics || '',
+            uid,
+            u.lugarEstado || '',
+            u.motivoEstado || '',
+            u.auditLog || ''
+          ]);
+        });
+      });
+    });
 
     if (newRows.length > 0) {
       const startRow = existingData.length + 1;
@@ -1876,7 +1937,7 @@ function _isSafeBackupHour(hour) {
  * Run once from GAS editor: setupBackupTrigger()
  */
 function setupBackupTrigger() {
-  const safeHours = [2, 10, 18];
+  const safeHours = [3];
   const triggers = ScriptApp.getProjectTriggers();
   triggers.forEach(t => {
     if (t.getHandlerFunction() === 'backupFirestoreToSheets') {
