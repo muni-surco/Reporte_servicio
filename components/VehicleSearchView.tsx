@@ -360,7 +360,7 @@ const VehicleSearchView: React.FC = () => {
                 { key: 'relato', label: 'RELATO', type: 'text' },
                 { key: 'tipoDelito', label: 'TIPO DELITO', type: 'text' },
                 { key: 'subtipoDelito', label: 'SUBTIPO DELITO', type: 'text' },
-                { key: 'sector', label: 'SECTOR', type: 'select', options: ['1A', '1B', '2', '3', '4', '5', '6', '7', '8', '9A', '9B'] },
+                { key: 'sector', label: 'SECTOR', type: 'select', options: ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B'] },
                 { key: 'cuadrante', label: 'CUADRANTE', type: 'autocomplete' },
               ].map(({ key, label, type, options, required }) => (
                 <div key={key} className={key === 'relato' ? 'md:col-span-2' : ''}>

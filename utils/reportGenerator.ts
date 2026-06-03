@@ -443,11 +443,12 @@ export const generateVehicleReport = (
   while (inopData.length < 15) inopData.push(['', '', '']);
 
   const sinPatrullarData = vehicleUnits
-    .filter(u =>
-      (u.status || '').toUpperCase() !== 'PATRULLANDO' &&
-      !inoperativeStatuses.includes((u.status || '').toUpperCase()) &&
-      (u.status || '').toUpperCase() !== 'SIN VEHICULO'
-    )
+    .filter(u => {
+      const status = (u.status || '').toUpperCase();
+      const id = String(u.id || '').toUpperCase();
+      const isUnidadMovil = id.startsWith('M-') || id.startsWith('H-') || id.startsWith('A-G');
+      return isUnidadMovil && status !== 'PATRULLANDO' && !inoperativeStatuses.includes(status) && status !== 'SIN VEHICULO';
+    })
     .map(u => [u.id, u.plate || '', u.mechanics || u.status]);
 
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '']);
