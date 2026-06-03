@@ -375,3 +375,134 @@ function fbDelete(collection, docId) {
   }
   return true;
 }
+
+// ========================================================================
+// Realtime Database (RTDB) — no per-document read limits
+// ========================================================================
+
+const RTDB_BASE = 'https://registroasistenciamss-default-rtdb.firebaseio.com';
+
+/**
+ * OAuth2 token for RTDB (cached 55 min). Different scope from Firestore.
+ */
+function _getRTDBToken() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('RTDB_TOKEN');
+  if (cached) return cached;
+
+  const config = _getFirebaseConfig();
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const claim = {
+    iss: config.client_email,
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/firebase.database',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  };
+
+  const b64 = function (obj) { return Utilities.base64EncodeWebSafe(JSON.stringify(obj)); };
+  const toSign = b64(header) + '.' + b64(claim);
+  const signature = Utilities.computeRsaSha256Signature(toSign, config.private_key);
+  const jwt = toSign + '.' + Utilities.base64EncodeWebSafe(signature);
+
+  const res = UrlFetchApp.fetch('https://oauth2.googleapis.com/token', {
+    method: 'post',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    payload: 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=' + encodeURIComponent(jwt),
+    muteHttpExceptions: true
+  });
+
+  const body = JSON.parse(res.getContentText());
+  if (body.error) {
+    throw new Error('RTDB auth: ' + body.error + ' — ' + (body.error_description || ''));
+  }
+
+  cache.put('RTDB_TOKEN', body.access_token, 3300);
+  return body.access_token;
+}
+
+/**
+ * GET data from RTDB path. Returns null if not found.
+ * @param {string} path — e.g. "units/2026-06-02_TARDE"
+ * @returns {object|null}
+ */
+function rtdbGet(path) {
+  const token = _getRTDBToken();
+  const url = RTDB_BASE + '/' + path + '.json';
+  const res = UrlFetchApp.fetch(url, {
+    method: 'get',
+    headers: { Authorization: 'Bearer ' + token },
+    muteHttpExceptions: true
+  });
+
+  _fbReads++;
+  if (res.getResponseCode() === 404 || !res.getContentText() || res.getContentText() === 'null') return null;
+  if (res.getResponseCode() !== 200) {
+    throw new Error('rtdbGet error (' + path + '): ' + res.getContentText());
+  }
+  return JSON.parse(res.getContentText());
+}
+
+/**
+ * Upsert data at RTDB path (PATCH = merge).
+ * @param {string} path — e.g. "units/2026-06-02_TARDE/1A_ABC123"
+ * @param {object} data — plain JS object
+ */
+function rtdbSet(path, data) {
+  const token = _getRTDBToken();
+  const url = RTDB_BASE + '/' + path + '.json';
+  const res = UrlFetchApp.fetch(url, {
+    method: 'patch',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    payload: JSON.stringify(data),
+    muteHttpExceptions: true
+  });
+
+  _fbWrites++;
+  if (res.getResponseCode() !== 200) {
+    throw new Error('rtdbSet error (' + path + '): ' + res.getContentText());
+  }
+  return JSON.parse(res.getContentText());
+}
+
+/**
+ * Batch upsert multiple paths in parallel.
+ * @param {Array<{path:string, data:object}>} items
+ */
+function rtdbSetAll(items) {
+  if (!items || items.length === 0) return [];
+
+  const token = _getRTDBToken();
+  const baseUrl = RTDB_BASE + '/';
+  const CHUNK = 100;
+  const results = [];
+
+  for (let start = 0; start < items.length; start += CHUNK) {
+    const chunk = items.slice(start, start + CHUNK);
+    const requests = chunk.map(item => ({
+      url: baseUrl + item.path + '.json',
+      method: 'patch',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify(item.data),
+      muteHttpExceptions: true
+    }));
+
+    const responses = UrlFetchApp.fetchAll(requests);
+    for (let i = 0; i < responses.length; i++) {
+      _fbWrites++;
+      if (responses[i].getResponseCode() !== 200) {
+        throw new Error('rtdbSetAll error en ' + chunk[i].path + ': ' + responses[i].getContentText());
+      }
+      results.push(JSON.parse(responses[i].getContentText()));
+    }
+  }
+
+  return results;
+}

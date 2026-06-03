@@ -138,8 +138,9 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
   const allSectorSettings = {};
 
   try {
-    const fbSettings = fbQuery('shifts', [{ field: 'date', value: dateStr }, { field: 'shift', value: shift }]);
-    if (fbSettings && fbSettings.length > 0) {
+    const rtdbData = rtdbGet('shifts/' + dateStr + '_' + shift);
+    if (rtdbData) {
+      const fbSettings = Object.entries(rtdbData).map(([sectorKey, val]) => ({ sector: sectorKey, ...val }));
       fbSettings.forEach(s => {
         const sectorName = toDisplaySector(s.sector);
         if (sectorName) {
@@ -150,7 +151,7 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
         }
       });
       cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), 300);
-      return { settings: shiftSettings, allSettings: allSectorSettings, from: 'firebase' };
+      return { settings: shiftSettings, allSettings: allSectorSettings, from: 'rtdb' };
     }
   } catch (e) { /* fallback */ }
 
@@ -235,12 +236,13 @@ function getShiftData(dateStr, shift, sector) {
       } catch (e) { /* invalid cache, fall through */ }
     }
 
-    // 3. Units — try Firebase first
+    // 3. Units — try RTDB first (all sectors in one call)
     let allUnits = [];
     let fromFirebase = false;
     try {
-      const fbUnits = fbQuery('units', [{ field: 'date', value: dateStr }, { field: 'shift', value: shift }]);
-      if (fbUnits && fbUnits.length > 0) {
+      const rtdbData = rtdbGet('units/' + dateStr + '_' + shift);
+      if (rtdbData) {
+        const fbUnits = Object.values(rtdbData);
         allUnits = fbUnits.map(u => _toUnitData(u));
         fromFirebase = true;
       }
@@ -309,16 +311,13 @@ function getSectorData(dateStr, shift, sector) {
       } catch (e) { /* invalid cache, fall through */ }
     }
 
-    // 3. Units — try Firebase first
+    // 3. Units — try RTDB first (read all sectors, filter in code)
     let allUnits = [];
     let fromFirebase = false;
     try {
-      const fbUnits = fbQuery('units', [
-        { field: 'date', value: dateStr },
-        { field: 'shift', value: shift },
-        { field: 'sector', value: targetSectorStorage }
-      ]);
-      if (fbUnits && fbUnits.length > 0) {
+      const rtdbData = rtdbGet('units/' + dateStr + '_' + shift);
+      if (rtdbData) {
+        const fbUnits = Object.values(rtdbData).filter(u => u.sector === targetSectorStorage);
         allUnits = fbUnits.map(u => _toUnitData(u));
         fromFirebase = true;
       }
@@ -740,8 +739,8 @@ function saveShiftData(dateStr, shift, settings, units) {
   const timeZone = ss.getSpreadsheetTimeZone();
 
   // --- Settings ---
-  const shiftDocId = dateStr + '_' + shift + '_' + targetSector;
-  fbSet('shifts', shiftDocId, {
+  const shiftPath = 'shifts/' + dateStr + '_' + shift + '/' + targetSector;
+  rtdbSet(shiftPath, {
     date: dateStr,
     shift: shift,
     sector: targetSector,
@@ -757,14 +756,21 @@ function saveShiftData(dateStr, shift, settings, units) {
   if (email) auditLog = email + ' @ ' + auditLog;
   if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
 
-  // --- KM bridge: batch-read prev shift documents in parallel ---
+  // --- KM bridge: read prev shift data in one call ---
   const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
-  const prevShiftDate = prevShiftInfo.date.replace(/-/g, '');
   const sectorUnits = units.filter(u => toStorageSector(u.sector) === targetSector);
-  const firestoreWrites = [];
-  const kmBridgeLookups = [];
+  const rtdbWrites = [];
 
-  // First pass: build unit data and collect KM bridge candidates
+  // Read prev shift units in one call (if needed)
+  let prevShiftData = null;
+  const hasKmBridge = sectorUnits.some(u => u.id && u.kmStart && u.kmStart !== '0');
+  if (hasKmBridge) {
+    try {
+      prevShiftData = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
+    } catch (e) { /* no prev shift */ }
+  }
+
+  // First pass: write current units and handle KM bridge
   sectorUnits.forEach((unit) => {
     let unit_id = unit.unit_id || '';
     if (!unit_id || unit_id === 'undefined') {
@@ -811,55 +817,37 @@ function saveShiftData(dateStr, shift, settings, units) {
       updatedAt: timestamp
     };
 
-    firestoreWrites.push({ collection: 'units', docId: unit_id, data });
+    rtdbWrites.push({ path: 'units/' + dateStr + '_' + shift + '/' + unit_id, data: data });
 
-    if (unit.id && unit.kmStart && unit.kmStart !== '0') {
+    // KM bridge: update prev unit's kmEnd from current unit's kmStart
+    if (prevShiftData && unit.id && unit.kmStart && unit.kmStart !== '0') {
       const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
       if (cleanId) {
-        kmBridgeLookups.push({
-          unitId: cleanId,
-          prevUnitId: prevShiftDate + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId,
-          currentKmStart: unit.kmStart
-        });
+        const found = Object.values(prevShiftData).find(u =>
+          u.id && String(u.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') === cleanId &&
+          u.sector === targetSector
+        );
+        if (found && found.kmStart) {
+          const newKmEnd = parseFloat(unit.kmStart) || 0;
+          const origKmStart = parseFloat(found.kmStart) || 0;
+          const newTotal = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
+          found.kmEnd = unit.kmStart;
+          found.totalKm = newTotal;
+          found.updatedAt = timestamp;
+          const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
+          rtdbWrites.push({ path: 'units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + prevUnitId, data: found });
+        }
       }
     }
   });
 
-  // Batch-read all prev shift units in parallel
-  if (kmBridgeLookups.length > 0) {
-    const token = _getFirebaseToken();
-    const config = _getFirebaseConfig();
-    const baseUrl = FIRESTORE_BASE + '/' + _fsEncode(config.project_id) + '/databases/(default)/documents/units/';
-    const getRequests = kmBridgeLookups.map(lookup => ({
-      url: baseUrl + _fsEncode(lookup.prevUnitId),
-      method: 'get',
-      headers: { Authorization: 'Bearer ' + token },
-      muteHttpExceptions: true
-    }));
-    const getResponses = UrlFetchApp.fetchAll(getRequests);
-
-    for (let i = 0; i < getResponses.length; i++) {
-      _fbReads++;
-      if (getResponses[i].getResponseCode() !== 200) continue;
-      const prevDoc = _fromFields(JSON.parse(getResponses[i].getContentText()).fields);
-      if (!prevDoc || !prevDoc.kmStart) continue;
-
-      const lookup = kmBridgeLookups[i];
-      const newKmEnd = parseFloat(lookup.currentKmStart) || 0;
-      const origKmStart = parseFloat(prevDoc.kmStart) || 0;
-      const newTotal = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
-      prevDoc.kmEnd = lookup.currentKmStart;
-      prevDoc.totalKm = newTotal;
-      prevDoc.updatedAt = timestamp;
-      firestoreWrites.push({ collection: 'units', docId: lookup.prevUnitId, data: prevDoc });
-    }
-  }
-
   // --- Batch write all units (current + KM updates) in parallel ---
-  if (firestoreWrites.length > 0) {
-    fbSetAll(firestoreWrites);
+  if (rtdbWrites.length > 0) {
+    rtdbSetAll(rtdbWrites);
   }
 
+  CacheService.getScriptCache().remove('SETTINGS_' + dateStr + '_' + shift);
+  CacheService.getScriptCache().remove('UNITS_' + dateStr + '_' + shift);
   return { success: true };
 }
 
@@ -868,7 +856,7 @@ function saveShiftData(dateStr, shift, settings, units) {
  */
 function saveShiftSettings(dateStr, shift, settings) {
   const targetSector = toStorageSector(settings.nombrePuesto || '1A');
-  const docId = dateStr + '_' + shift + '_' + targetSector;
+  const path = 'shifts/' + dateStr + '_' + shift + '/' + targetSector;
 
   const data = {
     date: dateStr,
@@ -880,7 +868,7 @@ function saveShiftSettings(dateStr, shift, settings) {
     updatedAt: Utilities.formatDate(new Date(), SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss')
   };
 
-  fbSet('shifts', docId, data);
+  rtdbSet(path, data);
   CacheService.getScriptCache().remove('SETTINGS_' + dateStr + '_' + shift);
   _fbLogUsage();
   return { success: true };
@@ -922,14 +910,19 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
       const d = new Date(currentDateStr);
       d.setDate(d.getDate() - dayOffset);
       const dStr = Utilities.formatDate(d, timeZone, 'yyyy-MM-dd');
-      const dStamp = dStr.replace(/-/g, '');
       const maxShift = dayOffset === 0 ? currentIdx - 1 : 2;
 
       for (let si = maxShift; si >= 0; si--) {
-        const prevUnitId = dStamp + '_' + shiftOrder[si] + '_' + targetSector + '_' + searchId;
+        const shiftKey = dStr + '_' + shiftOrder[si];
         try {
-          const doc = fbGet('units', prevUnitId);
-          if (doc && doc.kmEnd) return String(doc.kmEnd);
+          const shiftData = rtdbGet('units/' + shiftKey);
+          if (shiftData) {
+            const found = Object.values(shiftData).find(u =>
+              u.id && String(u.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') === searchId &&
+              u.sector === targetSector
+            );
+            if (found && found.kmEnd) return String(found.kmEnd);
+          }
         } catch (e2) { /* not found */ }
       }
     }
@@ -1038,7 +1031,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     updatedAt: timestamp
   };
 
-  fbSet('units', unit_id, data);
+  rtdbSet('units/' + dateStr + '_' + shift + '/' + unit_id, data);
   const cache = CacheService.getScriptCache();
   cache.remove('UNITS_' + dateStr + '_' + shift);
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
@@ -1332,6 +1325,52 @@ function migrateToFirebase() {
   }
 
   return { success: true, message: 'Migration complete. Settings + Units copied to Firestore.' };
+}
+
+/**
+ * Migrate data from Firestore to RTDB.
+ * Copy all units and shifts docs to RTDB with the new path format.
+ * Run once from GAS editor after switching to RTDB.
+ * Ejecutar: migrateFirestoreToRTDB()
+ */
+function migrateFirestoreToRTDB() {
+  console.log('[migrateFirestoreToRTDB] START');
+  let totalUnits = 0, totalShifts = 0;
+
+  // Shifts
+  try {
+    const shifts = fbQuery('shifts', []);
+    for (let i = 0; i < shifts.length; i++) {
+      const s = shifts[i];
+      if (s.date && s.shift && s.sector) {
+        const path = 'shifts/' + s.date + '_' + s.shift + '/' + s.sector;
+        rtdbSet(path, s);
+        totalShifts++;
+      }
+    }
+    console.log('[migrateFirestoreToRTDB] shifts: ' + totalShifts);
+  } catch (e) {
+    console.error('[migrateFirestoreToRTDB] ERROR reading shifts:', e);
+  }
+
+  // Units
+  try {
+    const units = fbQuery('units', []);
+    for (let i = 0; i < units.length; i++) {
+      const u = units[i];
+      if (u.date && u.shift && u.unit_id) {
+        const path = 'units/' + u.date + '_' + u.shift + '/' + u.unit_id;
+        rtdbSet(path, u);
+        totalUnits++;
+      }
+    }
+    console.log('[migrateFirestoreToRTDB] units: ' + totalUnits);
+  } catch (e) {
+    console.error('[migrateFirestoreToRTDB] ERROR reading units:', e);
+  }
+
+  console.log('[migrateFirestoreToRTDB] DONE — shifts=' + totalShifts + ' units=' + totalUnits);
+  return { success: true, shifts: totalShifts, units: totalUnits };
 }
 
 /**
@@ -1634,6 +1673,9 @@ function doPost(e) {
         break;
       case 'migrateToFirebase':
         result = migrateToFirebase();
+        break;
+      case 'migrateFirestoreToRTDB':
+        result = migrateFirestoreToRTDB();
         break;
       case 'StressTestFirebase':
         result = StressTestFirebase();
