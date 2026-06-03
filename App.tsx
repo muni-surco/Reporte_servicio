@@ -111,7 +111,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       loadData(selectedDate, settings.turno, currentView);
     }, 300);
     return () => clearTimeout(timer);
-  }, [selectedDate, settings.turno, currentSector, currentView]);
+  }, [selectedDate, settings.turno, currentSector, mobileData.length, currentView]);
 
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {

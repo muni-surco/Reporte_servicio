@@ -236,13 +236,24 @@ function getShiftData(dateStr, shift, sector) {
       } catch (e) { /* invalid cache, fall through */ }
     }
 
-    // 3. Units — try RTDB first (all sectors in one call)
+    // 3. Units — try RTDB first (handle flat & nested)
     let allUnits = [];
     let fromFirebase = false;
     try {
       const rtdbData = rtdbGet('units/' + dateStr + '_' + shift);
       if (rtdbData) {
-        const fbUnits = Object.values(rtdbData);
+        const fbUnits = [];
+        Object.values(rtdbData).forEach(val => {
+          if (val && typeof val === 'object') {
+            if (val.id !== undefined) {
+              fbUnits.push(val);
+            } else {
+              Object.values(val).forEach(u => {
+                if (u && typeof u === 'object') fbUnits.push(u);
+              });
+            }
+          }
+        });
         allUnits = fbUnits.map(u => _toUnitData(u));
         fromFirebase = true;
       }
@@ -311,17 +322,39 @@ function getSectorData(dateStr, shift, sector) {
       } catch (e) { /* invalid cache, fall through */ }
     }
 
-    // 3. Units — try RTDB first (read all sectors, filter in code)
+    // 3. Units — try RTDB first (sector-specific read = small payload)
     let allUnits = [];
     let fromFirebase = false;
     try {
-      const rtdbData = rtdbGet('units/' + dateStr + '_' + shift);
-      if (rtdbData) {
-        const fbUnits = Object.values(rtdbData).filter(u => u.sector === targetSectorStorage);
-        allUnits = fbUnits.map(u => _toUnitData(u));
+      const nestedData = rtdbGet('units/' + dateStr + '_' + shift + '/' + targetSectorStorage);
+      if (nestedData) {
+        allUnits = Object.values(nestedData).map(u => _toUnitData(u));
         fromFirebase = true;
       }
     } catch (e) { /* fallback */ }
+
+    if (!fromFirebase) {
+      // Fallback: flat structure (legacy data) — read all sectors
+      try {
+        const flatData = rtdbGet('units/' + dateStr + '_' + shift);
+        if (flatData) {
+          const fbUnits = [];
+          Object.values(flatData).forEach(val => {
+            if (val && typeof val === 'object') {
+              if (val.id !== undefined) {
+                fbUnits.push(val);
+              } else {
+                Object.values(val).forEach(u => {
+                  if (u && typeof u === 'object') fbUnits.push(u);
+                });
+              }
+            }
+          });
+          allUnits = fbUnits.filter(u => u.sector === targetSectorStorage).map(u => _toUnitData(u));
+          fromFirebase = true;
+        }
+      } catch (e) { /* fallback */ }
+    }
 
     if (!fromFirebase) {
       const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
@@ -761,12 +794,27 @@ function saveShiftData(dateStr, shift, settings, units) {
   const sectorUnits = units.filter(u => toStorageSector(u.sector) === targetSector);
   const rtdbWrites = [];
 
-  // Read prev shift units in one call (if needed)
+  // Read prev shift units (handle flat & nested)
   let prevShiftData = null;
   const hasKmBridge = sectorUnits.some(u => u.id && u.kmStart && u.kmStart !== '0');
   if (hasKmBridge) {
     try {
-      prevShiftData = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
+      const raw = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
+      if (raw) {
+        const all = [];
+        Object.values(raw).forEach(val => {
+          if (val && typeof val === 'object') {
+            if (val.id !== undefined) {
+              all.push(val);
+            } else {
+              Object.values(val).forEach(u => {
+                if (u && typeof u === 'object') all.push(u);
+              });
+            }
+          }
+        });
+        prevShiftData = all.filter(u => u.sector === targetSector);
+      }
     } catch (e) { /* no prev shift */ }
   }
 
@@ -817,7 +865,7 @@ function saveShiftData(dateStr, shift, settings, units) {
       updatedAt: timestamp
     };
 
-    rtdbWrites.push({ path: 'units/' + dateStr + '_' + shift + '/' + unit_id, data: data });
+    rtdbWrites.push({ path: 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id, data: data });
 
     // KM bridge: update prev unit's kmEnd from current unit's kmStart
     if (prevShiftData && unit.id && unit.kmStart && unit.kmStart !== '0') {
@@ -835,7 +883,7 @@ function saveShiftData(dateStr, shift, settings, units) {
           found.totalKm = newTotal;
           found.updatedAt = timestamp;
           const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
-          rtdbWrites.push({ path: 'units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + prevUnitId, data: found });
+          rtdbWrites.push({ path: 'units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, data: found });
         }
       }
     }
@@ -917,7 +965,19 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
         try {
           const shiftData = rtdbGet('units/' + shiftKey);
           if (shiftData) {
-            const found = Object.values(shiftData).find(u =>
+            const allUnits = [];
+            Object.values(shiftData).forEach(val => {
+              if (val && typeof val === 'object') {
+                if (val.id !== undefined) {
+                  allUnits.push(val);
+                } else {
+                  Object.values(val).forEach(u => {
+                    if (u && typeof u === 'object') allUnits.push(u);
+                  });
+                }
+              }
+            });
+            const found = allUnits.find(u =>
               u.id && String(u.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') === searchId &&
               u.sector === targetSector
             );
@@ -1031,7 +1091,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     updatedAt: timestamp
   };
 
-  rtdbSet('units/' + dateStr + '_' + shift + '/' + unit_id, data);
+  rtdbSet('units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id, data);
   const cache = CacheService.getScriptCache();
   cache.remove('UNITS_' + dateStr + '_' + shift);
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
@@ -1358,8 +1418,9 @@ function migrateFirestoreToRTDB() {
     const units = fbQuery('units', []);
     for (let i = 0; i < units.length; i++) {
       const u = units[i];
-      if (u.date && u.shift && u.unit_id) {
-        const path = 'units/' + u.date + '_' + u.shift + '/' + u.unit_id;
+      if (u.date && u.shift && u.sector && u.unit_id) {
+        const sectorKey = toStorageSector(u.sector);
+        const path = 'units/' + u.date + '_' + u.shift + '/' + sectorKey + '/' + u.unit_id;
         rtdbSet(path, u);
         totalUnits++;
       }
