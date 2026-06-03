@@ -531,204 +531,208 @@ export const generatePersonnelAbsenceReport = (
   // 1. Identify present vs explicitly absent personnel names
   const presentNames = new Set<string>();
   const explicitAbsentInUnits = new Set<string>();
-  // Map name -> { sector, status } for absent people from units
+  // Map name -> { sector, motivo } for absent people from units
   const nameToSector = new Map<string, string>();
-  const nameToUnitStatus = new Map<string, string>();
-
-  const absenceStatuses = [
-    'FALTO',
-    'DESCANSO MEDICO',
-    'DESCANSO MÉDICO',
-    'DESCANSO FISICO',
-    'DESCANSO COMPENSATORIO',
-    'ONOMASTICO',
-    'ONOMÁSTICO',
-    'PERMISO',
-  ];
+  const nameToUnitMotivo = new Map<string, string>();
 
   units.forEach(u => {
     const names: string[] = [];
     if (u.personnel1 && String(u.personnel1).trim() !== '') names.push(normalize(u.personnel1));
     if (u.personnel2 && String(u.personnel2).trim() !== '') names.push(normalize(u.personnel2));
 
-    // Store assigned sector for each person found in units
     const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
     const status = (u.status || '').toString().trim().toUpperCase();
-
     const motivo = (u.motivoEstado || '').toString().trim().toUpperCase();
-    if (status === 'FALTO' && motivo === 'INASISTENCIA') {
-      // Explicit absence: add to absent set and store sector/status
+
+    // SOLO considerar ESTADO: FALTO
+    if (status === 'FALTO') {
       names.forEach(name => {
         explicitAbsentInUnits.add(name);
         nameToSector.set(name, sector);
-        nameToUnitStatus.set(name, status);
+        nameToUnitMotivo.set(name, motivo || 'INASISTENCIA'); // Guardar motivo
       });
     } else if (status !== 'FALTO') {
-      // Only mark as present if NOT FALTO (FALTO with other motivo should not be counted)
       names.forEach(name => {
         if (!explicitAbsentInUnits.has(name)) {
           presentNames.add(name);
-          nameToSector.set(name, sector);
         }
       });
     }
   });
 
-  // 2. Filter personnel list for "ABSENT" — explicit unit absences take priority
+  // 2. Filter personnel list
   const absents = personnel.filter(p => {
     const name = normalize(p.apellidos_nombres);
-
-    // If explicitly absent in a unit record → always include (overrides presentNames)
     if (explicitAbsentInUnits.has(name)) return true;
-
-    // If present in an active unit → exclude
-    if (presentNames.has(name)) return false;
-
-    // Check spreadsheet/personnel status as fallback
-    const statusSS = (p.estado || '').toString().trim().toUpperCase();
-    return absenceStatuses.includes(statusSS);
+    return false; // Solo incluir los que tienen registro de Falto/Inasistencia explícito
   });
 
-  // 3. Find absent people from units who are NOT in the personnel list (unmatched)
+  // 3. Add unmatched absent people from units
   const personnelNormalizedNames = new Set(personnel.map(p => normalize(p.apellidos_nombres)));
   explicitAbsentInUnits.forEach(name => {
     if (!personnelNormalizedNames.has(name)) {
       absents.push({
         apellidos_nombres: name,
-        regimen_laboral: 'OS', // Default to ORDEN DE SERVICIO
+        regimen_laboral: 'OS',
         rol_operativo: '--',
-        estado: nameToUnitStatus.get(name) || 'FALTO',
-        n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: ''
+        estado: 'FALTO',
+        n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: '',
+        foto_url: ''
       });
+      if (!nameToUnitMotivo.has(name)) nameToUnitMotivo.set(name, 'INASISTENCIA');
     }
   });
 
-  // 4. Group by regime
+  // 4. Group by regime and motif
   const getRegime = (p: any) => {
     const reg = (p.regimen_laboral || '').toString().toUpperCase();
     if (/276/.test(reg)) return '276';
     if (/728/.test(reg)) return '728';
-    // 1057 subtypes — check INDETERMINADO before DETERMINADO to avoid partial match
     if (/1057.*INDETERMINADO/i.test(reg)) return '1057-INDETERMINADO';
     if (/1057.*DETERMINADO/i.test(reg)) return '1057-DETERMINADO';
     if (/1057.*CONFIANZA/i.test(reg)) return '1057-CONFIANZA';
-    if (/1057|CAS/i.test(reg)) return '1057-OTRO'; // fallback genérico 1057
-    // Orden de servicio
+    if (/1057|CAS/i.test(reg)) return '1057-OTRO';
     return 'OS';
   };
 
-  const groupsToDraw = [
-    { data: absents.filter(p => getRegime(p) === '276'),               label: 'FALTOS PLANILLA D.L. N° 276',                color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === '728'),               label: 'FALTOS PLANILLA D.L. N° 728',                color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === '1057-CONFIANZA'),    label: 'FALTOS D.L. N° 1057 (Confianza)',            color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === '1057-DETERMINADO'),  label: 'FALTOS D.L. N° 1057 (Determinado)',          color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === '1057-INDETERMINADO'),label: 'FALTOS D.L. N° 1057 (Indeterminado)',        color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === '1057-OTRO'),         label: 'FALTOS D.L. N° 1057',                       color: [0, 92, 187] },
-    { data: absents.filter(p => getRegime(p) === 'OS'),                label: 'FALTOS ORDEN DE SERVICIO',                  color: [0, 92, 187] }
-  ];
+  const getRegimeLabel = (regimeKey: string) => {
+    switch(regimeKey) {
+        case '276': return 'PLANILLA D.L. N° 276';
+        case '728': return 'PLANILLA D.L. N° 728';
+        case '1057-CONFIANZA': return 'D.L. N° 1057 (Confianza)';
+        case '1057-DETERMINADO': return 'D.L. N° 1057 (Determinado)';
+        case '1057-INDETERMINADO': return 'D.L. N° 1057 (Indeterminado)';
+        case '1057-OTRO': return 'D.L. N° 1057';
+        case 'OS': return 'ORDEN DE SERVICIO';
+        default: return regimeKey;
+    }
+  };
 
+  const motifs = ['INASISTENCIA', 'DESCANSO MEDICO', 'PERMISO', 'VACACIONES', 'LICENCIA'];
+  
   const resolvedOperator = operatorName || '--';
   let currentY = 10;
+  let firstPage = true;
 
-  // Draw Main Report Header (Once)
-  doc.setFillColor(38, 70, 83);
-  doc.rect(margin, currentY, contentWidth, 18, 'F');
+  motifs.forEach((motivo, motifIndex) => {
+    const motifAbsents = absents.filter(p => {
+        const nameNorm = normalize(p.apellidos_nombres);
+        const m = nameToUnitMotivo.get(nameNorm) || 'INASISTENCIA';
+        return m === motivo;
+    });
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(255, 255, 255);
-  doc.text('SURCO', margin + 5, currentY + 11);
+    if (motifAbsents.length === 0) return;
 
-  doc.setFontSize(11);
-  doc.text('REPORTE DE ASISTENCIA POR RÉGIMEN', margin + 35, currentY + 11);
-
-  doc.setFontSize(8);
-  doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
-  doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
-
-  currentY += 22;
-
-  // Sub-header: OPERADOR CCO
-  doc.setFillColor(240, 240, 240);
-  doc.rect(margin, currentY, contentWidth, 7, 'F');
-  doc.setTextColor(50, 50, 50);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('OPERADOR CCO:', margin + 3, currentY + 4.8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(resolvedOperator, margin + 38, currentY + 4.8);
-  doc.setTextColor(0, 0, 0);
-
-  currentY += 11;
-
-  groupsToDraw.forEach((groupInfo) => {
-    if (groupInfo.data.length === 0) return;
-
-    // Check if we need a new page
-    if (currentY > 250) {
-      doc.addPage();
-      currentY = 20;
+    if (!firstPage) {
+        doc.addPage();
+        currentY = 10;
     }
+    firstPage = false;
 
-    // Header de grupo (Sub-title)
-    doc.setFillColor(groupInfo.color[0], groupInfo.color[1], groupInfo.color[2]);
-    doc.rect(margin, currentY, contentWidth, 7, 'F');
+    // Draw Main Report Header
+    doc.setFillColor(38, 70, 83);
+    doc.rect(margin, currentY, contentWidth, 18, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
     doc.setTextColor(255, 255, 255);
+    doc.text('SURCO', margin + 5, currentY + 11);
+
+    doc.setFontSize(11);
+    doc.text(`REPORTE DE ${motivo} POR RÉGIMEN`, margin + 35, currentY + 11);
+
+    doc.setFontSize(8);
+    doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
+    doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
+
+    currentY += 22;
+
+    // Sub-header: OPERADOR CCO
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, currentY, contentWidth, 7, 'F');
+    doc.setTextColor(50, 50, 50);
     doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text(`${groupInfo.label}`, margin + 3, currentY + 4.8);
-    doc.text(`TOTAL: ${groupInfo.data.length}`, margin + contentWidth - 3, currentY + 4.8, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.text('OPERADOR CCO:', margin + 3, currentY + 4.8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(resolvedOperator, margin + 38, currentY + 4.8);
+    doc.setTextColor(0, 0, 0);
 
-    currentY += 7;
+    currentY += 11;
 
-    const tableData = groupInfo.data.map(p => {
-      const nameNorm = normalize(p.apellidos_nombres);
-      return [
-        p.apellidos_nombres?.toUpperCase() || '',
-        (p.rol_operativo || '').toUpperCase() || '',
-        shift.toUpperCase(), // MAÑANA, TARDE, NOCHE
-        nameToSector.get(nameNorm) || '--',
-        nameToUnitStatus.get(nameNorm) || '--'
-      ];
+    const regimes = ['276', '728', '1057-CONFIANZA', '1057-DETERMINADO', '1057-INDETERMINADO', '1057-OTRO', 'OS'];
+    
+    regimes.forEach(regimeKey => {
+        const data = motifAbsents.filter(p => getRegime(p) === regimeKey);
+        if (data.length === 0) return;
+
+        // Check if we need a new page
+        if (currentY > 250) {
+            doc.addPage();
+            currentY = 20;
+        }
+
+        // Header de grupo (Sub-title)
+        doc.setFillColor(0, 92, 187);
+        doc.rect(margin, currentY, contentWidth, 7, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${getRegimeLabel(regimeKey)}`, margin + 3, currentY + 4.8);
+        doc.text(`TOTAL: ${data.length}`, margin + contentWidth - 3, currentY + 4.8, { align: 'right' });
+
+        currentY += 7;
+
+        const tableData = data.map(p => {
+            const nameNorm = normalize(p.apellidos_nombres);
+            return [
+                p.apellidos_nombres?.toUpperCase() || '',
+                (p.rol_operativo || '').toUpperCase() || '',
+                shift.toUpperCase(),
+                nameToSector.get(nameNorm) || '--',
+                motivo
+            ];
+        });
+
+        (doc as any).autoTable({
+            startY: currentY,
+            head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR', 'MOTIVO']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [240, 240, 240],
+                textColor: [50, 50, 50],
+                fontSize: 8,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            styles: {
+                fontSize: 8,
+                cellPadding: 1.5,
+                valign: 'middle'
+            },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 35, halign: 'center' },
+                2: { cellWidth: 20, halign: 'center' },
+                3: { cellWidth: 25, halign: 'center' },
+                4: { cellWidth: 35, halign: 'center' }
+            },
+            margin: { left: margin, right: margin },
+            didDrawPage: (data: any) => {
+                currentY = data.cursor.y;
+            }
+        });
+
+        currentY = (doc as any).lastAutoTable.finalY + 8;
     });
-
-    (doc as any).autoTable({
-      startY: currentY,
-      head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR', 'MOTIVO']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [240, 240, 240],
-        textColor: [50, 50, 50],
-        fontSize: 8,
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      styles: {
-        fontSize: 8,
-        cellPadding: 1.5,
-        valign: 'middle'
-      },
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 35, halign: 'center' },
-        2: { cellWidth: 20, halign: 'center' },
-        3: { cellWidth: 25, halign: 'center' },
-        4: { cellWidth: 35, halign: 'center' }
-      },
-      margin: { left: margin, right: margin },
-      didDrawPage: (data: any) => {
-        currentY = data.cursor.y;
-      }
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 8;
   });
 
   // --- FOOTER ---
   const footerY = pageHeight - 15;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0); // Explicitly set text color to black
   doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
 
   const now = new Date();
@@ -768,29 +772,40 @@ export const generateObservationsReport = (
   const resolvedOperator = operatorName || '--';
 
   // Filter units with observations (mechanics)
-  const unitsWithObservations = units.filter(u => u.mechanics && u.mechanics.trim() !== '');
+  // Requisito: Nombre y apellidos no en blanco y que tengan letras.
+  const unitsWithObservations = units.filter(u => {
+    const hasValidPersonnel = (u.personnel1 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(u.personnel1)) ||
+                              (u.personnel2 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(u.personnel2));
+    const hasMechanics = u.mechanics && u.mechanics.trim() !== '';
+    return hasValidPersonnel && hasMechanics;
+  });
 
   const rows: any[] = [];
   unitsWithObservations.forEach(u => {
     const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
     const dateFormatted = formatShortDate(date);
+    
+    // Incluir lugarEstado, motivoEstado, y observaciones (mechanics)
+    const extraInfo = [u.lugarEstado, u.motivoEstado].filter(x => x && x.trim() !== '').join(' - ');
 
     // Each person gets a row with the same observation
-    if (u.personnel1) {
+    if (u.personnel1 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(u.personnel1)) {
       rows.push([
         dateFormatted,
         shift.toUpperCase(),
         sector,
         u.personnel1.toUpperCase(),
+        extraInfo || '--',
         u.mechanics.toUpperCase()
       ]);
     }
-    if (u.personnel2) {
+    if (u.personnel2 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(u.personnel2)) {
       rows.push([
         dateFormatted,
         shift.toUpperCase(),
         sector,
         u.personnel2.toUpperCase(),
+        extraInfo || '--',
         u.mechanics.toUpperCase()
       ]);
     }
@@ -802,9 +817,9 @@ export const generateObservationsReport = (
   (doc as any).autoTable({
     startY: 15,
     head: [[
-      { content: `REPORTE DE LOS PUESTOS DE COMANDOS - TURNO ${shift.toUpperCase()}`, colSpan: 5, styles: { halign: 'center', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 11 } }
+      { content: `REPORTE DE LOS PUESTOS DE COMANDOS - TURNO ${shift.toUpperCase()}`, colSpan: 6, styles: { halign: 'center', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 11 } }
     ], [
-      'FECHA', 'TURNO', 'SECTOR', 'NOMBRES Y APELLIDOS', 'OBSERVACIONES'
+      'FECHA', 'TURNO', 'SECTOR', 'NOMBRES Y APELLIDOS', 'LUGAR/MOTIVO ESTADO', 'OBSERVACIONES'
     ]],
     body: rows,
     theme: 'grid',
@@ -812,10 +827,11 @@ export const generateObservationsReport = (
     headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 20 },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 20 },
-      3: { cellWidth: 80, halign: 'left' },
-      4: { cellWidth: 'auto', halign: 'left' }
+      1: { cellWidth: 20 },
+      2: { cellWidth: 15 },
+      3: { cellWidth: 60, halign: 'left' },
+      4: { cellWidth: 40, halign: 'left' },
+      5: { cellWidth: 'auto', halign: 'left' }
     },
     margin: { left: margin, right: margin }
   });
