@@ -205,25 +205,34 @@ export const generateMotoReport = (
     tableWidth: (pageWidth / 2) - margin - 5
   });
 
+  const previousAutoTable = (doc as any).lastAutoTable;
+  const finalDetailY = Math.max(previousAutoTable ? previousAutoTable.finalY : 0, finalY);
+  const signatureBlockHeight = 25;
+  let signatureY = finalDetailY + 10;
+
+  if (signatureY + signatureBlockHeight > pageHeight - 10) {
+    doc.addPage();
+    signatureY = 20;
+  }
+
   // --- SIGNATURES ---
-  const footerY = pageHeight - 35;
   doc.setLineWidth(0.5);
-  doc.line(margin + 10, footerY, margin + 70, footerY);
-  doc.line(pageWidth - margin - 70, footerY, pageWidth - margin - 10, footerY);
+  doc.line(margin + 10, signatureY, margin + 70, signatureY);
+  doc.line(pageWidth - margin - 70, signatureY, pageWidth - margin - 10, signatureY);
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text('SUPERVISOR CCO', margin + 40, footerY + 5, { align: 'center' });
-  doc.text('OPERADOR CCO', pageWidth - margin - 40, footerY + 5, { align: 'center' });
+  doc.text('SUPERVISOR CCO', margin + 40, signatureY + 5, { align: 'center' });
+  doc.text('OPERADOR CCO', pageWidth - margin - 40, signatureY + 5, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
-  doc.text(firstSectorSettings.supervisor || '______________________', margin + 40, footerY + 10, { align: 'center' });
-  doc.text(resolvedOperator, pageWidth - margin - 40, footerY + 10, { align: 'center' });
+  doc.text(firstSectorSettings.supervisor || '______________________', margin + 40, signatureY + 10, { align: 'center' });
+  doc.text(resolvedOperator, pageWidth - margin - 40, signatureY + 10, { align: 'center' });
 
   // Timestamp
   const now = new Date();
   doc.setFontSize(7);
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, signatureY + 18);
 
   const fileName = `REPORTE_MOTOS_${titleSuffix.toUpperCase()}_${shift}_${date}.pdf`;
   doc.save(fileName);

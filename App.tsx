@@ -115,6 +115,26 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     return () => clearTimeout(timer);
   }, [selectedDate, settings.turno, currentSector, mobileData.length, currentView]);
 
+  const loadPersonnel = () => {
+    setLoadingPersonnel(true);
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((personnel: PersonnelData[]) => {
+          setPersonnelList(personnel || []);
+          setLoadingPersonnel(false);
+        })
+        .withFailureHandler((err: any) => {
+          console.error('Failed to load personnel', err);
+          setPersonnelList([]);
+          setLoadingPersonnel(false);
+        })
+        .getPersonnelList();
+    } else {
+      setPersonnelList([]);
+      setLoadingPersonnel(false);
+    }
+  };
+
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
