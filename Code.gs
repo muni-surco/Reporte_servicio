@@ -1791,6 +1791,17 @@ function _getLastThreeShiftRefs(baseDateStr, baseShift) {
   return refs;
 }
 
+function getAutoTurno() {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const totalMinutes = hours * 60 + minutes;
+
+  if (totalMinutes >= 390 && totalMinutes < 870) return 'MAÑANA';
+  if (totalMinutes >= 870 && totalMinutes < 1350) return 'TARDE';
+  return 'NOCHE';
+}
+
 /**
  * Incremental backup: appends only new records from RTDB to UNIT_DATA and SHIFT_SETTINGS.
  * It only processes the latest 3 turnos to keep network and quota usage low.
