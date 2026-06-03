@@ -890,8 +890,10 @@ function saveShiftData(dateStr, shift, settings, units) {
   });
 
   // --- Batch write all units (current + KM updates) in parallel ---
+  const metaTimestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
   if (rtdbWrites.length > 0) {
     rtdbSetAll(rtdbWrites);
+    rtdbSet('_meta/units/' + dateStr + '_' + shift, { updatedAt: metaTimestamp });
   }
 
   CacheService.getScriptCache().remove('SETTINGS_' + dateStr + '_' + shift);
@@ -943,6 +945,18 @@ function getPreviousShift(dateStr, shift, timeZone) {
  * Gets the last recorded KM Final for a unit in a specific sector,
  * ensuring it's from a previous shift/day.
  */
+/**
+ * Returns the last updatedAt timestamp for a shift (tiny payload for polling).
+ */
+function getShiftTimestamp(dateStr, shift) {
+  try {
+    const data = rtdbGet('_meta/units/' + dateStr + '_' + shift);
+    return { updatedAt: (data && data.updatedAt) || null };
+  } catch (e) {
+    return { updatedAt: null };
+  }
+}
+
 function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
   if (!unitId) return '0';
   try {
@@ -1092,6 +1106,7 @@ function updateUnit(dateStr, shift, settings, unit) {
   };
 
   rtdbSet('units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id, data);
+  rtdbSet('_meta/units/' + dateStr + '_' + shift, { updatedAt: timestamp });
   const cache = CacheService.getScriptCache();
   cache.remove('UNITS_' + dateStr + '_' + shift);
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);

@@ -62,6 +62,7 @@ const App: React.FC = () => {
   const [mobileData, setMobileData] = useState<MobileReference[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [headerSaveStatus, setHeaderSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingViewChange, setPendingViewChange] = useState<ViewMode | null>(null);
   const [visualizationSectorsData, setVisualizationSectorsData] = useState<Record<string, { units: UnitData[], settings: AppSettings }>>({});
@@ -152,35 +153,34 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       setStatusOptions(Object.values(UnitStatus));
     }
   }, []);
-  // Cargar personal automáticamente cuando se entra a la vista de PERSONAL
+
+  // Poll timestamp for silent refresh in VISUALIZATION view (30s interval)
+  const lastTimestampRef = useRef<string | null>(null);
+  const loadDataRef = useRef<typeof loadData>(null as any);
   useEffect(() => {
-    if (currentView === 'PERSONNEL' && personnelList.length === 0) {
-      loadPersonnel();
-    }
-  }, [currentView]);
+    if (currentView !== 'VISUALIZATION') return;
+    if (typeof google === 'undefined' || !google.script || !google.script.run) return;
 
-  const loadPersonnel = () => {
-    setLoadingPersonnel(true);
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
+    const poll = () => {
       google.script.run
-        .withSuccessHandler((data: PersonnelData[]) => {
-          setPersonnelList(data);
-          setLoadingPersonnel(false);
+        .withSuccessHandler((res: { updatedAt: string | null }) => {
+          if (res.updatedAt && res.updatedAt !== lastTimestampRef.current) {
+            lastTimestampRef.current = res.updatedAt;
+            loadDataRef.current(selectedDate, settings.turno, 'VISUALIZATION', true);
+          }
         })
-        .withFailureHandler((err: any) => {
-          console.error('Failed to get personnel list', err);
-          setLoadingPersonnel(false);
-        })
-        .getPersonnelList();
-    } else {
-      console.log('MOCK: No GAS environment, setting empty personnel list');
-      setLoadingPersonnel(false);
-    }
-  };
+        .withFailureHandler(() => {})
+        .getShiftTimestamp(selectedDate, settings.turno);
+    };
 
-  const loadData = (dateStr: string, shift: string, view?: string) => {
+    poll();
+    const interval = setInterval(poll, 60000);
+    return () => clearInterval(interval);
+  }, [currentView, selectedDate, settings.turno]);
+
+  const loadData = (dateStr: string, shift: string, view?: string, silent?: boolean) => {
     const loadId = ++loadingIdRef.current;
-    setLoading(true);
+    if (!silent) setLoading(true);
     const needsFullData = view && view !== 'DASHBOARD';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       const successHandler = (data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] } | null) => {
@@ -395,6 +395,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       }, 500);
     }
   };
+  loadDataRef.current = loadData;
 
   const handleSectorChange = (sector: Sector) => {
     setCurrentSector(sector);
@@ -682,6 +683,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
   const persistSettingsOnly = (newSettings: AppSettings) => {
     setSaving(true);
+    setHeaderSaveStatus('saving');
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler((res: { success: boolean, error?: string }) => {
@@ -691,7 +693,10 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               ...prev,
               [newSettings.nombrePuesto || '1A']: newSettings
             }));
+            setHeaderSaveStatus('saved');
+            setTimeout(() => setHeaderSaveStatus('idle'), 2000);
           } else {
+            setHeaderSaveStatus('error');
             console.error('GAS Save Settings Error:', res.error);
             alert('Error al guardar configuración: ' + res.error);
           }
@@ -890,6 +895,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           onGeneratePDF={() => handleViewChange('REPORTS')}
           onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno, currentView)}
           isSaving={saving}
+          headerSaveStatus={headerSaveStatus}
           currentSector={currentSector}
           onSectorChange={handleSectorChange}
           currentView={currentView}

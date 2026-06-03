@@ -18,6 +18,7 @@ interface HeaderProps {
   onGeneratePDF: () => void;
   onRefresh?: () => void;
   isSaving?: boolean;
+  headerSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
   currentSector: Sector;
   onSectorChange: (sector: Sector) => void;
   currentView: ViewMode;
@@ -38,6 +39,7 @@ const Header: React.FC<HeaderProps> = ({
   onGeneratePDF,
   onRefresh,
   isSaving,
+  headerSaveStatus,
   currentSector,
   onSectorChange,
   currentView,
@@ -283,9 +285,17 @@ const Header: React.FC<HeaderProps> = ({
                         }}
                         disabled={isSaving || isRefreshing}
                         title="Guardar"
-                        className="h-9 px-4 bg-primary hover:bg-primary-dark text-white rounded-xl font-medium text-[12px] uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all shrink-0 max-xl:hidden"
+                        className={`h-9 px-4 rounded-xl font-medium text-[12px] uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all shrink-0 max-xl:hidden ${
+                          headerSaveStatus === 'saved'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-primary hover:bg-primary-dark text-white'
+                        }`}
                       >
-                        <span className="material-symbols-outlined text-[18px]">save</span>
+                        {headerSaveStatus === 'saved' ? (
+                          <span className="material-symbols-outlined text-[18px]">check</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-[18px]">save</span>
+                        )}
                       </button>
                     )}
                   </>
