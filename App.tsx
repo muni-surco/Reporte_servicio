@@ -158,9 +158,10 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   // Poll removed: triggered on demand now
   const loadDataRef = useRef<typeof loadData>(null as any);
   
-  const loadData = (dateStr: string, shift: string, view?: string, silent?: boolean) => {
+  const loadData = (dateStr: string, shift: string, view?: string, silent?: boolean, force?: boolean) => {
     const loadId = ++loadingIdRef.current;
     if (!silent) setLoading(true);
+    if (force) lastFetchedAtMap.current = {};
     const needsFullData = view && view !== 'DASHBOARD';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       if (view === 'VISUALIZATION') {
@@ -956,7 +957,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           onGlobalSave={handleGlobalSave}
           onHeaderSave={handleHeaderSave}
           onGeneratePDF={() => handleViewChange('REPORTS')}
-          onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno, currentView)}
+          onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno, currentView, false, true)}
           isSaving={saving}
           headerSaveStatus={headerSaveStatus}
           currentSector={currentSector}
