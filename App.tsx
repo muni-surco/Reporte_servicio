@@ -822,22 +822,52 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     setEditingId(null);
   };
 
+  const lastShiftTimestampRef = useRef<string | null>(null);
+  
   const handleGenerateReport = async (type: string, date: string, shift: string, operatorName?: string) => {
     setIsGeneratingStructuredReport(true);
 
     try {
+      const data: any = await new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .getShiftData(date, shift, '1A', lastShiftTimestampRef.current);
+      });
+
+      let finalData;
+      if (data && data.noChanges) {
+        finalData = { units, allSectorSettings: sectorSettingsMap };
+      } else {
+        if (data && data.updatedAt) lastShiftTimestampRef.current = data.updatedAt;
+        finalData = data;
+        // Update local state to keep it in sync
+        setUnits(data.units);
+        setSectorSettingsMap(data.allSectorSettings || {});
+      }
+
       if (type === 'motos') {
-        generateMotoReport(units, sectorSettingsMap, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
+        generateMotoReport(finalData.units, finalData.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
       } else if (type === 'motos_honda') {
-        generateMotoReport(units, sectorSettingsMap, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
+        generateMotoReport(finalData.units, finalData.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
       } else if (type === 'moviles') {
-        generateVehicleReport(units, sectorSettingsMap, date, shift, operatorName);
+        generateVehicleReport(finalData.units, finalData.allSectorSettings || {}, date, shift, operatorName);
       } else if (type === 'asistencia_regimen') {
-        generatePersonnelAbsenceReport(units, personnelList, date, shift, operatorName);
+        // ... (keep logic for personnelList)
+        if (personnelList.length > 0) {
+            generatePersonnelAbsenceReport(finalData.units, personnelList, date, shift, operatorName);
+        } else {
+            // Re-fetch personnel if needed
+            const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
+                google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+            });
+            setPersonnelList(loadedPersonnel);
+            generatePersonnelAbsenceReport(finalData.units, loadedPersonnel, date, shift, operatorName);
+        }
       } else if (type === 'observaciones') {
-        generateObservationsReport(units, date, shift, operatorName);
+        generateObservationsReport(finalData.units, date, shift, operatorName);
       } else if (type === 'general') {
-        generateAllRecordsReport(units, sectorSettingsMap, date, shift, operatorName);
+        generateAllRecordsReport(finalData.units, finalData.allSectorSettings || {}, date, shift, operatorName);
       } else {
         alert(`El reporte de "${type}" se encuentra en desarrollo.`);
       }

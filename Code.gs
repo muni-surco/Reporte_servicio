@@ -212,9 +212,16 @@ function _toUnitData(obj) {
   };
 }
 
-function getShiftData(dateStr, shift, sector) {
+function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
   try {
-    console.log('[getShiftData] START — dateStr=' + dateStr + ' shift=' + shift + ' sector=' + sector);
+    console.log('[getShiftData] START — dateStr=' + dateStr + ' shift=' + shift);
+    
+    // 0. Conditional Check
+    const meta = rtdbGet('_meta/units/' + dateStr + '_' + shift);
+    if (lastShiftTimestamp && meta && meta.updatedAt === lastShiftTimestamp) {
+      return { noChanges: true };
+    }
+
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
     const timeZone = ss.getSpreadsheetTimeZone();
 
@@ -227,16 +234,16 @@ function getShiftData(dateStr, shift, sector) {
     const cache = CacheService.getScriptCache();
     const cacheKey = 'UNITS_' + dateStr + '_' + shift;
     const cached = cache.get(cacheKey);
-    if (cached) {
+    if (cached && !lastShiftTimestamp) {
       try {
         const allUnits = JSON.parse(cached);
         console.log('[getShiftData] CACHE HIT — units=' + allUnits.length);
         _fbLogUsage();
-        return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
+        return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
       } catch (e) { /* invalid cache, fall through */ }
     }
 
-    // 3. Units — try RTDB first (handle flat & nested)
+    // 3. Units — try RTDB
     let allUnits = [];
     let fromFirebase = false;
     try {
@@ -287,7 +294,7 @@ function getShiftData(dateStr, shift, sector) {
     cache.put(cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     _fbLogUsage();
-    return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
+    return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
   } catch (err) {
     console.error('[getShiftData] ERROR', err);
     throw err;
