@@ -182,7 +182,6 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     const loadId = ++loadingIdRef.current;
     if (!silent) setLoading(true);
     if (force) lastFetchedAtMap.current = {};
-    const needsFullData = view && view !== 'DASHBOARD';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       if (view === 'VISUALIZATION') {
         let completed = 0;
@@ -198,7 +197,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                 // Keep existing data for this sector
                 sectorResults[index] = { 
                   units: visualizationSectorsData[s]?.units || [], 
-                  settings: sectorSettingsMap[s] 
+                  settings: sectorSettingsMap[s] || buildSafeSettings(undefined, s, shift)
                 };
               } else {
                 sectorResults[index] = data;
@@ -216,9 +215,10 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   sectorResults.forEach((res, sIndex) => {
                     const sName = SECTORS[sIndex];
                     if (res && res.units) {
-                      visData[sName] = { units: res.units, settings: res.settings };
-                      allSectorSettings[sName] = res.settings;
-                      if (sIndex === 0) finalSettings = { ...settings, ...res.settings, turno: shift };
+                      const safeSettings = buildSafeSettings(res.settings, sName, shift);
+                      visData[sName] = { units: res.units, settings: safeSettings };
+                      allSectorSettings[sName] = safeSettings;
+                      if (sIndex === 0) finalSettings = { ...settings, ...safeSettings, turno: shift };
                     }
                   });
 
@@ -249,6 +249,25 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           }
         }, 15000);
         
+        return;
+      }
+
+      if (view === 'RETEN') {
+        const currentLoadId = loadId;
+        google.script.run
+          .withSuccessHandler((data) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            if (data && data.settings) {
+              setSettings(prev => buildSafeSettings({ ...prev, ...data.settings }, currentSector, shift));
+            }
+            setLoading(false);
+          })
+          .withFailureHandler((err) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            console.error('Failed to get reten sector data', err);
+            setLoading(false);
+          })
+          .getSectorData(dateStr, shift, currentSector, lastFetchedAtMap.current[currentSector]);
         return;
       }
 
@@ -408,13 +427,13 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   }
                 });
               }
-              visData[s] = { units: sectorUnits, settings: sectorSpecificSettings };
-            });
+            visData[s] = { units: sectorUnits, settings: buildSafeSettings(sectorSpecificSettings, s, shift) };
+          });
             console.log('[DEBUG VISUALIZATION] visData sectors:', Object.keys(visData));
 
             setVisualizationSectorsData(visData);
             if (data.allSectorSettings) setSectorSettingsMap(data.allSectorSettings);
-            setSettings({ ...settings, ...data.settings, turno: shift });
+            setSettings(buildSafeSettings({ ...settings, ...data.settings }, currentSector, shift));
             setLoading(false);
             return;
           }
@@ -425,7 +444,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             setSectorSettingsMap(data.allSectorSettings);
           }
 
-          const finalSettings = { ...settings, ...data.settings, turno: shift };
+          const finalSettings = buildSafeSettings({ ...settings, ...data.settings }, currentSector, shift);
           setSettings(finalSettings);
           setLoading(false);
 
@@ -452,11 +471,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           setLoading(false);
         });
 
-        if (needsFullData) {
-          runner.getShiftData(dateStr, shift, currentSector);
-        } else {
-          runner.getSectorData(dateStr, shift, currentSector);
-        }
+        runner.getSectorData(dateStr, shift, currentSector);
     } else {
       setTimeout(() => {
         if (loadId !== loadingIdRef.current) return;
@@ -624,8 +639,10 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     });
   }, [units, currentSector, mobileData]);
 
-  const headerFieldsComplete = (appSettings: AppSettings) => {
-    return !!appSettings.operador.trim() && !!appSettings.supervisor.trim() && !!appSettings.permanencia.trim();
+  const headerFieldsComplete = (appSettings?: Partial<AppSettings> | null) => {
+    return !!String(appSettings?.operador || '').trim() &&
+      !!String(appSettings?.supervisor || '').trim() &&
+      !!String(appSettings?.permanencia || '').trim();
   };
 
   const handleViewChange = (newView: ViewMode) => {
@@ -649,6 +666,16 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       setPendingViewChange(null);
     }
   };
+
+  const buildSafeSettings = (base: Partial<AppSettings> | undefined | null, sector: string, turno: string): AppSettings => ({
+    nombrePuesto: sector,
+    operador: String(base?.operador || ''),
+    supervisor: String(base?.supervisor || ''),
+    permanencia: String(base?.permanencia || ''),
+    turno,
+    ipServidor: String(base?.ipServidor || settings.ipServidor || ''),
+    version: String(base?.version || settings.version || '')
+  });
 
   const cancelViewChange = () => {
     setPendingViewChange(null);
@@ -1139,10 +1166,11 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               )}
             </>
           ) : currentView === 'VISUALIZATION' ? (
-            <VisualizationView
+           <VisualizationView
               allSectorsData={Object.keys(visualizationSectorsData).length > 0 ? visualizationSectorsData : allSectorsData}
               settings={settings}
               mobileData={mobileData}
+              highlightMissingHeader={!headerFieldsComplete(settings)}
             />
            ) : currentView === 'REPORTS' ? (
              <ReportGeneratorView

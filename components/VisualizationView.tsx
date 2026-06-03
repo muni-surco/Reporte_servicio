@@ -6,9 +6,10 @@ interface VisualizationViewProps {
   allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }>;
   settings: AppSettings;
   mobileData: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[];
+  highlightMissingHeader?: boolean;
 }
 
-const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings, mobileData }) => {
+const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings, mobileData, highlightMissingHeader }) => {
   const redStatusPatterns = [
     UnitStatus.MANTENIMIENTO,
     UnitStatus.DESPERFECTOS,
@@ -117,12 +118,24 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
       {SECTORS.map((sectorName) => {
         const data = allSectorsData[sectorName];
         if (!data) return null;
+        const safeSettings = data.settings || {
+          nombrePuesto: sectorName,
+          operador: '',
+          supervisor: '',
+          permanencia: '',
+          turno: settings.turno,
+          ipServidor: '',
+          version: ''
+        };
 
         const activeUnits = data.units.filter(u => ALLOWED_STATUSES.includes(u.status));
         const choferes = activeUnits.filter(u => u.type === 'CHOFER');
         const motos = activeUnits.filter(u => u.type === 'MOTO');
         const serenos = activeUnits.filter(u => u.type === 'SERENO');
         const isRescate = sectorName === 'RESCATE';
+        const missingHeaderClass = highlightMissingHeader
+          ? 'border-red-200 bg-red-50/60 text-red-700'
+          : 'border-slate-100 bg-white text-slate-700';
 
         return (
           <div
@@ -145,19 +158,19 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
                 {/* INFO PERSONAL */}
                 <div className="flex gap-12 flex-1 min-w-0">
-                  <div className="flex flex-col min-w-[180px]">
+                  <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
                     <span className={infoLabelStyle}>OPERADOR EN TURNO</span>
-                    <span className={infoValueStyle}>{data.settings.operador || 'NO ASIGNADO'}</span>
+                    <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.operador ? 'text-red-600' : ''}`}>{safeSettings.operador || 'NO ASIGNADO'}</span>
                   </div>
 
-                  <div className="flex flex-col min-w-[180px]">
+                  <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
                     <span className={infoLabelStyle}>SUPERVISOR SECTOR</span>
-                    <span className={infoValueStyle}>{data.settings.supervisor || 'NO ASIGNADO'}</span>
+                    <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.supervisor ? 'text-red-600' : ''}`}>{safeSettings.supervisor || 'NO ASIGNADO'}</span>
                   </div>
 
-                  <div className="flex flex-col min-w-[180px]">
+                  <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
                     <span className={infoLabelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
-                    <span className={infoValueStyle}>{data.settings.permanencia || '--'}</span>
+                    <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.permanencia ? 'text-red-600' : ''}`}>{safeSettings.permanencia || '--'}</span>
                   </div>
                 </div>
 
