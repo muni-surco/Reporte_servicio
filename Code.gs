@@ -297,32 +297,38 @@ function getShiftData(dateStr, shift, sector) {
 /**
  * Like getShiftData but only returns units for the requested sector (faster).
  */
-function getSectorData(dateStr, shift, sector) {
+function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
   try {
     console.log('[getSectorData] START — dateStr=' + dateStr + ' shift=' + shift + ' sector=' + sector);
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
     const timeZone = ss.getSpreadsheetTimeZone();
+    const targetSectorStorage = toStorageSector(sector);
+
+    // 0. Conditional Check
+    const meta = rtdbGet('_meta/units/' + dateStr + '_' + shift + '/' + targetSectorStorage);
+    if (lastUpdatedAt && meta && meta.updatedAt === lastUpdatedAt) {
+      return { noChanges: true };
+    }
 
     // 1. Settings
     const settingsResult = _loadSettings(dateStr, shift, sector, timeZone);
     const shiftSettings = settingsResult.settings;
     const allSectorSettings = settingsResult.allSettings;
-    const targetSectorStorage = toStorageSector(sector);
 
     // 2. Units — try cache first
     const cache = CacheService.getScriptCache();
     const cacheKey = 'UNITS_' + dateStr + '_' + shift + '_' + targetSectorStorage;
     const cached = cache.get(cacheKey);
-    if (cached) {
+    if (cached && !lastUpdatedAt) {
       try {
         const allUnits = JSON.parse(cached);
         console.log('[getSectorData] CACHE HIT — units=' + allUnits.length);
         _fbLogUsage();
-        return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
+        return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
       } catch (e) { /* invalid cache, fall through */ }
     }
 
-    // 3. Units — try RTDB first (sector-specific read = small payload)
+    // 3. Units — try RTDB
     let allUnits = [];
     let fromFirebase = false;
     try {
@@ -334,7 +340,6 @@ function getSectorData(dateStr, shift, sector) {
     } catch (e) { /* fallback */ }
 
     if (!fromFirebase) {
-      // Fallback: flat structure (legacy data) — read all sectors
       try {
         const flatData = rtdbGet('units/' + dateStr + '_' + shift);
         if (flatData) {
@@ -383,7 +388,7 @@ function getSectorData(dateStr, shift, sector) {
     cache.put(cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     _fbLogUsage();
-    return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits };
+    return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
   } catch (err) {
     console.error('[getSectorData] ERROR', err);
     throw err;
@@ -884,10 +889,23 @@ function saveShiftData(dateStr, shift, settings, units) {
           found.updatedAt = timestamp;
           const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
           rtdbWrites.push({ path: 'units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, data: found });
+          // Update latest_km index for the previous shift unit
+          rtdbWrites.push({ path: 'latest_km/' + cleanId, data: { kmEnd: unit.kmStart, updatedAt: timestamp } });
         }
       }
     }
   });
+
+  // First pass: write current units and handle KM bridge
+  sectorUnits.forEach((unit) => {
+    // ...
+    // Update latest_km index for current units
+    if (unit.id && unit.kmEnd && unit.kmEnd !== '0') {
+      const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      rtdbWrites.push({ path: 'latest_km/' + cleanId, data: { kmEnd: unit.kmEnd, updatedAt: timestamp } });
+    }
+  });
+
 
   // --- Batch write all units (current + KM updates) in parallel ---
   const metaTimestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
@@ -961,44 +979,9 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
   if (!unitId) return '0';
   try {
     const searchId = String(unitId).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    const targetSector = toStorageSector(sector);
-    const shiftOrder = ['MAÑANA', 'TARDE', 'NOCHE'];
-    const currentIdx = shiftOrder.indexOf(currentShift);
-    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-    const timeZone = ss.getSpreadsheetTimeZone();
-
-    // Walk back: same date prev shifts → previous dates all shifts
-    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      const d = new Date(currentDateStr);
-      d.setDate(d.getDate() - dayOffset);
-      const dStr = Utilities.formatDate(d, timeZone, 'yyyy-MM-dd');
-      const maxShift = dayOffset === 0 ? currentIdx - 1 : 2;
-
-      for (let si = maxShift; si >= 0; si--) {
-        const shiftKey = dStr + '_' + shiftOrder[si];
-        try {
-          const shiftData = rtdbGet('units/' + shiftKey);
-          if (shiftData) {
-            const allUnits = [];
-            Object.values(shiftData).forEach(val => {
-              if (val && typeof val === 'object') {
-                if (val.id !== undefined) {
-                  allUnits.push(val);
-                } else {
-                  Object.values(val).forEach(u => {
-                    if (u && typeof u === 'object') allUnits.push(u);
-                  });
-                }
-              }
-            });
-            const found = allUnits.find(u =>
-              u.id && String(u.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') === searchId &&
-              u.sector === targetSector
-            );
-            if (found && found.kmEnd) return String(found.kmEnd);
-          }
-        } catch (e2) { /* not found */ }
-      }
+    const latest = rtdbGet('latest_km/' + searchId);
+    if (latest && latest.kmEnd) {
+      return String(latest.kmEnd);
     }
   } catch (e) {
     console.error('Error in getPreviousKmEnd:', e);
@@ -1106,7 +1089,13 @@ function updateUnit(dateStr, shift, settings, unit) {
   };
 
   rtdbSet('units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id, data);
+  // Update latest_km index
+  if (unit.id && unit.kmEnd && unit.kmEnd !== '0') {
+    const searchId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    rtdbSet('latest_km/' + searchId, { kmEnd: unit.kmEnd, updatedAt: timestamp });
+  }
   rtdbSet('_meta/units/' + dateStr + '_' + shift, { updatedAt: timestamp });
+  rtdbSet('_meta/units/' + dateStr + '_' + shift + '/' + targetSector, { updatedAt: timestamp }); // New per-sector meta
   const cache = CacheService.getScriptCache();
   cache.remove('UNITS_' + dateStr + '_' + shift);
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);

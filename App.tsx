@@ -70,6 +70,7 @@ const App: React.FC = () => {
   const loadingIdRef = useRef(0);
 
   const [sectorSettingsMap, setSectorSettingsMap] = useState<Record<string, AppSettings>>({});
+  const lastFetchedAtMap = useRef<Record<string, string>>({});
 
   const [indicativeOptions, setIndicativeOptions] = useState<string[]>([]);
   const [statusOptions, setStatusOptions] = useState<string[]>([]);
@@ -154,35 +155,68 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     }
   }, []);
 
-  // Poll timestamp for silent refresh in VISUALIZATION view (30s interval)
-  const lastTimestampRef = useRef<string | null>(null);
+  // Poll removed: triggered on demand now
   const loadDataRef = useRef<typeof loadData>(null as any);
-  useEffect(() => {
-    if (currentView !== 'VISUALIZATION') return;
-    if (typeof google === 'undefined' || !google.script || !google.script.run) return;
-
-    const poll = () => {
-      google.script.run
-        .withSuccessHandler((res: { updatedAt: string | null }) => {
-          if (res.updatedAt && res.updatedAt !== lastTimestampRef.current) {
-            lastTimestampRef.current = res.updatedAt;
-            loadDataRef.current(selectedDate, settings.turno, 'VISUALIZATION', true);
-          }
-        })
-        .withFailureHandler(() => {})
-        .getShiftTimestamp(selectedDate, settings.turno);
-    };
-
-    poll();
-    const interval = setInterval(poll, 60000);
-    return () => clearInterval(interval);
-  }, [currentView, selectedDate, settings.turno]);
-
+  
   const loadData = (dateStr: string, shift: string, view?: string, silent?: boolean) => {
     const loadId = ++loadingIdRef.current;
     if (!silent) setLoading(true);
     const needsFullData = view && view !== 'DASHBOARD';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
+      if (view === 'VISUALIZATION') {
+        let completed = 0;
+        const sectorResults: any[] = [];
+        const currentLoadId = loadId;
+
+        SECTORS.forEach((s, index) => {
+          google.script.run
+            .withSuccessHandler((data) => {
+              if (currentLoadId !== loadingIdRef.current) return;
+              
+              if (data && data.noChanges) {
+                // Keep existing data for this sector
+                sectorResults[index] = { 
+                  units: visualizationSectorsData[s]?.units || [], 
+                  settings: sectorSettingsMap[s] 
+                };
+              } else {
+                sectorResults[index] = data;
+                if (data && data.updatedAt) lastFetchedAtMap.current[s] = data.updatedAt;
+              }
+
+              completed++;
+              if (completed === SECTORS.length) {
+                // Aggregate and update state
+                const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
+                let finalSettings = settings;
+                const allSectorSettings: Record<string, AppSettings> = {};
+
+                sectorResults.forEach((res, sIndex) => {
+                  const sName = SECTORS[sIndex];
+                  if (res && res.units) {
+                    visData[sName] = { units: res.units, settings: res.settings };
+                    allSectorSettings[sName] = res.settings;
+                    if (sIndex === 0) finalSettings = { ...settings, ...res.settings, turno: shift };
+                  }
+                });
+
+                setVisualizationSectorsData(visData);
+                setSectorSettingsMap(allSectorSettings);
+                setSettings(finalSettings);
+                setLoading(false);
+              }
+            })
+            .withFailureHandler((err) => {
+              if (currentLoadId !== loadingIdRef.current) return;
+              console.error('Failed to get sector data for', s, err);
+              completed++; // Treat as completed to allow others to show
+              if (completed === SECTORS.length) setLoading(false);
+            })
+            .getSectorData(dateStr, shift, s, lastFetchedAtMap.current[s]);
+        });
+        return;
+      }
+
       const successHandler = (data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] } | null) => {
           if (loadId !== loadingIdRef.current) return;
           // Guard: GAS may return null if the payload is too large or an error occurs server-side
@@ -341,6 +375,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               }
               visData[s] = { units: sectorUnits, settings: sectorSpecificSettings };
             });
+            console.log('[DEBUG VISUALIZATION] visData sectors:', Object.keys(visData));
 
             setVisualizationSectorsData(visData);
             if (data.allSectorSettings) setSectorSettingsMap(data.allSectorSettings);
@@ -790,67 +825,28 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   const handleGenerateReport = async (type: string, date: string, shift: string, operatorName?: string) => {
     setIsGeneratingStructuredReport(true);
 
-    if (typeof google === 'undefined' || !google.script || !google.script.run) {
-      // Mock for local dev
-      setTimeout(() => {
-        setIsGeneratingStructuredReport(false);
-        console.log(`MOCK: Generando reporte ${type} para ${date} / ${shift}`);
-        if (type === 'motos') {
-          generateMotoReport(units, sectorSettingsMap, date, shift, 'XTZ150', 'YAMAHA XTZ150', operatorName);
-        } else if (type === 'motos_honda') {
-          generateMotoReport(units, sectorSettingsMap, date, shift, 'SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
-        } else if (type === 'moviles') {
-          generateVehicleReport(units, sectorSettingsMap, date, shift, operatorName);
-        } else if (type === 'asistencia_regimen') {
-          generatePersonnelAbsenceReport(units, personnelList, date, shift, operatorName);
-        } else if (type === 'observaciones') {
-          generateObservationsReport(units, date, shift, operatorName);
-        } else if (type === 'general') {
-          generateAllRecordsReport(units, sectorSettingsMap, date, shift, operatorName);
-        }
-      }, 1000);
-      return;
+    try {
+      if (type === 'motos') {
+        generateMotoReport(units, sectorSettingsMap, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
+      } else if (type === 'motos_honda') {
+        generateMotoReport(units, sectorSettingsMap, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
+      } else if (type === 'moviles') {
+        generateVehicleReport(units, sectorSettingsMap, date, shift, operatorName);
+      } else if (type === 'asistencia_regimen') {
+        generatePersonnelAbsenceReport(units, personnelList, date, shift, operatorName);
+      } else if (type === 'observaciones') {
+        generateObservationsReport(units, date, shift, operatorName);
+      } else if (type === 'general') {
+        generateAllRecordsReport(units, sectorSettingsMap, date, shift, operatorName);
+      } else {
+        alert(`El reporte de "${type}" se encuentra en desarrollo.`);
+      }
+    } catch (err) {
+      console.error('Error al generar el reporte:', err);
+      alert('Error al generar el reporte: ' + err);
+    } finally {
+      setIsGeneratingStructuredReport(false);
     }
-
-    google.script.run
-      .withSuccessHandler((data: any) => {
-        setIsGeneratingStructuredReport(false);
-        if (type === 'motos') {
-          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
-        } else if (type === 'motos_honda') {
-          generateMotoReport(data.units, data.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
-        } else if (type === 'moviles') {
-          generateVehicleReport(data.units, data.allSectorSettings || {}, date, shift, operatorName);
-        } else if (type === 'asistencia_regimen') {
-          if (personnelList.length > 0) {
-            generatePersonnelAbsenceReport(data.units, personnelList, date, shift, operatorName);
-          } else {
-            setIsGeneratingStructuredReport(true);
-            google.script.run
-              .withSuccessHandler((loadedPersonnel: PersonnelData[]) => {
-                setPersonnelList(loadedPersonnel);
-                generatePersonnelAbsenceReport(data.units, loadedPersonnel, date, shift, operatorName);
-                setIsGeneratingStructuredReport(false);
-              })
-              .withFailureHandler((err: any) => {
-                setIsGeneratingStructuredReport(false);
-                alert('Error al cargar datos del personal: ' + err);
-              })
-              .getPersonnelList();
-          }
-         } else if (type === 'observaciones') {
-          generateObservationsReport(data.units, date, shift, operatorName);
-        } else if (type === 'general') {
-          generateAllRecordsReport(data.units, data.allSectorSettings || {}, date, shift, operatorName);
-        } else {
-          alert(`El reporte de "${type}" se encuentra en desarrollo.`);
-        }
-      })
-      .withFailureHandler((err: any) => {
-        setIsGeneratingStructuredReport(false);
-        alert('Error al obtener datos: ' + err);
-      })
-      .getShiftData(date, shift, '1A'); // Passing a dummy sector is fine as it returns all units
   };
 
   const personnelStats = useMemo(() => {
