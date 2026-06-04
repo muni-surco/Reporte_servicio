@@ -3,9 +3,11 @@ import { UnitData, UnitStatus, Sector, SECTORS } from '../types';
 
 interface StatisticsViewProps {
     units: UnitData[];
+    selectedDate: string;
+    selectedShift: string;
 }
 
-const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
+const StatisticsView: React.FC<StatisticsViewProps> = ({ units, selectedDate, selectedShift }) => {
     // Calcular vehículos patrullando por sector
     const getPatrollingVehicles = () => {
         const stats: Record<string, { carros: number; motos: number }> = {};
@@ -197,6 +199,21 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units }) => {
     return (
         <div className="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
             <div className="w-full mx-auto">
+                <div className="mb-6 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-[#004b93] to-[#002d5a] px-6 py-4 flex items-center justify-between gap-4">
+                        <h2 className="text-[16px] font-medium text-white uppercase tracking-tight flex items-center gap-2">
+                            <span className="material-symbols-outlined">analytics</span>
+                            Estadísticas Operativas
+                        </h2>
+                        <div className="flex items-center gap-3 text-white/90 text-[12px] font-medium uppercase tracking-wider">
+                            <span className="bg-white/10 px-3 py-1.5 rounded-lg">Fecha: {selectedDate}</span>
+                            <span className="bg-white/10 px-3 py-1.5 rounded-lg">Turno: {selectedShift}</span>
+                        </div>
+                    </div>
+                    <div className="px-6 py-3 bg-blue-50/60 border-t border-blue-100 text-[12px] font-medium text-slate-600">
+                        Data consolidada de todos los sectores para la fecha y turno seleccionados.
+                    </div>
+                </div>
                 {/* NUEVA SECCIÓN: Alertas y excepciones */}
                 {alerts.length > 0 && (
                     <div className="mb-6 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">

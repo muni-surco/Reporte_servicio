@@ -252,6 +252,51 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         return;
       }
 
+      if (view === 'STATISTICS') {
+        let completed = 0;
+        const sectorResults: any[] = [];
+        const currentLoadId = loadId;
+
+        SECTORS.forEach((s, index) => {
+          google.script.run
+            .withSuccessHandler((data) => {
+              if (currentLoadId !== loadingIdRef.current) return;
+              sectorResults[index] = data;
+              completed++;
+              if (completed === SECTORS.length) {
+                try {
+                  const aggregatedUnits: UnitData[] = [];
+                  const aggregatedSettings: Record<string, AppSettings> = {};
+
+                  sectorResults.forEach((res, sIndex) => {
+                    const sName = SECTORS[sIndex];
+                    if (res && res.units) {
+                      aggregatedUnits.push(...res.units);
+                      aggregatedSettings[sName] = buildSafeSettings(res.settings, sName, shift);
+                    }
+                  });
+
+                  setUnits(aggregatedUnits);
+                  setSectorSettingsMap(aggregatedSettings);
+                } catch (e) {
+                  console.error('Error aggregating statistics data:', e);
+                } finally {
+                  setLoading(false);
+                }
+              }
+            })
+            .withFailureHandler((err) => {
+              if (currentLoadId !== loadingIdRef.current) return;
+              console.error('Failed to get sector data for statistics', err);
+              completed++;
+              if (completed === SECTORS.length) setLoading(false);
+            })
+            .getSectorData(dateStr, shift, s, lastFetchedAtMap.current[s]);
+        });
+
+        return;
+      }
+
       if (view === 'RETEN') {
         const currentLoadId = loadId;
         google.script.run
@@ -1195,8 +1240,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             />
           ) : currentView === 'VEHICLE_SEARCH' ? (
             <VehicleSearchView />
-          ) : (
-            <StatisticsView units={units} />
+            ) : (
+            <StatisticsView units={units} selectedDate={selectedDate} selectedShift={settings.turno} />
           )}
         </div>
       </main>
