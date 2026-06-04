@@ -1189,16 +1189,23 @@ function getQuadrantList() {
   if (data.length < 2) return [];
 
   const headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
-  var idx = headers.indexOf('cuadrante_sector');
-  if (idx === -1) return [];
+  var idxPrimary = headers.indexOf('cuadrante');
+  var idxSecondary = headers.indexOf('cuadrante_sector');
+  if (idxPrimary === -1 && idxSecondary === -1) return [];
 
   var seen = {};
   var list = [];
   for (var i = 1; i < data.length; i++) {
-    var val = String(data[i][idx] || '').trim();
-    if (val && !seen[val]) {
-      seen[val] = true;
-      list.push(val);
+    var valPrimary = idxPrimary !== -1 ? String(data[i][idxPrimary] || '').trim() : '';
+    var valSecondary = idxSecondary !== -1 ? String(data[i][idxSecondary] || '').trim() : '';
+
+    var candidates = [valPrimary, valSecondary].filter(function(v) { return v; });
+    for (var j = 0; j < candidates.length; j++) {
+      var val = candidates[j];
+      if (val && !seen[val]) {
+        seen[val] = true;
+        list.push(val);
+      }
     }
   }
   return list.sort();
