@@ -1,52 +1,171 @@
-
 import React from 'react';
 import { UnitData, AppSettings } from '../types';
+import Badge from './atoms/Badge';
+import StatValue from './atoms/StatValue';
+import Icon from './atoms/Icon';
+import { DS_COLORS, DS_SPACING, DS_TYPOGRAPHY } from '../design-system/tokens';
 
 interface VisualizationViewProps {
-  allSectorsData: Record<string, {units: UnitData[], settings: AppSettings}>;
+  allSectorsData: Record<string, { units: UnitData[]; settings: AppSettings }>;
   settings: AppSettings;
 }
 
-const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings }) => {
-  const getStatusColor = (status: string) => {
+const VisualizationView: React.FC<VisualizationViewProps> = ({
+  allSectorsData,
+  settings,
+}) => {
+  const getStatusColor_UI = (status: string) => {
     switch (status) {
-      case 'ACTIVO': return "bg-green-500 ring-2 ring-green-100";
-      case 'FUERA': return "bg-red-600 ring-2 ring-red-100";
-      default: return "bg-blue-500 ring-2 ring-blue-100";
+      case 'ACTIVO':
+        return DS_COLORS.success;
+      case 'FUERA':
+        return DS_COLORS.danger;
+      default:
+        return DS_COLORS.info;
     }
   };
 
   const renderCompactUnit = (u: UnitData, type: string) => {
-    const idTextColor = {
-      CHOFER: 'text-[#004b93]',
-      MOTO: 'text-violet-700',
-      SERENO: 'text-teal-700'
-    }[type];
+    const iconMap: Record<string, string> = {
+      CHOFER: 'car',
+      MOTO: 'bike',
+      SERENO: 'shield',
+    };
 
     return (
-      <div key={u.id} className="flex items-center gap-4 py-2.5 px-4 hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors group">
-        {/* Indicador de Estado - Maximizado */}
-        <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${getStatusColor(u.status)} shadow-sm border-2 border-white transition-transform group-hover:scale-125`} title={u.status}></div>
-        
-        {/* ID de Unidad - Sin Badge/Fondo */}
-        <span className={`text-[12px] font-black min-w-[50px] text-center ${idTextColor} uppercase tracking-tighter`}>
+      <div
+        key={u.id}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: DS_SPACING.s4,
+          padding: `${DS_SPACING.s2} ${DS_SPACING.s4}`,
+          borderBottom: `1px solid ${DS_COLORS.gray300}`,
+          transition: 'background-color 0.2s',
+        }}
+        className="hover:bg-slate-50 group"
+      >
+        {/* Status Indicator */}
+        <div
+          style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: getStatusColor_UI(u.status),
+            boxShadow: `0 0 0 3px ${getStatusColor_UI(u.status)}20`,
+            flexShrink: 0,
+          }}
+          title={u.status}
+        />
+
+        {/* Unit ID */}
+        <span
+          style={{
+            fontSize: DS_TYPOGRAPHY.textSm,
+            fontWeight: DS_TYPOGRAPHY.fontBold,
+            color: DS_COLORS.primary,
+            minWidth: '50px',
+            textAlign: 'center',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}
+        >
           {u.id}
         </span>
 
-        {/* Contenedor de Información en una sola línea */}
-        <div className="flex-1 flex items-center justify-between min-w-0 gap-6">
-          <p className="text-[13px] font-black text-slate-800 truncate uppercase tracking-tight flex-1">
+        {/* Personnel & Info */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flex: 1,
+            minWidth: 0,
+            gap: DS_SPACING.s6,
+          }}
+        >
+          <p
+            style={{
+              fontSize: DS_TYPOGRAPHY.textSm,
+              fontWeight: DS_TYPOGRAPHY.fontBold,
+              color: DS_COLORS.gray900,
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+              flex: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              margin: 0,
+            }}
+          >
             {u.personnel1}
           </p>
-          
-          <div className="flex items-center gap-6 shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-400 tracking-tighter uppercase">RADIO:</span> 
-              <span className="text-[11px] font-bold text-slate-700 font-mono">{u.radio || '--'}</span>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: DS_SPACING.s6,
+              flexShrink: 0,
+            }}
+          >
+            {/* Radio */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: DS_SPACING.s2 }}>
+              <span
+                style={{
+                  fontSize: DS_TYPOGRAPHY.textXs,
+                  fontWeight: DS_TYPOGRAPHY.fontBold,
+                  color: DS_COLORS.gray500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                RADIO:
+              </span>
+              <span
+                style={{
+                  fontSize: DS_TYPOGRAPHY.textSm,
+                  fontWeight: DS_TYPOGRAPHY.fontSemibold,
+                  color: DS_COLORS.gray700,
+                  fontFamily: 'monospace',
+                }}
+              >
+                {u.radio || '--'}
+              </span>
             </div>
-            <div className="flex items-center gap-2 border-l border-slate-200 pl-6">
-              <span className="text-[9px] font-black text-slate-400 tracking-tighter uppercase">CUADRANTE:</span> 
-              <span className="text-[12px] font-black text-slate-900">{u.quadrant || '--'}</span>
+
+            {/* Divider */}
+            <div
+              style={{
+                width: '1px',
+                height: '20px',
+                backgroundColor: DS_COLORS.gray300,
+                flexShrink: 0,
+              }}
+            />
+
+            {/* Quadrant */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: DS_SPACING.s2 }}>
+              <span
+                style={{
+                  fontSize: DS_TYPOGRAPHY.textXs,
+                  fontWeight: DS_TYPOGRAPHY.fontBold,
+                  color: DS_COLORS.gray500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                CUADRANTE:
+              </span>
+              <span
+                style={{
+                  fontSize: DS_TYPOGRAPHY.textSm,
+                  fontWeight: DS_TYPOGRAPHY.fontBold,
+                  color: DS_COLORS.gray900,
+                }}
+              >
+                {u.quadrant || '--'}
+              </span>
             </div>
           </div>
         </div>
@@ -54,114 +173,350 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     );
   };
 
-  const sectorEntries = Object.entries(allSectorsData) as [string, {units: UnitData[], settings: AppSettings}][];
-
-  const infoLabelStyle = "text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5 block";
-  const infoValueStyle = "text-[12px] font-black text-slate-800 uppercase truncate leading-none";
+  const sectorEntries = Object.entries(allSectorsData) as [
+    string,
+    { units: UnitData[]; settings: AppSettings }
+  ][];
 
   return (
-    <div className="bg-[#f1f5f9] min-h-full pb-10">
-      <div className="p-4 flex flex-col gap-6 max-w-[1600px] mx-auto">
+    <div style={{ backgroundColor: DS_COLORS.gray100, minHeight: '100vh', paddingBottom: DS_SPACING.s10 }}>
+      <div style={{ padding: DS_SPACING.s4, display: 'flex', flexDirection: 'column', gap: DS_SPACING.s6, maxWidth: '1600px', margin: '0 auto' }}>
         {sectorEntries.map(([sectorName, data]) => {
-          const choferes = data.units.filter(u => u.type === 'CHOFER');
-          const motos = data.units.filter(u => u.type === 'MOTO');
-          const serenos = data.units.filter(u => u.type === 'SERENO');
+          const choferes = data.units.filter((u) => u.type === 'CHOFER');
+          const motos = data.units.filter((u) => u.type === 'MOTO');
+          const serenos = data.units.filter((u) => u.type === 'SERENO');
           const isRescate = sectorName === 'RESCATE';
 
+          const operativoCount = data.units.filter((u) => u.status === 'ACTIVO').length;
+          const operativityPercent = Math.round(
+            (operativoCount / (data.units.length || 1)) * 100
+          );
+
           return (
-            <div 
-              key={sectorName} 
+            <div
+              key={sectorName}
               id={`sector-${sectorName.replace(/\s+/g, '-')}`}
-              className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col transition-all scroll-mt-24 hover:shadow-xl hover:border-blue-200"
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                boxShadow: `0 8px 24px ${DS_COLORS.gray500}1a`,
+                border: `1px solid ${DS_COLORS.gray300}`,
+                overflow: 'hidden',
+                transition: 'all 0.2s',
+              }}
+              className="hover:shadow-lg"
             >
-              {/* Cabecera de Sector Unificada */}
-              <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 px-6 py-4 shrink-0">
-                <div className="flex items-center gap-8">
-                  {/* SECTOR */}
-                  <div className="flex items-center gap-3 shrink-0 min-w-[140px]">
-                    <div className="w-2 h-8 bg-[#004b93] rounded-full shadow-sm shadow-blue-200"></div>
-                    <h2 className="text-[20px] font-black tracking-tighter uppercase text-[#002d5a] leading-none">{sectorName}</h2>
+              {/* Sector Header */}
+              <div
+                style={{
+                  background: `linear-gradient(to right, ${DS_COLORS.gray100}, white)`,
+                  borderBottom: `1px solid ${DS_COLORS.gray300}`,
+                  padding: `${DS_SPACING.s4} ${DS_SPACING.s6}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: DS_SPACING.s8,
+                }}
+              >
+                {/* Sector Name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: DS_SPACING.s3, minWidth: '140px', flexShrink: 0 }}>
+                  <div
+                    style={{
+                      width: '8px',
+                      height: '32px',
+                      backgroundColor: DS_COLORS.primary,
+                      borderRadius: '4px',
+                      boxShadow: `0 0 0 8px ${DS_COLORS.primary}15`,
+                    }}
+                  />
+                  <h2
+                    style={{
+                      fontSize: DS_TYPOGRAPHY.textLg,
+                      fontWeight: DS_TYPOGRAPHY.fontBold,
+                      color: DS_COLORS.primaryDark,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.02em',
+                      lineHeight: 1,
+                      margin: 0,
+                    }}
+                  >
+                    {sectorName}
+                  </h2>
+                </div>
+
+                {/* Divider */}
+                <div
+                  style={{
+                    width: '1px',
+                    height: '32px',
+                    backgroundColor: DS_COLORS.gray300,
+                    flexShrink: 0,
+                  }}
+                />
+
+                {/* Personnel Info */}
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: DS_SPACING.s10,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
+                    <label
+                      style={{
+                        fontSize: DS_TYPOGRAPHY.textXs,
+                        fontWeight: DS_TYPOGRAPHY.fontBold,
+                        color: DS_COLORS.gray500,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        marginBottom: DS_SPACING.s1,
+                        margin: 0,
+                      }}
+                    >
+                      OPERADOR EN TURNO
+                    </label>
+                    <span
+                      style={{
+                        fontSize: DS_TYPOGRAPHY.textSm,
+                        fontWeight: DS_TYPOGRAPHY.fontBold,
+                        color: DS_COLORS.gray900,
+                        textTransform: 'uppercase',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {data.settings.operador || 'NO ASIGNADO'}
+                    </span>
                   </div>
 
-                  <div className="h-8 w-px bg-slate-200 shrink-0"></div>
-
-                  {/* INFO PERSONAL */}
-                  <div className="flex gap-12 flex-1 min-w-0">
-                    <div className="flex flex-col min-w-[180px]">
-                      <span className={infoLabelStyle}>OPERADOR EN TURNO</span>
-                      <span className={infoValueStyle}>{data.settings.operador || 'NO ASIGNADO'}</span>
-                    </div>
-
-                    <div className="flex flex-col min-w-[180px]">
-                      <span className={infoLabelStyle}>SUPERVISOR SECTOR</span>
-                      <span className={infoValueStyle}>{data.settings.supervisor || 'NO ASIGNADO'}</span>
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: '180px' }}>
+                    <label
+                      style={{
+                        fontSize: DS_TYPOGRAPHY.textXs,
+                        fontWeight: DS_TYPOGRAPHY.fontBold,
+                        color: DS_COLORS.gray500,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        marginBottom: DS_SPACING.s1,
+                        margin: 0,
+                      }}
+                    >
+                      SUPERVISOR SECTOR
+                    </label>
+                    <span
+                      style={{
+                        fontSize: DS_TYPOGRAPHY.textSm,
+                        fontWeight: DS_TYPOGRAPHY.fontBold,
+                        color: DS_COLORS.gray900,
+                        textTransform: 'uppercase',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {data.settings.supervisor || 'NO ASIGNADO'}
+                    </span>
                   </div>
+                </div>
 
-                  <div className="h-8 w-px bg-slate-200 shrink-0"></div>
-
-                  {/* ESTADÍSTICAS RÁPIDAS - Sin Partes */}
-                  <div className="flex items-center gap-6">
-                    <div className="flex flex-col items-center">
-                      <span className={infoLabelStyle}>UNIDADES TOTALES</span>
-                      <span className="text-[20px] font-black text-[#004b93] leading-none">{data.units.length}</span>
-                    </div>
-                    <div className="flex flex-col items-center border-l border-slate-100 pl-6">
-                      <span className={infoLabelStyle}>OPERATIVIDAD</span>
-                      <span className="text-[20px] font-black text-green-600 leading-none">
-                        {Math.round((data.units.filter(u => u.status === 'ACTIVO').length / (data.units.length || 1)) * 100)}%
-                      </span>
-                    </div>
-                  </div>
+                {/* Quick Stats */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: DS_SPACING.s6,
+                    flexShrink: 0,
+                  }}
+                >
+                  <StatValue label="Unidades" value={data.units.length} />
+                  <div
+                    style={{
+                      width: '1px',
+                      height: '40px',
+                      backgroundColor: DS_COLORS.gray300,
+                    }}
+                  />
+                  <StatValue
+                    label="Operatividad"
+                    value={`${operativityPercent}%`}
+                    color={operativoCount >= data.units.length * 0.8 ? DS_COLORS.success : DS_COLORS.warning}
+                  />
                 </div>
               </div>
 
-              {/* Grid de Secciones */}
-              <div className={`p-4 grid gap-4 ${isRescate ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
-                {/* Columna Choferes */}
-                <div className={`flex flex-col rounded-xl border border-blue-50 overflow-hidden ${isRescate ? 'w-full' : ''}`}>
-                  <div className="text-[11px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-blue-100 font-black">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[18px]">minor_crash</span> 
+              {/* Unit Type Grid */}
+              <div
+                style={{
+                  padding: DS_SPACING.s4,
+                  display: 'grid',
+                  gap: DS_SPACING.s4,
+                  gridTemplateColumns: isRescate ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
+                }}
+              >
+                {/* Choferes */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: '12px',
+                    border: `1px solid ${DS_COLORS.primary}20`,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: DS_TYPOGRAPHY.textSm,
+                      color: DS_COLORS.primary,
+                      backgroundColor: `${DS_COLORS.primary}08`,
+                      padding: `${DS_SPACING.s2} ${DS_SPACING.s4}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderBottom: `1px solid ${DS_COLORS.primary}20`,
+                      fontWeight: DS_TYPOGRAPHY.fontBold,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: DS_SPACING.s2 }}>
+                      <Icon name="car" size={18} color={DS_COLORS.primary} stroke={2} />
                       CHOFERES
                     </div>
-                    <span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{choferes.length}</span>
+                    <Badge variant="primary" size="sm">
+                      {choferes.length}
+                    </Badge>
                   </div>
-                  <div className="flex flex-col divide-y divide-slate-100 bg-white">
-                    {choferes.map(u => renderCompactUnit(u, 'CHOFER'))}
-                    {choferes.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
+                  <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
+                    {choferes.map((u) => renderCompactUnit(u, 'CHOFER'))}
+                    {choferes.length === 0 && (
+                      <p
+                        style={{
+                          fontSize: DS_TYPOGRAPHY.textXs,
+                          fontStyle: 'italic',
+                          color: DS_COLORS.gray300,
+                          padding: `${DS_SPACING.s10} 0`,
+                          textAlign: 'center',
+                          fontWeight: DS_TYPOGRAPHY.fontBold,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          margin: 0,
+                        }}
+                      >
+                        Sin registros
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {!isRescate && (
                   <>
-                    {/* Columna Motorizados */}
-                    <div className="flex flex-col rounded-xl border border-violet-50 overflow-hidden">
-                      <div className="text-[11px] text-violet-700 bg-violet-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-violet-100 font-black">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[18px]">moped</span> 
+                    {/* Motos */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        borderRadius: '12px',
+                        border: `1px solid ${DS_COLORS.secondary}20`,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: DS_TYPOGRAPHY.textSm,
+                          color: DS_COLORS.secondary,
+                          backgroundColor: `${DS_COLORS.secondary}08`,
+                          padding: `${DS_SPACING.s2} ${DS_SPACING.s4}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          borderBottom: `1px solid ${DS_COLORS.secondary}20`,
+                          fontWeight: DS_TYPOGRAPHY.fontBold,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: DS_SPACING.s2 }}>
+                          <Icon name="bike" size={18} color={DS_COLORS.secondary} stroke={2} />
                           MOTORIZADOS
                         </div>
-                        <span className="bg-violet-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{motos.length}</span>
+                        <Badge variant="secondary" size="sm">
+                          {motos.length}
+                        </Badge>
                       </div>
-                      <div className="flex flex-col divide-y divide-slate-100 bg-white">
-                        {motos.map(u => renderCompactUnit(u, 'MOTO'))}
-                        {motos.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
+                      <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
+                        {motos.map((u) => renderCompactUnit(u, 'MOTO'))}
+                        {motos.length === 0 && (
+                          <p
+                            style={{
+                              fontSize: DS_TYPOGRAPHY.textXs,
+                              fontStyle: 'italic',
+                              color: DS_COLORS.gray300,
+                              padding: `${DS_SPACING.s10} 0`,
+                              textAlign: 'center',
+                              fontWeight: DS_TYPOGRAPHY.fontBold,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              margin: 0,
+                            }}
+                          >
+                            Sin registros
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    {/* Columna Serenos */}
-                    <div className="flex flex-col rounded-xl border border-teal-50 overflow-hidden">
-                      <div className="text-[11px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-teal-100 font-black">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[18px]">hail</span> 
+                    {/* Serenos */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        borderRadius: '12px',
+                        border: `1px solid ${DS_COLORS.info}20`,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: DS_TYPOGRAPHY.textSm,
+                          color: DS_COLORS.info,
+                          backgroundColor: `${DS_COLORS.info}08`,
+                          padding: `${DS_SPACING.s2} ${DS_SPACING.s4}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          borderBottom: `1px solid ${DS_COLORS.info}20`,
+                          fontWeight: DS_TYPOGRAPHY.fontBold,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: DS_SPACING.s2 }}>
+                          <Icon name="shield" size={18} color={DS_COLORS.info} stroke={2} />
                           SERENOS
                         </div>
-                        <span className="bg-teal-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{serenos.length}</span>
+                        <Badge variant="info" size="sm">
+                          {serenos.length}
+                        </Badge>
                       </div>
-                      <div className="flex flex-col divide-y divide-slate-100 bg-white">
-                        {serenos.map(u => renderCompactUnit(u, 'SERENO'))}
-                        {serenos.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
+                      <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
+                        {serenos.map((u) => renderCompactUnit(u, 'SERENO'))}
+                        {serenos.length === 0 && (
+                          <p
+                            style={{
+                              fontSize: DS_TYPOGRAPHY.textXs,
+                              fontStyle: 'italic',
+                              color: DS_COLORS.gray300,
+                              padding: `${DS_SPACING.s10} 0`,
+                              textAlign: 'center',
+                              fontWeight: DS_TYPOGRAPHY.fontBold,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              margin: 0,
+                            }}
+                          >
+                            Sin registros
+                          </p>
+                        )}
                       </div>
                     </div>
                   </>
