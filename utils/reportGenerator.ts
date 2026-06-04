@@ -294,25 +294,26 @@ export const generateVehicleReport = (
   ];
 
   const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
+  const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
 
   const summaryRows = sectors.map(s => {
-    const sectorUnits = vehicleUnits.filter(u => (u.sector || '').toUpperCase().includes(s));
+    const sectorUnits = vehicleUnits.filter(u => normalize(u.sector).includes(s));
 
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12)
-    const countReten = sectorUnits.filter(u => (u.id || '').startsWith('AR-')).length;
+    const countReten = sectorUnits.filter(u => normalize(u.id).startsWith('AR-')).length;
 
     // Regular statuses only for non-AR units
-    const regularUnits = sectorUnits.filter(u => !(u.id || '').startsWith('AR-'));
+    const regularUnits = sectorUnits.filter(u => !normalize(u.id).startsWith('AR-'));
 
-    const countInoperativos = regularUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
-    const countPatrullando = regularUnits.filter(u => (u.status || '').toUpperCase() === 'PATRULLANDO').length;
+    const countInoperativos = regularUnits.filter(u => inoperativeStatuses.includes(normalize(u.status))).length;
+    const countPatrullando = regularUnits.filter(u => normalize(u.status) === 'PATRULLANDO').length;
     const countSinPatrullar = regularUnits.filter(u =>
-      u.status !== 'PATRULLANDO' &&
-      !inoperativeStatuses.includes((u.status || '').toUpperCase()) &&
-      u.status !== 'SIN VEHICULO'
+      normalize(u.status) !== 'PATRULLANDO' &&
+      !inoperativeStatuses.includes(normalize(u.status)) &&
+      normalize(u.status) !== 'SIN VEHICULO'
     ).length;
 
-    const efectivo = countPatrullando + countSinPatrullar;
+    const efectivo = countPatrullando + countReten;
 
     return [
       s,
@@ -389,7 +390,7 @@ export const generateVehicleReport = (
   let finalY = (doc as any).lastAutoTable.finalY + 4;
 
   // --- CHOFERES SIN CARRO bar ---
-  const choferesSinCarro = vehicleUnits.filter(u => (u.status || '').toUpperCase() === 'SIN VEHICULO').length;
+  const choferesSinCarro = vehicleUnits.filter(u => normalize(u.status) === 'SIN VEHICULO').length;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setFillColor(38, 70, 83);
@@ -437,15 +438,15 @@ export const generateVehicleReport = (
 
   // --- DETAILS TABLES ---
   const inopData = vehicleUnits
-    .filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .filter(u => inoperativeStatuses.includes(normalize(u.status)))
     .map(u => [u.id, u.plate || '', u.mechanics || u.status]);
 
   while (inopData.length < 15) inopData.push(['', '', '']);
 
   const sinPatrullarData = vehicleUnits
     .filter(u => {
-      const status = (u.status || '').toUpperCase();
-      const id = String(u.id || '').toUpperCase();
+      const status = normalize(u.status);
+      const id = normalize(u.id);
       const isUnidadMovil = id.startsWith('M-') || id.startsWith('H-') || id.startsWith('A-G');
       return isUnidadMovil && status !== 'PATRULLANDO' && !inoperativeStatuses.includes(status) && status !== 'SIN VEHICULO';
     })
