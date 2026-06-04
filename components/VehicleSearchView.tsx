@@ -41,6 +41,12 @@ const VehicleSearchView: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (searched && !searchTerm.trim()) {
+      loadAll();
+    }
+  }, [searchTerm]);
+
   const loadAll = () => {
     setLoading(true);
     setSearched(true);
@@ -130,10 +136,9 @@ const VehicleSearchView: React.FC = () => {
 
   const handleClear = () => {
     setSearchTerm('');
-    setResults([]);
-    setSearched(false);
     setShowDropdown(false);
     setActiveIndex(-1);
+    loadAll();
     inputRef.current?.focus();
   };
 
@@ -340,9 +345,9 @@ const VehicleSearchView: React.FC = () => {
       {/* Add Vehicle Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => !saving && setShowAddModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
-              <h3 className="text-[15px] font-bold uppercase tracking-wider text-slate-700">Agregar Vehículo</h3>
+          <div className="bg-white rounded-[20px] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden mx-4 flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#0b63a7] px-5 py-4 flex items-center justify-between text-white shrink-0">
+              <h3 className="text-[15px] font-bold uppercase tracking-wider text-white">Agregar Vehículo</h3>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-all">
                 <X className="w-5 h-5" />
               </button>
