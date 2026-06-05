@@ -533,8 +533,7 @@ function getMobileData() {
   const placaIdx = headers.indexOf('placa');
   const radioIdx = headers.indexOf('radio');
   const tetraIdx = headers.indexOf('tetra'); // Nuevo
-  // Buscar primero columna 'cuadrante'; si no existe, usar 'cuadrante_sector'
-  const cuadranteIdx = headers.indexOf('cuadrante') !== -1 ? headers.indexOf('cuadrante') : headers.indexOf('cuadrante_sector');
+  const cuadranteIdx = headers.indexOf('cuadrante');
   const sectorIdx = headers.indexOf('sector');
   const indicativoIdx = headers.indexOf('indicativo');
   const estadoIdx = headers.indexOf('estado');
@@ -1189,23 +1188,16 @@ function getQuadrantList() {
   if (data.length < 2) return [];
 
   const headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
-  var idxPrimary = headers.indexOf('cuadrante');
-  var idxSecondary = headers.indexOf('cuadrante_sector');
-  if (idxPrimary === -1 && idxSecondary === -1) return [];
+  const cuadranteIdx = headers.indexOf('cuadrante');
+  if (cuadranteIdx === -1) return [];
 
   var seen = {};
   var list = [];
   for (var i = 1; i < data.length; i++) {
-    var valPrimary = idxPrimary !== -1 ? String(data[i][idxPrimary] || '').trim() : '';
-    var valSecondary = idxSecondary !== -1 ? String(data[i][idxSecondary] || '').trim() : '';
-
-    var candidates = [valPrimary, valSecondary].filter(function(v) { return v; });
-    for (var j = 0; j < candidates.length; j++) {
-      var val = candidates[j];
-      if (val && !seen[val]) {
-        seen[val] = true;
-        list.push(val);
-      }
+    var val = String(data[i][cuadranteIdx] || '').trim();
+    if (val && !seen[val]) {
+      seen[val] = true;
+      list.push(val);
     }
   }
   return list.sort();

@@ -1197,6 +1197,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                     statusOptions={statusOptions}
                     indicativeOptions={indicativeOptions}
                     personnelOptions={personnelOptions}
+                    quadrantOptions={quadrantOptions}
                     radioOptions={radioOptions}
                     lugarOptions={lugarOptions}
                     motivoStatusOptions={motivoStatusOptions}
