@@ -109,6 +109,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   })();
 
   useEffect(() => {
+    if (mobileData.length === 0) return;
     const timer = setTimeout(() => {
       loadData(selectedDate, settings.turno, currentView);
     }, 300);
@@ -166,12 +167,14 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         .withFailureHandler((err: any) => {
           console.error('Failed to get mobile data', err);
           setMobileData([]);
+          loadData(selectedDate, settings.turno, currentView);
         })
         .getMobileData();
     } else {
       console.log('MOCK: No GAS environment, setting empty mobile data');
       setMobileData([]);
       setStatusOptions(Object.values(UnitStatus));
+      loadData(selectedDate, settings.turno, currentView);
     }
   }, []);
 
