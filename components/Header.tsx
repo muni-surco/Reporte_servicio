@@ -170,7 +170,7 @@ const Header: React.FC<HeaderProps> = ({
                     <h2 className="text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none truncate">
                       {isPersonnel ? 'VISTA DE PERSONAL' : isStatistics ? 'ESTADÍSTICAS OPERATIVAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : isVehicleSearch ? 'BUSCADOR DE VEHÍCULOS SOSPECHOSOS' : 'VISTA DE DESPACHADOR'}
                     </h2>
-                    {isVisualization && (
+                    {(isVisualization || isStatistics) && (
                       <span className="text-[16px] font-bold text-blue-700 bg-blue-50/50 px-3 py-1 rounded-xl border border-blue-100 uppercase tracking-tighter flex items-center gap-3 leading-none">
                         <span className="text-blue-400 font-medium leading-none">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                         <div className="w-1 h-1 bg-blue-200 rounded-full shrink-0"></div>
