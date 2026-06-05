@@ -776,156 +776,6 @@ function getPersonnelList() {
  * Saves all units and settings for a specific date and shift.
  * Uses Firestore for storage.
  */
-function saveShiftData(dateStr, shift, settings, units) {
-  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-
-  const unitsTargetSector = units.reduce((acc, u) => u && u.sector ? toStorageSector(u.sector) : acc, '');
-  const targetSector = unitsTargetSector || toStorageSector(settings.nombrePuesto || '1A');
-  const timeZone = ss.getSpreadsheetTimeZone();
-
-  // --- Settings ---
-  const shiftPath = 'shifts/' + dateStr + '_' + shift + '/' + targetSector;
-  rtdbSet(shiftPath, {
-    date: dateStr,
-    shift: shift,
-    sector: targetSector,
-    operador: settings.operador || '',
-    supervisor: settings.supervisor || '',
-    permanencia: settings.permanencia || '',
-    updatedAt: Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss')
-  });
-
-  const email = Session.getActiveUser().getEmail();
-  const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
-  let auditLog = timestamp;
-  if (email) auditLog = email + ' @ ' + auditLog;
-  if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
-
-  // --- KM bridge: read prev shift data in one call ---
-  const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
-  const sectorUnits = units.filter(u => toStorageSector(u.sector) === targetSector);
-  const rtdbWrites = [];
-
-  // Read prev shift units (handle flat & nested)
-  let prevShiftData = null;
-  const hasKmBridge = sectorUnits.some(u => u.id && u.kmStart && u.kmStart !== '0');
-  if (hasKmBridge) {
-    try {
-      const raw = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
-      if (raw) {
-        const all = [];
-        Object.values(raw).forEach(val => {
-          if (val && typeof val === 'object') {
-            if (val.id !== undefined) {
-              all.push(val);
-            } else {
-              Object.values(val).forEach(u => {
-                if (u && typeof u === 'object') all.push(u);
-              });
-            }
-          }
-        });
-        prevShiftData = all.filter(u => u.sector === targetSector);
-      }
-    } catch (e) { /* no prev shift */ }
-  }
-
-  // First pass: write current units and handle KM bridge
-  sectorUnits.forEach((unit) => {
-    let unit_id = unit.unit_id || '';
-    if (!unit_id || unit_id === 'undefined') {
-      unit_id = 'UID-' + Utilities.getUuid().substring(0, 8).toUpperCase();
-    }
-    if (!unit_id.includes(shift)) {
-      const cleanDate = dateStr.replace(/-/g, '');
-      const cleanId = String(unit.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-      if (cleanId) {
-        unit_id = cleanDate + '_' + shift + '_' + targetSector + '_' + cleanId;
-      } else {
-        unit_id = 'UID-' + cleanDate + '-' + Utilities.getUuid().substring(0, 5).toUpperCase();
-      }
-    }
-
-    const data = {
-      date: dateStr,
-      shift: shift,
-      sector: targetSector,
-      id: unit.id,
-      type: unit.type,
-      model: unit.model || '',
-      personnel1: unit.personnel1 || '',
-      personnel2: unit.personnel2 || '',
-      plate: unit.plate || '',
-      indicative: unit.indicative || '',
-      radio: unit.radio || '',
-      status: unit.status || '',
-      reason: unit.reason || '',
-      kmStart: unit.kmStart || '0',
-      kmEnd: unit.kmEnd || '0',
-      totalKm: unit.totalKm || '0',
-      kmRecarga: unit.kmRecarga || '0',
-      hours: unit.hours || '',
-      fuel: unit.fuel || '',
-      expense: unit.expense || '',
-      partes: '0',
-      quadrant: unit.quadrant || '',
-      mechanics: unit.mechanics || '',
-      unit_id: unit_id,
-      lugarEstado: unit.lugarEstado || '',
-      motivoEstado: unit.motivoEstado || '',
-      auditLog: auditLog,
-      updatedAt: timestamp
-    };
-
-    rtdbWrites.push({ path: 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id, data: data });
-
-    // KM bridge: update prev unit's kmEnd from current unit's kmStart
-    if (prevShiftData && unit.id && unit.kmStart && unit.kmStart !== '0') {
-      const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-      if (cleanId) {
-        const found = Object.values(prevShiftData).find(u =>
-          u.id && String(u.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') === cleanId &&
-          u.sector === targetSector
-        );
-        if (found && found.kmStart) {
-          const newKmEnd = parseFloat(unit.kmStart) || 0;
-          const origKmStart = parseFloat(found.kmStart) || 0;
-          const newTotal = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
-          found.kmEnd = unit.kmStart;
-          found.totalKm = newTotal;
-          found.updatedAt = timestamp;
-          const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
-          rtdbWrites.push({ path: 'units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, data: found });
-          // Update latest_km index for the previous shift unit
-          rtdbWrites.push({ path: 'latest_km/' + cleanId, data: { kmEnd: unit.kmStart, updatedAt: timestamp } });
-        }
-      }
-    }
-  });
-
-  // First pass: write current units and handle KM bridge
-  sectorUnits.forEach((unit) => {
-    // ...
-    // Update latest_km index for current units
-    if (unit.id && unit.kmEnd && unit.kmEnd !== '0') {
-      const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-      rtdbWrites.push({ path: 'latest_km/' + cleanId, data: { kmEnd: unit.kmEnd, updatedAt: timestamp } });
-    }
-  });
-
-
-  // --- Batch write all units (current + KM updates) in parallel ---
-  const metaTimestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
-  if (rtdbWrites.length > 0) {
-    rtdbSetAll(rtdbWrites);
-    rtdbSet('_meta/units/' + dateStr + '_' + shift, { updatedAt: metaTimestamp });
-  }
-
-  CacheService.getScriptCache().remove('SETTINGS_' + dateStr + '_' + shift);
-  CacheService.getScriptCache().remove('UNITS_' + dateStr + '_' + shift);
-  return { success: true };
-}
-
 /**
  * Saves only header settings (operador, supervisor, permanencia) without modifying unit data.
  */
@@ -1092,7 +942,40 @@ function updateUnit(dateStr, shift, settings, unit) {
   };
 
   rtdbSet('units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id, data);
-  // Update latest_km index
+
+  // KM bridge: update prev unit's kmEnd from current unit's kmStart
+  const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
+  if (unit.id && unit.kmStart && unit.kmStart !== '0') {
+    try {
+      const raw = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
+      if (raw) {
+        const all = [];
+        Object.values(raw).forEach(function(val) {
+          if (val && typeof val === 'object') {
+            if (val.id !== undefined) { all.push(val); } else { Object.values(val).forEach(function(u) { if (u && typeof u === 'object') all.push(u); }); }
+          }
+        });
+        const prevShiftData = all.filter(function(u) { return u.sector === targetSector; });
+        const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        const found = prevShiftData.find(function(u) {
+          return u.id && String(u.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') === cleanId;
+        });
+        if (found && found.kmStart) {
+          const newKmEnd = parseFloat(unit.kmStart) || 0;
+          const origKmStart = parseFloat(found.kmStart) || 0;
+          found.kmEnd = unit.kmStart;
+          found.totalKm = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
+          found.updatedAt = timestamp;
+          const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
+          rtdbSet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, found);
+          rtdbSet('latest_km/' + cleanId, { kmEnd: unit.kmStart, updatedAt: timestamp });
+          rtdbSet('_meta/units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift, { updatedAt: timestamp });
+        }
+      }
+    } catch (e) { /* prev shift not available */ }
+  }
+
+  // Update latest_km index with current unit's kmEnd
   if (unit.id && unit.kmEnd && unit.kmEnd !== '0') {
     const searchId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
     rtdbSet('latest_km/' + searchId, { kmEnd: unit.kmEnd, updatedAt: timestamp });
@@ -1102,6 +985,7 @@ function updateUnit(dateStr, shift, settings, unit) {
   const cache = CacheService.getScriptCache();
   cache.remove('UNITS_' + dateStr + '_' + shift);
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
+  cache.remove('UNITS_' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
   _fbLogUsage();
   return { success: true, unit_id: unit_id, created: true };
 }
@@ -1467,18 +1351,7 @@ function StressTestFirebase() {
   }
   console.log('[StressTest] Test 1 OK: ' + ok + ' success, ' + fail + ' fail');
 
-  // Test 2: saveShiftData (10 units + settings)
-  console.log('[StressTest] Test 2: saveShiftData...');
-  const units = [];
-  for (let i = 0; i < 10; i++) {
-    units.push({ id: 'STRESS-BATCH-' + i, type: 'MOTO', status: 'ACTIVO', sector: sector });
-  }
-  const batchResult = saveShiftData(dateStr, shift, {
-    nombrePuesto: sector, operador: 'OP_STRESS', supervisor: 'SUP_STRESS', permanencia: '2H'
-  }, units);
-  console.log('[StressTest] Test 2: ' + JSON.stringify(batchResult));
-
-  // Test 3: saveShiftSettings
+  // Test 2: saveShiftSettings
   console.log('[StressTest] Test 3: saveShiftSettings...');
   const setResult = saveShiftSettings(dateStr, shift, {
     nombrePuesto: sector, operador: 'OP_FINAL', supervisor: 'SUP_FINAL', permanencia: '3H'
@@ -1723,9 +1596,6 @@ function doPost(e) {
         break;
       case 'updateUnit':
         result = updateUnit(data.dateStr, data.shift, data.settings || {}, data.unit);
-        break;
-      case 'saveShiftData':
-        result = saveShiftData(data.dateStr, data.shift, data.settings || {}, data.units || []);
         break;
       case 'saveShiftSettings':
         result = saveShiftSettings(data.dateStr, data.shift, data.settings || {});
