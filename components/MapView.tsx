@@ -12,6 +12,7 @@ interface QuadrantDetail {
   motos: number;
   serenos: number;
   units: { id: string; personnel1: string; type: string; plate: string }[];
+  sectorName: string;
 }
 
 function normalizeQuadrant(val: string): string {
@@ -21,6 +22,11 @@ function normalizeQuadrant(val: string): string {
 function parseQuadrants(val: string): string[] {
   if (!val || !val.trim()) return [];
   return val.split(',').map(v => normalizeQuadrant(v)).filter(Boolean);
+}
+
+function getFillOpacity(total: number | undefined): number {
+  if (!total || total === 0) return 0.2;
+  return Math.min(0.85, 0.2 + (total * 0.15));
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -39,7 +45,10 @@ function buildPopupContent(quadrantName: string, detail: QuadrantDetail | undefi
   if (!detail || detail.total === 0) {
     return `
       <div class="min-w-[240px] font-sans pb-1">
-        <h3 class="text-[16px] font-bold text-slate-900 mb-4 tracking-tight">Cuadrante ${quadrantName}</h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-[16px] font-bold text-slate-900 tracking-tight">Cuadrante ${quadrantName}</h3>
+          ${detail && detail.sectorName ? `<span class="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Sector ${detail.sectorName}</span>` : ''}
+        </div>
         <div class="flex items-center gap-3 mb-4">
           <div class="w-10 h-10 rounded-full bg-slate-200 flex shrink-0 items-center justify-center text-slate-500 font-bold text-lg">
             0
@@ -60,9 +69,14 @@ function buildPopupContent(quadrantName: string, detail: QuadrantDetail | undefi
     const icon = TYPE_ICONS[u.type] || 'radio';
     const label = u.personnel1 || u.id || 'Desconocido';
     const plateText = u.plate ? ` • ${u.plate}` : '';
+    
+    const colorClass = u.type === 'CHOFER' ? 'text-blue-500' :
+                       u.type === 'MOTO' ? 'text-violet-500' :
+                       u.type === 'SERENO' ? 'text-teal-500' : 'text-slate-400';
+
     return `
       <div class="flex items-start gap-2.5 mb-2.5">
-        <span class="material-symbols-outlined text-slate-400 text-[16px] mt-0.5">${icon}</span>
+        <span class="material-symbols-outlined ${colorClass} text-[16px] mt-0.5">${icon}</span>
         <div class="flex flex-col">
           <span class="text-slate-500 text-[13px] font-medium leading-snug">${label}</span>
           <span class="text-slate-400 text-[11px] leading-none mt-0.5">${u.type}${plateText}</span>
@@ -73,7 +87,10 @@ function buildPopupContent(quadrantName: string, detail: QuadrantDetail | undefi
 
   return `
     <div class="min-w-[260px] font-sans pb-1">
-      <h3 class="text-[16px] font-bold text-slate-900 mb-4 tracking-tight">Cuadrante ${quadrantName}</h3>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-[16px] font-bold text-slate-900 tracking-tight">Cuadrante ${quadrantName}</h3>
+        ${detail.sectorName ? `<span class="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">Sector ${detail.sectorName}</span>` : ''}
+      </div>
       
       <div class="flex items-center gap-3 mb-5">
         <div class="w-10 h-10 rounded-full bg-[#00c9a7] flex shrink-0 items-center justify-center text-white font-bold text-lg shadow-sm">
@@ -102,11 +119,23 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
   const [loadingData, setLoadingData] = useState(false);
 
+  const [showChoferes, setShowChoferes] = useState(true);
+  const [showMotos, setShowMotos] = useState(true);
+  const [showSerenos, setShowSerenos] = useState(true);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const quadrantLayersRef = useRef<Map<string, any>>(new Map());
+
   const quadrantDetailMap = useMemo(() => {
     const map = new Map<string, QuadrantDetail>();
 
-    Object.values(allSectorsData).forEach(sd => {
+    Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
       sd.units.forEach(u => {
+        if (u.type === 'CHOFER' && !showChoferes) return;
+        if (u.type === 'MOTO' && !showMotos) return;
+        if (u.type === 'SERENO' && !showSerenos) return;
+
         const quadrants = parseQuadrants(u.quadrant || '');
         if (quadrants.length === 0) return;
 
@@ -122,7 +151,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
 
         quadrants.forEach(q => {
           if (!map.has(q)) {
-            map.set(q, { total: 0, choferes: 0, motos: 0, serenos: 0, units: [] });
+            map.set(q, { total: 0, choferes: 0, motos: 0, serenos: 0, units: [], sectorName });
           }
           const d = map.get(q)!;
           d.total++;
@@ -135,7 +164,52 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     });
 
     return map;
-  }, [allSectorsData]);
+  }, [allSectorsData, showChoferes, showMotos, showSerenos]);
+
+  const quadrantDetailMapRef = useRef(quadrantDetailMap);
+  useEffect(() => {
+    quadrantDetailMapRef.current = quadrantDetailMap;
+  }, [quadrantDetailMap]);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase().trim();
+    const results: UnitData[] = [];
+    
+    Object.values(allSectorsData).forEach(sd => {
+      sd.units.forEach(u => {
+        const quadrants = parseQuadrants(u.quadrant || '');
+        if (quadrants.length === 0) return;
+        
+        const matchId = u.id?.toLowerCase().includes(query);
+        const matchRadio = u.radio?.toLowerCase().includes(query);
+        const matchPlate = u.plate?.toLowerCase().includes(query);
+        const matchName = u.personnel1?.toLowerCase().includes(query);
+        
+        if (matchId || matchRadio || matchPlate || matchName) {
+           results.push(u);
+        }
+      });
+    });
+    return results.slice(0, 8); // top 8 matches
+  }, [allSectorsData, searchQuery]);
+
+  const handleSelectSearchResult = (u: UnitData) => {
+    setSearchQuery('');
+    setShowSearchResults(false);
+    
+    const quadrants = parseQuadrants(u.quadrant || '');
+    if (quadrants.length === 0) return;
+    
+    const qName = quadrants[0];
+    const layer = quadrantLayersRef.current.get(qName);
+    if (layer && mapRef.current) {
+      mapRef.current.flyToBounds(layer.getBounds(), { maxZoom: 16, duration: 1.5 });
+      setTimeout(() => {
+        layer.openPopup();
+      }, 800);
+    }
+  };
 
   const getQuadrantStyle = (quadrantName: string) => {
     const name = normalizeQuadrant(quadrantName);
@@ -192,8 +266,10 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       const map = L.map(containerRef.current).setView([-12.128, -76.995], 14);
       mapRef.current = map;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap'
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
       }).addTo(map);
 
       setTimeout(() => map.invalidateSize(), 500);
@@ -220,25 +296,45 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
 
     if (geoJsonData.features && geoJsonData.features.length > 0) {
       const L = (window as any).L;
+      quadrantLayersRef.current.clear();
+
       const geoLayer = L.geoJson(geoJsonData, {
         style: (feature: any) => {
           const name = feature?.properties?.name || '';
-          return getQuadrantStyle(name);
+          const detail = quadrantDetailMapRef.current.get(name);
+          const hasUnits = detail && detail.total > 0;
+          return {
+            color: '#ffffff',
+            weight: 2,
+            fillColor: hasUnits ? '#00c9a7' : '#ff0000',
+            fillOpacity: getFillOpacity(detail?.total)
+          };
         },
         onEachFeature: (feature: any, layer: any) => {
           const name = normalizeQuadrant(feature.properties?.name || '');
-          const detail = quadrantDetailMap.get(name);
+          quadrantLayersRef.current.set(name, layer);
+
+          const detail = quadrantDetailMapRef.current.get(name);
           layer.bindPopup(buildPopupContent(name, detail));
+          
+          layer.bindTooltip(`<div class="font-bold text-slate-700 text-xs">${name} &bull; ${detail?.total || 0} unds</div>`, {
+            sticky: true,
+            direction: 'auto',
+            opacity: 0.95
+          });
+          
           layer.on('mouseover', () => {
             layer.setStyle({ weight: 4, fillOpacity: 0.7 });
           });
           layer.on('mouseout', () => {
-            const hasUnits = detail && detail.total > 0;
+            // Usamos la referencia para no capturar datos viejos y evitar reasignar eventos
+            const currentDetail = quadrantDetailMapRef.current.get(name);
+            const hasUnits = currentDetail && currentDetail.total > 0;
             layer.setStyle({
-              color: hasUnits ? '#00c9a7' : '#ff0000',
-              weight: 3,
+              color: '#ffffff',
+              weight: 2,
               fillColor: hasUnits ? '#00c9a7' : '#ff0000',
-              fillOpacity: 0.5
+              fillOpacity: getFillOpacity(currentDetail?.total)
             });
           });
         }
@@ -265,7 +361,35 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       const combinedGroup = L.featureGroup([geoLayer, labelsLayer]).addTo(map);
       geoLayerRef.current = combinedGroup;
     }
-  }, [geoJsonData, quadrantDetailMap]);
+  }, [geoJsonData]); // Solo depende de geoJsonData para crearse 1 sola vez
+
+  // Efecto separado para actualizar estilos y popups sin destruir la capa
+  useEffect(() => {
+    if (!geoLayerRef.current || quadrantLayersRef.current.size === 0) return;
+    
+    quadrantLayersRef.current.forEach((layer, name) => {
+      const detail = quadrantDetailMap.get(name);
+      const hasUnits = detail && detail.total > 0;
+      
+      // Actualizar estilo
+      layer.setStyle({
+        color: '#ffffff',
+        weight: 2,
+        fillColor: hasUnits ? '#00c9a7' : '#ff0000',
+        fillOpacity: getFillOpacity(detail?.total)
+      });
+      
+      // Actualizar popup
+      layer.bindPopup(buildPopupContent(name, detail));
+      
+      // Actualizar tooltip
+      if (layer.getTooltip()) {
+        layer.setTooltipContent(`<div class="font-bold text-slate-700 text-xs">${name} &bull; ${detail?.total || 0} unds</div>`);
+      }
+      
+      // No necesitamos actualizar 'mouseout' porque ahora usa quadrantDetailMapRef
+    });
+  }, [quadrantDetailMap]);
 
   const totalQuadrants = geoJsonData?.features?.length || 0;
   const occupiedCount = geoJsonData?.features
@@ -284,6 +408,90 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
             <span className="text-[#002d5a] font-bold tracking-wider">CARGANDO MAPA...</span>
           </div>
         )}
+
+        {/* Buscador Inteligente */}
+        <div className="absolute top-4 left-14 z-[1000] w-72 pointer-events-auto">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              className="w-full bg-white/95 backdrop-blur-md border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+              placeholder="Buscar unidad, apellido, placa..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchResults(true);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+            />
+            <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none z-10">search</span>
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 text-slate-400 hover:text-slate-600 transition-colors z-10"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            )}
+          </div>
+          
+          {showSearchResults && searchQuery.trim() !== '' && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto custom-scrollbar">
+              {searchResults.length === 0 ? (
+                <div className="p-4 text-center text-sm text-slate-500 font-medium">No se encontraron unidades</div>
+              ) : (
+                <div className="flex flex-col">
+                  {searchResults.map(u => (
+                    <button
+                      key={u.id}
+                      onClick={() => handleSelectSearchResult(u)}
+                      className="flex items-center gap-3 w-full p-3 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0 text-left"
+                    >
+                      <div className={`w-8 h-8 rounded-full flex shrink-0 items-center justify-center text-white ${u.type === 'CHOFER' ? 'bg-blue-500' : u.type === 'MOTO' ? 'bg-violet-500' : 'bg-teal-500'}`}>
+                        <span className="material-symbols-outlined text-[14px]">
+                          {TYPE_ICONS[u.type] || 'radio'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-800 truncate">{u.personnel1 || 'Desconocido'}</span>
+                        <span className="text-[10px] text-slate-500 truncate mt-0.5 uppercase">
+                          {u.id} {u.plate ? `• ${u.plate}` : ''} • Cuad {u.quadrant}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+          <div className="bg-white/90 backdrop-blur-sm p-2 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-1.5 pointer-events-auto">
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 mb-1">Capas de Unidades</h4>
+            <button 
+              onClick={() => setShowChoferes(!showChoferes)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showChoferes ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-100'} border`}
+            >
+              <span className="material-symbols-outlined text-[16px]">directions_car</span>
+              Solo Autos
+            </button>
+            <button 
+              onClick={() => setShowMotos(!showMotos)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showMotos ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-slate-50 text-slate-400 border-slate-100'} border`}
+            >
+              <span className="material-symbols-outlined text-[16px]">moped</span>
+              Solo Motos
+            </button>
+            <button 
+              onClick={() => setShowSerenos(!showSerenos)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showSerenos ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-slate-50 text-slate-400 border-slate-100'} border`}
+            >
+              <span className="material-symbols-outlined text-[16px]">hail</span>
+              Solo Serenos
+            </button>
+          </div>
+        </div>
+
         <div 
           ref={containerRef} 
           style={{ height: '100%', width: '100%', background: '#f8fafc' }}
