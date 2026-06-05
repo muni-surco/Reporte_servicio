@@ -23,7 +23,7 @@ export type Sector =
   | 'GIR'
   | string;
 
-export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH';
+export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH' | 'MAP';
 
 export interface VehicleRQ {
   sade: string;

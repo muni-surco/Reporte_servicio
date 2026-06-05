@@ -779,6 +779,13 @@ function getPersonnelList() {
 /**
  * Saves only header settings (operador, supervisor, permanencia) without modifying unit data.
  */
+function getQuadrantsData() {
+  if (typeof QUADRANTS_GEOJSON !== 'undefined') {
+    return QUADRANTS_GEOJSON;
+  }
+  return '{"type":"FeatureCollection","features":[]}';
+}
+
 function saveShiftSettings(dateStr, shift, settings) {
   const targetSector = toStorageSector(settings.nombrePuesto || '1A');
   const path = 'shifts/' + dateStr + '_' + shift + '/' + targetSector;
@@ -1599,6 +1606,9 @@ function doPost(e) {
         break;
       case 'saveShiftSettings':
         result = saveShiftSettings(data.dateStr, data.shift, data.settings || {});
+        break;
+      case 'getQuadrantsData':
+        result = getQuadrantsData();
         break;
       case 'getSectorData':
         result = getSectorData(data.dateStr, data.shift, data.sector);

@@ -11,6 +11,7 @@ import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import RetenManagementView from './components/RetenManagementView';
 import VehicleSearchView from './components/VehicleSearchView';
+import MapView from './components/MapView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS } from './types';
 import { Users, LayoutDashboard, FileText } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal';
@@ -255,7 +256,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         return;
       }
 
-      if (view === 'STATISTICS') {
+      if (view === 'STATISTICS' || view === 'MAP') {
         let completed = 0;
         const sectorResults: any[] = [];
         const currentLoadId = loadId;
@@ -1244,7 +1245,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             />
           ) : currentView === 'VEHICLE_SEARCH' ? (
             <VehicleSearchView />
-            ) : (
+          ) : currentView === 'MAP' ? (
+            <MapView allSectorsData={allSectorsData} settings={settings} />
+          ) : (
             <StatisticsView units={units} selectedDate={selectedDate} selectedShift={settings.turno} />
           )}
         </div>
