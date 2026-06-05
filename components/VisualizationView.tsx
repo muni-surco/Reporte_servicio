@@ -70,6 +70,11 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                     {u.lugarEstado}
                   </span>
                 )}
+                {u.motivoEstado && (
+                  <span className="text-[9px] font-medium bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded uppercase leading-none border border-orange-200">
+                    {u.motivoEstado}
+                  </span>
+                )}
                 {u.mechanics && (
                   <span className="text-[9px] font-medium bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded uppercase leading-none border border-slate-200">
                     {u.mechanics}
