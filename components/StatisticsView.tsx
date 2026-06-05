@@ -85,12 +85,6 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units, selectedDate, se
         const inMaintenance = units.filter(u => u.status === UnitStatus.MANTENIMIENTO || u.status === UnitStatus.CON_DESPERFECTOS);
         if (inMaintenance.length > 0) alerts.push({ type: 'info', message: 'Vehículos en Mantenimiento', count: inMaintenance.length });
 
-        const lowCoverage = Object.entries(patrollingStats).filter(([sector, stats]) => {
-            const total = stats.carros + stats.motos;
-            return total < 2 && sector !== 'RESCATE' && sector !== 'GIR';
-        });
-        if (lowCoverage.length > 0) alerts.push({ type: 'warning', message: 'Sectores con Baja Cobertura (<2 vehículos)', count: lowCoverage.length });
-
         return alerts;
     };
 
