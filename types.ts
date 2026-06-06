@@ -23,7 +23,7 @@ export type Sector =
   | 'GIR'
   | string;
 
-export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH' | 'MAP';
+export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH' | 'MAP' | 'WANTED';
 
 export interface VehicleRQ {
   sade: string;
@@ -111,6 +111,33 @@ export interface MobileReference {
   quadrant?: string;
   sector?: string;
   status?: string;
+}
+
+export interface WantedPerson {
+  buscado_por: string;
+  edad: string;
+  nombre: string;
+  dnice: string;
+  sexo: string;
+  fecha_hecho: string;
+  hora_hecho: string;
+  lugar_intervencion: string;
+  habilitacion_urbana: string;
+  nacionalidad: string;
+  recompensa: string;
+  fuente: string;
+  estado: string;
+  sade: string;
+  dependencia_policial: string;
+  caracteristicas: string;
+  vestimenta: string;
+  circunstancias: string;
+  cumple_analitica: string;
+  video: string;
+  caso: string;
+  reincidente: string;
+  photoFileId?: string;
+  photoUrl?: string;
 }
 
 // Configuration Constants
