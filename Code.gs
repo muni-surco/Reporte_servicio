@@ -120,6 +120,45 @@ function setupRetenLogSheet(ss) {
  * Optimized to read only necessary columns for better performance.
  */
 /**
+ * Read _meta/units/{date}_{shift} once (always the full path, ~700 bytes)
+ * and cache with two-level cache: ScriptCache (fast) + PropertiesService (persistent).
+ * Returns null if the path doesn't exist or on error.
+ */
+function _getSectorMeta(dateStr, shift) {
+  try {
+    const cacheKey = 'META_' + dateStr + '_' + shift;
+    const cache = CacheService.getScriptCache();
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) { /* fall through */ }
+    }
+
+    const props = PropertiesService.getScriptProperties();
+    const propsRaw = props.getProperty(cacheKey);
+    if (propsRaw) {
+      try {
+        const parsed = JSON.parse(propsRaw);
+        if (parsed._ts && Date.now() - parsed._ts < 300000) {
+          cache.put(cacheKey, JSON.stringify(parsed.data), 60);
+          return parsed.data;
+        }
+      } catch (e) { /* fall through */ }
+    }
+
+    const meta = rtdbGet('_meta/units/' + dateStr + '_' + shift);
+    if (meta) {
+      cache.put(cacheKey, JSON.stringify(meta), 60);
+      props.setProperty(cacheKey, JSON.stringify({ data: meta, _ts: Date.now() }));
+    }
+    _fbLogUsage();
+    return meta;
+  } catch (e) {
+    console.error('[getSectorMeta] ERROR', e);
+    return null;
+  }
+}
+
+/**
  * Try reading settings from Firebase. Falls back to sheet for legacy data.
  */
 function _loadSettings(dateStr, shift, sector, timeZone) {
@@ -1153,30 +1192,18 @@ function updateUnit(dateStr, shift, settings, unit) {
   const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
   if (unit.id && unit.kmStart && unit.kmStart !== '0') {
     try {
-      const raw = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
-      if (raw) {
-        const all = [];
-        Object.values(raw).forEach(function(val) {
-          if (val && typeof val === 'object') {
-            if (val.id !== undefined) { all.push(val); } else { Object.values(val).forEach(function(u) { if (u && typeof u === 'object') all.push(u); }); }
-          }
-        });
-        const prevShiftData = all.filter(function(u) { return u.sector === targetSector; });
-        const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-        const found = prevShiftData.find(function(u) {
-          return u.id && String(u.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') === cleanId;
-        });
-        if (found && found.kmStart) {
-          const newKmEnd = parseFloat(unit.kmStart) || 0;
-          const origKmStart = parseFloat(found.kmStart) || 0;
-          found.kmEnd = unit.kmStart;
-          found.totalKm = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
-          found.updatedAt = timestamp;
-          const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
-          rtdbSet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, found);
-          rtdbSet('latest_km/' + cleanId, { kmEnd: unit.kmStart, updatedAt: timestamp });
-          rtdbSet('_meta/units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift, { updatedAt: timestamp });
-        }
+      const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
+      const found = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId);
+      if (found && found.kmStart) {
+        const newKmEnd = parseFloat(unit.kmStart) || 0;
+        const origKmStart = parseFloat(found.kmStart) || 0;
+        found.kmEnd = unit.kmStart;
+        found.totalKm = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
+        found.updatedAt = timestamp;
+        rtdbSet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, found);
+        rtdbSet('latest_km/' + cleanId, { kmEnd: unit.kmStart, updatedAt: timestamp });
+        rtdbSet('_meta/units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift, { updatedAt: timestamp });
       }
     } catch (e) { /* prev shift not available */ }
   }

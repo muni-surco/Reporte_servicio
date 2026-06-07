@@ -296,8 +296,16 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               completed++;
               if (completed === SECTORS.length) setLoading(false);
             })
-            .getSectorData(dateStr, shift, s, lastFetchedAtMap.current[s]);
+            .getSectorData(dateStr, shift, s);
         });
+
+        // Safety timeout: force stop loading after 15 seconds to prevent hanging
+        setTimeout(() => {
+          if (loadingIdRef.current === currentLoadId) {
+            console.warn('Loading statistics/map data timed out.');
+            setLoading(false);
+          }
+        }, 15000);
 
         return;
       }
