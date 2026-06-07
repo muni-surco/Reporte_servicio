@@ -11,7 +11,7 @@ interface QuadrantDetail {
   choferes: number;
   motos: number;
   serenos: number;
-  units: { id: string; personnel1: string; type: string; plate: string }[];
+  units: { id: string; personnel1: string; type: string; plate: string; radio: string }[];
   sectorName: string;
 }
 
@@ -65,21 +65,25 @@ function buildPopupContent(quadrantName: string, detail: QuadrantDetail | undefi
       </div>`;
   }
 
-  const unitsListHtml = detail.units.map(u => {
+  var typeOrder = { CHOFER: 0, MOTO: 1, SERENO: 2 };
+  var sortedUnits = detail.units.slice().sort(function(a, b) {
+    return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
+  });
+  const unitsListHtml = sortedUnits.map(u => {
     const icon = TYPE_ICONS[u.type] || 'radio';
     const label = u.personnel1 || u.id || 'Desconocido';
-    const plateText = u.plate ? ` • ${u.plate}` : '';
-    
     const colorClass = u.type === 'CHOFER' ? 'text-blue-500' :
                        u.type === 'MOTO' ? 'text-violet-500' :
                        u.type === 'SERENO' ? 'text-teal-500' : 'text-slate-400';
+    const idBadge = u.id ? `<span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.25 rounded leading-none mr-1.5">${u.id}</span>` : '';
+    const radioText = u.radio ? `<span class="text-slate-400 text-[11px] leading-none">Radio ${u.radio}</span>` : '';
 
     return `
       <div class="flex items-start gap-2.5 mb-2.5">
         <span class="material-symbols-outlined ${colorClass} text-[16px] mt-0.5">${icon}</span>
         <div class="flex flex-col">
           <span class="text-slate-500 text-[13px] font-medium leading-snug">${label}</span>
-          <span class="text-slate-400 text-[11px] leading-none mt-0.5">${u.type}${plateText}</span>
+          <div class="flex items-center gap-1 mt-0.5">${idBadge}${radioText}</div>
         </div>
       </div>
     `;
@@ -104,7 +108,7 @@ function buildPopupContent(quadrantName: string, detail: QuadrantDetail | undefi
         </div>
       </div>
 
-      <div class="max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+      <div class="pr-1">
         ${unitsListHtml}
       </div>
     </div>
@@ -142,11 +146,12 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
         const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO;
         if (!isActive) return;
 
-        const entry: { id: string; personnel1: string; type: string; plate: string } = {
+        const entry: { id: string; personnel1: string; type: string; plate: string; radio: string } = {
           id: u.id || '',
           personnel1: u.personnel1 || '',
           type: u.type,
           plate: u.plate || '',
+          radio: u.radio || '',
         };
 
         quadrants.forEach(q => {
@@ -183,10 +188,9 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
         
         const matchId = u.id?.toLowerCase().includes(query);
         const matchRadio = u.radio?.toLowerCase().includes(query);
-        const matchPlate = u.plate?.toLowerCase().includes(query);
         const matchName = u.personnel1?.toLowerCase().includes(query);
         
-        if (matchId || matchRadio || matchPlate || matchName) {
+        if (matchId || matchRadio || matchName) {
            results.push(u);
         }
       });
@@ -454,7 +458,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
                       <div className="flex flex-col min-w-0">
                         <span className="text-xs font-bold text-slate-800 truncate">{u.personnel1 || 'Desconocido'}</span>
                         <span className="text-[10px] text-slate-500 truncate mt-0.5 uppercase">
-                          {u.id} {u.plate ? `• ${u.plate}` : ''} • Cuad {u.quadrant}
+                          ${u.radio ? `Radio ${u.radio} · ` : ''}ID ${u.id} · Cuad ${u.quadrant}
                         </span>
                       </div>
                     </button>
@@ -473,21 +477,21 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showChoferes ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-100'} border`}
             >
               <span className="material-symbols-outlined text-[16px]">directions_car</span>
-              Solo Autos
+              Autos
             </button>
             <button 
               onClick={() => setShowMotos(!showMotos)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showMotos ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-slate-50 text-slate-400 border-slate-100'} border`}
             >
               <span className="material-symbols-outlined text-[16px]">moped</span>
-              Solo Motos
+              Motos
             </button>
             <button 
               onClick={() => setShowSerenos(!showSerenos)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showSerenos ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-slate-50 text-slate-400 border-slate-100'} border`}
             >
               <span className="material-symbols-outlined text-[16px]">hail</span>
-              Solo Serenos
+              Serenos
             </button>
           </div>
         </div>
@@ -502,7 +506,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
           <div className="absolute bottom-6 right-6 z-[1000] bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-xl p-4 min-w-[220px]">
             <h3 className="text-xs font-bold text-[#002d5a] uppercase tracking-wider mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
               <span className="material-symbols-outlined text-[16px]">map</span>
-              Leyenda
+              Cuadrantes
             </h3>
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between text-xs">

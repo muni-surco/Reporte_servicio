@@ -10,15 +10,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const menuItems = [
-    { id: 'DASHBOARD' as ViewMode, icon: 'dashboard', label: 'Panel de Edición' },
-    { id: 'RETEN' as ViewMode, icon: 'swap_horizontal_circle', label: 'Gestión de Retenes' },
-    { id: 'VISUALIZATION' as ViewMode, icon: 'description', label: 'Vista Despachador' },
-    { id: 'VEHICLE_SEARCH' as ViewMode, icon: 'search', label: 'Buscador Vehículos' },
-    { id: 'STATISTICS' as ViewMode, icon: 'bar_chart', label: 'Estadísticas' },
+    { id: 'DASHBOARD' as ViewMode, icon: 'dashboard', label: 'Registro de Servicio' },
+    { id: 'RETEN' as ViewMode, icon: 'swap_horizontal_circle', label: 'Registro de Retenes' },
+    { id: 'VISUALIZATION' as ViewMode, icon: 'description', label: 'Vista de Despachador' },
+    { id: 'VEHICLE_SEARCH' as ViewMode, icon: 'search', label: 'Buscador de Vehículos' },
     { id: 'PERSONNEL' as ViewMode, icon: 'group', label: 'Vista de Personal' },
-    { id: 'REPORTS' as ViewMode, icon: 'summarize', label: 'Centro de Reportes' },
     { id: 'MAP' as ViewMode, icon: 'map', label: 'Mapa de Cuadrantes' },
     { id: 'WANTED' as ViewMode, icon: 'scan', label: 'Rostros Buscados' },
+    { id: 'STATISTICS' as ViewMode, icon: 'bar_chart', label: 'Estadísticas' },
+    { id: 'REPORTS' as ViewMode, icon: 'summarize', label: 'Centro de Reportes' },
   ];
 
   return (

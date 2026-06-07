@@ -774,6 +774,37 @@ function getPersonnelList() {
   }
 }
 
+function fmtDateSimple(val) {
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+  }
+  var s = String(val || '').trim();
+  if (!s) return '';
+  // If it looks like "day month year HH:MM:SS GMT" (JS default), format it
+  var d = new Date(s);
+  if (!isNaN(d.getTime()) && s.indexOf('/') === -1) {
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+  }
+  // Remove trailing time portion like "00:00:00"
+  return s.replace(/\s+00:00:00.*$/, '').replace(/T.*$/, '');
+}
+
+function fmtTimeSimple(val) {
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  var s = String(val || '').trim();
+  if (!s) return '';
+  // If full datetime string, extract time
+  var d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  // Keep only HH:MM portion
+  var m = s.match(/(\d{1,2}):(\d{2})/);
+  return m ? m[1] + ':' + m[2] : s;
+}
+
 /**
  * Fetches wanted persons from the external spreadsheet with photo file IDs from Drive.
  */
@@ -904,8 +935,8 @@ function getWantedPersons() {
         nombre: nombre,
         dnice: dnice,
         sexo: String(row[colMap['SEXO'] || 4] || ''),
-        fecha_hecho: String(row[colMap['FECHA DEL HECHO'] || 5] || ''),
-        hora_hecho: String(row[colMap['HORA DEL HECHO'] || 6] || ''),
+        fecha_hecho: fmtDateSimple(row[colMap['FECHA DEL HECHO'] || 5]),
+        hora_hecho: fmtTimeSimple(row[colMap['HORA DEL HECHO'] || 6]),
         lugar_intervencion: String(row[colMap['LUGAR DE LA INTERVENCIÓN U ORIGEN'] || 7] || ''),
         habilitacion_urbana: String(row[colMap['HABILITACIÓN URBANA'] || 8] || ''),
         nacionalidad: String(row[colMap['NACIONALIDAD'] || 9] || ''),
