@@ -414,7 +414,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
         )}
 
         {/* Buscador Inteligente */}
-        <div className="absolute top-4 left-14 z-[1000] w-72 pointer-events-auto">
+        <div className="absolute top-4 left-14 z-[1000] w-96 pointer-events-auto">
           <div className="relative flex items-center">
             <input
               type="text"
@@ -458,7 +458,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
                       <div className="flex flex-col min-w-0">
                         <span className="text-xs font-bold text-slate-800 truncate">{u.personnel1 || 'Desconocido'}</span>
                         <span className="text-[10px] text-slate-500 truncate mt-0.5 uppercase">
-                          ${u.radio ? `Radio ${u.radio} · ` : ''}ID ${u.id} · Cuad ${u.quadrant}
+                          {u.radio ? 'Radio ' + u.radio + ' · ' : ''}ID {u.id} · Cuad {u.quadrant}
                         </span>
                       </div>
                     </button>
