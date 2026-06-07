@@ -120,45 +120,6 @@ function setupRetenLogSheet(ss) {
  * Optimized to read only necessary columns for better performance.
  */
 /**
- * Read _meta/units/{date}_{shift} once (always the full path, ~700 bytes)
- * and cache with two-level cache: ScriptCache (fast) + PropertiesService (persistent).
- * Returns null if the path doesn't exist or on error.
- */
-function _getSectorMeta(dateStr, shift) {
-  try {
-    const cacheKey = 'META_' + dateStr + '_' + shift;
-    const cache = CacheService.getScriptCache();
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { /* fall through */ }
-    }
-
-    const props = PropertiesService.getScriptProperties();
-    const propsRaw = props.getProperty(cacheKey);
-    if (propsRaw) {
-      try {
-        const parsed = JSON.parse(propsRaw);
-        if (parsed._ts && Date.now() - parsed._ts < 300000) {
-          cache.put(cacheKey, JSON.stringify(parsed.data), 60);
-          return parsed.data;
-        }
-      } catch (e) { /* fall through */ }
-    }
-
-    const meta = rtdbGet('_meta/units/' + dateStr + '_' + shift);
-    if (meta) {
-      cache.put(cacheKey, JSON.stringify(meta), 60);
-      props.setProperty(cacheKey, JSON.stringify({ data: meta, _ts: Date.now() }));
-    }
-    _fbLogUsage();
-    return meta;
-  } catch (e) {
-    console.error('[getSectorMeta] ERROR', e);
-    return null;
-  }
-}
-
-/**
  * Try reading settings from Firebase. Falls back to sheet for legacy data.
  */
 function _loadSettings(dateStr, shift, sector, timeZone) {

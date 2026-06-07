@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wireframes — Reporte Integrado MSS (Low-Fi)</title>
+<style>
+  :root { --blue: #2563eb; --blue-hover: #1d4ed8; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #eee; color: #222; font-size: 13px; }
+  a, button { cursor: pointer; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar { background: #333; height: 100vh; width: 76px; position: fixed; left: 0; top: 0; z-index: 1030; display: flex; flex-direction: column; transition: width 0.3s ease; overflow: hidden; box-shadow: 2px 0 8px rgba(0,0,0,.1); }
+  .sidebar:hover { width: 260px; }
+  .sidebar .logo-area { height: 72px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,.15); flex-shrink: 0; }
+  .sidebar .logo-area .badge { background: #666; padding: 8px; border-radius: 12px; color: #fff; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+  .sidebar .logo-area .brand { margin-left: 16px; white-space: nowrap; overflow: hidden; }
+  .sidebar .logo-area .brand h1 { color: #fff; font-size: 13px; font-weight: 700; letter-spacing: -0.3px; }
+  .sidebar .logo-area .brand span { color: rgba(255,255,255,.4); font-size: 9px; text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; display: block; }
+  .sidebar nav { flex: 1; padding: 24px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .sidebar nav .nav-item { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border-radius: 12px; border: none; background: none; color: #999; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: all 0.15s; width: 100%; white-space: nowrap; }
+  .sidebar nav .nav-item:hover { background: rgba(255,255,255,.1); color: #fff; }
+  .sidebar nav .nav-item.active { background: #555; color: #fff; }
+  .sidebar nav .nav-item .label { opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .sidebar:hover nav .nav-item .label { opacity: 1; pointer-events: auto; }
+  .sidebar .footer { padding: 16px; border-top: 1px solid rgba(255,255,255,.15); display: flex; align-items: center; gap: 16px; }
+  .sidebar .footer .avatar { width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,.2); flex-shrink: 0; }
+  .sidebar .footer .info { white-space: nowrap; overflow: hidden; }
+  .sidebar .footer .info p { color: #fff; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .sidebar .footer .info span { color: rgba(255,255,255,.4); font-size: 8px; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; display: block; }
+
+  /* ===== HEADER ===== */
+  .app-header { height: 72px; background: #fafafa; border-bottom: 1px solid #ccc; position: sticky; top: 0; z-index: 50; display: flex; align-items: center; padding: 0 16px; margin-left: 76px; }
+  .app-header .inner { max-width: 1920px; margin: 0 auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .app-header .left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .app-header .left .sector-label { font-size: 14px; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .app-header .left .sector-select { font-size: 24px; font-weight: 500; color: #333; border: none; background: none; cursor: pointer; text-transform: uppercase; letter-spacing: -0.5px; outline: none; padding-right: 20px; max-width: 200px; }
+  .app-header .left .sub { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+  .app-header .center { display: flex; align-items: center; flex: 1; border-left: 1px solid #ddd; padding-left: 24px; gap: 20px; }
+  .app-header .center .info-group { display: flex; align-items: center; gap: 16px; background: #f5f5f5; border: 1px solid #d0d0d0; padding: 8px 16px; border-radius: 16px; }
+  .app-header .center .field { display: flex; flex-direction: column; padding: 0 8px; }
+  .app-header .center .field .lbl { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .app-header .center .field .val { font-size: 13px; font-weight: 700; color: #333; cursor: pointer; border: none; background: none; padding: 0; }
+  .app-header .center .field .val.sel { color: #bbb; font-style: italic; }
+  .app-header .center .divider { width: 1px; height: 28px; background: #d0d0d0; }
+  .app-header .center .turno-group { background: #d5d5d5; border-radius: 8px; padding: 2px; display: flex; gap: 2px; }
+  .app-header .center .turno-group .t { padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: 1px; border: none; cursor: pointer; background: none; color: #777; text-transform: uppercase; transition: all 0.15s; }
+  .app-header .center .turno-group .t.active { background: #555; color: #fff; }
+  .app-header .right { display: flex; align-items: center; gap: 8px; }
+  .app-header .right .btn { height: 36px; padding: 0 16px; border-radius: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; border: none; cursor: pointer; transition: all 0.15s; }
+  .app-header .right .btn.primary { background: var(--blue); color: #fff; }
+  .app-header .right .btn.primary:hover { background: var(--blue-hover); }
+  .app-header .right .btn.outline { background: #fff; border: 1px solid #ccc; color: #777; }
+  .app-header .right .save-badge { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 8px; }
+  .app-header .right .save-badge .dot { width: 8px; height: 8px; background: #999; border-radius: 50%; }
+  .app-header .right .save-badge span { font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+  .app-header .right .jump-links { display: flex; gap: 4px; background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 4px 12px; }
+  .app-header .right .jump-links .j { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #777; text-decoration: none; text-transform: uppercase; }
+  .app-header .right .jump-links .j:hover { background: #eee; }
+
+  /* ===== LAYOUT ===== */
+  .app-layout { margin-left: 76px; min-height: calc(100vh - 72px); }
+  .content { padding: 20px; }
+
+  /* ===== CARD ===== */
+  .card { background: #fff; border: 1px solid #ccc; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+  .card-header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #ddd; }
+  .card-body { padding: 12px 16px; }
+
+  /* ===== UNIT SECTION ===== */
+  .unit-section { background: #fff; border: 1px solid #ccc; border-radius: 12px; margin-bottom: 20px; }
+  .unit-section .header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #ddd; border-radius: 12px 12px 0 0; background: #f5f5f5; }
+  .unit-section .header h2 { font-size: 16px; font-weight: 500; text-transform: uppercase; letter-spacing: -0.3px; display: flex; align-items: center; gap: 6px; color: #444; }
+  .unit-section .header h2 .badge { padding: 0 6px; border-radius: 4px; background: #888; color: #fff; font-size: 12px; margin-left: 4px; }
+  .unit-section .header .add-btn { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 4px; border: none; background: none; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; color: #555; }
+  .unit-section .body { padding: 12px; background: #f8f8f8; }
+
+  /* ===== UNIT ROW ===== */
+  .unit-row { display: flex; align-items: center; border: 1px solid #ccc; background: #fff; border-radius: 12px; padding: 10px; margin-bottom: 8px; }
+  .unit-row .accent { width: 6px; border-radius: 3px; flex-shrink: 0; margin: 0 12px 0 4px; height: 36px; background: #888; }
+  .unit-row .accent.chofer { background: #999; }
+  .unit-row .accent.moto { background: #aaa; }
+  .unit-row .accent.sereno { background: #bbb; }
+  .unit-row .grid { display: grid; align-items: center; gap: 8px; flex: 1; }
+  .unit-row .grid.full { grid-template-columns: 48px 1fr 2fr auto 0.7fr 1.1fr 75px; }
+  .unit-row .grid.sereno { grid-template-columns: 100px 1.5fr 2fr auto 60px 90px; }
+  .unit-row .grid .id-badge { height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: 600; font-size: 13px; background: #e0e0e0; color: #555; border: 1px solid #ccc; }
+  .unit-row .grid .id-badge.chofer { background: #e0e0e0; color: #555; }
+  .unit-row .grid .id-badge.moto { background: #e5e5e5; color: #666; }
+  .unit-row .grid .id-badge.sereno { background: #ebebeb; color: #777; }
+  .unit-row .grid .cell { border-right: 1px solid #eee; padding: 0 8px; }
+  .unit-row .grid .cell:last-child { border-right: none; }
+  .unit-row .grid .cell .lbl { font-size: 11px; font-weight: 500; color: #999; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px; }
+  .unit-row .grid .cell .val { font-size: 13px; font-weight: 500; color: #444; text-transform: uppercase; }
+  .unit-row .grid .cell .val .chip { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-weight: 500; border: 1px solid #ccc; background: #f5f5f5; color: #555; }
+  .unit-row .grid .cell .val .chip.green, .unit-row .grid .cell .val .chip.amber, .unit-row .grid .cell .val .chip.red, .unit-row .grid .cell .val .chip.blue { background: #f5f5f5; color: #555; border-color: #ccc; }
+  .unit-row .actions { display: flex; align-items: center; gap: 8px; }
+  .unit-row .actions .edit-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #ccc; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #777; cursor: pointer; }
+  .unit-row .actions .save-icon { font-size: 18px; }
+
+  /* ===== UNIT EDIT FORM ===== */
+  .edit-form { border: 2px solid #999; background: #f8f8f8; border-radius: 12px; padding: 16px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 16px; }
+  .edit-form .accent { width: 6px; height: 144px; border-radius: 3px; flex-shrink: 0; background: #999; }
+  .edit-form .form-body { flex: 1; }
+  .edit-form .form-row { display: grid; grid-template-columns: repeat(12,1fr); gap: 6px; padding-bottom: 2px; }
+  .edit-form .form-row .field { display: flex; flex-direction: column; }
+  .edit-form .form-row .field label { font-size: 11px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .edit-form .form-row .field input, .edit-form .form-row .field select { border: 1px solid #bbb; border-radius: 6px; padding: 4px 8px; font-size: 13px; height: 32px; background: #fff; }
+  .edit-form .form-row .field input.error, .edit-form .form-row .field select.error { border-color: #888; background: #f5f5f5; }
+  .edit-form .form-row .field .err { font-size: 10px; color: #888; text-transform: uppercase; }
+  .edit-form .form-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 12px; }
+  .edit-form .form-actions .btn { padding: 8px 20px; border-radius: 8px; font-size: 12px; font-weight: 500; border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.15s; }
+  .edit-form .form-actions .btn.cancel { background: #fff; border: 1px solid #bbb; color: #555; }
+  .edit-form .form-actions .btn.save { background: var(--blue); color: #fff; }
+  .edit-form .form-actions .btn.save:hover { background: var(--blue-hover); }
+
+  /* ===== SECTION TITLE ===== */
+  .sec-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; padding: 10px 16px; border-radius: 8px; margin-bottom: 12px; background: #eee; }
+
+  /* ===== TABLE ===== */
+  .w-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .w-table thead th { background: #666; color: #fff; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left; white-space: nowrap; border-bottom: 2px solid #555; position: sticky; top: 0; }
+  .w-table tbody td { padding: 12px 16px; border-bottom: 1px solid #eee; color: #444; font-size: 13px; }
+  .w-table tbody tr:hover { background: #f5f5f5; }
+
+  /* ===== KPI ===== */
+  .kpi-card { border-radius: 12px; padding: 24px; background: #ddd; border: 1px solid #bbb; }
+  .kpi-card .num { font-size: 48px; font-weight: 500; color: #333; }
+  .kpi-card .lbl { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: #666; }
+  .kpi-card .sub { font-size: 13px; color: #555; border-top: 1px solid #ccc; margin-top: 12px; padding-top: 12px; }
+
+  /* ===== MINI KPI ===== */
+  .mini-kpi { border-radius: 12px; padding: 16px; background: #d0d0d0; border: 1px solid #bbb; }
+  .mini-kpi .num { font-size: 28px; font-weight: 700; color: #333; }
+  .mini-kpi .lbl { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: #666; }
+
+  /* ===== ALERT ===== */
+  .alert-card { border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; border: 1px solid #ccc; background: #f5f5f5; }
+  .alert-card .msg { font-size: 13px; font-weight: 500; color: #444; }
+  .alert-card .count { font-size: 28px; font-weight: 500; margin-left: auto; color: #333; }
+
+  /* ===== STATUS BUBBLE ===== */
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 12px; }
+  .status-bubble { border-radius: 12px; padding: 16px; text-align: center; border: 1px solid #ccc; background: #f9f9f9; }
+  .status-bubble .num { font-size: 28px; font-weight: 500; margin-bottom: 4px; color: #333; }
+  .status-bubble .lbl { font-size: 11px; font-weight: 500; text-transform: uppercase; line-height: 1.2; color: #555; }
+
+  /* ===== GRID HELPERS ===== */
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+  .g-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px,1fr)); gap: 10px; }
+
+  /* ===== FILTER BAR ===== */
+  .filter-bar { display: flex; align-items: center; gap: 16px; background: #fff; padding: 16px; border-radius: 12px; border: 1px solid #ccc; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-bar .search-field { flex: 1; position: relative; min-width: 200px; }
+  .filter-bar .search-field input { width: 100%; height: 38px; padding: 0 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 13px; font-weight: 500; background: #f8f8f8; outline: none; }
+  /* ===== VISUALIZATION ===== */
+  .viz-sector { background: #fff; border: 1px solid #ccc; border-radius: 16px; margin-bottom: 24px; overflow: hidden; }
+  .viz-sector .vheader { background: #f8f8f8; border-bottom: 1px solid #ddd; padding: 16px 24px; display: flex; align-items: center; gap: 32px; }
+  .viz-sector .vheader .sector-name { display: flex; align-items: center; gap: 12px; }
+  .viz-sector .vheader .sector-name .bar { width: 8px; height: 32px; background: #888; border-radius: 4px; }
+  .viz-sector .vheader .sector-name h3 { font-size: 24px; font-weight: 500; color: #333; text-transform: uppercase; letter-spacing: -0.5px; }
+  .viz-sector .vheader .sinfo { display: flex; gap: 48px; flex: 1; }
+  .viz-sector .vheader .sinfo .sfield { display: flex; flex-direction: column; padding: 8px 12px; border-radius: 12px; border: 1px solid #ddd; min-width: 160px; background: #fafafa; }
+  .viz-sector .vheader .sinfo .sfield .lbl { font-size: 11px; font-weight: 500; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+  .viz-sector .vheader .sinfo .sfield .val { font-size: 13px; font-weight: 500; color: #444; text-transform: uppercase; }
+  .viz-sector .vheader .sstats { display: flex; align-items: center; gap: 24px; }
+  .viz-sector .vheader .sstats .stat { text-align: center; }
+  .viz-sector .vheader .sstats .stat .lbl { font-size: 11px; font-weight: 500; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+  .viz-sector .vheader .sstats .stat .num { font-size: 20px; font-weight: 500; color: #333; }
+  .viz-sector .vbody { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 16px; }
+  .viz-sector .vbody .vcol { border-radius: 12px; overflow: hidden; border: 1px solid #ccc; }
+  .viz-sector .vbody .vcol .vcol-header { padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 500; text-transform: uppercase; letter-spacing: -0.3px; background: #eee; color: #555; border-bottom: 1px solid #ccc; }
+  .viz-sector .vbody .vcol .vcol-header .vbadge { border-radius: 999px; background: #888; color: #fff; padding: 0 8px; font-size: 12px; }
+  .viz-sector .vbody .vcol .vunit { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #eee; }
+  .viz-sector .vbody .vcol .vunit .dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; background: #aaa; }
+  .viz-sector .vbody .vcol .vunit .dot.green { background: #888; }
+  .viz-sector .vbody .vcol .vunit .dot.amber { background: #999; }
+  .viz-sector .vbody .vcol .vunit .dot.blue { background: #aaa; }
+  .viz-sector .vbody .vcol .vunit .id { font-size: 13px; font-weight: 500; min-width: 40px; text-align: center; color: #555; }
+  .viz-sector .vbody .vcol .vunit .info { flex: 1; display: flex; justify-content: space-between; }
+  .viz-sector .vbody .vcol .vunit .info .name { font-size: 12px; font-weight: 500; color: #444; text-transform: uppercase; }
+  .viz-sector .vbody .vcol .vunit .info .meta { font-size: 11px; color: #999; }
+  .viz-sector .vbody .vcol .vunit .info .meta span { margin-left: 16px; }
+
+  /* ===== MAP ===== */
+  .map-wrapper { position: relative; width: 100%; min-height: 750px; background: #e0e0e0; border-radius: 16px; overflow: hidden; border: 1px solid #ccc; }
+  .map-wrapper .map-placeholder { width: 100%; height: 750px; background: #ddd; display: flex; align-items: center; justify-content: center; color: #888; font-size: 14px; font-weight: 500; }
+  .map-wrapper .search-overlay { position: absolute; top: 16px; left: 56px; width: 384px; z-index: 1000; }
+  .map-wrapper .search-overlay input { width: 100%; padding: 10px 16px; border: 1px solid #bbb; border-radius: 12px; font-size: 13px; font-weight: 500; background: rgba(255,255,255,.95); outline: none; }
+  .map-wrapper .layers-overlay { position: absolute; top: 16px; right: 16px; z-index: 1000; background: rgba(255,255,255,.9); padding: 8px; border-radius: 12px; border: 1px solid #ccc; display: flex; flex-direction: column; gap: 6px; min-width: 160px; }
+  .map-wrapper .layers-overlay .layer-title { font-size: 10px; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: 1px; padding: 0 8px; margin-bottom: 4px; }
+  .map-wrapper .layers-overlay .toggle { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 8px; border: 1px solid #ccc; background: #f5f5f5; color: #555; cursor: pointer; }
+  .map-wrapper .legend-overlay { position: absolute; bottom: 24px; right: 24px; z-index: 1000; background: rgba(255,255,255,.95); padding: 16px; border-radius: 12px; border: 1px solid #ccc; min-width: 220px; }
+  .map-wrapper .legend-overlay .ltitle { font-size: 12px; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+  .map-wrapper .legend-overlay .lrow { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 12px; color: #444; }
+  .map-wrapper .legend-overlay .lrow .swatch { width: 16px; height: 16px; border-radius: 4px; border: 2px solid #999; display: inline-block; margin-right: 8px; background: #ccc; }
+  .map-wrapper .legend-overlay .lrow .count { font-weight: 700; color: #333; }
+
+  /* ===== RETEN FORM ===== */
+  .reten-form { display: grid; grid-template-columns: repeat(6,1fr); gap: 16px; }
+  .reten-form .field { display: flex; flex-direction: column; }
+  .reten-form .field label { font-size: 11px; font-weight: 500; color: #777; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .reten-form .field input, .reten-form .field select { height: 38px; padding: 0 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 13px; font-weight: 500; background: #fafafa; outline: none; width: 100%; }
+  .reten-form .field .btn-row { display: flex; gap: 8px; }
+  .reten-form .field .btn-row .btn-primary { flex: 1; height: 38px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .reten-form .field .btn-row .btn-primary:hover { background: var(--blue-hover); }
+  .reten-form .field .btn-row .btn-excel { height: 38px; padding: 0 16px; background: var(--blue); color: #fff; border: none; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .reten-form .field .btn-row .btn-excel:hover { background: var(--blue-hover); }
+
+  /* ===== WANTED GALLERY ===== */
+  .wanted-card { background: #fff; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; cursor: pointer; }
+  .wanted-card .photo { aspect-ratio: 3/4; background: #e8e8e8; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .wanted-card .photo .overlay { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,.5)); padding: 8px; }
+  .wanted-card .photo .overlay .name { color: #fff; font-size: 11px; font-weight: 700; }
+  .wanted-card .footer { padding: 6px 8px; display: flex; justify-content: space-between; align-items: center; }
+  .wanted-card .footer .dnice { font-size: 9px; font-weight: 700; color: #777; text-transform: uppercase; }
+  .wanted-card .footer .status { font-size: 8px; font-weight: 700; text-transform: uppercase; padding: 2px 4px; border-radius: 999px; background: #e0e0e0; color: #555; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+  .modal { background: #fff; border-radius: 20px; max-width: 700px; width: 100%; max-height: 90vh; display: flex; overflow: hidden; }
+  .modal .photo-col { width: 280px; flex-shrink: 0; background: #e8e8e8; display: flex; align-items: center; justify-content: center; position: relative; }
+  .modal .info-col { flex: 1; padding: 20px; overflow-y: auto; }
+
+  /* ===== REPORTS CARD ===== */
+  .r-card { background: #fff; border: 1px solid #ccc; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; }
+  .r-card .title { font-size: 15px; font-weight: 700; color: #333; }
+  .r-card .sub { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; display: block; }
+  .r-card .desc { font-size: 12px; color: #666; line-height: 1.5; margin: 12px 0; flex: 1; }
+  .r-card .gen-btn { width: 100%; padding: 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--blue); }
+  .r-card .gen-btn:hover { background: var(--blue-hover); }
+
+  /* ===== REAL TABLE ===== */
+  .real-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .real-table thead th { background: #666; color: #fff; padding: 12px 16px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #555; white-space: nowrap; }
+  .real-table tbody td { padding: 10px 16px; border-bottom: 1px solid #eee; color: #444; font-size: 12px; }
+  .real-table tbody tr:nth-child(even) td { background: #fafafa; }
+
+  /* ===== GENERAL HELPERS ===== */
+  .flex { display: flex; }
+  .flex-1 { flex: 1; }
+  .gap-1 { gap: 4px; }
+  .gap-2 { gap: 8px; }
+  .gap-3 { gap: 12px; }
+  .gap-4 { gap: 16px; }
+  .gap-6 { gap: 24px; }
+  .items-center { align-items: center; }
+  .items-start { align-items: flex-start; }
+  .justify-between { justify-content: space-between; }
+  .justify-end { justify-content: flex-end; }
+  .justify-center { justify-content: center; }
+  .mt-2 { margin-top: 8px; }
+  .mt-3 { margin-top: 12px; }
+  .mt-4 { margin-top: 16px; }
+  .mb-2 { margin-bottom: 8px; }
+  .mb-3 { margin-bottom: 12px; }
+  .mb-4 { margin-bottom: 16px; }
+  .mb-6 { margin-bottom: 24px; }
+  .text-sm { font-size: 12px; }
+  .text-xs { font-size: 11px; }
+  .text-muted { color: #888; }
+  .text-faded { color: #aaa; }
+  .font-bold { font-weight: 600; }
+  .text-center { text-align: center; }
+  .w-full { width: 100%; }
+  .flex-wrap { flex-wrap: wrap; }
+  .shrink-0 { flex-shrink: 0; }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo-area">
+    <div class="badge">C4</div>
+    <div class="brand">
+      <h1>SISTEMA DE GESTIÓN</h1>
+      <span>C4 - Alerta Surco</span>
+    </div>
+  </div>
+  <nav>
+    <button class="nav-item active" onclick="switchView('dashboard')"><span class="label">Registro de Servicio</span></button>
+    <button class="nav-item" onclick="switchView('reten')"><span class="label">Registro de Retenes</span></button>
+    <button class="nav-item" onclick="switchView('visualization')"><span class="label">Vista de Despachador</span></button>
+    <button class="nav-item" onclick="switchView('vehicles')"><span class="label">Buscador de Vehículos</span></button>
+    <button class="nav-item" onclick="switchView('personnel')"><span class="label">Vista de Personal</span></button>
+    <button class="nav-item" onclick="switchView('map')"><span class="label">Mapa de Cuadrantes</span></button>
+    <button class="nav-item" onclick="switchView('wanted')"><span class="label">Rostros Buscados</span></button>
+    <button class="nav-item" onclick="switchView('statistics')"><span class="label">Estadísticas</span></button>
+    <button class="nav-item" onclick="switchView('reports')"><span class="label">Centro de Reportes</span></button>
+  </nav>
+  <div class="footer">
+    <div class="avatar">MSS</div>
+    <div class="info">
+      <p>Municipalidad</p>
+      <span>de Santiago de Surco</span>
+    </div>
+  </div>
+</aside>
+
+<!-- HEADER -->
+<header class="app-header" id="appHeader">
+  <div class="inner">
+    <div class="left">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="sector-label">SECTOR</span>
+          <select class="sector-select" id="headerTitle">
+            <option>1A</option><option>1B</option><option>2A</option><option>2B</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9A</option><option>9B</option><option>RESCATE</option><option>GIR</option>
+          </select>
+        </div>
+        <span class="sub" id="headerSub">Gestión de Seguridad</span>
+      </div>
+    </div>
+    <div class="center" id="headerCenter">
+      <div class="info-group">
+        <div class="field" style="min-width:100px">
+          <span class="lbl">FECHA</span>
+          <span class="val">07/06/2026</span>
+        </div>
+        <div class="divider"></div>
+        <div class="field">
+          <span class="lbl">TURNO</span>
+          <div class="turno-group">
+            <button class="t">MAÑANA</button>
+            <button class="t active">TARDE</button>
+            <button class="t">NOCHE</button>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="field" style="min-width:120px">
+          <span class="lbl">OPERADOR</span>
+          <span class="val sel">SELECCIONAR...</span>
+        </div>
+        <div class="field" style="min-width:120px">
+          <span class="lbl">SUPERVISOR</span>
+          <span class="val sel">SELECCIONAR...</span>
+        </div>
+        <div class="field" style="min-width:120px">
+          <span class="lbl">JEFE DE ÁREA</span>
+          <span class="val sel">SELECCIONAR...</span>
+        </div>
+      </div>
+      <button class="btn" style="height:32px;padding:0 12px;font-size:11px;border-radius:8px;background:var(--blue);color:#fff;border:none">
+        GUARDAR
+      </button>
+    </div>
+    <div class="right" id="headerRight">
+      <div class="save-badge">
+        <div class="dot"></div>
+        <span>Guardando</span>
+      </div>
+      <button class="btn primary">SINCRONIZAR</button>
+    </div>
+  </div>
+</header>
+
+<div class="app-layout">
+<div class="content" id="contentArea">
+
+<!-- ============ DASHBOARD ============ -->
+<div class="screen active" id="s-dashboard">
+
+  <!-- CHOFERES -->
+  <div class="unit-section">
+    <div class="header">
+      <h2>CHOFERES <span class="badge">4</span></h2>
+      <button class="add-btn">+ NUEVO REGISTRO</button>
+    </div>
+    <div class="body">
+
+      <div class="unit-row">
+        <div class="accent chofer"></div>
+        <div class="grid full">
+          <div><div class="id-badge">H-01</div></div>
+          <div class="cell"><span class="lbl">Chofer</span><span class="val">Juan Pérez López</span></div>
+          <div class="cell" style="display:flex;gap:12px">
+            <div><span class="lbl">Radio</span><span class="val">4101</span></div>
+            <div><span class="lbl">Copiloto</span><span class="val">Pedro Ruiz</span></div>
+            <div><span class="lbl">Indicativo</span><span class="val"><span class="chip">C-1</span></span></div>
+            <div><span class="lbl">Cuadrante</span><span class="val">N-3, N-4</span></div>
+          </div>
+          <div class="cell"><span class="lbl">Placa</span><span class="val" style="font-size:10px;background:#f5f5f5;padding:0 4px;border-radius:4px;border:1px solid #ddd">ABC-123</span></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">PATRULLANDO</span></span></div>
+          <div class="cell"><span class="lbl">KM (Inicio/Fin/Rec)</span><div class="flex gap-1" style="font-size:13px;font-weight:500"><span style="color:#888">890</span><span style="color:#ccc">/</span><span style="color:#888">940</span><span style="color:#ccc">/</span><span style="color:#333">50</span></div></div>
+          <div class="cell"><span class="lbl">Combustible</span><div class="flex gap-1" style="font-size:13px;font-weight:500"><span style="color:#777">GLP</span><span style="color:#888">(120 GL)</span><span style="color:#ccc">|</span><span style="color:#666">S/ 120</span></div></div>
+          <div class="cell"><span class="lbl">Observaciones</span><span class="val" style="font-size:11px;color:#888">--</span></div>
+        </div>
+        <div class="actions"><div class="edit-btn"></div></div>
+      </div>
+
+      <div class="unit-row">
+        <div class="accent chofer"></div>
+        <div class="grid full">
+          <div><div class="id-badge">H-02</div></div>
+          <div class="cell"><span class="lbl">Chofer</span><span class="val">Carlos Ruiz Torres</span></div>
+          <div class="cell" style="display:flex;gap:12px">
+            <div><span class="lbl">Radio</span><span class="val">4105</span></div>
+            <div><span class="lbl">Copiloto</span><span class="val">--</span></div>
+            <div><span class="lbl">Indicativo</span><span class="val">--</span></div>
+            <div><span class="lbl">Cuadrante</span><span class="val">--</span></div>
+          </div>
+          <div class="cell"><span class="lbl">Placa</span><span class="val">--</span></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">SIN VEHICULO</span><div style="font-size:9px;color:#888">Lugar: BASE</div></span></div>
+          <div class="cell"><span class="lbl">KM</span><span class="val">--</span></div>
+          <div class="cell"><span class="lbl">Combustible</span><span class="val">--</span></div>
+          <div class="cell"><span class="lbl">Observaciones</span><span class="val">--</span></div>
+        </div>
+        <div class="actions"><div class="edit-btn"></div></div>
+      </div>
+
+      <div class="unit-row">
+        <div class="accent chofer"></div>
+        <div class="grid full">
+          <div><div class="id-badge">H-03</div></div>
+          <div class="cell"><span class="lbl">Chofer</span><span class="val">María García Silva</span></div>
+          <div class="cell" style="display:flex;gap:12px">
+            <div><span class="lbl">Radio</span><span class="val">4103</span></div>
+            <div><span class="lbl">Copiloto</span><span class="val">Ana Torres</span></div>
+            <div><span class="lbl">Indicativo</span><span class="val"><span class="chip">C-3</span></span></div>
+            <div><span class="lbl">Cuadrante</span><span class="val">S-1</span></div>
+          </div>
+          <div class="cell"><span class="lbl">Placa</span><span class="val" style="font-size:10px;background:#f5f5f5;padding:0 4px;border-radius:4px;border:1px solid #ddd">DEF-456</span></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">PATRULLANDO</span></span></div>
+          <div class="cell"><span class="lbl">KM</span><div class="flex gap-1" style="font-size:13px;font-weight:500"><span style="color:#888">890</span><span style="color:#ccc">/</span><span style="color:#888">940</span><span style="color:#ccc">/</span><span style="color:#333">50</span></div></div>
+          <div class="cell"><span class="lbl">Combustible</span><div class="flex gap-1" style="font-size:13px;font-weight:500"><span style="color:#777">GLP</span><span style="color:#888">(120 GL)</span><span style="color:#ccc">|</span><span style="color:#666">S/ 120</span></div></div>
+          <div class="cell"><span class="lbl">Observaciones</span><span class="val" style="font-size:11px;color:#888">--</span></div>
+        </div>
+        <div class="actions"><div class="edit-btn"></div></div>
+      </div>
+
+      <div class="unit-row">
+        <div class="accent chofer"></div>
+        <div class="grid full">
+          <div><div class="id-badge">H-04</div></div>
+          <div class="cell"><span class="lbl">Chofer</span><span class="val" style="color:#aaa">— Sin asignar —</span></div>
+          <div class="cell" style="display:flex;gap:12px"><div><span class="lbl">Radio</span><span class="val">--</span></div></div>
+          <div class="cell"><span class="lbl">Placa</span><span class="val">--</span></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">FALTO</span></span></div>
+          <div class="cell"><span class="lbl">KM</span><span class="val">--</span></div>
+          <div class="cell"><span class="lbl">Combustible</span><span class="val">--</span></div>
+          <div class="cell"><span class="lbl">Observaciones</span><span class="val">--</span></div>
+        </div>
+        <div class="actions"><div class="edit-btn"></div></div>
+      </div>
+
+      <!-- Edit form example -->
+      <div class="edit-form">
+        <div class="accent"></div>
+        <div class="form-body">
+          <div class="form-row">
+            <div class="field" style="grid-column:span 1"><label>ID</label><input value="H-03" style="background:#f5f5f5"></div>
+            <div class="field" style="grid-column:span 2"><label>Chofer</label><input value="María García Silva"></div>
+            <div class="field" style="grid-column:span 1"><label>Radio</label><input value="4103"></div>
+            <div class="field" style="grid-column:span 2"><label>Copiloto</label><input value="Ana Torres"></div>
+            <div class="field" style="grid-column:span 1"><label>Indicativo</label><select><option>C-3</option></select></div>
+            <div class="field" style="grid-column:span 1"><label>Cuadrante</label><input value="S-1"></div>
+            <div class="field" style="grid-column:span 1"><label>Estado</label><select><option>PATRULLANDO</option></select></div>
+            <div class="field" style="grid-column:span 1"><label>Lugar Estado</label><input placeholder="Lugar..."></div>
+            <div class="field" style="grid-column:span 2"><label>Motivo Estado</label><input placeholder="Motivo..."></div>
+          </div>
+          <div class="form-row" style="padding-top:4px">
+            <div class="field" style="grid-column:span 1"><label>Placa</label><input value="DEF-456" readonly style="background:#f5f5f5;color:#888"></div>
+            <div class="field" style="grid-column:span 1"><label>KM INICIO</label><input type="number" value="890" step="0.1"></div>
+            <div class="field" style="grid-column:span 1"><label>KM RECARGA</label><input type="number" value="0" style="background:#f0f0f0"></div>
+            <div class="field" style="grid-column:span 1"><label>COMBUSTIBLE</label><select><option>GLP</option></select></div>
+            <div class="field" style="grid-column:span 1"><label>CANTIDAD</label><input type="number" value="120" step="0.01"></div>
+            <div class="field" style="grid-column:span 1"><label>GASTO</label><input type="number" value="120" step="0.01"></div>
+            <div class="field" style="grid-column:span 2"><label>Observaciones</label><input placeholder="Motivo | Fecha | Hora"></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn cancel">CANCELAR</button>
+            <button class="btn save">GUARDAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOTORIZADOS -->
+  <div class="unit-section">
+    <div class="header">
+      <h2>MOTORIZADOS <span class="badge">3</span></h2>
+      <button class="add-btn">+ NUEVO REGISTRO</button>
+    </div>
+    <div class="body">
+      <div class="unit-row">
+        <div class="accent moto"></div>
+        <div class="grid full">
+          <div><div class="id-badge">M-01</div></div>
+          <div class="cell"><span class="lbl">Motorizado</span><span class="val">Pedro Sánchez Ríos</span></div>
+          <div class="cell" style="display:flex;gap:12px"><div><span class="lbl">Radio</span><span class="val">4201</span></div><div><span class="lbl">Cuadrante</span><span class="val">N-2</span></div></div>
+          <div class="cell"><span class="lbl">Placa</span><span class="val">XYZ-789</span></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">PATRULLANDO</span></span></div>
+          <div class="cell"><span class="lbl">KM</span><span>--</span></div>
+          <div class="cell"><span class="lbl">Combustible</span><span>--</span></div>
+          <div class="cell"><span class="lbl">Observaciones</span><span>--</span></div>
+        </div>
+        <div class="actions"><div class="edit-btn"></div></div>
+      </div>
+      <div class="unit-row">
+        <div class="accent moto"></div>
+        <div class="grid full">
+          <div><div class="id-badge">M-02</div></div>
+          <div class="cell"><span class="lbl">Motorizado</span><span class="val">Luis Castro Vega</span></div>
+          <div class="cell" style="display:flex;gap:12px"><div><span class="lbl">Radio</span><span class="val">4202</span></div></div>
+          <div class="cell"><span class="lbl">Placa</span><span>--</span></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">MANTENIMIENTO</span></span></div>
+          <div class="cell"><span>--</span></div>
+          <div class="cell"><span>--</span></div>
+          <div class="cell"><span>--</span></div>
+        </div>
+        <div class="actions"><div class="edit-btn"></div></div>
+      </div>
+      <div class="unit-row">
+        <div class="accent moto"></div>
+        <div class="grid full">
+          <div><div class="id-badge">M-03</div></div>
+          <div class="cell"><span class="lbl">Motorizado</span><span class="val">Ana Torres Díaz</span></div>
+          <div class="cell" style="display:flex;gap:12px"><div><span class="lbl">Radio</span><span class="val">4205</span></div><div><span class="lbl">Cuadrante</span><span class="val">S-3</span></div></div>
+          <div class="cell"><span class="lbl">Placa</span><span>--</span></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">PATRULLANDO</span></span></div>
+          <div class="cell"><span>--</span></div>
+          <div class="cell"><span>--</span></div>
+          <div class="cell"><span>--</span></div>
+        </div>
+        <div class="actions"><div class="edit-btn"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SERENOS -->
+  <div class="unit-section">
+    <div class="header">
+      <h2>SERENOS <span class="badge">2</span></h2>
+      <button class="add-btn">+ NUEVO REGISTRO</button>
+    </div>
+    <div class="body">
+      <div class="unit-row">
+        <div class="accent sereno"></div>
+        <div class="grid sereno">
+          <div><div class="id-badge">S-01</div></div>
+          <div class="cell"><span class="lbl">Sereno</span><span class="val">José Ramos Castillo</span></div>
+          <div class="cell" style="display:flex;gap:12px"><div><span class="lbl">Radio</span><span class="val">4301</span></div><div><span class="lbl">Cuadrante</span><span class="val">N-1</span></div></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">PATRULLANDO</span></span></div>
+          <div class="cell"><span>--</span></div>
+          <div class="actions"><div class="edit-btn"></div></div>
+        </div>
+      </div>
+      <div class="unit-row">
+        <div class="accent sereno"></div>
+        <div class="grid sereno">
+          <div><div class="id-badge">S-02</div></div>
+          <div class="cell"><span class="lbl">Sereno</span><span class="val">Miguel Ángel Ríos</span></div>
+          <div class="cell" style="display:flex;gap:12px"><div><span class="lbl">Radio</span><span class="val">4302</span></div></div>
+          <div class="cell"><span class="lbl">Estado</span><span class="val"><span class="chip">APOYO OTRA AREA</span></span></div>
+          <div class="cell"><span>--</span></div>
+          <div class="actions"><div class="edit-btn"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ RETEN ============ -->
+<div class="screen" id="s-reten">
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header" style="background:#f5f5f5">GESTIÓN DE RETENES — Relevo de Unidades</div>
+    <div class="card-body">
+      <div class="reten-form">
+        <div class="field"><label>Turno</label><select><option>TARDE</option></select></div>
+        <div class="field"><label>Unidad Reemplazada</label><input placeholder="M-15..." value="H-003"></div>
+        <div class="field"><label>Placa Reemplazada</label><input value="ABC-123" readonly style="background:#eee;color:#888"></div>
+        <div class="field"><label>Unidad Retén</label><select><option>AR-1</option><option>AR-2</option><option selected>AR-3</option></select></div>
+        <div class="field"><label>Placa Retén</label><input value="XYZ-789" readonly style="background:#eee;color:#888"></div>
+        <div class="field"><label>Motivo</label><input value="Mantenimiento preventivo"></div>
+        <div class="field"><label>Fecha Ingreso Taller</label><input type="date" value="2026-06-07"></div>
+        <div class="field"><label>Hora Ingreso Taller</label><input type="time" value="14:30"></div>
+        <div class="field"><label>Fecha Salida Taller</label><input type="date"></div>
+        <div class="field"><label>Hora Salida Taller</label><input type="time"></div>
+        <div class="field" style="grid-column:span 2">
+          <label>&nbsp;</label>
+          <div class="btn-row">
+            <button class="btn-primary">REGISTRAR RELEVO</button>
+            <button class="btn-excel">EXCEL</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <div style="min-width:1200px">
+        <table class="w-table">
+          <thead><tr>
+            <th>Fecha/Hora</th><th>Turno</th><th>Unidad Reemplazada</th><th>Sector</th><th>Placa</th>
+            <th>Unidad Retén</th><th>Placa Retén</th><th>Motivo</th><th>Ingreso Taller</th><th>Salida Taller</th><th>Acciones</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>07/06 14:30</td><td>TARDE</td><td style="font-weight:700">H-003</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">1A</span></td><td style="font-family:monospace">ABC-123</td><td style="font-weight:700">AR-3</td><td style="font-family:monospace">XYZ-789</td><td style="font-style:italic">Mantenimiento preventivo</td><td>07/06<br><span class="text-faded">14:30</span></td><td>--<br>--</td>          <td><button style="padding:4px 12px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">SALIDA</button></td></tr>
+            <tr><td>06/06 22:00</td><td>NOCHE</td><td style="font-weight:700">M-002</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">2B</span></td><td style="font-family:monospace">DEF-456</td><td style="font-weight:700">AR-7</td><td style="font-family:monospace">UVW-345</td><td style="font-style:italic">Desperfectos mecánicos</td><td>06/06<br><span class="text-faded">22:00</span></td><td>07/06<br><span class="text-faded">06:00</span></td><td><span class="chip">Completado</span></td></tr>
+            <tr><td>06/06 14:00</td><td>TARDE</td><td style="font-weight:700">H-007</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">4</span></td><td style="font-family:monospace">GHI-789</td><td style="font-weight:700">AR-1</td><td style="font-family:monospace">RST-012</td><td style="font-style:italic">Siniestro</td><td>06/06<br><span class="text-faded">14:00</span></td><td>07/06<br><span class="text-faded">08:00</span></td><td><span class="chip">Completado</span></td></tr>
+          </tbody>
+        </table>
+        <div style="padding:16px 24px;border-top:1px solid #eee;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px">3 Relevos registrados para el turno TARDE</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VISUALIZATION ============ -->
+<div class="screen" id="s-visualization">
+  <div class="viz-sector">
+    <div class="vheader">
+      <div class="sector-name">
+        <div class="bar"></div>
+        <h3>SECTOR 1A</h3>
+      </div>
+      <div class="sinfo">
+        <div class="sfield"><span class="lbl">OPERADOR EN TURNO</span><span class="val">Carlos López</span></div>
+        <div class="sfield"><span class="lbl">SUPERVISOR SECTOR</span><span class="val">Roberto Díaz</span></div>
+        <div class="sfield"><span class="lbl">JEFE DE ÁREA</span><span class="val">--</span></div>
+      </div>
+      <div class="sstats">
+        <div class="stat"><span class="lbl">UNIDADES TOTALES</span><span class="num">7</span></div>
+        <div class="stat" style="border-left:1px solid #ddd;padding-left:16px"><span class="lbl">OPERATIVIDAD</span><span class="num">71%</span></div>
+      </div>
+    </div>
+    <div class="vbody">
+      <div class="vcol">
+        <div class="vcol-header"><span>CHOFERES</span><span class="vbadge">3</span></div>
+        <div class="vunit"><div class="dot green"></div><span class="id">H-01</span><div class="info"><span class="name">Juan Pérez</span><div class="meta"><span>Radio 4101</span><span>Cuad N-3,N-4</span></div></div></div>
+        <div class="vunit"><div class="dot amber"></div><span class="id">H-02</span><div class="info"><span class="name">Carlos Ruiz</span><div class="meta"><span class="chip">SIN VEHICULO</span></div></div></div>
+        <div class="vunit"><div class="dot green"></div><span class="id">H-03</span><div class="info"><span class="name">María García</span><div class="meta"><span>Radio 4103</span><span>Cuad S-1</span></div></div></div>
+      </div>
+      <div class="vcol">
+        <div class="vcol-header"><span>MOTORIZADOS</span><span class="vbadge">2</span></div>
+        <div class="vunit"><div class="dot green"></div><span class="id">M-01</span><div class="info"><span class="name">Pedro Sánchez</span><div class="meta"><span>Radio 4201</span></div></div></div>
+        <div class="vunit"><div class="dot blue"></div><span class="id">M-02</span><div class="info"><span class="name">Luis Castro</span><div class="meta"><span class="chip">MANTENIMIENTO</span></div></div></div>
+      </div>
+      <div class="vcol">
+        <div class="vcol-header"><span>SERENOS</span><span class="vbadge">2</span></div>
+        <div class="vunit"><div class="dot green"></div><span class="id">S-01</span><div class="info"><span class="name">José Ramos</span><div class="meta"><span>Radio 4301</span></div></div></div>
+        <div class="vunit"><div class="dot amber"></div><span class="id">S-02</span><div class="info"><span class="name">Miguel Ríos</span><div class="meta"><span class="chip">APOYO</span></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VEHICLES ============ -->
+<div class="screen" id="s-vehicles">
+  <div class="filter-bar">
+    <div class="search-field">
+      <input placeholder="Buscar por placa (ej: ABC-123)..." value="ABC-123">
+    </div>
+    <button style="padding:10px 24px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px">Buscar</button>
+    <button style="padding:10px 24px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px">+ AGREGAR</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <table class="real-table" style="min-width:1300px">
+        <thead><tr>
+          <th>SADE</th><th>Fecha</th><th>Tipo</th><th>Marca</th><th>Modelo</th><th>Color</th><th>Placa</th><th>Estado</th><th>Relato</th><th>Tipo Delito</th><th>Subtipo</th><th>Sector</th><th>Cuadrante</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>2024-00123</td><td>05/06/24</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">AUTO</span></td><td>Toyota</td><td>Corolla</td><td>Rojo</td><td style="font-weight:700">ABC-123</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">ROBADO</span></td><td style="max-width:150px;overflow:hidden">Vehículo sustraído en...</td><td>Robo</td><td>--</td><td>1A</td><td>N-3</td></tr>
+          <tr><td>2024-00456</td><td>03/06/24</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">CAMIONETA</span></td><td>Honda</td><td>CR-V</td><td>Negro</td><td style="font-weight:700">DEF-456</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">SOSPECHOSO</span></td><td>Varias denuncias por...</td><td>Hurto</td><td>--</td><td>2B</td><td>C-2</td></tr>
+          <tr><td>2024-00789</td><td>28/05/24</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">AUTO</span></td><td>Hyundai</td><td>Accent</td><td>Plata</td><td style="font-weight:700">GHI-789</td><td><span style="background:#eee;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">REQUISITORIADO</span></td><td>Requisitoria judicial...</td><td>Robo</td><td>--</td><td>4</td><td>S-1</td></tr>
+        </tbody>
+      </table>
+      <div style="padding:12px 16px;font-size:12px;color:#999">Mostrando 3 resultados</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PERSONNEL ============ -->
+<div class="screen" id="s-personnel">
+  <div class="filter-bar">
+    <div class="search-field">
+      <input placeholder="Buscar por nombre, DNI o código...">
+    </div>
+    <div style="display:flex;flex-direction:column;min-width:180px">
+      <span style="font-size:10px;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Función Actual</span>
+      <select style="height:38px;padding:0 12px;border:1px solid #ccc;border-radius:8px;font-size:13px;font-weight:500;background:#fafafa"><option>TODOS</option><option>CHOFER</option><option>MOTORIZADO</option><option>SERENO</option><option>OPERADOR C4</option></select>
+    </div>
+    <button style="padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Limpiar</button>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:0;overflow-x:auto">
+      <table class="real-table" style="min-width:1000px">
+        <thead><tr><th style="width:40px">#</th><th>Foto</th><th>DNI</th><th>Apellidos y Nombres</th><th>Régimen Laboral</th><th>Cód. Interno</th><th>Sector</th><th>Función Actual</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td style="color:#aaa;text-align:center">1</td><td><div style="width:36px;height:36px;border-radius:50%;background:#ddd"></div></td><td>12345678</td><td style="font-weight:600">Pérez López, Juan</td><td>728</td><td>EMP-001</td><td>1A</td><td>CHOFER</td><td><span class="chip">ACTIVO</span></td></tr>
+          <tr><td style="color:#aaa;text-align:center">2</td><td><div style="width:36px;height:36px;border-radius:50%;background:#ddd"></div></td><td>23456789</td><td style="font-weight:600">García Silva, María</td><td>276</td><td>EMP-015</td><td>1A</td><td>CHOFER</td><td><span class="chip">ACTIVO</span></td></tr>
+          <tr><td style="color:#aaa;text-align:center">3</td><td><div style="width:36px;height:36px;border-radius:50%;background:#ddd"></div></td><td>34567890</td><td style="font-weight:600">Ruiz Torres, Carlos</td><td>1057-D</td><td>EMP-022</td><td>1A</td><td>CHOFER</td><td><span class="chip">ACTIVO</span></td></tr>
+          <tr><td style="color:#aaa;text-align:center">4</td><td><div style="width:36px;height:36px;border-radius:50%;background:#ddd"></div></td><td>45678901</td><td style="font-weight:600">Sánchez Ríos, Pedro</td><td>728</td><td>EMP-034</td><td>1B</td><td>MOTORIZADO</td><td><span class="chip">ACTIVO</span></td></tr>
+        </tbody>
+      </table>
+      <div style="padding:12px 16px;font-size:12px;color:#999">Mostrando 4 de 142 registros</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MAP ============ -->
+<div class="screen" id="s-map">
+  <div class="map-wrapper">
+    <div class="map-placeholder">[MAPA — Leaflet + CartoDB / OpenStreetMap]</div>
+    <div class="search-overlay">
+      <input placeholder="Buscar unidad, apellido, placa...">
+    </div>
+    <div class="layers-overlay">
+      <div class="layer-title">Capas de Unidades</div>
+      <div class="toggle">Autos</div>
+      <div class="toggle">Motos</div>
+      <div class="toggle">Serenos</div>
+      <div style="height:1px;background:#ddd;margin:4px 0"></div>
+      <div class="toggle">Oscuro</div>
+    </div>
+    <div class="legend-overlay">
+      <div class="ltitle">Cuadrantes</div>
+      <div class="lrow"><span><span class="swatch"></span> Con Personal</span><span class="count">14</span></div>
+      <div class="lrow"><span><span class="swatch"></span> Sin Personal</span><span class="count">6</span></div>
+      <div style="border-top:1px solid #ddd;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-size:12px"><span style="font-weight:500;color:#888;text-transform:uppercase;letter-spacing:0.5px">Total</span><span style="font-weight:700">20</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ WANTED ============ -->
+<div class="screen" id="s-wanted">
+  <div style="display:flex;align-items:center;gap:16px;background:#fff;padding:16px;border-radius:12px;border:1px solid #ccc;margin-bottom:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <input placeholder="Buscar por nombre o DNI..." style="width:100%;border:1px solid #ccc;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:500;outline:none;background:#fafafa">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px">Categoría:</span>
+      <select style="background:#fafafa;border:1px solid #ccc;border-radius:8px;padding:8px 12px;font-size:13px"><option>TODAS</option><option>Policía Nacional</option><option>Poder Judicial</option><option>Requisitoria</option></select>
+    </div>
+    <span style="font-size:13px;font-weight:700;padding:6px 12px;border-radius:6px;background:#eee">14</span>
+    <button style="padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer">RECARGAR</button>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:8px 0">
+      <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px">REQUISITORIA</span>
+      <span style="background:#eee;color:#777;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:500">8</span>
+      <div style="flex:1;height:1px;background:#ddd"></div>
+    </div>
+    <div class="g-gallery">
+      <div class="wanted-card"><div class="photo">[FOTO]</div><div class="footer"><span class="dnice">DNI 12345678</span><span class="status">Requerido</span></div></div>
+      <div class="wanted-card"><div class="photo">[FOTO]</div><div class="footer"><span class="dnice">DNI 34567890</span><span class="status">Requerido</span></div></div>
+      <div class="wanted-card"><div class="photo">[FOTO]</div><div class="footer"><span class="dnice">CE 00123456</span><span class="status">Prófugo</span></div></div>
+      <div class="wanted-card"><div class="photo">[FOTO]</div><div class="footer"><span class="dnice">DNI 56789012</span><span class="status">Requerido</span></div></div>
+      <div class="wanted-card"><div class="photo">[FOTO]</div><div class="footer"><span class="dnice">DNI 23456789</span><span class="status">Capturado</span></div></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:8px 0">
+      <span style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px">PODER JUDICIAL</span>
+      <span style="background:#eee;color:#777;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:500">4</span>
+      <div style="flex:1;height:1px;background:#ddd"></div>
+    </div>
+    <div class="g-gallery">
+      <div class="wanted-card"><div class="photo">[FOTO]</div><div class="footer"><span class="dnice">DNI 45678901</span><span class="status">Prófugo</span></div></div>
+      <div class="wanted-card"><div class="photo">[FOTO]</div><div class="footer"><span class="dnice">DNI 56789012</span><span class="status">Requerido</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STATISTICS ============ -->
+<div class="screen" id="s-statistics">
+  <div class="card" style="margin-bottom:24px">
+    <div style="background:#555;padding:16px 24px">
+      <h2 style="font-size:16px;font-weight:500;color:#fff;text-transform:uppercase;letter-spacing:-0.3px">Alertas y Excepciones</h2>
+    </div>
+    <div style="padding:24px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+        <div class="alert-card"><span class="msg">Vehículos sin Radio</span><span class="count">3</span></div>
+        <div class="alert-card"><span class="msg">Vehículos sin Chofer</span><span class="count">2</span></div>
+        <div class="alert-card"><span class="msg">Choferes sin Móvil</span><span class="count">1</span></div>
+        <div class="alert-card"><span class="msg">Vehículos en Mantenimiento</span><span class="count">4</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-bottom:24px">
+    <div class="kpi-card"><div class="lbl">Disponibilidad</div><span class="num">72.4%</span><div class="sub">21 de 29 vehículos patrullando</div></div>
+    <div class="kpi-card"><div class="lbl">Ratio Personal/Vehículo</div><span class="num">1.8</span><div class="sub">38 efectivos / 21 vehículos</div></div>
+    <div class="kpi-card"><div class="lbl">Cobertura Total</div><span class="num">14</span><div class="sub">Sectores activos en el sistema</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px">
+    <div style="background:#444;padding:16px 24px">
+      <h2 style="font-size:16px;font-weight:500;color:#fff;text-transform:uppercase">Estado Operativo de Vehículos</h2>
+    </div>
+    <div style="padding:24px">
+      <div class="status-grid">
+        <div class="status-bubble"><div class="num">14</div><div class="lbl">PATRULLANDO</div></div>
+        <div class="status-bubble"><div class="num">4</div><div class="lbl">MANTENIMIENTO</div></div>
+        <div class="status-bubble"><div class="num">3</div><div class="lbl">DESPERFECTOS</div></div>
+        <div class="status-bubble"><div class="num">2</div><div class="lbl">SIN CONDUCTOR</div></div>
+        <div class="status-bubble"><div class="num">6</div><div class="lbl">OTROS</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-bottom:24px">
+    <div class="card">
+      <div style="background:#555;padding:16px 24px"><h3 style="font-size:16px;font-weight:500;color:#fff;text-transform:uppercase">Vehículos Patrullando</h3></div>
+      <div style="overflow-x:auto">
+        <table class="real-table">
+          <thead><tr><th>Sector</th><th style="text-align:center">Carros</th><th style="text-align:center">Motos</th></tr></thead>
+          <tbody>
+            <tr><td>1A</td><td style="text-align:center">2</td><td style="text-align:center">1</td></tr>
+            <tr><td>1B</td><td style="text-align:center">2</td><td style="text-align:center">0</td></tr>
+            <tr><td>2A</td><td style="text-align:center">1</td><td style="text-align:center">0</td></tr>
+            <tr><td>2B</td><td style="text-align:center">2</td><td style="text-align:center">2</td></tr>
+            <tr><td>3</td><td style="text-align:center">1</td><td style="text-align:center">1</td></tr>
+            <tr><td>4</td><td style="text-align:center">2</td><td style="text-align:center">1</td></tr>
+            <tr><td>5</td><td style="text-align:center">0</td><td style="text-align:center">0</td></tr>
+            <tr><td>6</td><td style="text-align:center">1</td><td style="text-align:center">1</td></tr>
+            <tr><td>7</td><td style="text-align:center">1</td><td style="text-align:center">0</td></tr>
+            <tr><td>8</td><td style="text-align:center">1</td><td style="text-align:center">1</td></tr>
+            <tr><td>9A</td><td style="text-align:center">1</td><td style="text-align:center">0</td></tr>
+            <tr><td>9B</td><td style="text-align:center">0</td><td style="text-align:center">0</td></tr>
+            <tr><td>RESCATE</td><td style="text-align:center">0</td><td style="text-align:center">0</td></tr>
+            <tr><td>GIR</td><td style="text-align:center">0</td><td style="text-align:center">0</td></tr>
+            <tr style="background:#f0f0f0;border-top:2px solid #bbb"><td style="font-weight:700;text-transform:uppercase">Total</td><td style="text-align:center;font-weight:700">14</td><td style="text-align:center;font-weight:700">7</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div style="background:#555;padding:16px 24px"><h3 style="font-size:16px;font-weight:500;color:#fff;text-transform:uppercase">Personal Presente</h3></div>
+      <div style="overflow-x:auto">
+        <table class="real-table">
+          <thead><tr><th>Sector</th><th style="text-align:center">Choferes</th><th style="text-align:center">Motorizados</th><th style="text-align:center">Serenos</th><th style="text-align:center;background:#888;color:#fff">Total</th></tr></thead>
+          <tbody>
+            <tr><td>1A</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="text-align:center">1</td><td style="text-align:center;font-weight:600;background:#f5f5f5">4</td></tr>
+            <tr><td>1B</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="text-align:center">1</td><td style="text-align:center;font-weight:600;background:#f5f5f5">4</td></tr>
+            <tr><td>2A</td><td style="text-align:center">1</td><td style="text-align:center">0</td><td style="text-align:center">1</td><td style="text-align:center;font-weight:600;background:#f5f5f5">2</td></tr>
+            <tr><td>2B</td><td style="text-align:center">2</td><td style="text-align:center">2</td><td style="text-align:center">1</td><td style="text-align:center;font-weight:600;background:#f5f5f5">5</td></tr>
+            <tr style="background:#f0f0f0;border-top:2px solid #bbb"><td style="font-weight:700;text-transform:uppercase">Total</td><td style="text-align:center;font-weight:700">14</td><td style="text-align:center;font-weight:700">7</td><td style="text-align:center;font-weight:700">8</td><td style="text-align:center;font-weight:700;background:#e0e0e0">29</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="g4">
+    <div class="mini-kpi"><div class="lbl">CARROS PATRULLANDO</div><div class="num">14</div></div>
+    <div class="mini-kpi"><div class="lbl">MOTOS PATRULLANDO</div><div class="num">7</div></div>
+    <div class="mini-kpi"><div class="lbl">PERSONAL OPERATIVO</div><div class="num">29</div></div>
+    <div class="mini-kpi"><div class="lbl">SECTORES ACTIVOS</div><div class="num">14</div></div>
+  </div>
+</div>
+
+<!-- ============ REPORTS ============ -->
+<div class="screen" id="s-reports">
+  <div style="display:flex;align-items:center;gap:16px;background:#fff;padding:16px 24px;border-radius:16px;border:1px solid #ccc;margin-bottom:24px;flex-wrap:wrap;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div>
+        <h2 style="font-size:14px;font-weight:500">Generador de Reportes</h2>
+        <p style="font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:1px;margin-top:2px">Configure fecha y turno</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+      <div><span style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">FECHA</span><input type="date" value="2026-06-07" style="height:36px;padding:0 12px;border:1px solid #ccc;border-radius:10px;font-size:13px;font-weight:500"></div>
+      <div><span style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">TURNO</span><select style="height:36px;padding:0 12px;border:1px solid #ccc;border-radius:10px;font-size:13px;font-weight:500"><option>TARDE</option></select></div>
+      <div><span style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px">OPERADOR</span><input placeholder="SELECCIONE OPERADOR" style="height:36px;padding:0 12px;border:1px solid #ccc;border-radius:10px;font-size:13px;font-weight:500;min-width:200px" value="Carlos López"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:24px">
+    <div class="r-card"><div class="title">Reporte de Observaciones</div><span class="sub">PUESTOS DE COMANDO</span><div class="desc">Reporte detallado de observaciones, cambios de turno y novedades reportadas.</div><button class="gen-btn">GENERAR REPORTE</button></div>
+    <div class="r-card"><div class="title">Motos Yamaha</div><span class="sub">MODELO XTZ150</span><div class="desc">Reporte consolidado de operatividad, patrullaje y personal de flota Yamaha.</div><button class="gen-btn">GENERAR REPORTE</button></div>
+    <div class="r-card"><div class="title">Motos Honda</div><span class="sub">MODELO SAHARA XRE 300</span><div class="desc">Reporte consolidado de operatividad de flota Honda SAHARA.</div><button class="gen-btn">GENERAR REPORTE</button></div>
+    <div class="r-card"><div class="title">Flota Renting</div><span class="sub">CAMIONETAS Y AUTOS</span><div class="desc">Reporte general de operatividad de flota Renting.</div><button class="gen-btn">GENERAR REPORTE</button></div>
+    <div class="r-card"><div class="title">Asistencia por Régimen</div><span class="sub">PERSONAL FALTANTE</span><div class="desc">Detalle de personal inasistente por régimen laboral.</div><button class="gen-btn">GENERAR REPORTE</button></div>
+    <div class="r-card"><div class="title">Reporte General</div><span class="sub">TODOS LOS REGISTROS</span><div class="desc">Lista completa de todos los registros del turno y fecha.</div><button class="gen-btn">GENERAR REPORTE</button></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /app-layout -->
+
+<script>
+function switchView(view) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  var el = document.getElementById('s-' + view);
+  if (el) el.classList.add('active');
+
+  document.querySelectorAll('.nav-item').forEach(function(n, i) {
+    n.classList.remove('active');
+    var views = ['dashboard','reten','visualization','vehicles','personnel','map','wanted','statistics','reports'];
+    if (views.indexOf(view) === i) n.classList.add('active');
+  });
+
+  var center = document.getElementById('headerCenter');
+  var right = document.getElementById('headerRight');
+  if (view === 'dashboard') {
+    center.style.display = 'flex';
+    right.innerHTML = '<div class="save-badge"><div class="dot"></div><span>Guardando</span></div><button class="btn primary">SINCRONIZAR</button>';
+  } else if (view === 'visualization') {
+    center.style.display = 'flex';
+    right.innerHTML = '<div class="jump-links"><a class="j" href="#">1A</a><a class="j" href="#">1B</a><a class="j" href="#">2A</a><a class="j" href="#">2B</a><a class="j" href="#">3</a><a class="j" href="#">4</a></div><button class="btn primary">ACTUALIZAR</button>';
+  } else {
+    center.style.display = 'none';
+    right.innerHTML = '<button class="btn primary">ACTUALIZAR DATOS</button>';
+  }
+}
+
+switchView('dashboard');
+</script>
+</body>
+</html>
