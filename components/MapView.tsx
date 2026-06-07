@@ -103,7 +103,7 @@ function buildPopupContent(quadrantName: string, detail: QuadrantDetail | undefi
         <div>
           <div class="font-bold text-slate-700 text-[14px] leading-tight">Unidades Activas</div>
           <div class="text-slate-500 text-[12px] mt-0.5">
-             ${detail.choferes} Autos · ${detail.motos} Motos · ${detail.serenos} Serenos
+             ${detail.choferes} Autos - ${detail.motos} Motos - ${detail.serenos} Serenos
           </div>
         </div>
       </div>
@@ -129,6 +129,9 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [mapDark, setMapDark] = useState(false);
+  const lightLayerRef = useRef<any>(null);
+  const darkLayerRef = useRef<any>(null);
   const quadrantLayersRef = useRef<Map<string, any>>(new Map());
 
   const quadrantDetailMap = useMemo(() => {
@@ -270,11 +273,16 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       const map = L.map(containerRef.current).setView([-12.128, -76.995], 14);
       mapRef.current = map;
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      lightLayerRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20
       }).addTo(map);
+      darkLayerRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      });
 
       setTimeout(() => map.invalidateSize(), 500);
     } catch (e) {
@@ -288,6 +296,18 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       }
     };
   }, [lReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !lightLayerRef.current || !darkLayerRef.current) return;
+    if (mapDark) {
+      map.removeLayer(lightLayerRef.current);
+      map.addLayer(darkLayerRef.current);
+    } else {
+      map.removeLayer(darkLayerRef.current);
+      map.addLayer(lightLayerRef.current);
+    }
+  }, [mapDark]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -458,7 +478,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
                       <div className="flex flex-col min-w-0">
                         <span className="text-xs font-bold text-slate-800 truncate">{u.personnel1 || 'Desconocido'}</span>
                         <span className="text-[10px] text-slate-500 truncate mt-0.5 uppercase">
-                          {u.radio ? 'Radio ' + u.radio + ' · ' : ''}ID {u.id} · Cuad {u.quadrant}
+                          {u.radio ? 'Radio ' + u.radio + ' - ' : ''}ID {u.id} - Cuad {u.quadrant}
                         </span>
                       </div>
                     </button>
@@ -493,12 +513,20 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
               <span className="material-symbols-outlined text-[16px]">hail</span>
               Serenos
             </button>
+            <div className="h-px bg-slate-100 my-1"></div>
+            <button 
+              onClick={() => setMapDark(!mapDark)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100"
+            >
+              <span className="material-symbols-outlined text-[16px]">{mapDark ? 'light_mode' : 'dark_mode'}</span>
+              {mapDark ? 'Claro' : 'Oscuro'}
+            </button>
           </div>
         </div>
 
         <div 
           ref={containerRef} 
-          style={{ height: '100%', width: '100%', background: '#f8fafc' }}
+          style={{ height: '100%', width: '100%', background: mapDark ? '#2d2d2d' : '#f8fafc' }}
           className="absolute inset-0 z-0"
         ></div>
         
