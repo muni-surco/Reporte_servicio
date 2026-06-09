@@ -754,7 +754,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
   const handleSave = (updatedUnit: UnitData) => {
     if (isReadOnly) return;
-    const unitWithSector = { ...updatedUnit, sector: updatedUnit.sector || currentSector };
+    const unitWithSector = { ...updatedUnit, id: String(updatedUnit.id || '').trim(), sector: updatedUnit.sector || currentSector };
     // Identificar la unidad que se estaba editando
     let newUnits = units.map(u => {
       if ((u.unit_id && u.unit_id === editingId) || (u.tempId && u.tempId === editingId) || (u.id && u.id === editingId)) {

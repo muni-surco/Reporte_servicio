@@ -1120,7 +1120,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     date: dateStr,
     shift: shift,
     sector: targetSector,
-    id: unit.id,
+    id: String(unit.id || '').trim(),
     type: unit.type,
     model: unit.model || '',
     personnel1: unit.personnel1 || '',
