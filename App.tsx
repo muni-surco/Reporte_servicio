@@ -376,13 +376,16 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
           // 3. Granular Deduplication for ALL units (by display ID to hide past duplicates within same sector)
           const finalUnitsMap = new Map<string, UnitData>();
+          const existingSectorIds = new Set<string>(); // Track sector+id combos for defaults injection
           incomingUnits.forEach(u => {
             const displayId = (u.id || '').toUpperCase();
             const sectorKey = (u.sector || '').trim().toUpperCase();
-            const uniqueKey = `${sectorKey}_${displayId}`; // Ensure separation by sector
+            const personnelKey = (u.personnel1 || '').trim().toUpperCase();
+            const uniqueKey = `${sectorKey}_${displayId}_${personnelKey}`; // Include personnel1 so distinct serenos sharing the same id are NOT collapsed
             
             if (displayId && !displayId.startsWith('NEW-')) {
-               // If multiple rows exist for the same vehicle ID, prefer the one with more data or the last one
+               existingSectorIds.add(`${sectorKey}_${displayId}`);
+               // If multiple rows exist for the same unit, prefer the one with more data or the last one
                const existing = finalUnitsMap.get(uniqueKey);
                if (!existing || (u.personnel1 && !existing.personnel1)) {
                  finalUnitsMap.set(uniqueKey, u);
@@ -399,8 +402,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           defaults.forEach(d => {
             const displayId = d.id.toUpperCase();
             const uniqueKey = `${currentSectorNormalized}_${displayId}`;
-            if (!finalUnitsMap.has(uniqueKey)) {
-              finalUnitsMap.set(uniqueKey, {
+            if (!existingSectorIds.has(uniqueKey)) {
+              finalUnitsMap.set(uniqueKey + '_', {
                 id: d.id,
                 unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${d.id}-${dateStr.replace(/-/g, '')}-${shift}`,
                 type: d.type as any,
