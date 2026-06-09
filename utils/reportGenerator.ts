@@ -147,20 +147,24 @@ export const generateMotoReport = (
 
   let finalY = (doc as any).lastAutoTable.finalY + 8;
 
-  // --- PERMANENCIA / JEFE DE ÁREA + OPERADOR CCO ---
+  // --- PERMANENCIA + OPERADOR CCO ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
-  const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
+  const permanenciaLabel = 'PERMANENCIA';
   const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
+  const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+  const showPermanencia = dayOfWeek === 0 || dayOfWeek === 6 || shift === 'NOCHE';
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setDrawColor(0);
-  // Row 1: PERMANENCIA
-  doc.rect(margin, finalY, pageWidth - (margin * 2), 10);
-  doc.text(`${permanenciaLabel} :`, margin + 5, finalY + 6.5);
-  doc.setFont('helvetica', 'normal');
-  doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 6.5);
-  finalY += 10;
+  if (showPermanencia) {
+    // Row 1: PERMANENCIA
+    doc.rect(margin, finalY, pageWidth - (margin * 2), 10);
+    doc.text(`${permanenciaLabel} :`, margin + 5, finalY + 6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 6.5);
+    finalY += 10;
+  }
   // Row 2: OPERADOR CCO
   doc.setFont('helvetica', 'bold');
   doc.rect(margin, finalY, pageWidth - (margin * 2), 10);
@@ -404,24 +408,28 @@ export const generateVehicleReport = (
 
   finalY += 9;
 
-  // --- PERMANENCIA / JEFE DE ÁREA + OPERADOR CCO ---
+  // --- PERMANENCIA + OPERADOR CCO ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
-  const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
+  const permanenciaLabel = 'PERMANENCIA';
   const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
+  const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+  const showPermanencia = dayOfWeek === 0 || dayOfWeek === 6 || shift === 'NOCHE';
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  // Row 1: PERMANENCIA
-  doc.setFillColor(38, 70, 83);
-  doc.rect(margin, finalY, 40, 7, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.text(` ${permanenciaLabel} :`, margin + 2, finalY + 4.8);
-  doc.setDrawColor(0);
-  doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
-  doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'bold');
-  doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 4.8);
-  finalY += 7;
+  if (showPermanencia) {
+    // Row 1: PERMANENCIA
+    doc.setFillColor(38, 70, 83);
+    doc.rect(margin, finalY, 40, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text(` ${permanenciaLabel} :`, margin + 2, finalY + 4.8);
+    doc.setDrawColor(0);
+    doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 4.8);
+    finalY += 7;
+  }
   // Row 2: OPERADOR CCO
   doc.setFont('helvetica', 'bold');
   doc.setFillColor(38, 70, 83);
@@ -957,9 +965,11 @@ export const generateAllRecordsReport = (
 
   const firstSettings = Object.values(settingsMap)[0] || {} as AppSettings;
   const permanencia = firstSettings.permanencia || '--';
-  const permanenciaLabel = shift === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
+  const permanenciaLabel = 'PERMANENCIA';
 
   const resolvedOperator = operatorName || firstSettings.operador || '--';
+  const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+  const showPermanencia = dayOfWeek === 0 || dayOfWeek === 6 || shift === 'NOCHE';
 
   let currentY = 15;
 
@@ -968,7 +978,8 @@ export const generateAllRecordsReport = (
   doc.text(`REPORTE GENERAL DE REGISTROS - TURNO ${shift.toUpperCase()}`, pageWidth / 2, currentY, { align: 'center' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text(`FECHA: ${formatShortDate(date)}   |   ${permanenciaLabel}: ${permanencia}   |   OPERADOR CCO: ${resolvedOperator}`, pageWidth / 2, currentY + 5, { align: 'center' });
+  const permanenciaStr = showPermanencia ? `   |   ${permanenciaLabel}: ${permanencia}` : '';
+  doc.text(`FECHA: ${formatShortDate(date)}${permanenciaStr}   |   OPERADOR CCO: ${resolvedOperator}`, pageWidth / 2, currentY + 5, { align: 'center' });
 
   currentY += 12;
 
