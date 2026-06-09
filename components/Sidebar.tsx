@@ -66,6 +66,43 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
             )}
           </button>
         ))}
+
+        {/* External Links */}
+        <div className="border-t border-white/10 my-2"></div>
+        <a
+          href="https://script.google.com/a/macros/munisurco.gob.pe/s/AKfycbxa_ovUDOm_O4fHRAITZff42qVNJFIXL0MM7fMeZUwfOP9Fr3hiw9Dx4K2IpkqdMXVK/exec"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all group relative text-slate-400 hover:text-white hover:bg-white/10"
+        >
+          <span className="material-symbols-outlined text-[24px] shrink-0">videocam</span>
+          <span className={`text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
+            Mapa de Cámaras
+          </span>
+          <span className="material-symbols-outlined text-[14px] ml-auto opacity-40">open_in_new</span>
+          {!isExpanded && (
+            <div className="absolute left-16 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 uppercase tracking-widest border border-white/10">
+              Mapa de Cámaras
+            </div>
+          )}
+        </a>
+        <a
+          href="https://script.google.com/a/macros/munisurco.gob.pe/s/AKfycbxmfgdAOeI5tE4o11UuHK6GQX8v8S9Jh5SG-vgtPghUnWLu2kDboUqcQMvhLKLKBwuswA/exec"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all group relative text-slate-400 hover:text-white hover:bg-white/10"
+        >
+          <span className="material-symbols-outlined text-[24px] shrink-0">assignment</span>
+          <span className={`text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
+            Procedimientos
+          </span>
+          <span className="material-symbols-outlined text-[14px] ml-auto opacity-40">open_in_new</span>
+          {!isExpanded && (
+            <div className="absolute left-16 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 uppercase tracking-widest border border-white/10">
+              Procedimientos
+            </div>
+          )}
+        </a>
       </nav>
 
       {/* User / Footer */}
