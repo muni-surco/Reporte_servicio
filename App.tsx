@@ -343,7 +343,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             ...u,
             id: String(u.id || '').trim(),
             unit_id: u.unit_id || `LEGACY-${idx}`, // Fallback for old records
-            sector: (u.sector || '').trim().toUpperCase() === '' ? '1A' : u.sector,
+            sector: (u.sector || '').trim().toUpperCase() === '' ? currentSector : u.sector,
             type: u.type as any,
             personnel1: String(u.personnel1 || ''),
             personnel2: String(u.personnel2 || ''),
