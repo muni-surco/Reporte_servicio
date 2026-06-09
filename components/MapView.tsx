@@ -11,7 +11,7 @@ interface QuadrantDetail {
   choferes: number;
   motos: number;
   serenos: number;
-  units: { id: string; personnel1: string; type: string; plate: string; radio: string }[];
+  units: { id: string; personnel1: string; type: string; plate: string; radio: string; indicative: string }[];
   sectorName: string;
 }
 
@@ -77,13 +77,14 @@ function buildPopupContent(quadrantName: string, detail: QuadrantDetail | undefi
                        u.type === 'SERENO' ? 'text-teal-500' : 'text-slate-400';
     const idBadge = u.id ? `<span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.25 rounded leading-none mr-1.5">${u.id}</span>` : '';
     const radioText = u.radio ? `<span class="text-slate-400 text-[11px] leading-none">Radio ${u.radio}</span>` : '';
+    const indicativeText = u.indicative ? `<span class="bg-green-100 text-green-700 border border-green-300 text-[10px] font-bold px-1.5 py-0.25 rounded leading-none">${u.indicative}</span>` : '';
 
     return `
       <div class="flex items-start gap-2.5 mb-2.5">
         <span class="material-symbols-outlined ${colorClass} text-[16px] mt-0.5">${icon}</span>
         <div class="flex flex-col">
           <span class="text-slate-500 text-[13px] font-medium leading-snug">${label}</span>
-          <div class="flex items-center gap-1 mt-0.5">${idBadge}${radioText}</div>
+          <div class="flex items-center gap-1 mt-0.5"><span>${idBadge}</span><span>${indicativeText}</span><span>${radioText}</span></div>
         </div>
       </div>
     `;
@@ -149,12 +150,13 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
         const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO;
         if (!isActive) return;
 
-        const entry: { id: string; personnel1: string; type: string; plate: string; radio: string } = {
+        const entry: { id: string; personnel1: string; type: string; plate: string; radio: string; indicative: string } = {
           id: u.id || '',
           personnel1: u.personnel1 || '',
           type: u.type,
           plate: u.plate || '',
           radio: u.radio || '',
+          indicative: u.indicative || ''
         };
 
         quadrants.forEach(q => {
