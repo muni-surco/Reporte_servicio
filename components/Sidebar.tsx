@@ -70,7 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
         {/* External Links */}
         <div className="border-t border-white/10 my-2"></div>
         <a
-          href="https://script.google.com/a/macros/munisurco.gob.pe/s/AKfycbxa_ovUDOm_O4fHRAITZff42qVNJFIXL0MM7fMeZUwfOP9Fr3hiw9Dx4K2IpkqdMXVK/exec"
+          href="https://script.google.com/a/macros/munisurco.gob.pe/s/AKfycbxyiW9Ttu4zVumZ2UteycD2htKEe-dtTGDLp6GN_1VV_X7HgFWBpenE7cZlxFju-qoR/exec"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-4 px-3.5 py-3 rounded-xl transition-all group relative text-slate-400 hover:text-white hover:bg-white/10"
