@@ -221,13 +221,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                     const sName = SECTORS[sIndex];
                     if (res && res.units) {
                       const safeSettings = buildSafeSettings(res.settings, sName, shift);
-                      // Deduplicate by sector+id (keep last occurrence)
-                      const seen = new Map<string, any>();
-                      res.units.forEach((u: any) => {
-                        const key = `${(u.sector || '').trim().toUpperCase()}_${(u.id || '').toUpperCase()}`;
-                        seen.set(key, u);
-                      });
-                      visData[sName] = { units: Array.from(seen.values()), settings: safeSettings };
+                      visData[sName] = { units: res.units, settings: safeSettings };
                       allSectorSettings[sName] = safeSettings;
                       if (sIndex === 0) finalSettings = { ...settings, ...safeSettings, turno: shift };
                     }
