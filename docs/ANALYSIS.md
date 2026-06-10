@@ -1,4 +1,4 @@
-# Análisis del Proyecto: Reporte de Servicio
+# Análisis del Proyecto: Sistema Integrado de Control Operativo
 
 Este proyecto es una aplicación web moderna diseñada para la gestión y generación de reportes integrados de seguridad ciudadana para la Municipalidad de Surco. Está construida con **React**, **TypeScript** y **Vite**, y optimizada para ser desplegada como un Web App en **Google Apps Script (GAS)**.
 

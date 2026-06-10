@@ -1,4 +1,4 @@
-# Caso UX: Reporte Integrado MSS — Municipalidad de Santiago de Surco
+# Caso UX: Sistema Integrado de Control Operativo (SICO) — MSS
 
 ## Resumen
 

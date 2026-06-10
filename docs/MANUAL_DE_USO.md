@@ -1,4 +1,4 @@
-# Manual de Uso — Reporte Integrado MSS
+# Manual de Uso — Sistema Integrado de Control Operativo
 
 **Sistema de Seguridad Ciudadana** — Municipalidad de Santiago de Surco  
 Versión: v2.5.0-PRO

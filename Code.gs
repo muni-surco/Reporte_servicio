@@ -1720,7 +1720,7 @@ function runLoadTest(numWorkers, savesPerWorker) {
 function doGet() {
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
-    .setTitle('Reporte Integrado MSS')
+    .setTitle('Sistema Integrado de Control Operativo')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
