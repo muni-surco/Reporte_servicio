@@ -94,12 +94,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
         >
           <span className="material-symbols-outlined text-[24px] shrink-0">assignment</span>
           <span className={`text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
-            Procedimientos y Manuales de Uso
+            Documentación
           </span>
           <span className="material-symbols-outlined text-[14px] ml-auto opacity-40">open_in_new</span>
           {!isExpanded && (
             <div className="absolute left-16 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 uppercase tracking-widest border border-white/10">
-              Procedimientos y Manuales de Uso  
+              Documentación
             </div>
           )}
         </a>
