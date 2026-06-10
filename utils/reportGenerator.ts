@@ -789,6 +789,219 @@ export const generatePersonnelAbsenceReport = (
   doc.save(`REPORTE_ASISTENCIA_REGIMEN_${shift}_${date}.pdf`);
 };
 
+export const generatePersonnelStatusReport = (
+  units: UnitData[],
+  personnel: PersonnelData[],
+  date: string,
+  shift: string,
+  operatorName?: string
+) => {
+  const doc = new jspdf.jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 10;
+  const contentWidth = pageWidth - (margin * 2);
+
+  const formatLongDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const normalize = (val: any) => {
+    return (val || '').toString()
+      .trim()
+      .toUpperCase()
+      .replace(/\./g, '')
+      .replace(/,/g, '')
+      .replace(/\s+/g, ' ');
+  };
+
+  const statusToReport = ['PATRULLANDO', 'SIN VEHICULO', 'SIN DOCUMENTOS'];
+  const explicitInUnits = new Set<string>();
+  const nameToSector = new Map<string, string>();
+  const nameToStatus = new Map<string, string>();
+
+  units.forEach(u => {
+    const names: string[] = [];
+    if (u.personnel1 && String(u.personnel1).trim() !== '') names.push(normalize(u.personnel1));
+    if (u.personnel2 && String(u.personnel2).trim() !== '') names.push(normalize(u.personnel2));
+
+    const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
+    const status = (u.status || '').toString().trim().toUpperCase();
+
+    if (statusToReport.includes(status)) {
+      names.forEach(name => {
+        explicitInUnits.add(name);
+        nameToSector.set(name, sector);
+        nameToStatus.set(name, status);
+      });
+    }
+  });
+
+  const filteredPersonnel = personnel.filter(p => explicitInUnits.has(normalize(p.apellidos_nombres)));
+
+  // Add unmatched from units
+  const personnelNormalizedNames = new Set(personnel.map(p => normalize(p.apellidos_nombres)));
+  explicitInUnits.forEach(name => {
+    if (!personnelNormalizedNames.has(name)) {
+      filteredPersonnel.push({
+        apellidos_nombres: name,
+        regimen_laboral: 'OS',
+        rol_operativo: '--',
+        estado: 'ACTIVO',
+        n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: '',
+        foto_url: ''
+      });
+    }
+  });
+
+  const getRegime = (p: any) => {
+    const reg = (p.regimen_laboral || '').toString().toUpperCase();
+    if (/276/.test(reg)) return '276';
+    if (/728/.test(reg)) return '728';
+    if (/1057.*INDETERMINADO/i.test(reg)) return '1057-INDETERMINADO';
+    if (/1057.*DETERMINADO/i.test(reg)) return '1057-DETERMINADO';
+    if (/1057.*CONFIANZA/i.test(reg)) return '1057-CONFIANZA';
+    if (/1057|CAS/i.test(reg)) return '1057-OTRO';
+    return 'OS';
+  };
+
+  const getRegimeLabel = (regimeKey: string) => {
+    switch(regimeKey) {
+        case '276': return 'PLANILLA D.L. N° 276';
+        case '728': return 'PLANILLA D.L. N° 728';
+        case '1057-CONFIANZA': return 'D.L. N° 1057 (Confianza)';
+        case '1057-DETERMINADO': return 'D.L. N° 1057 (Determinado)';
+        case '1057-INDETERMINADO': return 'D.L. N° 1057 (Indeterminado)';
+        case '1057-OTRO': return 'D.L. N° 1057';
+        case 'OS': return 'ORDEN DE SERVICIO';
+        default: return regimeKey;
+    }
+  };
+
+  const resolvedOperator = operatorName || '--';
+  let currentY = 10;
+  let firstPage = true;
+
+  statusToReport.forEach((status) => {
+    const statusPersonnel = filteredPersonnel.filter(p => nameToStatus.get(normalize(p.apellidos_nombres)) === status);
+
+    if (statusPersonnel.length === 0) return;
+
+    if (!firstPage) {
+        doc.addPage();
+        currentY = 10;
+    }
+    firstPage = false;
+
+    // Header
+    doc.setFillColor(38, 70, 83);
+    doc.rect(margin, currentY, contentWidth, 18, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('SURCO', margin + 5, currentY + 11);
+    doc.setFontSize(11);
+    doc.text(`PERSONAL EN ESTADO: ${status}`, margin + 35, currentY + 11);
+    doc.setFontSize(8);
+    doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
+    doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
+
+    currentY += 22;
+
+    // Operator
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, currentY, contentWidth, 7, 'F');
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(9);
+    doc.text('OPERADOR CCO:', margin + 3, currentY + 4.8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(resolvedOperator, margin + 38, currentY + 4.8);
+    doc.setTextColor(0, 0, 0);
+
+    currentY += 11;
+
+    const regimes = ['276', '728', '1057-CONFIANZA', '1057-DETERMINADO', '1057-INDETERMINADO', '1057-OTRO', 'OS'];
+    
+    regimes.forEach(regimeKey => {
+        const data = statusPersonnel.filter(p => getRegime(p) === regimeKey);
+        if (data.length === 0) return;
+        
+        if (currentY > 250) {
+            doc.addPage();
+            currentY = 20;
+        }
+
+        doc.setFillColor(0, 92, 187);
+        doc.rect(margin, currentY, contentWidth, 7, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${getRegimeLabel(regimeKey)}`, margin + 3, currentY + 4.8);
+        doc.text(`TOTAL: ${data.length}`, margin + contentWidth - 3, currentY + 4.8, { align: 'right' });
+
+        currentY += 7;
+
+        const tableData = data.map(p => {
+            const nameNorm = normalize(p.apellidos_nombres);
+            return [
+                p.apellidos_nombres?.toUpperCase() || '',
+                (p.rol_operativo || '').toUpperCase() || '',
+                shift.toUpperCase(),
+                nameToSector.get(nameNorm) || '--',
+                status
+            ];
+        });
+
+        (doc as any).autoTable({
+            startY: currentY,
+            head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR', 'ESTADO']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [240, 240, 240], textColor: [50, 50, 50], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+            styles: { fontSize: 8, cellPadding: 1.5, valign: 'middle' },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 35, halign: 'center' },
+                2: { cellWidth: 20, halign: 'center' },
+                3: { cellWidth: 25, halign: 'center' },
+                4: { cellWidth: 35, halign: 'center' }
+            },
+            margin: { left: margin, right: margin },
+            didDrawPage: (data: any) => { currentY = data.cursor.y; }
+        });
+
+        currentY = (doc as any).lastAutoTable.finalY + 8;
+    });
+  });
+
+  const footerY = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0); // Explicitly set text color to black
+  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
+  const now = new Date();
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+
+  doc.save(`REPORTE_PERSONAL_ESTADO_${shift}_${date}.pdf`);
+};
+
 
 export const generateObservationsReport = (
   units: UnitData[],

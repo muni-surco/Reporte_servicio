@@ -6,7 +6,14 @@ import Header from './components/Header';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import ReportGeneratorView from './components/ReportGeneratorView';
-import { generateMotoReport, generateVehicleReport, generatePersonnelAbsenceReport, generateObservationsReport, generateAllRecordsReport } from './utils/reportGenerator';
+import { 
+  generateMotoReport, 
+  generateVehicleReport, 
+  generatePersonnelAbsenceReport, 
+  generatePersonnelStatusReport,
+  generateObservationsReport, 
+  generateAllRecordsReport 
+} from './utils/reportGenerator';
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import RetenManagementView from './components/RetenManagementView';
@@ -1081,6 +1088,16 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             });
             setPersonnelList(loadedPersonnel);
             generatePersonnelAbsenceReport(dataToUse.units, loadedPersonnel, date, shift, operatorName);
+        }
+      } else if (type === 'asistencia_estado') {
+        if (personnelList.length > 0) {
+            generatePersonnelStatusReport(dataToUse.units, personnelList, date, shift, operatorName);
+        } else {
+            const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
+                google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+            });
+            setPersonnelList(loadedPersonnel);
+            generatePersonnelStatusReport(dataToUse.units, loadedPersonnel, date, shift, operatorName);
         }
       } else if (type === 'observaciones') {
         generateObservationsReport(dataToUse.units, date, shift, operatorName);

@@ -80,6 +80,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       btnClass: 'bg-rose-600 hover:bg-rose-700'
     },
     {
+      id: 'asistencia_estado',
+      title: 'Personal por Estado',
+      subtitle: 'PATRULLANDO / SIN VEHICULO',
+      description: 'Detalle de personal patrullando, sin vehículo o sin documentos agrupado por régimen.',
+      icon: <UserRound className="w-8 h-8" />,
+      color: 'cyan',
+      themeClass: 'border-cyan-100',
+      iconClass: 'bg-cyan-50 text-cyan-600',
+      btnClass: 'bg-cyan-600 hover:bg-cyan-700'
+    },
+    {
       id: 'general',
       title: 'Reporte General',
       subtitle: 'TODOS LOS REGISTROS',
