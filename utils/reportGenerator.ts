@@ -554,6 +554,8 @@ export const generatePersonnelAbsenceReport = (
   const nameToSector = new Map<string, string>();
   const nameToUnitMotivo = new Map<string, string>();
 
+  console.log("DEBUG: Inicio de procesamiento. Unidades totales:", units.length);
+
   units.forEach(u => {
     const names: string[] = [];
     if (u.personnel1 && String(u.personnel1).trim() !== '') names.push(normalize(u.personnel1));
@@ -568,22 +570,23 @@ export const generatePersonnelAbsenceReport = (
       names.forEach(name => {
         explicitAbsentInUnits.add(name);
         nameToSector.set(name, sector);
-        nameToUnitMotivo.set(name, motivo || 'INASISTENCIA'); // Guardar motivo
-      });
-    } else if (status !== 'FALTO') {
-      names.forEach(name => {
-        if (!explicitAbsentInUnits.has(name)) {
-          presentNames.add(name);
-        }
+        nameToUnitMotivo.set(name, motivo || 'INASISTENCIA');
+        console.log(`DEBUG: Ausencia detectada para: '${name}' (Unidad ${u.id})`);
       });
     }
   });
 
+  console.log("DEBUG: Total ausencias únicas en Set:", explicitAbsentInUnits.size);
+  console.log("DEBUG: Contenido del Set de ausentes:", Array.from(explicitAbsentInUnits));
+
   // 2. Filter personnel list
   const absents = personnel.filter(p => {
     const name = normalize(p.apellidos_nombres);
-    if (explicitAbsentInUnits.has(name)) return true;
-    return false; // Solo incluir los que tienen registro de Falto/Inasistencia explícito
+    const isExplicit = explicitAbsentInUnits.has(name);
+    if (isExplicit) {
+        console.log(`DEBUG: Personal encontrado en ausentes: '${name}'`);
+    }
+    return isExplicit; 
   });
 
   // 3. Add unmatched absent people from units
@@ -627,7 +630,20 @@ export const generatePersonnelAbsenceReport = (
     }
   };
 
-  const motifs = ['INASISTENCIA', 'DESCANSO MEDICO', 'PERMISO', 'VACACIONES', 'LICENCIA'];
+  const motifs = [
+    'CAMBIO DE TURNO',
+    'CAMBIO DESCANSO FISICO',
+    'CITA MEDICA',
+    'DESCANSO COMPENSATORIO',
+    'DESCANSO FISICO',
+    'DESCANSO MEDICO',
+    'INASISTENCIA',
+    'LICENCIA MATERNIDAD',
+    'LICENCIA PATERNIDAD',
+    'ONOMASTICO',
+    'PERMISO',
+    'VACACIONES'
+  ];
   
   const resolvedOperator = operatorName || '--';
   let currentY = 10;
@@ -637,8 +653,12 @@ export const generatePersonnelAbsenceReport = (
     const motifAbsents = absents.filter(p => {
         const nameNorm = normalize(p.apellidos_nombres);
         const m = nameToUnitMotivo.get(nameNorm) || 'INASISTENCIA';
-        return m === motivo;
+        const match = m === motivo;
+        if (!match) console.log(`DEBUG: '${p.apellidos_nombres}' tiene motivo '${m}', no coincide con '${motivo}'`);
+        return match;
     });
+
+    console.log(`DEBUG: Para motivo ${motivo}, se encontraron ${motifAbsents.length} personas.`);
 
     if (motifAbsents.length === 0) return;
 
@@ -682,8 +702,15 @@ export const generatePersonnelAbsenceReport = (
     const regimes = ['276', '728', '1057-CONFIANZA', '1057-DETERMINADO', '1057-INDETERMINADO', '1057-OTRO', 'OS'];
     
     regimes.forEach(regimeKey => {
-        const data = motifAbsents.filter(p => getRegime(p) === regimeKey);
+        const data = motifAbsents.filter(p => {
+            const r = getRegime(p);
+            const match = r === regimeKey;
+            if (!match) console.log(`DEBUG: '${p.apellidos_nombres}' (Régimen: ${r}) no coincide con '${regimeKey}'`);
+            return match;
+        });
         if (data.length === 0) return;
+        
+        console.log(`DEBUG: Agregando ${data.length} personas al grupo ${regimeKey} para el motivo ${motivo}`);
 
         // Check if we need a new page
         if (currentY > 250) {
