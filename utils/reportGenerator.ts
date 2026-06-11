@@ -647,106 +647,120 @@ export const generatePersonnelAbsenceReport = (
   
   const resolvedOperator = operatorName || '--';
   let currentY = 10;
+  let firstPage = true;
 
-  // Draw Main Report Header (drawn only once)
-  doc.setFillColor(38, 70, 83);
-  doc.rect(margin, currentY, contentWidth, 18, 'F');
+  motifs.forEach((motivo, motifIndex) => {
+    const motifAbsents = absents.filter(p => {
+        const nameNorm = normalize(p.apellidos_nombres);
+        const m = nameToUnitMotivo.get(nameNorm) || 'INASISTENCIA';
+        return m === motivo;
+    });
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(255, 255, 255);
-  doc.text('SURCO', margin + 5, currentY + 11);
+    if (motifAbsents.length === 0) return;
 
-  doc.setFontSize(11);
-  doc.text(`REPORTE DE ASISTENCIA POR RÉGIMEN`, margin + 35, currentY + 11);
+    if (!firstPage) {
+        doc.addPage();
+        currentY = 10;
+    }
+    firstPage = false;
 
-  doc.setFontSize(8);
-  doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
-  doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
+    // Draw Main Report Header
+    doc.setFillColor(38, 70, 83);
+    doc.rect(margin, currentY, contentWidth, 18, 'F');
 
-  currentY += 22;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('SURCO', margin + 5, currentY + 11);
 
-  // Sub-header: OPERADOR CCO
-  doc.setFillColor(240, 240, 240);
-  doc.rect(margin, currentY, contentWidth, 7, 'F');
-  doc.setTextColor(50, 50, 50);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('OPERADOR CCO:', margin + 3, currentY + 4.8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(resolvedOperator, margin + 38, currentY + 4.8);
-  doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.text(`REPORTE DE ${motivo} POR RÉGIMEN`, margin + 35, currentY + 11);
 
-  currentY += 11;
+    doc.setFontSize(8);
+    doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
+    doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
 
-  const regimes = ['276', '728', '1057-CONFIANZA', '1057-DETERMINADO', '1057-INDETERMINADO', '1057-OTRO', 'OS'];
-  
-  regimes.forEach(regimeKey => {
-      const data = absents.filter(p => {
-          const r = getRegime(p);
-          return r === regimeKey;
-      });
-      if (data.length === 0) return;
-      
-      console.log(`DEBUG: Agregando ${data.length} personas al grupo ${regimeKey}`);
+    currentY += 22;
 
-      // Check if we need a new page
-      if (currentY > 250) {
-          doc.addPage();
-          currentY = 20;
-      }
+    // Sub-header: OPERADOR CCO
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, currentY, contentWidth, 7, 'F');
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('OPERADOR CCO:', margin + 3, currentY + 4.8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(resolvedOperator, margin + 38, currentY + 4.8);
+    doc.setTextColor(0, 0, 0);
 
-      // Header de grupo (Sub-title)
-      doc.setFillColor(0, 92, 187);
-      doc.rect(margin, currentY, contentWidth, 7, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text(`${getRegimeLabel(regimeKey)}`, margin + 3, currentY + 4.8);
-      doc.text(`TOTAL: ${data.length}`, margin + contentWidth - 3, currentY + 4.8, { align: 'right' });
+    currentY += 11;
 
-      currentY += 7;
+    const regimes = ['276', '728', '1057-CONFIANZA', '1057-DETERMINADO', '1057-INDETERMINADO', '1057-OTRO', 'OS'];
+    
+    regimes.forEach(regimeKey => {
+        const data = motifAbsents.filter(p => getRegime(p) === regimeKey);
+        if (data.length === 0) return;
+        
+        console.log(`DEBUG: Agregando ${data.length} personas al grupo ${regimeKey} para el motivo ${motivo}`);
 
-      const tableData = data.map(p => {
-          const nameNorm = normalize(p.apellidos_nombres);
-          return [
-              p.apellidos_nombres?.toUpperCase() || '',
-              (p.rol_operativo || '').toUpperCase() || '',
-              shift.toUpperCase(),
-              nameToSector.get(nameNorm) || '--'
-          ];
-      });
+        // Check if we need a new page
+        if (currentY > 250) {
+            doc.addPage();
+            currentY = 20;
+        }
 
-      (doc as any).autoTable({
-          startY: currentY,
-          head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR']],
-          body: tableData,
-          theme: 'grid',
-          headStyles: {
-              fillColor: [240, 240, 240],
-              textColor: [50, 50, 50],
-              fontSize: 8,
-              fontStyle: 'bold',
-              halign: 'center'
-          },
-          styles: {
-              fontSize: 8,
-              cellPadding: 1.5,
-              valign: 'middle'
-          },
-          columnStyles: {
-              0: { cellWidth: 'auto' },
-              1: { cellWidth: 40, halign: 'center' },
-              2: { cellWidth: 25, halign: 'center' },
-              3: { cellWidth: 35, halign: 'center' }
-          },
-          margin: { left: margin, right: margin },
-          didDrawPage: (data: any) => {
-              currentY = data.cursor.y;
-          }
-      });
+        // Header de grupo (Sub-title)
+        doc.setFillColor(0, 92, 187);
+        doc.rect(margin, currentY, contentWidth, 7, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${getRegimeLabel(regimeKey)}`, margin + 3, currentY + 4.8);
+        doc.text(`TOTAL: ${data.length}`, margin + contentWidth - 3, currentY + 4.8, { align: 'right' });
 
-      currentY = (doc as any).lastAutoTable.finalY + 8;
+        currentY += 7;
+
+        const tableData = data.map(p => {
+            const nameNorm = normalize(p.apellidos_nombres);
+            return [
+                p.apellidos_nombres?.toUpperCase() || '',
+                (p.rol_operativo || '').toUpperCase() || '',
+                shift.toUpperCase(),
+                nameToSector.get(nameNorm) || '--'
+            ];
+        });
+
+        (doc as any).autoTable({
+            startY: currentY,
+            head: [['APELLIDOS Y NOMBRES', 'CARGO', 'TURNO', 'SECTOR']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: {
+                fillColor: [240, 240, 240],
+                textColor: [50, 50, 50],
+                fontSize: 8,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            styles: {
+                fontSize: 8,
+                cellPadding: 1.5,
+                valign: 'middle'
+            },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 40, halign: 'center' },
+                2: { cellWidth: 25, halign: 'center' },
+                3: { cellWidth: 35, halign: 'center' }
+            },
+            margin: { left: margin, right: margin },
+            didDrawPage: (data: any) => {
+                currentY = data.cursor.y;
+            }
+        });
+
+        currentY = (doc as any).lastAutoTable.finalY + 8;
+    });
   });
 
   // --- FOOTER ---
