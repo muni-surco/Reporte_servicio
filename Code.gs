@@ -2034,7 +2034,7 @@ function _isSafeBackupHour(hour) {
  * Run once from GAS editor: setupBackupTrigger()
  */
 function setupBackupTrigger() {
-  const safeHours = [3];
+  const safeHours = [4, 12, 20];
   const triggers = ScriptApp.getProjectTriggers();
   triggers.forEach(t => {
     if (t.getHandlerFunction() === 'backupFirestoreToSheets') {
