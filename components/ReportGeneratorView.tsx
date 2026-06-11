@@ -70,7 +70,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
     },
     {
       id: 'asistencia_regimen',
-      title: 'Asistencia por Régimen',
+      title: 'Inasistencia por Régimen',
       subtitle: 'PERSONAL FALTANTE',
       description: 'Detalle de personal inasistente agrupado por régimen laboral (276, 728, 1057 y OS).',
       icon: <Users className="w-8 h-8" />,
@@ -81,9 +81,9 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
     },
     {
       id: 'asistencia_estado',
-      title: 'Personal por Estado',
-      subtitle: 'PATRULLANDO / SIN VEHICULO',
-      description: 'Detalle de personal patrullando, sin vehículo o sin documentos agrupado por régimen.',
+      title: 'Asistencia por Régimen',
+      subtitle: 'Personal presente',
+      description: 'Detalle de personal patrullando, sin vehículo o sin documentos agrupado por régimen laboral (276, 728, 1057 y OS).',
       icon: <UserRound className="w-8 h-8" />,
       color: 'cyan',
       themeClass: 'border-cyan-100',
