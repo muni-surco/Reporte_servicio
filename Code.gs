@@ -691,8 +691,13 @@ function getMobileData() {
             operatorsSet.add(name);
           }
           
-          // Operator list for reports (only OPERADOR C4)
-          if (name && estado === 'ACTIVO' && funcion === 'OPERADOR C4') {
+          // Operator list for reports
+          const reportRoles = [
+            'ANALISTA C4', 'ASISTENTE ADMINISTRATIVO', 'JEFE AREA', 
+            'JEFE OPERACIONES', 'OPERADOR C4', 'OPERADOR RPAS', 
+            'PERMANENCIA', 'SUPERVISOR'
+          ];
+          if (name && estado === 'ACTIVO' && reportRoles.includes(funcion)) {
             reportOperatorsSet.add(name);
           }
         }

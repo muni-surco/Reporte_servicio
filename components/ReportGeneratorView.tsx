@@ -169,18 +169,16 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
 
           <div className="flex flex-col">
             <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest ml-1 mb-1">OPERADOR</span>
-            <div className="relative group flex items-center">
+            <div className="relative group w-[350px]">
               <UserRound className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${showError ? 'text-red-500' : 'text-slate-400'} group-focus-within:text-blue-500 transition-colors pointer-events-none z-10`} />
-              <div className="pl-10 w-[350px]">
-                <AutocompleteInput
-                  value={localOperator}
-                  onChange={handleOperatorChange}
-                  suggestions={operatorOptions}
-                  placeholder="SELECCIONE OPERADOR"
-                  error={showError}
-                  className={`h-10 bg-white border-slate-200 rounded-xl text-sm font-medium shadow-sm ${showError ? 'border-red-300 ring-red-50' : ''}`}
-                />
-              </div>
+              <AutocompleteInput
+                value={localOperator}
+                onChange={handleOperatorChange}
+                suggestions={operatorOptions}
+                placeholder="SELECCIONE OPERADOR"
+                error={showError}
+                className={`h-9 pl-10 bg-slate-50 border-slate-100 rounded-xl text-sm font-medium shadow-sm ${showError ? 'border-red-300 ring-red-50' : ''}`}
+              />
             </div>
             {showError && (
               <span className="text-[10px] font-bold text-red-500 mt-1 ml-1 animate-pulse">
