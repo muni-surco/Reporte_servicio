@@ -663,7 +663,10 @@ function getMobileData() {
       const estadoIdx = extHeaders.indexOf('estado');
       const funcionIdx = extHeaders.indexOf('funcion_actual');
       
-      const allowedRoles = ['CHOFER', 'MOTORIZADO', 'SERENO A PIE', 'SERENO GIR', 'RESCATE'];
+      const allowedRoles = [
+        'CHOFER', 'MOTORIZADO', 'SERENO A PIE', 'SERENO GIR', 'RESCATE',
+        'ADMINISTRATIVO', 'ASISTENTE CCO', 'JEFE CCO', 'SECRETARIA'
+      ];
       const operatorRoles = ['OPERADOR C4', 'OPERADOR COVV', 'JEFE AREA', 'SUPERVISOR'];
       
       if (nameIdx !== -1) {
