@@ -664,10 +664,15 @@ function getMobileData() {
       const funcionIdx = extHeaders.indexOf('funcion_actual');
       
       const allowedRoles = [
-        'CHOFER', 'MOTORIZADO', 'SERENO A PIE', 'SERENO GIR', 'RESCATE',
-        'ADMINISTRATIVO', 'ASISTENTE CCO', 'JEFE CCO', 'SECRETARIA'
+        'ANALISTA C4', 'ASISTENTE ADMINISTRATIVO', 'CHOFER', 'JEFE AREA', 
+        'JEFE OPERACIONES', 'MOTORIZADO', 'OPERADOR C4', 'OPERADOR RPAS', 
+        'PERMANENCIA', 'SERENO A PIE', 'SERENO GIR', 'SUPERVISOR', 
+        'PERIODISTA', 'FISCALIZADOR', 'RESCATE', 'INSPECTOR DE TRANSITO'
       ];
-      const operatorRoles = ['OPERADOR C4', 'OPERADOR COVV', 'JEFE AREA', 'SUPERVISOR'];
+      const operatorRoles = [
+        'ANALISTA C4', 'OPERADOR C4', 'JEFE AREA', 'SUPERVISOR', 
+        'JEFE OPERACIONES', 'ASISTENTE ADMINISTRATIVO', 'PERMANENCIA'
+      ];
       
       if (nameIdx !== -1) {
         for (let i = 1; i < extData.length; i++) {
@@ -2048,9 +2053,6 @@ function setupBackupTrigger() {
   return { success: true, safeHours: safeHours };
 }
 
-/**
- * Helper to include other files.
- */
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
