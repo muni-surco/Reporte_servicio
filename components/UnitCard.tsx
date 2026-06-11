@@ -269,6 +269,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
     }
   }[unit.type] || { lineBg: 'bg-slate-500', idBadge: 'bg-slate-100 text-slate-700 border-slate-200' };
 
+  const isC4orCOVV = unit.sector === 'C4' || unit.sector === 'COVV';
+  const serenoLabel = isC4orCOVV ? 'Operador' : 'Sereno';
+  const personalLabel = isC4orCOVV ? 'Operador' : 'Personal';
+
   if (isEditing) {
     const idStr = String(formData.id);
     const isNew = idStr === '';
@@ -307,7 +311,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             </div>
 
             <div className="col-span-2">
-              <label className={labelStyleEdit}>{isSereno ? 'Personal' : isMoto ? 'Motorizado' : 'Chofer'}</label>
+              <label className={labelStyleEdit}>{isSereno ? personalLabel : isMoto ? 'Motorizado' : 'Chofer'}</label>
               <AutocompleteInput
                 value={formData.personnel1}
                 onChange={(val) => { setFormData(prev => ({ ...prev, personnel1: val })); setErrors(prev => ({ ...prev, personnel1: false })); }}
@@ -530,7 +534,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna Personal Principal y Copiloto */}
           <div className="border-r border-slate-100 pr-2 min-w-0">
-            <label className={labelStyle}>{isSereno ? 'Sereno' : isMoto ? 'Motorizado' : 'Chofer'}</label>
+            <label className={labelStyle}>{isSereno ? serenoLabel : isMoto ? 'Motorizado' : 'Chofer'}</label>
             <div className={infoValueStyle}>{unit.personnel1 || '--'}</div>
             {unit.personnel1 && personnelRegimenMap?.[unit.personnel1.trim().toUpperCase()] && (
               <div className="text-[9px] text-slate-400 uppercase tracking-tight leading-tight mt-0.5">

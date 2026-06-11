@@ -41,10 +41,21 @@ function toStorageSector(value) {
   return normalized.replace(/^SECTOR\s+/, '');
 }
 
-function getUnitType(id) {
+function getUnitType(id, typeFromSheet, sector) {
+  if (typeFromSheet) {
+    const t = String(typeFromSheet).toUpperCase().trim();
+    if (t.includes('MOTO')) return 'MOTO';
+    if (t.includes('SERENO')) return 'SERENO';
+    if (t.includes('CHOFER') || t.includes('MOVIL') || t.includes('VEHICULO')) return 'CHOFER';
+  }
+
+  // Si el sector es C4 o COVV, por defecto son SERENOS
+  const s = toStorageSector(sector);
+  if (s === 'C4' || s === 'COVV') return 'SERENO';
+
   const upperId = String(id || '').toUpperCase();
   if (upperId.startsWith('H') || upperId.startsWith('A-G')) return 'MOTO';
-  if (upperId.startsWith('S')) return 'SERENO';
+  // La lógica de prefijo 'S' ha sido eliminada por solicitud del usuario
   return 'CHOFER';
 }
 
@@ -539,6 +550,7 @@ function getMobileData() {
   const sectorIdx = headers.indexOf('sector');
   const indicativoIdx = headers.indexOf('indicativo');
   const estadoIdx = headers.indexOf('estado');
+  const tipoIdx = headers.indexOf('tipo');
   const modeloIdx = headers.indexOf('modelo');
   const motivoTallerIdx = headers.indexOf('motivo_taller');
   const lugarIdx = headers.indexOf('lugar');
@@ -577,7 +589,7 @@ function getMobileData() {
         quadrant: cuadranteIdx !== -1 ? cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()) : '',
         sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
         status: estadoIdx !== -1 ? String(row[estadoIdx] || '').trim() : '',
-        type: getUnitType(id)
+        type: getUnitType(id, tipoIdx !== -1 ? row[tipoIdx] : null, sectorIdx !== -1 ? row[sectorIdx] : null)
       });
     }
 

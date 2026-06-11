@@ -472,7 +472,13 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   hours: '--:-- - --:--'
                 }));
               } else {
-                const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
+                const isTechnicalSector = s === 'C4' || s === 'COVV';
+                const isRescate = s === 'RESCATE';
+                
+                const typesToLoad = isTechnicalSector 
+                  ? ['SERENO'] as const 
+                  : (isRescate ? ['CHOFER'] as const : ['CHOFER', 'MOTO', 'SERENO'] as const);
+
                 typesToLoad.forEach(type => {
                   if (!sectorUnits.some(u => u.type === type)) {
                     const typeDefaults = defaults
@@ -855,7 +861,13 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
       }));
     } else {
-      const typesToLoad = ['CHOFER', 'MOTO', 'SERENO'] as const;
+      const isTechnicalSector = s === 'C4' || s === 'COVV';
+      const isRescate = s === 'RESCATE';
+      
+      const typesToLoad = isTechnicalSector 
+        ? ['SERENO'] as const 
+        : (isRescate ? ['CHOFER'] as const : ['CHOFER', 'MOTO', 'SERENO'] as const);
+
       typesToLoad.forEach(type => {
         const hasType = sectorUnits.some(u => u.type === type);
         if (!hasType) {
@@ -867,7 +879,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               sector: s,
               plate: d.plate,
               quadrant: d.quadrant,
-      status: '',
+              status: '',
               kmStart: '0',
               kmEnd: '0',
               totalKm: '0',
@@ -1173,6 +1185,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         <div className="flex-1 overflow-y-auto scroll-smooth p-4" id="report-content">
           {currentView === 'DASHBOARD' ? (
             <>
+              {currentSector !== 'C4' && currentSector !== 'COVV' && (
                 <UnitSection
                   title="CHOFERES" type="CHOFER" icon="minor_crash"
                   badge={currentSectorUnits.filter(u => u.type === 'CHOFER').length.toString()}
@@ -1195,53 +1208,55 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
                 />
+              )}
+              {currentSector !== 'RESCATE' && currentSector !== 'C4' && currentSector !== 'COVV' && (
+                <UnitSection
+                  title="MOTORIZADOS" type="MOTO" icon="moped"
+                  badge={currentSectorUnits.filter(u => u.type === 'MOTO').length.toString()}
+                  units={currentSectorUnits.filter(u => u.type === 'MOTO')}
+                  allUnits={units}
+                  editingId={editingId}
+                  onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                  mobileData={mobileData}
+                  statusOptions={statusOptions}
+                  indicativeOptions={indicativeOptions}
+                  personnelOptions={personnelOptions}
+                  quadrantOptions={quadrantOptions}
+                  radioOptions={radioOptions}
+                  lugarOptions={lugarOptions}
+                  motivoStatusOptions={motivoStatusOptions}
+                  currentDate={selectedDate}
+                  currentShift={settings.turno}
+                  isSaving={saving}
+                  saveStatus={saveStatus}
+                  readOnly={isReadOnly}
+                  personnelRegimenMap={personnelRegimenMap}
+                />
+              )}
               {currentSector !== 'RESCATE' && (
-                <>
-                  <UnitSection
-                    title="MOTORIZADOS" type="MOTO" icon="moped"
-                    badge={currentSectorUnits.filter(u => u.type === 'MOTO').length.toString()}
-                    units={currentSectorUnits.filter(u => u.type === 'MOTO')}
-                    allUnits={units}
-                    editingId={editingId}
-                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
-                    mobileData={mobileData}
-                    statusOptions={statusOptions}
-                    indicativeOptions={indicativeOptions}
-                    personnelOptions={personnelOptions}
-                    quadrantOptions={quadrantOptions}
-                    radioOptions={radioOptions}
-                    lugarOptions={lugarOptions}
-                    motivoStatusOptions={motivoStatusOptions}
-                    currentDate={selectedDate}
-                    currentShift={settings.turno}
-                    isSaving={saving}
-                    saveStatus={saveStatus}
-                    readOnly={isReadOnly}
-                    personnelRegimenMap={personnelRegimenMap}
-                  />
-                  <UnitSection
-                    title="SERENOS" type="SERENO" icon="hail"
-                    badge={currentSectorUnits.filter(u => u.type === 'SERENO').length.toString()}
-                    units={currentSectorUnits.filter(u => u.type === 'SERENO')}
-                    allUnits={units}
-                    editingId={editingId}
-                    onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
-                    mobileData={mobileData}
-                    statusOptions={statusOptions}
-                    indicativeOptions={indicativeOptions}
-                    personnelOptions={personnelOptions}
-                    quadrantOptions={quadrantOptions}
-                    radioOptions={radioOptions}
-                    lugarOptions={lugarOptions}
-                    motivoStatusOptions={motivoStatusOptions}
-                    currentDate={selectedDate}
-                    currentShift={settings.turno}
-                    isSaving={saving}
-                    saveStatus={saveStatus}
-                    readOnly={isReadOnly}
-                    personnelRegimenMap={personnelRegimenMap}
-                  />
-                </>
+                <UnitSection
+                  title={(currentSector === 'C4' || currentSector === 'COVV') ? 'OPERADORES' : 'SERENOS'} 
+                  type="SERENO" icon="hail"
+                  badge={currentSectorUnits.filter(u => u.type === 'SERENO').length.toString()}
+                  units={currentSectorUnits.filter(u => u.type === 'SERENO')}
+                  allUnits={units}
+                  editingId={editingId}
+                  onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                  mobileData={mobileData}
+                  statusOptions={statusOptions}
+                  indicativeOptions={indicativeOptions}
+                  personnelOptions={personnelOptions}
+                  quadrantOptions={quadrantOptions}
+                  radioOptions={radioOptions}
+                  lugarOptions={lugarOptions}
+                  motivoStatusOptions={motivoStatusOptions}
+                  currentDate={selectedDate}
+                  currentShift={settings.turno}
+                  isSaving={saving}
+                  saveStatus={saveStatus}
+                  readOnly={isReadOnly}
+                  personnelRegimenMap={personnelRegimenMap}
+                />
               )}
             </>
           ) : currentView === 'VISUALIZATION' ? (

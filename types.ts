@@ -21,6 +21,8 @@ export type Sector =
   | '9A' | '9B'
   | 'RESCATE'
   | 'GIR'
+  | 'C4'
+  | 'COVV'
   | string;
 
 export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH' | 'MAP' | 'WANTED';
@@ -149,7 +151,9 @@ export const SECTORS: Sector[] = [
   '7', '8',
   '9A', '9B',
   'RESCATE',
-  'GIR'
+  'GIR',
+  'C4',
+  'COVV'
 ];
 
 export const FUEL_TYPES = ['GLP', 'GASOLINA', 'PETROLEO'];
