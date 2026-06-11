@@ -138,6 +138,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
         const motos = activeUnits.filter(u => u.type === 'MOTO');
         const serenos = activeUnits.filter(u => u.type === 'SERENO');
         const isRescate = sectorName === 'RESCATE';
+        const isTechnical = sectorName === 'C4' || sectorName === 'COVV';
         const missingHeaderClass = highlightMissingHeader
           ? 'border-red-200 bg-red-50/60 text-red-700'
           : 'border-slate-100 bg-white text-slate-700';
@@ -155,7 +156,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 <div className="flex items-center gap-3 shrink-0 min-w-[140px]">
                   <div className="w-2 h-8 bg-[#004b93] rounded-full shadow-sm shadow-blue-200"></div>
                   <h2 className="text-[24px] font-medium tracking-tighter uppercase text-[#002d5a] leading-none">
-                    {sectorName === 'GIR' || sectorName === 'RESCATE' ? sectorName : `SECTOR ${sectorName}`}
+                    {sectorName === 'GIR' || sectorName === 'RESCATE' || sectorName === 'C4' || sectorName === 'COVV' ? sectorName : `SECTOR ${sectorName}`}
                   </h2>
                 </div>
 
@@ -198,23 +199,26 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
             </div>
 
             {/* Grid de Secciones */}
-            <div className={`p-4 grid gap-4 ${isRescate ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
-              {/* Columna Choferes */}
-              <div className={`flex flex-col rounded-xl border border-blue-50 overflow-hidden ${isRescate ? 'w-full' : ''}`}>
-                <div className="text-[16px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-blue-100 font-medium">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">minor_crash</span>
-                    CHOFERES
+            <div className={`p-4 grid gap-4 ${(isRescate || isTechnical) ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
+              {/* Columna Choferes - Solo se muestra si NO es técnico (C4/COVV) */}
+              {!isTechnical && (
+                <div className={`flex flex-col rounded-xl border border-blue-50 overflow-hidden ${isRescate ? 'w-full' : ''}`}>
+                  <div className="text-[16px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-blue-100 font-medium">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">minor_crash</span>
+                      CHOFERES
+                    </div>
+                    <span className="bg-blue-600 text-white px-2 rounded-full text-[12px] shadow-sm">{choferes.length}</span>
                   </div>
-                  <span className="bg-blue-600 text-white px-2 rounded-full text-[12px] shadow-sm">{choferes.length}</span>
+                  <div className="flex flex-col divide-y divide-slate-100 bg-white">
+                    {choferes.map(u => renderCompactUnit(u, 'CHOFER'))}
+                    {choferes.length === 0 && <p className="text-[12px] italic text-slate-300 py-10 text-center bg-white font-medium uppercase tracking-widest">Sin registros</p>}
+                  </div>
                 </div>
-                <div className="flex flex-col divide-y divide-slate-100 bg-white">
-                  {choferes.map(u => renderCompactUnit(u, 'CHOFER'))}
-                  {choferes.length === 0 && <p className="text-[12px] italic text-slate-300 py-10 text-center bg-white font-medium uppercase tracking-widest">Sin registros</p>}
-                </div>
-              </div>
+              )}
 
-              {!isRescate && (
+              {/* Secciones adicionales para sectores NO especializados */}
+              {!isRescate && !isTechnical && (
                 <>
                   {/* Columna Motorizados */}
                   <div className="flex flex-col rounded-xl border border-violet-50 overflow-hidden">
@@ -246,6 +250,23 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Columna Única para C4 y COVV (OPERADORES) */}
+              {isTechnical && (
+                <div className="flex flex-col rounded-xl border border-teal-50 overflow-hidden w-full">
+                  <div className="text-[16px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-teal-100 font-medium">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">hail</span>
+                      OPERADORES
+                    </div>
+                    <span className="bg-teal-600 text-white px-2 rounded-full text-[12px] shadow-sm">{serenos.length}</span>
+                  </div>
+                  <div className="flex flex-col divide-y divide-slate-100 bg-white">
+                    {serenos.map(u => renderCompactUnit(u, 'SERENO'))}
+                    {serenos.length === 0 && <p className="text-[12px] italic text-slate-300 py-10 text-center bg-white font-medium uppercase tracking-widest">Sin registros</p>}
+                  </div>
+                </div>
               )}
             </div>
           </div>
