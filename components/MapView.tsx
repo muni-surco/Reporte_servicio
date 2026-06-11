@@ -141,6 +141,9 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     const map = new Map<string, QuadrantDetail>();
 
     Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
+      // Excluir sectores técnicos/administrativos que no patrullan cuadrantes
+      if (sectorName === 'C4' || sectorName === 'COVV') return;
+
       sd.units.forEach(u => {
         if (u.type === 'CHOFER' && !showChoferes) return;
         if (u.type === 'MOTO' && !showMotos) return;
@@ -188,7 +191,10 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     const query = searchQuery.toLowerCase().trim();
     const results: UnitData[] = [];
     
-    Object.values(allSectorsData).forEach(sd => {
+    Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
+      // Excluir sectores técnicos del buscador del mapa
+      if (sectorName === 'C4' || sectorName === 'COVV') return;
+
       sd.units.forEach(u => {
         const quadrants = parseQuadrants(u.quadrant || '');
         if (quadrants.length === 0) return;
