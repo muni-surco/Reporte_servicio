@@ -263,7 +263,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <input type="checkbox" className="sr-only peer" checked={isOn} onChange={() => setFormData(prev => ({ ...prev, [field]: prev[field] === 'SI' ? '' : 'SI' }))} />
             <div className="w-9 h-5 bg-[#D0D5E8] rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#005ea5]"></div>
           </label>
-          <span className={`ml-1.5 text-[10px] font-medium ${isOn ? 'text-[#005ea5]' : 'text-[#8888AA]'}`}>{isOn ? 'ON' : 'OFF'}</span>
+          <span className={`ml-1.5 text-[10px] font-medium ${isOn ? 'text-[#005ea5]' : 'text-[#8888AA]'}`}>{isOn ? 'SI' : 'NO'}</span>
         </div>
       </div>
     );
@@ -500,10 +500,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 {showTaserFields && (
                   <>
                     <div className="col-span-1">
-                      {renderToggle('taser', 'TASER')}
+                      {renderToggle('taser', 'TIENE TASER')}
                     </div>
                     <div className="col-span-1">
-                      {renderToggle('bodycam', 'BODYCAM')}
+                      {renderToggle('bodycam', 'TIENE BODYCAM')}
                     </div>
                     <div className="col-span-1">
                       <label className={labelStyleEdit}>CÓDIGO TASER</label>

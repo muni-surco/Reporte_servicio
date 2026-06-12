@@ -62,6 +62,11 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           <div className="flex-1 min-w-0">
               <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex items-center gap-2">
                 {u.personnel1}
+                {u.taser === 'SI' && (
+                  <span className="inline-flex items-center px-1.5 py-[1px] rounded text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-[#005ea5] border border-blue-200 leading-none shrink-0">
+                    TASER
+                  </span>
+                )}
               </p>
             {u.status?.toUpperCase() === UnitStatus.SIN_VEHICULO && (
               <div className="flex flex-wrap items-center gap-1.5 mt-1">
