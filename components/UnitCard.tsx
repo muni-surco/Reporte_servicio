@@ -24,12 +24,13 @@ interface UnitCardProps {
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
   readOnly?: boolean;
   personnelRegimenMap?: Record<string, string>;
+  codigoTaserOptions?: string[];
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions, lugarOptions, motivoStatusOptions,
-  currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap
+  currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap, codigoTaserOptions
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -251,6 +252,22 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const hasPersonnel2 = isChofer;
   const hasPlate = !isSereno;
   const hasIndicative = isChofer;
+
+  const renderToggle = (field: 'taser' | 'bodycam', label: string) => {
+    const isOn = formData[field] === 'SI';
+    return (
+      <div>
+        <label className={labelStyleEdit}>{label}</label>
+        <div className="flex items-center h-[32px]">
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={isOn} onChange={() => setFormData(prev => ({ ...prev, [field]: prev[field] === 'SI' ? '' : 'SI' }))} />
+            <div className="w-9 h-5 bg-[#D0D5E8] rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#005ea5]"></div>
+          </label>
+          <span className={`ml-1.5 text-[10px] font-medium ${isOn ? 'text-[#005ea5]' : 'text-[#8888AA]'}`}>{isOn ? 'ON' : 'OFF'}</span>
+        </div>
+      </div>
+    );
+  };
   const hasKmRecarga = (isChofer || isMoto) && !isRescate;
 
   // Configuración de estilo según tipo (Actualizado MOTO a Violeta)
@@ -270,6 +287,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   }[unit.type] || { lineBg: 'bg-slate-500', idBadge: 'bg-slate-100 text-slate-700 border-slate-200' };
 
   const isC4orCOVV = unit.sector === 'C4' || unit.sector === 'COVV';
+  const showTaserFields = !isC4orCOVV && !isRescate;
   const serenoLabel = isC4orCOVV ? 'Operador' : 'Sereno';
   const personalLabel = isC4orCOVV ? 'Operador' : 'Personal';
 
@@ -280,7 +298,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     return (
       <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg flex items-center gap-4`}>
         {/* Línea vertical distintiva estilo moderno */}
-        <div className={`w-1.5 h-36 ${typeConfig.lineBg} rounded-full shrink-0 shadow-sm`}></div>
+        <div className={`w-1.5 min-h-[220px] self-stretch ${typeConfig.lineBg} rounded-full shrink-0 shadow-sm`}></div>
 
         <div className="flex-1 min-w-0">
           {/* Línea 1: Identificación, Logística y Estado (Exactamente 12 cols) */}
@@ -447,48 +465,74 @@ const UnitCard: React.FC<UnitCardProps> = ({
             <div className={isChofer ? "col-span-0" : isSereno ? "col-span-1" : "col-span-3"}></div>
           </div>
 
-          {/* Línea 2: Operatividad Detallada (Exactamente 12 cols o menos) */}
+          {/* Línea 2: Operatividad Detallada + TASER (Exactamente 12 cols) */}
           <div className="grid grid-cols-12 gap-1.5 pt-0.5">
             {!isSereno ? (
               <>
-                <div className={`col-span-4 grid ${isChofer || isMoto ? 'grid-cols-2' : 'grid-cols-4'} gap-1`}>
-                  <div>
-                    <label className={labelStyleEdit}>Placa</label>
-                    <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
-                  </div>
-                  <div>
-                    <label className={labelStyleEdit}>KM INICIO <span className="text-red-500">*</span></label>
-                    <input
-                      type="number"
-                      name="kmStart"
-                      value={kmStart}
-                      min={0}
-                      step="0.1"
-                      placeholder="Km inicio"
-                      onChange={(e) => { setKmStart(e.target.value); setErrors(prev => ({ ...prev, kmStart: false })); }}
-                      className={inputStyle('kmStart')}
-                    />
-                    {errors.kmStart && <span className={errorMsgStyle}>Requerido</span>}
-                  </div>
-                  {!(isChofer || isMoto) && <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>}
-                  {!(isChofer || isMoto) && <div><label className={labelStyleEdit}>TOTAL KM</label><div className="bg-blue-100 border border-blue-200 rounded px-1 py-1 text-[13px] font-medium text-blue-700 h-[32px] flex items-center justify-center">{kmDiff}</div></div>}
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>Placa</label>
+                  <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
                 </div>
-                <div className="col-span-8 grid grid-cols-6 gap-1">
-                  <div><label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
-                  <div><label className={labelStyleEdit}>COMBUSTIBLE</label>
-                    <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
-                      <option value="">--</option>
-                      {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                    </select>
-                  </div>
-                  <div><label className={labelStyleEdit}>CANTIDAD</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} /></div>
-                  <div><label className={labelStyleEdit}>GASTO</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
-                  <div className="col-span-2">
-                    <label className={labelStyleEdit}>Observaciones</label>
-                    <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
-                  </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>KM INICIO <span className="text-red-500">*</span></label>
+                  <input type="number" name="kmStart" value={kmStart} min={0} step="0.1" placeholder="Km" onChange={(e) => { setKmStart(e.target.value); setErrors(prev => ({ ...prev, kmStart: false })); }} className={inputStyle('kmStart')} />
+                  {errors.kmStart && <span className={errorMsgStyle}>Requerido</span>}
                 </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} />
+                </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>COMBUSTIBLE</label>
+                  <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
+                    <option value="">--</option>
+                    {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>CANTIDAD</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} />
+                </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>GASTO</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} />
+                </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>Observaciones</label><input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
+                </div>
+                {showTaserFields && (
+                  <>
+                    <div className="col-span-1">
+                      {renderToggle('taser', 'TASER')}
+                    </div>
+                    <div className="col-span-1">
+                      {renderToggle('bodycam', 'BODYCAM')}
+                    </div>
+                    <div className="col-span-1">
+                      <label className={labelStyleEdit}>CÓDIGO TASER</label>
+                      <AutocompleteInput value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserOptions || []} placeholder="Código..." />
+                    </div>
+                    <div className="col-span-2">
+                      <label className={labelStyleEdit}>OBSERVACIONES TASER</label>
+                      <input value={formData.obsTaser || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsTaser: e.target.value }))} className={inputStyle('obsTaser')} placeholder="Observaciones..." />
+                    </div>
+                  </>
+                )}
               </>
+            ) : showTaserFields ? (
+              <div className="col-span-12 grid grid-cols-12 gap-1.5">
+                <div className="col-span-1">
+                  {renderToggle('taser', 'TASER')}
+                </div>
+                <div className="col-span-1">
+                  {renderToggle('bodycam', 'BODYCAM')}
+                </div>
+                <div className="col-span-3">
+                  <label className={labelStyleEdit}>CÓDIGO TASER</label>
+                  <AutocompleteInput value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserOptions || []} placeholder="Código..." />
+                </div>
+                <div className="col-span-7">
+                  <label className={labelStyleEdit}>OBS. TASER</label>
+                  <input value={formData.obsTaser || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsTaser: e.target.value }))} className={inputStyle('obsTaser')} placeholder="Observaciones..." />
+                </div>
+              </div>
             ) : (
               <></>
             )}

@@ -93,7 +93,8 @@ function initialSetup() {
     'FECHA', 'TURNO', 'SECTOR', 'ID', 'TIPO', 'MODELO', 'PERSONAL_1', 'PERSONAL_2', 
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
     'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID',
-    'LUGAR_ESTADO', 'MOTIVO_ESTADO', 'AUDIT_LOG'
+    'LUGAR_ESTADO', 'MOTIVO_ESTADO', 'AUDIT_LOG',
+    'TASER', 'BODYCAM', 'CODIGO_TASER', 'OBS_TASER'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -221,7 +222,11 @@ function _toUnitData(obj) {
     quadrant: String(obj.quadrant || ''),
     mechanics: String(obj.mechanics || ''),
     lugarEstado: String(obj.lugarEstado || ''),
-    motivoEstado: String(obj.motivoEstado || '')
+    motivoEstado: String(obj.motivoEstado || ''),
+    taser: String(obj.taser || ''),
+    bodycam: String(obj.bodycam || ''),
+    codigoTaser: String(obj.codigoTaser || ''),
+    obsTaser: String(obj.obsTaser || '')
   };
 }
 
@@ -284,7 +289,7 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
       const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
       if (dataSheet) {
         const dLastRow = dataSheet.getLastRow();
-        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 26).getValues() : [];
+        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 31).getValues() : [];
         for (let i = 0; i < dataRows.length; i++) {
           const r = dataRows[i];
           if (!r[0]) continue;
@@ -296,7 +301,8 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
                 status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
                 kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19],
                 quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
-                lugarEstado: r[24], motivoEstado: r[25]
+                lugarEstado: r[24], motivoEstado: r[25],
+                taser: r[27] || '', bodycam: r[28] || '', codigoTaser: r[29] || '', obsTaser: r[30] || ''
               }));
             }
           } catch (e) { continue; }
@@ -385,7 +391,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
       const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
       if (dataSheet) {
         const dLastRow = dataSheet.getLastRow();
-        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 26).getValues() : [];
+        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 31).getValues() : [];
         for (let i = 0; i < dataRows.length; i++) {
           const r = dataRows[i];
           if (!r[0]) continue;
@@ -397,7 +403,8 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
                 status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
                 kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19],
                 quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
-                lugarEstado: r[24], motivoEstado: r[25]
+                lugarEstado: r[24], motivoEstado: r[25],
+                taser: r[27] || '', bodycam: r[28] || '', codigoTaser: r[29] || '', obsTaser: r[30] || ''
               }));
             }
           } catch (e) { continue; }
@@ -560,6 +567,7 @@ function getMobileData() {
   const motivoSiniestroIdx = headers.indexOf('motivo_siniestro');
   const motivoSinDocumentosIdx = headers.indexOf('motivo_sin_documentos');
   const motivoSinVehiculoIdx = headers.indexOf('motivo_sin_vehiculo');
+  const codigoTaserIdx = headers.indexOf('codigo_taser');
   
   const mobileData = [];
   const indicativesSet = new Set();
@@ -574,6 +582,7 @@ function getMobileData() {
   const motivoSiniestroSet = new Set();
   const motivoSinDocumentosSet = new Set();
   const motivoSinVehiculoSet = new Set();
+  const codigoTaserSet = new Set();
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -636,6 +645,11 @@ function getMobileData() {
     }
     if (motivoSinVehiculoIdx !== -1 && row[motivoSinVehiculoIdx]) {
       motivoSinVehiculoSet.add(String(row[motivoSinVehiculoIdx]).trim());
+    }
+
+    // Collect Unique Codigo Taser
+    if (codigoTaserIdx !== -1 && row[codigoTaserIdx]) {
+      codigoTaserSet.add(String(row[codigoTaserIdx]).trim());
     }
 
     // Collect ALL Unique Radios (even if no movil ID is present)
@@ -723,7 +737,8 @@ function getMobileData() {
     motivoSiniestroOptions: Array.from(motivoSiniestroSet).sort(),
     motivoSinDocumentosOptions: Array.from(motivoSinDocumentosSet).sort(),
     motivoSinVehiculoOptions: Array.from(motivoSinVehiculoSet).sort(),
-    radios: Array.from(radiosSet).sort()
+    radios: Array.from(radiosSet).sort(),
+    codigoTaserOptions: Array.from(codigoTaserSet).sort()
   };
 }
 
@@ -1168,6 +1183,10 @@ function updateUnit(dateStr, shift, settings, unit) {
     unit_id: unit_id,
     lugarEstado: unit.lugarEstado || '',
     motivoEstado: unit.motivoEstado || '',
+    taser: unit.taser || '',
+    bodycam: unit.bodycam || '',
+    codigoTaser: unit.codigoTaser || '',
+    obsTaser: unit.obsTaser || '',
     auditLog: auditLog,
     updatedAt: timestamp
   };
@@ -1992,7 +2011,11 @@ function backupFirestoreToSheets() {
             uid,
             u.lugarEstado || '',
             u.motivoEstado || '',
-            u.auditLog || ''
+            u.auditLog || '',
+            u.taser || '',
+            u.bodycam || '',
+            u.codigoTaser || '',
+            u.obsTaser || ''
           ]);
         });
       });
@@ -2003,7 +2026,7 @@ function backupFirestoreToSheets() {
       const chunkSize = 500;
       for (let chunkStart = 0; chunkStart < newRows.length; chunkStart += chunkSize) {
         const chunk = newRows.slice(chunkStart, chunkStart + chunkSize);
-        dataSheet.getRange(startRow + chunkStart, 1, chunk.length, 27).setValues(chunk);
+        dataSheet.getRange(startRow + chunkStart, 1, chunk.length, 31).setValues(chunk);
       }
     }
     console.log('[backup] UNIT_DATA: ' + newRows.length + ' new rows');

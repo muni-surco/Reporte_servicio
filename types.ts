@@ -88,6 +88,10 @@ export interface UnitData {
   mechanics: string;
   lugarEstado?: string;
   motivoEstado?: string;
+  taser: string;
+  bodycam: string;
+  codigoTaser: string;
+  obsTaser: string;
 }
 
 export interface AppSettings {
