@@ -1867,12 +1867,12 @@ function doPost(e) {
 }
 
 function _getLastThreeShiftRefs(baseDateStr, baseShift) {
-  const refs = [];
+  const refs = [{ date: baseDateStr, shift: baseShift }];
   const tz = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone();
   let cursorDate = baseDateStr;
   let cursorShift = baseShift;
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     const prev = getPreviousShift(cursorDate, cursorShift, tz);
     refs.push({ date: prev.date, shift: prev.shift });
     cursorDate = prev.date;
