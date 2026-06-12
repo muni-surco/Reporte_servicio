@@ -1427,3 +1427,116 @@ export const generateRetenExcel = (
 
   xlsxLib.writeFile(workbook, `REPORTE_RETEN_${shift}_${date}.xlsx`);
 };
+
+export const generateTaserReport = (
+  units: UnitData[],
+  date: string,
+  shift: string,
+  operatorName?: string
+) => {
+  const doc = new jspdf.jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 10;
+
+  const formatShortDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const resolvedOperator = operatorName || '--';
+
+  // Filter units with TASER data
+  const taserUnits = units.filter(u =>
+    u.taser || u.bodycam || u.codigoTaser
+  );
+
+  const rows: any[] = [];
+  taserUnits.forEach(u => {
+    const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
+    const dateFormatted = formatShortDate(date);
+    rows.push([
+      dateFormatted,
+      shift.toUpperCase(),
+      sector,
+      (u.id || '--').toUpperCase(),
+      (u.personnel1 || '').toUpperCase(),
+      (u.radio || '--'),
+      u.taser === 'SI' ? 'SI' : (u.taser === 'NO' ? 'NO' : '--'),
+      u.bodycam === 'SI' ? 'SI' : (u.bodycam === 'NO' ? 'NO' : '--'),
+      (u.codigoTaser || '--'),
+      (u.obsTaser || '--')
+    ]);
+  });
+
+  // Sort by sector then by unit ID
+  rows.sort((a, b) => {
+    const cmp = a[2].localeCompare(b[2]);
+    if (cmp !== 0) return cmp;
+    return a[3].localeCompare(b[3], undefined, { numeric: true });
+  });
+
+  // Totals
+  const totalTaserSI = taserUnits.filter(u => u.taser === 'SI').length;
+  const totalTaserNO = taserUnits.filter(u => u.taser === 'NO').length;
+  const totalBodycamSI = taserUnits.filter(u => u.bodycam === 'SI').length;
+  const totalBodycamNO = taserUnits.filter(u => u.bodycam === 'NO').length;
+  const totalCodigos = taserUnits.filter(u => u.codigoTaser).length;
+
+  (doc as any).autoTable({
+    startY: 15,
+    head: [[
+      { content: `REPORTE DE TASER Y BODYCAM - TURNO ${shift.toUpperCase()}`, colSpan: 10, styles: { halign: 'center', fillColor: [0, 94, 165], textColor: [255, 255, 255], fontSize: 11 } }
+    ], [
+      'FECHA', 'TURNO', 'SECTOR', 'UNIDAD', 'NOMBRE PERSONAL', 'RADIO', 'TASER', 'BODYCAM', 'CÓDIGO TASER', 'OBSERVACIÓN'
+    ]],
+    body: rows,
+    foot: [[
+      { content: 'TOTALES', colSpan: 6, styles: { halign: 'right', fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: `SI: ${totalTaserSI} / NO: ${totalTaserNO}`, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: `SI: ${totalBodycamSI} / NO: ${totalBodycamNO}`, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: `${totalCodigos} códigos`, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: '', styles: { fillColor: [220, 220, 220] } }
+    ]],
+    theme: 'grid',
+    styles: { fontSize: 8, halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1 },
+    headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 15 },
+      2: { cellWidth: 15 },
+      3: { cellWidth: 18 },
+      4: { cellWidth: 55, halign: 'left' },
+      5: { cellWidth: 18 },
+      6: { cellWidth: 18 },
+      7: { cellWidth: 18 },
+      8: { cellWidth: 30 },
+      9: { cellWidth: 'auto', halign: 'left' }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  // FOOTER
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const footerY = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
+
+  const now = new Date();
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+
+  doc.save(`REPORTE_TASER_${shift}_${date}.pdf`);
+};
+

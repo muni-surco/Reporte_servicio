@@ -12,7 +12,8 @@ import {
   generatePersonnelAbsenceReport, 
   generatePersonnelStatusReport,
   generateObservationsReport, 
-  generateAllRecordsReport 
+  generateAllRecordsReport,
+  generateTaserReport
 } from './utils/reportGenerator';
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
@@ -1133,6 +1134,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         generateObservationsReport(dataToUse.units, date, shift, operatorName);
       } else if (type === 'general') {
         generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+      } else if (type === 'taser') {
+        generateTaserReport(dataToUse.units, date, shift, operatorName);
       } else {
         alert(`El reporte de "${type}" se encuentra en desarrollo.`);
       }

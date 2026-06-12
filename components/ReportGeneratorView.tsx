@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound } from 'lucide-react';
+import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound, ShieldCheck } from 'lucide-react';
 import AutocompleteInput from './AutocompleteInput';
 
 interface ReportGeneratorViewProps {
@@ -100,6 +100,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       themeClass: 'border-emerald-100',
       iconClass: 'bg-emerald-50 text-emerald-600',
       btnClass: 'bg-emerald-600 hover:bg-emerald-700'
+    },
+    {
+      id: 'taser',
+      title: 'Reporte TASER',
+      subtitle: 'TASER Y BODYCAM',
+      description: 'Reporte detallado de equipos TASER y BODYCAM asignados al personal por unidad.',
+      icon: <ShieldCheck className="w-8 h-8" />,
+      color: 'slate',
+      themeClass: 'border-slate-200',
+      iconClass: 'bg-slate-100 text-slate-700',
+      btnClass: 'bg-slate-700 hover:bg-slate-800'
     }
   ];
 
