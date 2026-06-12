@@ -1457,7 +1457,7 @@ export const generateTaserReport = (
 
   // Filter units with TASER data
   const taserUnits = units.filter(u =>
-    u.taser || u.bodycam || u.codigoTaser
+    u.taser || u.bodycam || u.codigoBodycam
   );
 
   const rows: any[] = [];
@@ -1473,8 +1473,8 @@ export const generateTaserReport = (
       (u.radio || '--'),
       u.taser === 'SI' ? 'SI' : (u.taser === 'NO' ? 'NO' : '--'),
       u.bodycam === 'SI' ? 'SI' : (u.bodycam === 'NO' ? 'NO' : '--'),
-      (u.codigoTaser || '--'),
-      (u.obsTaser || '--')
+      (u.codigoBodycam || '--'),
+      (u.obsBodycam || '--')
     ]);
   });
 
@@ -1490,14 +1490,14 @@ export const generateTaserReport = (
   const totalTaserNO = taserUnits.filter(u => u.taser === 'NO').length;
   const totalBodycamSI = taserUnits.filter(u => u.bodycam === 'SI').length;
   const totalBodycamNO = taserUnits.filter(u => u.bodycam === 'NO').length;
-  const totalCodigos = taserUnits.filter(u => u.codigoTaser).length;
+  const totalCodigos = taserUnits.filter(u => u.codigoBodycam).length;
 
   (doc as any).autoTable({
     startY: 15,
     head: [[
       { content: `REPORTE DE TASER Y BODYCAM - TURNO ${shift.toUpperCase()}`, colSpan: 10, styles: { halign: 'center', fillColor: [0, 94, 165], textColor: [255, 255, 255], fontSize: 11 } }
     ], [
-      'FECHA', 'TURNO', 'SECTOR', 'UNIDAD', 'NOMBRE PERSONAL', 'RADIO', 'TASER', 'BODYCAM', 'CÓDIGO TASER', 'OBSERVACIÓN'
+      'FECHA', 'TURNO', 'SECTOR', 'UNIDAD', 'NOMBRE PERSONAL', 'RADIO', 'TASER', 'BODYCAM', 'CÓDIGO BODYCAM', 'OBSERVACIÓN'
     ]],
     body: rows,
     foot: [[

@@ -94,7 +94,7 @@ function initialSetup() {
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
     'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID',
     'LUGAR_ESTADO', 'MOTIVO_ESTADO', 'AUDIT_LOG',
-    'TASER', 'BODYCAM', 'CODIGO_TASER', 'OBS_TASER'
+    'TASER', 'BODYCAM', 'CODIGO_BODYCAM', 'OBS_TASER'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -225,8 +225,8 @@ function _toUnitData(obj) {
     motivoEstado: String(obj.motivoEstado || ''),
     taser: String(obj.taser || ''),
     bodycam: String(obj.bodycam || ''),
-    codigoTaser: String(obj.codigoTaser || ''),
-    obsTaser: String(obj.obsTaser || '')
+    codigoBodycam: String(obj.codigoBodycam || ''),
+    obsBodycam: String(obj.obsBodycam || '')
   };
 }
 
@@ -302,7 +302,7 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
                 kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19],
                 quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
                 lugarEstado: r[24], motivoEstado: r[25],
-                taser: r[27] || '', bodycam: r[28] || '', codigoTaser: r[29] || '', obsTaser: r[30] || ''
+                taser: r[27] || '', bodycam: r[28] || '', codigoBodycam: r[29] || '', obsBodycam: r[30] || ''
               }));
             }
           } catch (e) { continue; }
@@ -404,7 +404,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
                 kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19],
                 quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
                 lugarEstado: r[24], motivoEstado: r[25],
-                taser: r[27] || '', bodycam: r[28] || '', codigoTaser: r[29] || '', obsTaser: r[30] || ''
+                taser: r[27] || '', bodycam: r[28] || '', codigoBodycam: r[29] || '', obsBodycam: r[30] || ''
               }));
             }
           } catch (e) { continue; }
@@ -567,7 +567,7 @@ function getMobileData() {
   const motivoSiniestroIdx = headers.indexOf('motivo_siniestro');
   const motivoSinDocumentosIdx = headers.indexOf('motivo_sin_documentos');
   const motivoSinVehiculoIdx = headers.indexOf('motivo_sin_vehiculo');
-  const codigoTaserIdx = headers.indexOf('codigo_taser');
+  const codigoBodycamIdx = headers.indexOf('codigo_bodycam');
   
   const mobileData = [];
   const indicativesSet = new Set();
@@ -582,7 +582,7 @@ function getMobileData() {
   const motivoSiniestroSet = new Set();
   const motivoSinDocumentosSet = new Set();
   const motivoSinVehiculoSet = new Set();
-  const codigoTaserSet = new Set();
+  const codigoBodycamSet = new Set();
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -647,9 +647,9 @@ function getMobileData() {
       motivoSinVehiculoSet.add(String(row[motivoSinVehiculoIdx]).trim());
     }
 
-    // Collect Unique Codigo Taser
-    if (codigoTaserIdx !== -1 && row[codigoTaserIdx]) {
-      codigoTaserSet.add(String(row[codigoTaserIdx]).trim());
+    // Collect Unique Codigo Bodycam
+    if (codigoBodycamIdx !== -1 && row[codigoBodycamIdx]) {
+      codigoBodycamSet.add(String(row[codigoBodycamIdx]).trim());
     }
 
     // Collect ALL Unique Radios (even if no movil ID is present)
@@ -738,7 +738,7 @@ function getMobileData() {
     motivoSinDocumentosOptions: Array.from(motivoSinDocumentosSet).sort(),
     motivoSinVehiculoOptions: Array.from(motivoSinVehiculoSet).sort(),
     radios: Array.from(radiosSet).sort(),
-    codigoTaserOptions: Array.from(codigoTaserSet).sort()
+    codigoBodycamOptions: Array.from(codigoBodycamSet).sort()
   };
 }
 
@@ -1185,8 +1185,8 @@ function updateUnit(dateStr, shift, settings, unit) {
     motivoEstado: unit.motivoEstado || '',
     taser: unit.taser || '',
     bodycam: unit.bodycam || '',
-    codigoTaser: unit.codigoTaser || '',
-    obsTaser: unit.obsTaser || '',
+    codigoBodycam: unit.codigoBodycam || '',
+    obsBodycam: unit.obsBodycam || '',
     auditLog: auditLog,
     updatedAt: timestamp
   };
@@ -2014,8 +2014,8 @@ function backupFirestoreToSheets() {
             u.auditLog || '',
             u.taser || '',
             u.bodycam || '',
-            u.codigoTaser || '',
-            u.obsTaser || ''
+            u.codigoBodycam || '',
+            u.obsBodycam || ''
           ]);
         });
       });

@@ -24,13 +24,13 @@ interface UnitCardProps {
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
   readOnly?: boolean;
   personnelRegimenMap?: Record<string, string>;
-  codigoTaserOptions?: string[];
+  codigoBodycamOptions?: string[];
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions, lugarOptions, motivoStatusOptions,
-  currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap, codigoTaserOptions
+  currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap, codigoBodycamOptions
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -506,12 +506,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
                       {renderToggle('bodycam', 'TIENE BODYCAM')}
                     </div>
                     <div className="col-span-1">
-                      <label className={labelStyleEdit}>CÓDIGO TASER</label>
-                      <AutocompleteInput value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserOptions || []} placeholder="Código..." />
+                      <label className={labelStyleEdit}>CÓDIGO BODYCAM</label>
+                      <AutocompleteInput value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamOptions || []} placeholder="Código..." />
                     </div>
                     <div className="col-span-2">
-                      <label className={labelStyleEdit}>OBSERVACIONES TASER</label>
-                      <input value={formData.obsTaser || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsTaser: e.target.value }))} className={inputStyle('obsTaser')} placeholder="Observaciones..." />
+                      <label className={labelStyleEdit}>OBSERVACIONES BODYCAM</label>
+                      <input value={formData.obsBodycam || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsBodycam: e.target.value }))} className={inputStyle('obsBodycam')} placeholder="Observaciones..." />
                     </div>
                   </>
                 )}
@@ -525,12 +525,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   {renderToggle('bodycam', 'BODYCAM')}
                 </div>
                 <div className="col-span-3">
-                  <label className={labelStyleEdit}>CÓDIGO TASER</label>
-                  <AutocompleteInput value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserOptions || []} placeholder="Código..." />
+                  <label className={labelStyleEdit}>CÓDIGO BODYCAM</label>
+                  <AutocompleteInput value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamOptions || []} placeholder="Código..." />
                 </div>
                 <div className="col-span-7">
                   <label className={labelStyleEdit}>OBS. TASER</label>
-                  <input value={formData.obsTaser || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsTaser: e.target.value }))} className={inputStyle('obsTaser')} placeholder="Observaciones..." />
+                  <input value={formData.obsBodycam || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsBodycam: e.target.value }))} className={inputStyle('obsBodycam')} placeholder="Observaciones..." />
                 </div>
               </div>
             ) : (

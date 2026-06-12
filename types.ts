@@ -90,8 +90,8 @@ export interface UnitData {
   motivoEstado?: string;
   taser: string;
   bodycam: string;
-  codigoTaser: string;
-  obsTaser: string;
+  codigoBodycam: string;
+  obsBodycam: string;
 }
 
 export interface AppSettings {
