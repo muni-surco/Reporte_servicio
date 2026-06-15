@@ -1923,7 +1923,16 @@ function backupFirestoreToSheets() {
   const now = Utilities.formatDate(nowDate, timeZone, 'yyyy-MM-dd HH:mm:ss');
   const currentDate = Utilities.formatDate(nowDate, timeZone, 'yyyy-MM-dd');
   const currentShift = getAutoTurno();
-  const shiftRefs = _getLastThreeShiftRefs(currentDate, currentShift);
+
+  // Adjust: NOCHE shift data is saved with the previous day's date (starts at 22:00)
+  let baseDate = currentDate;
+  if (currentShift === 'NOCHE') {
+    var d = new Date(nowDate);
+    d.setDate(d.getDate() - 1);
+    baseDate = Utilities.formatDate(d, timeZone, 'yyyy-MM-dd');
+  }
+
+  const shiftRefs = _getLastThreeShiftRefs(baseDate, currentShift);
   console.log('[backup] Starting incremental backup at ' + now);
   console.log('[backup] Processing refs: ' + JSON.stringify(shiftRefs));
 
