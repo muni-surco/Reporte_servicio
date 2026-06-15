@@ -867,141 +867,43 @@ function getWantedPersons() {
 
     const headers = data[0].map(h => String(h).trim().toUpperCase());
 
-    // Build photo filename -> file ID map from Drive folder (recursive: subfolders = categories)
-    var photoMap = {};
-    var totalFiles = 0;
-    try {
-      function scanFolder(folder) {
-        var files = folder.getFiles();
-        while (files.hasNext()) {
-          var file = files.next();
-          var name = file.getName().replace(/\.[^.]+$/, '').trim().toUpperCase();
-          if (name) {
-            photoMap[name] = file.getId();
-            totalFiles++;
-          }
-        }
-        var subfolders = folder.getFolders();
-        while (subfolders.hasNext()) {
-          scanFolder(subfolders.next());
-        }
-      }
-      scanFolder(DriveApp.getFolderById(APP_CONFIG.WANTED_DRIVE_FOLDER_ID));
-      console.log('[getWantedPersons] Drive: ' + totalFiles + ' files encontrados. Muestra:', Object.keys(photoMap).slice(0, 5).join(', '));
-    } catch (e) {
-      console.error('Error reading Drive folder:', e);
-    }
-
+    // Build photo map is now replaced by reading directly from URL and FILE_ID columns
     const colMap = {};
     headers.forEach(function(h, i) { colMap[h] = i; });
 
     const persons = [];
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
-      if (!row[colMap['NOMBRE'] || 2]) continue;
+      if (!row[colMap['NOMBRE']]) continue;
 
-      var nombre = String(row[colMap['NOMBRE'] || 2] || '').trim();
-      var dnice = String(row[colMap['DNICE'] || 3] || '').trim().toUpperCase();
-
-      var photoFileId = '';
-
-      // Strategy 1: Try DNI / DNICE number as filename
-      if (dnice && photoMap[dnice]) {
-        photoFileId = photoMap[dnice];
-      }
-
-      // Strategy 2: Name matching (normalized)
-      if (!photoFileId) {
-        var rawName = nombre;
-        var variants = [];
-
-        // Remove accents helper
-        var unaccent = function(s) {
-          return s.replace(/[ÁÀÄÂ]/g, 'A').replace(/[ÉÈËÊ]/g, 'E').replace(/[ÍÌÏÎ]/g, 'I')
-                  .replace(/[ÓÒÖÔ]/g, 'O').replace(/[ÚÙÜÛ]/g, 'U').replace(/[Ñ]/g, 'N');
-        };
-
-        // Generate multiple variants of the name
-        var nameClean = rawName.toUpperCase().replace(/[,;.:()"]/g, ' ').replace(/\s+/g, ' ').trim();
-        var nameNoAccent = unaccent(nameClean);
-
-        // Different formats to try
-        var formats = [nameClean, nameNoAccent];
-        for (var f = 0; f < formats.length; f++) {
-          variants.push(formats[f]);                          // Full name
-          variants.push(formats[f].replace(/ /g, '_'));       // Underscores
-          variants.push(formats[f].replace(/ /g, '-'));       // Dashes
-          variants.push(formats[f].split(' ').reverse().join(' '));   // Reversed
-          variants.push(formats[f].split(' ').reverse().join('_'));   // Reversed with _
-          var words = formats[f].split(' ').filter(function(w) { return w.length >= 3; });
-          variants.push(words.join(' '));
-          variants.push(words.join('_'));
-          variants.push(words.reverse().join(' '));
-          variants.push(words.reverse().join('_'));
-        }
-
-        // Deduplicate variants
-        var seen = {};
-        var uniqueVariants = [];
-        for (var v = 0; v < variants.length; v++) {
-          if (variants[v] && !seen[variants[v]]) {
-            seen[variants[v]] = true;
-            uniqueVariants.push(variants[v]);
-          }
-        }
-
-        for (var c = 0; c < uniqueVariants.length; c++) {
-          if (photoMap[uniqueVariants[c]]) {
-            photoFileId = photoMap[uniqueVariants[c]];
-            break;
-          }
-        }
-
-        // Strategy 3: match by DNI (numeric only)
-        if (!photoFileId && dnice) {
-          var numericDni = dnice.replace(/[^0-9]/g, '');
-          if (numericDni && photoMap[numericDni]) {
-            photoFileId = photoMap[numericDni];
-          }
-        }
-
-        // Strategy 4: match any single word of 4+ chars in the map
-        if (!photoFileId) {
-          var allWords = nameClean.split(' ').filter(function(w) { return w.length >= 4; });
-          for (var w = 0; w < allWords.length; w++) {
-            if (photoMap[allWords[w]]) {
-              photoFileId = photoMap[allWords[w]];
-              break;
-            }
-          }
-        }
-      }
+      var nombre = String(row[colMap['NOMBRE']] || '').trim();
+      var dnice = String(row[colMap['DNICE']] || '').trim().toUpperCase();
 
       persons.push({
-        buscado_por: String(row[colMap['BUSCADO POR'] || 0] || ''),
-        edad: String(row[colMap['EDAD'] || 1] || ''),
+        buscado_por: String(row[colMap['BUSCADO POR']] || ''),
+        edad: String(row[colMap['EDAD']] || ''),
         nombre: nombre,
         dnice: dnice,
-        sexo: String(row[colMap['SEXO'] || 4] || ''),
-        fecha_hecho: fmtDateSimple(row[colMap['FECHA DEL HECHO'] || 5]),
-        hora_hecho: fmtTimeSimple(row[colMap['HORA DEL HECHO'] || 6]),
-        lugar_intervencion: String(row[colMap['LUGAR DE LA INTERVENCIÓN U ORIGEN'] || 7] || ''),
-        habilitacion_urbana: String(row[colMap['HABILITACIÓN URBANA'] || 8] || ''),
-        nacionalidad: String(row[colMap['NACIONALIDAD'] || 9] || ''),
-        recompensa: String(row[colMap['RECOMPENSA'] || 10] || ''),
-        fuente: String(row[colMap['FUENTE'] || 11] || ''),
-        estado: String(row[colMap['ESTADO'] || 12] || ''),
-        sade: String(row[colMap['SADE'] || 13] || ''),
-        dependencia_policial: String(row[colMap['DEPENDENCIA POLICIAL'] || 14] || ''),
-        caracteristicas: String(row[colMap['CARACTERISTICAS'] || 15] || ''),
-        vestimenta: String(row[colMap['VESTIMENTA'] || 16] || ''),
-        circunstancias: String(row[colMap['CIRCUNSTANCIAS'] || 17] || ''),
-        cumple_analitica: String(row[colMap['CUMPLE ANALITICA'] || 18] || ''),
-        video: String(row[colMap['VIDEO'] || 19] || ''),
-        caso: String(row[colMap['CASO'] || 20] || ''),
-        reincidente: String(row[colMap['REINCIDENTE'] || 21] || ''),
-        photoFileId: photoFileId || '',
-        photoUrl: photoFileId ? ('https://drive.google.com/thumbnail?id=' + photoFileId + '&sz=w200&authuser=0') : ''
+        sexo: String(row[colMap['SEXO']] || ''),
+        fecha_hecho: fmtDateSimple(row[colMap['FECHA DEL HECHO']]),
+        hora_hecho: fmtTimeSimple(row[colMap['HORA DEL HECHO']]),
+        lugar_intervencion: String(row[colMap['LUGAR DE LA INTERVENCIÓN U ORIGEN']] || ''),
+        habilitacion_urbana: String(row[colMap['HABILITACIÓN URBANA']] || ''),
+        nacionalidad: String(row[colMap['NACIONALIDAD']] || ''),
+        recompensa: String(row[colMap['RECOMPENSA']] || ''),
+        fuente: String(row[colMap['FUENTE']] || ''),
+        estado: String(row[colMap['ESTADO']] || ''),
+        sade: String(row[colMap['SADE']] || ''),
+        dependencia_policial: String(row[colMap['DEPENDENCIA POLICIAL']] || ''),
+        caracteristicas: String(row[colMap['CARACTERISTICAS']] || ''),
+        vestimenta: String(row[colMap['VESTIMENTA']] || ''),
+        circunstancias: String(row[colMap['CIRCUNSTANCIAS']] || ''),
+        cumple_analitica: String(row[colMap['CUMPLE ANALITICA']] || ''),
+        video: String(row[colMap['VIDEO']] || ''),
+        caso: String(row[colMap['CASO']] || ''),
+        reincidente: String(row[colMap['REINCIDENTE']] || ''),
+        photoUrl: row[colMap['URL']] || '',
+        photoFileId: row[colMap['FILE_ID']] || ''
       });
     }
 
@@ -2102,6 +2004,66 @@ function setupBackupTrigger() {
 
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+/**
+ * Script para migrar fotos de Drive a columnas URL y FILE_ID.
+ * Ejecutar solo una vez.
+ */
+function populateWantedMetadata() {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.WANTED_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('Hoja1');
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0].map(h => String(h).trim().toUpperCase());
+  
+  const colNombre = headers.indexOf('NOMBRE');
+  const colDnice = headers.indexOf('DNICE');
+  const colUrl = headers.indexOf('URL');
+  const colFileId = headers.indexOf('FILE_ID');
+
+  if (colUrl === -1 || colFileId === -1) {
+    Logger.log("Error: Asegúrate de tener las columnas 'URL' y 'FILE_ID' en el encabezado.");
+    return;
+  }
+
+  // Función mejorada: ahora convierte guiones bajos (_) y otros separadores en espacios
+  function normalize(str) {
+    if (!str) return '';
+    return String(str).toUpperCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quita acentos
+      .replace(/[_]/g, ' ')   // Cambia guiones bajos por espacios
+      .replace(/[,;.]/g, ' ') // Cambia comas y puntos por espacios
+      .replace(/\s+/g, ' ')   // Reduce espacios múltiples a uno
+      .trim();
+  }
+
+  const photoMap = {};
+  function scanFolder(folder) {
+    var files = folder.getFiles();
+    while (files.hasNext()) {
+      var file = files.next();
+      var name = normalize(file.getName().replace(/\.[^.]+$/, '')); 
+      photoMap[name] = { id: file.getId(), url: 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w200&authuser=0' };
+    }
+    var subfolders = folder.getFolders();
+    while (subfolders.hasNext()) scanFolder(subfolders.next());
+  }
+  
+  scanFolder(DriveApp.getFolderById(APP_CONFIG.WANTED_DRIVE_FOLDER_ID));
+
+  const updates = [];
+  for (let i = 1; i < data.length; i++) {
+    const nombre = normalize(data[i][colNombre]);
+    const dnice = normalize(data[i][colDnice]);
+    
+    // Busca primero por DNI, si no, por el nombre normalizado
+    const match = photoMap[dnice] || photoMap[nombre];
+    
+    updates.push([match ? match.url : '', match ? match.id : '']);
+  }
+
+  sheet.getRange(2, colUrl + 1, updates.length, 2).setValues(updates);
+  Logger.log("Migración completada con normalización avanzada (incluye guiones bajos).");
 }
 
 

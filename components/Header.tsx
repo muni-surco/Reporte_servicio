@@ -170,7 +170,7 @@ const Header: React.FC<HeaderProps> = ({
                 ) : (
                   <div className="flex items-baseline gap-3">
                     <h2 className="text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none truncate">
-                      {isPersonnel ? 'VISTA DE PERSONAL' : isStatistics ? 'ESTADÍSTICAS OPERATIVAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : isVehicleSearch ? 'BUSCADOR DE VEHÍCULOS SOSPECHOSOS' : isMap ? 'MAPA DE CUADRANTES' : isWanted ? 'ROSTROS REQUISITORIADOS' : 'VISTA DE DESPACHADOR'}
+                      {isPersonnel ? 'VISTA DE PERSONAL' : isStatistics ? 'ESTADÍSTICAS OPERATIVAS' : currentView === 'REPORTS' ? 'CENTRO DE REPORTES' : isReten ? 'GESTIÓN DE RETENES' : isVehicleSearch ? 'BUSCADOR DE VEHÍCULOS SOSPECHOSOS' : isMap ? 'MAPA DE CUADRANTES' : isWanted ? 'BASE DE DATOS ROSTROS BUSCADOS' : 'VISTA DE DESPACHADOR'}
                     </h2>
                     {(isVisualization || isStatistics || isMap) && (
                       <span className="text-[16px] font-bold text-blue-700 bg-blue-50/50 px-3 py-1 rounded-xl border border-blue-100 uppercase tracking-tighter flex items-center gap-3 leading-none">
