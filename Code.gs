@@ -94,7 +94,7 @@ function initialSetup() {
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
     'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID',
     'LUGAR_ESTADO', 'MOTIVO_ESTADO', 'AUDIT_LOG',
-    'TASER', 'BODYCAM', 'CODIGO_BODYCAM', 'OBS_TASER'
+    'TASER', 'BODYCAM', 'CODIGO_BODYCAM', 'OBS_BODYCAM', 'CODIGO_TASER'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -226,7 +226,8 @@ function _toUnitData(obj) {
     taser: String(obj.taser || ''),
     bodycam: String(obj.bodycam || ''),
     codigoBodycam: String(obj.codigoBodycam || ''),
-    obsBodycam: String(obj.obsBodycam || '')
+    obsBodycam: String(obj.obsBodycam || ''),
+    codigoTaser: String(obj.codigoTaser || '')
   };
 }
 
@@ -568,6 +569,7 @@ function getMobileData() {
   const motivoSinDocumentosIdx = headers.indexOf('motivo_sin_documentos');
   const motivoSinVehiculoIdx = headers.indexOf('motivo_sin_vehiculo');
   const codigoBodycamIdx = headers.indexOf('codigo_bodycam');
+  const codigoTaserIdx = headers.indexOf('codigo_taser');
   
   const mobileData = [];
   const indicativesSet = new Set();
@@ -583,6 +585,7 @@ function getMobileData() {
   const motivoSinDocumentosSet = new Set();
   const motivoSinVehiculoSet = new Set();
   const codigoBodycamSet = new Set();
+  const codigoTaserSet = new Set();
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -650,6 +653,10 @@ function getMobileData() {
     // Collect Unique Codigo Bodycam
     if (codigoBodycamIdx !== -1 && row[codigoBodycamIdx]) {
       codigoBodycamSet.add(String(row[codigoBodycamIdx]).trim());
+    }
+    // Collect Unique Codigo Taser
+    if (codigoTaserIdx !== -1 && row[codigoTaserIdx]) {
+      codigoTaserSet.add(String(row[codigoTaserIdx]).trim());
     }
 
     // Collect ALL Unique Radios (even if no movil ID is present)
@@ -738,7 +745,8 @@ function getMobileData() {
     motivoSinDocumentosOptions: Array.from(motivoSinDocumentosSet).sort(),
     motivoSinVehiculoOptions: Array.from(motivoSinVehiculoSet).sort(),
     radios: Array.from(radiosSet).sort(),
-    codigoBodycamOptions: Array.from(codigoBodycamSet).sort()
+    codigoBodycamOptions: Array.from(codigoBodycamSet).sort(),
+    codigoTaserOptions: Array.from(codigoTaserSet).sort()
   };
 }
 
@@ -1187,6 +1195,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     bodycam: unit.bodycam || '',
     codigoBodycam: unit.codigoBodycam || '',
     obsBodycam: unit.obsBodycam || '',
+    codigoTaser: unit.codigoTaser || '',
     auditLog: auditLog,
     updatedAt: timestamp
   };
@@ -2024,7 +2033,8 @@ function backupFirestoreToSheets() {
             u.taser || '',
             u.bodycam || '',
             u.codigoBodycam || '',
-            u.obsBodycam || ''
+            u.obsBodycam || '',
+            u.codigoTaser || ''
           ]);
         });
       });
@@ -2035,7 +2045,7 @@ function backupFirestoreToSheets() {
       const chunkSize = 500;
       for (let chunkStart = 0; chunkStart < newRows.length; chunkStart += chunkSize) {
         const chunk = newRows.slice(chunkStart, chunkStart + chunkSize);
-        dataSheet.getRange(startRow + chunkStart, 1, chunk.length, 31).setValues(chunk);
+        dataSheet.getRange(startRow + chunkStart, 1, chunk.length, 32).setValues(chunk);
       }
     }
     console.log('[backup] UNIT_DATA: ' + newRows.length + ' new rows');

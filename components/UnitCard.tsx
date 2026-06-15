@@ -25,12 +25,14 @@ interface UnitCardProps {
   readOnly?: boolean;
   personnelRegimenMap?: Record<string, string>;
   codigoBodycamOptions?: string[];
+  codigoTaserOptions?: string[];
 }
 
 const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions, lugarOptions, motivoStatusOptions,
-  currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap, codigoBodycamOptions
+  currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap,   codigoBodycamOptions,
+  codigoTaserOptions
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -191,6 +193,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
       kmStart: !isSereno && String(kmStart).trim() === '',
+      codigoTaser: formData.taser === 'SI' && (!formData.codigoTaser || String(formData.codigoTaser).trim() === '' || (codigoTaserOptions && !codigoTaserOptions.includes(formData.codigoTaser))),
+      codigoBodycam: formData.bodycam === 'SI' && (!formData.codigoBodycam || String(formData.codigoBodycam).trim() === '' || (codigoBodycamOptions && !codigoBodycamOptions.includes(formData.codigoBodycam))),
     };
 
     // If ID is provided even in special status, still check for duplicates
@@ -503,14 +507,20 @@ const UnitCard: React.FC<UnitCardProps> = ({
                       {renderToggle('taser', 'TIENE TASER')}
                     </div>
                     <div className="col-span-1">
+                      <label className={labelStyleEdit}>CÓDIGO TASER</label>
+                      <AutocompleteInput value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserOptions || []} placeholder="Código..." error={errors.codigoTaser} />
+                      {errors.codigoTaser && <span className={errorMsgStyle}>Requerido</span>}
+                    </div>
+                    <div className="col-span-1">
                       {renderToggle('bodycam', 'TIENE BODYCAM')}
                     </div>
                     <div className="col-span-1">
                       <label className={labelStyleEdit}>CÓDIGO BODYCAM</label>
-                      <AutocompleteInput value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamOptions || []} placeholder="Código..." />
+                      <AutocompleteInput value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamOptions || []} placeholder="Código..." error={errors.codigoBodycam} />
+                      {errors.codigoBodycam && <span className={errorMsgStyle}>Requerido</span>}
                     </div>
-                    <div className="col-span-2">
-                      <label className={labelStyleEdit}>OBSERVACIONES BODYCAM</label>
+                    <div className="col-span-1">
+                      <label className={labelStyleEdit}>OBS. BODYCAM/TASER</label>
                       <input value={formData.obsBodycam || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsBodycam: e.target.value }))} className={inputStyle('obsBodycam')} placeholder="Observaciones..." />
                     </div>
                   </>

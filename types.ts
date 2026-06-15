@@ -90,6 +90,7 @@ export interface UnitData {
   motivoEstado?: string;
   taser: string;
   bodycam: string;
+  codigoTaser: string;
   codigoBodycam: string;
   obsBodycam: string;
 }

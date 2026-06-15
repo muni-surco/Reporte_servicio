@@ -90,6 +90,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
   const [motivoTallerOptions, setMotivoTallerOptions] = useState<string[]>([]);
   const [codigoBodycamOptions, setcodigoBodycamOptions] = useState<string[]>([]);
+  const [codigoTaserOptions, setCodigoTaserOptions] = useState<string[]>([]);
   const [radioOptions, setRadioOptions] = useState<string[]>([]);
   const [lugarOptions, setLugarOptions] = useState<string[]>([]);
   const [motivoFaltoOptions, setMotivoFaltoOptions] = useState<string[]>([]);
@@ -150,7 +151,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[], codigoBodycamOptions?: string[] }) => {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[],         codigoBodycamOptions?: string[], codigoTaserOptions?: string[] }) => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
@@ -168,6 +169,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           if (data.motivoSinDocumentosOptions) setMotivoSinDocumentosOptions(data.motivoSinDocumentosOptions);
           if (data.motivoSinVehiculoOptions) setMotivoSinVehiculoOptions(data.motivoSinVehiculoOptions);
           if (data.codigoBodycamOptions) setcodigoBodycamOptions(data.codigoBodycamOptions);
+          if (data.codigoTaserOptions) setCodigoTaserOptions(data.codigoTaserOptions);
           // Cargar lista de personal para regimen laboral
           google.script.run
             .withSuccessHandler((personnel: PersonnelData[]) => {
@@ -378,7 +380,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             taser: String(u.taser || ''),
             bodycam: String(u.bodycam || ''),
             codigoBodycam: String(u.codigoBodycam || ''),
-            obsBodycam: String(u.obsBodycam || '')
+            obsBodycam: String(u.obsBodycam || ''),
+            codigoTaser: String(u.codigoTaser || '')
           }));
 
           // 2. Deduplicate by unit_id (keep last)
@@ -444,7 +447,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                 taser: '',
                 bodycam: '',
                 codigoBodycam: '',
-                obsBodycam: ''
+                obsBodycam: '',
+                codigoTaser: ''
               });
             }
           });
@@ -702,7 +706,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         taser: '',
         bodycam: '',
         codigoBodycam: '',
-        obsBodycam: ''
+        obsBodycam: '',
+        codigoTaser: '',
+        obsTaser: ''
       };
 
       return (
@@ -1035,6 +1041,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       bodycam: '',
       codigoBodycam: '',
       obsBodycam: '',
+      codigoTaser: '',
       unit_id: generateUnitId(type, '', currentSector, selectedDate, settings.turno)
     };
     // Prepend the new unit to the list so it appears at the top of its section
@@ -1229,6 +1236,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
                   codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
                 />
               )}
               {currentSector !== 'RESCATE' && currentSector !== 'C4' && currentSector !== 'COVV' && (
@@ -1254,6 +1262,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
                   codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
                 />
               )}
               {currentSector !== 'RESCATE' && (
