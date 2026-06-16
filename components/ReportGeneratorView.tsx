@@ -152,7 +152,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                 type="date"
                 value={localDate}
                 onChange={(e) => setLocalDate(e.target.value)}
-                className="pl-10 pr-4 h-9 bg-slate-50 border border-slate-100 rounded-xl font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer text-sm shadow-sm"
+                className="pl-10 pr-4 h-9 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer text-sm shadow-sm"
               />
             </div>
           </div>
@@ -164,7 +164,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
               <select
                 value={localShift}
                 onChange={(e) => setLocalShift(e.target.value)}
-                className="pl-10 pr-10 h-9 bg-slate-50 border border-slate-100 rounded-xl font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 appearance-none transition-all cursor-pointer text-sm shadow-sm"
+                className="pl-10 pr-10 h-9 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:ring-2 focus:ring-blue-500 appearance-none transition-all cursor-pointer text-sm shadow-sm"
               >
                 <option value="MAÑANA">MAÑANA</option>
                 <option value="TARDE">TARDE</option>
@@ -186,7 +186,7 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                   onChange={handleOperatorChange}
                   suggestions={operatorOptions}
                   placeholder="SELECCIONE OPERADOR"
-                  className={`h-10 rounded-xl text-sm font-medium shadow-sm ${operatorError ? '' : 'bg-white border-slate-200'}`}
+                  className={`h-10 rounded-xl text-sm font-medium shadow-sm ${operatorError ? '' : 'bg-slate-50 border-slate-200'}`}
                   error={!!operatorError}
                 />
               </div>

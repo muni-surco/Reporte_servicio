@@ -198,7 +198,7 @@ const VehicleSearchView: React.FC = () => {
               onFocus={() => searchTerm.trim() && setShowDropdown(true)}
               onKeyDown={handleKeyDown}
               placeholder="Buscar por placa (ej: ABC-123)..."
-              className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
             {showDropdown && filteredPlates.length > 0 && (
               <div className="absolute z-[9999] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl max-h-[220px] overflow-y-auto ring-1 ring-black ring-opacity-5">
@@ -229,7 +229,7 @@ const VehicleSearchView: React.FC = () => {
           <select 
             value={filterType} 
             onChange={(e) => setFilterType(e.target.value)}
-            className="px-4 py-3 border border-slate-300 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           >
             <option value="TODOS">TODOS LOS TIPOS</option>
             <option value="AUTO">AUTO</option>

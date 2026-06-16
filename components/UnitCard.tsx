@@ -217,7 +217,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
   const labelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
   const errorInputStyle = "border-red-500 ring-1 ring-red-500 bg-red-50";
-  const inputStyle = (fieldName: string) => `w-full border ${errors[fieldName] ? errorInputStyle : 'border-slate-300 bg-white'} rounded px-2 py-1 text-[13px]  h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
+  const inputStyle = (fieldName: string) => `w-full border ${errors[fieldName] ? errorInputStyle : 'border-slate-200 bg-slate-50'} rounded px-2 py-1 text-[13px]  h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
   const labelStyleEdit = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
   const errorMsgStyle = "text-[10px]  text-red-600 uppercase leading-tight mt-0.5";
   const infoValueStyle = "text-[13px] font-medium text-slate-800 truncate leading-tight uppercase";
@@ -300,9 +300,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const isNew = idStr === '';
     const labelStyleEdit = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
     return (
-      <div className={`relative z-50 border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg flex items-center gap-4`}>
+      <div className={`relative z-50 border-2 border-blue-500 bg-white rounded-xl p-4 mb-4 shadow-lg flex items-center gap-4`}>
         {/* Línea vertical distintiva estilo moderno */}
-        <div className={`w-1.5 min-h-[220px] self-stretch ${typeConfig.lineBg} rounded-full shrink-0 shadow-sm`}></div>
+        <div className={`w-1.5 min-h-[180px] self-stretch ${typeConfig.lineBg} rounded-full shrink-0 shadow-sm`}></div>
 
         <div className="flex-1 min-w-0">
           {/* Línea 1: Identificación, Logística y Estado (Exactamente 12 cols) */}

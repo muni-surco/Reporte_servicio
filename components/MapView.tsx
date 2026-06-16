@@ -476,7 +476,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
           <div className="relative flex items-center">
             <input
               type="text"
-              className="w-full bg-white/95 backdrop-blur-md border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
               placeholder="Buscar unidad, apellido o radio"
               value={searchQuery}
               onChange={(e) => {
@@ -532,7 +532,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
           <div className="relative flex items-center">
             <input
               type="text"
-              className="w-full bg-white/95 backdrop-blur-md border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
               placeholder="Buscar cuadrante..."
               value={quadrantSearchQuery}
               onChange={(e) => {

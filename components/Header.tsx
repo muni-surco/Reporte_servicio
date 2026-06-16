@@ -132,7 +132,7 @@ const Header: React.FC<HeaderProps> = ({
 
   const labelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-widest block mb-1 whitespace-nowrap leading-none";
   const inputBaseStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-medium text-slate-700 focus:outline-none focus:border-primary transition-all cursor-pointer h-9 shadow-sm appearance-none flex items-center";
-  const displayBoxStyle = "bg-white border border-slate-200 rounded-lg px-3 flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm h-9";
+  const displayBoxStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm h-9";
   const valueStyle = "text-[13px] font-medium text-[#002d5a] leading-none truncate uppercase";
   const showRequiredError = !!forceHeaderError;
   const isFieldMissing = (field: keyof AppSettings) => showRequiredError && !normalizeRequiredField(tempSettings[field]);
