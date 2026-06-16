@@ -1455,9 +1455,9 @@ export const generateTaserReport = (
 
   const resolvedOperator = operatorName || '--';
 
-  // Filter units with TASER data
+  // Filter units with TASER or BODYCAM data
   const taserUnits = units.filter(u =>
-    u.taser || u.bodycam || u.codigoBodycam
+    u.taser || u.bodycam || u.codigoTaser || u.codigoBodycam
   );
 
   const rows: any[] = [];
@@ -1472,9 +1472,10 @@ export const generateTaserReport = (
       (u.personnel1 || '').toUpperCase(),
       (u.radio || '--'),
       u.taser === 'SI' ? 'SI' : (u.taser === 'NO' ? 'NO' : '--'),
+      (u.codigoTaser || '--'),
       u.bodycam === 'SI' ? 'SI' : (u.bodycam === 'NO' ? 'NO' : '--'),
       (u.codigoBodycam || '--'),
-      (u.obsBodycam || '--')
+      (u.obsBodycam || '')
     ]);
   });
 
@@ -1490,21 +1491,23 @@ export const generateTaserReport = (
   const totalTaserNO = taserUnits.filter(u => u.taser === 'NO').length;
   const totalBodycamSI = taserUnits.filter(u => u.bodycam === 'SI').length;
   const totalBodycamNO = taserUnits.filter(u => u.bodycam === 'NO').length;
-  const totalCodigos = taserUnits.filter(u => u.codigoBodycam).length;
+  const totalCodigosTaser = taserUnits.filter(u => u.codigoTaser).length;
+  const totalCodigosBodycam = taserUnits.filter(u => u.codigoBodycam).length;
 
   (doc as any).autoTable({
     startY: 15,
     head: [[
-      { content: `REPORTE DE TASER Y BODYCAM - TURNO ${shift.toUpperCase()}`, colSpan: 10, styles: { halign: 'center', fillColor: [0, 94, 165], textColor: [255, 255, 255], fontSize: 11 } }
+      { content: `REPORTE DE TASER Y BODYCAM - TURNO ${shift.toUpperCase()}`, colSpan: 11, styles: { halign: 'center', fillColor: [0, 94, 165], textColor: [255, 255, 255], fontSize: 11 } }
     ], [
-      'FECHA', 'TURNO', 'SECTOR', 'UNIDAD', 'NOMBRE PERSONAL', 'RADIO', 'TASER', 'BODYCAM', 'CÓDIGO BODYCAM', 'OBSERVACIÓN'
+      'FECHA', 'TURNO', 'SECTOR', 'UNIDAD', 'NOMBRE PERSONAL', 'RADIO', 'TASER', 'CÓDIGO TASER', 'BODYCAM', 'CÓDIGO BODYCAM', 'OBSERVACIÓN'
     ]],
     body: rows,
     foot: [[
       { content: 'TOTALES', colSpan: 6, styles: { halign: 'right', fontStyle: 'bold', fillColor: [220, 220, 220] } },
       { content: `SI: ${totalTaserSI} / NO: ${totalTaserNO}`, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: `${totalCodigosTaser} códigos`, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } },
       { content: `SI: ${totalBodycamSI} / NO: ${totalBodycamNO}`, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } },
-      { content: `${totalCodigos} códigos`, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } },
+      { content: `${totalCodigosBodycam} códigos`, styles: { fontStyle: 'bold', fillColor: [220, 220, 220] } },
       { content: '', styles: { fillColor: [220, 220, 220] } }
     ]],
     theme: 'grid',
@@ -1517,10 +1520,11 @@ export const generateTaserReport = (
       3: { cellWidth: 18 },
       4: { cellWidth: 55, halign: 'left' },
       5: { cellWidth: 18 },
-      6: { cellWidth: 18 },
-      7: { cellWidth: 18 },
-      8: { cellWidth: 30 },
-      9: { cellWidth: 'auto', halign: 'left' }
+      6: { cellWidth: 15 },
+      7: { cellWidth: 30 },
+      8: { cellWidth: 15 },
+      9: { cellWidth: 30 },
+      10: { cellWidth: 'auto', halign: 'left' }
     },
     margin: { left: margin, right: margin }
   });
