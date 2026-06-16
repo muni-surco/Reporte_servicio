@@ -1160,7 +1160,10 @@ function searchVehicles(searchTerm) {
   for (var i = 1; i < data.length; i++) {
     var row = data[i];
     var plate = colMap['placa'] !== undefined ? String(row[colMap['placa']] || '').toLowerCase().trim() : '';
-    if (!term || plate.indexOf(term) !== -1) {
+    var marca = colMap['marca'] !== undefined ? String(row[colMap['marca']] || '').toLowerCase().trim() : '';
+    var modelo = colMap['modelo'] !== undefined ? String(row[colMap['modelo']] || '').toLowerCase().trim() : '';
+    
+    if (!term || plate.indexOf(term) !== -1 || marca.indexOf(term) !== -1 || modelo.indexOf(term) !== -1) {
       results.push({
         sade: colMap['sade'] !== undefined ? cellToStr(row[colMap['sade']], ss.getSpreadsheetTimeZone()) : '',
         fecha: colMap['fecha'] !== undefined ? cellToStr(row[colMap['fecha']], ss.getSpreadsheetTimeZone()) : '',

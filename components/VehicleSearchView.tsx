@@ -13,6 +13,7 @@ const VehicleSearchView: React.FC = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [filterType, setFilterType] = useState('TODOS'); // New state
   const [saving, setSaving] = useState(false);
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
   const [showQuadrantDropdown, setShowQuadrantDropdown] = useState(false);
@@ -179,7 +180,7 @@ const VehicleSearchView: React.FC = () => {
     <div className="space-y-4">
       {/* Search Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+        <div className="flex items-center gap-3">
           <div className="relative flex-1" ref={containerRef}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
@@ -190,6 +191,9 @@ const VehicleSearchView: React.FC = () => {
                 setSearchTerm(e.target.value);
                 setShowDropdown(true);
                 setActiveIndex(-1);
+                if (e.target.value.trim()) {
+                    handleSearch();
+                }
               }}
               onFocus={() => searchTerm.trim() && setShowDropdown(true)}
               onKeyDown={handleKeyDown}
@@ -222,18 +226,17 @@ const VehicleSearchView: React.FC = () => {
               </button>
             )}
           </div>
-          <button
-            onClick={handleSearch}
-            disabled={loading || !searchTerm.trim()}
-            className="px-6 py-3 bg-primary text-white rounded-lg text-[13px] font-bold uppercase tracking-wider hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 shadow-sm"
+          <select 
+            value={filterType} 
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-4 py-3 border border-slate-300 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Search className="w-5 h-5" />
-            )}
-            {loading ? 'Buscando...' : 'Buscar'}
-          </button>
+            <option value="TODOS">TODOS LOS TIPOS</option>
+            <option value="AUTO">AUTO</option>
+            <option value="CAMIONETA">CAMIONETA</option>
+            <option value="MOTOTAXI">MOTOTAXI</option>
+            <option value="MOTO">MOTO</option>
+          </select>
           <button
             onClick={() => setShowAddModal(true)}
             className="px-4 py-3 bg-emerald-600 text-white rounded-lg text-[13px] font-bold uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm shrink-0"
@@ -287,7 +290,7 @@ const VehicleSearchView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {results.map((v, i) => (
+                {results.filter(r => filterType === 'TODOS' || r.tipo === filterType).map((v, i) => (
                   <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-2.5 font-medium text-slate-700">{v.sade}</td>
                     <td className="px-4 py-2.5 text-slate-600">{v.fecha}</td>
