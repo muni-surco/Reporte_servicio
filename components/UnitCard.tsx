@@ -508,7 +508,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                     </div>
                     <div className="col-span-1">
                       <label className={labelStyleEdit}>CÓDIGO TASER</label>
-                      <AutocompleteInput value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserOptions || []} placeholder="Código..." error={errors.codigoTaser} />
+                      <AutocompleteInput disabled={formData.taser !== 'SI'} value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserOptions || []} placeholder="Código..." error={errors.codigoTaser} />
                       {errors.codigoTaser && <span className={errorMsgStyle}>Requerido</span>}
                     </div>
                     <div className="col-span-1">
@@ -516,7 +516,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                     </div>
                     <div className="col-span-1">
                       <label className={labelStyleEdit}>CÓDIGO BODYCAM</label>
-                      <AutocompleteInput value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamOptions || []} placeholder="Código..." error={errors.codigoBodycam} />
+                      <AutocompleteInput disabled={formData.bodycam !== 'SI'} value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamOptions || []} placeholder="Código..." error={errors.codigoBodycam} />
                       {errors.codigoBodycam && <span className={errorMsgStyle}>Requerido</span>}
                     </div>
                     <div className="col-span-1">

@@ -101,7 +101,7 @@ const WantedView: React.FC = () => {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-medium text-slate-700 focus:outline-none focus:border-primary h-9 max-w-[160px]"
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 text-[13px] font-medium text-slate-700 focus:outline-none focus:border-primary h-9 max-w-[300px]"
           >
             {categories.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -150,14 +150,15 @@ const WantedView: React.FC = () => {
                         >
                           <div className="aspect-[3/4] bg-slate-100 overflow-hidden relative flex items-center justify-center">
                             {photoUrl && !hasError ? (
-                              <img
-                                src={photoUrl}
-                                alt={person.nombre}
-                                className="w-full h-full object-contain"
-                                onError={() => {
-                                  if (person.photoUrl) setPhotoErrors(prev => ({ ...prev, [person.photoUrl!]: true }));
-                                }}
-                              />
+                               <img
+                                 src={photoUrl}
+                                 alt={person.nombre}
+                                 className="w-full h-full object-contain"
+                                 loading="lazy"
+                                 onError={() => {
+                                   if (person.photoUrl) setPhotoErrors(prev => ({ ...prev, [person.photoUrl!]: true }));
+                                 }}
+                               />
                             ) : (
                               <div className="flex flex-col items-center justify-center text-slate-300">
                                 <span className="material-symbols-outlined text-[36px]">person_off</span>

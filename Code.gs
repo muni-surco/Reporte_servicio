@@ -2043,7 +2043,7 @@ function populateWantedMetadata() {
     while (files.hasNext()) {
       var file = files.next();
       var name = normalize(file.getName().replace(/\.[^.]+$/, '')); 
-      photoMap[name] = { id: file.getId(), url: 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w200&authuser=0' };
+      photoMap[name] = { id: file.getId(), url: 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w200' };
     }
     var subfolders = folder.getFolders();
     while (subfolders.hasNext()) scanFolder(subfolders.next());
