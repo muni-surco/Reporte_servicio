@@ -1289,6 +1289,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
                   codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
                 />
               )}
             </>
