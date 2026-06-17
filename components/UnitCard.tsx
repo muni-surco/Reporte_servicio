@@ -529,19 +529,26 @@ const UnitCard: React.FC<UnitCardProps> = ({
             ) : showTaserFields ? (
               <div className="col-span-12 grid grid-cols-12 gap-1.5">
                 <div className="col-span-1">
-                  {renderToggle('taser', 'TASER')}
+                  {renderToggle('taser', 'TIENE TASER')}
                 </div>
                 <div className="col-span-1">
-                  {renderToggle('bodycam', 'BODYCAM')}
+                  <label className={labelStyleEdit}>CÓDIGO TASER</label>
+                  <AutocompleteInput disabled={formData.taser !== 'SI'} value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserOptions || []} placeholder="Código..." error={errors.codigoTaser} />
+                  {errors.codigoTaser && <span className={errorMsgStyle}>Requerido</span>}
                 </div>
-                <div className="col-span-3">
+                <div className="col-span-1">
+                  {renderToggle('bodycam', 'TIENE BODYCAM')}
+                </div>
+                <div className="col-span-1">
                   <label className={labelStyleEdit}>CÓDIGO BODYCAM</label>
-                  <AutocompleteInput value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamOptions || []} placeholder="Código..." />
+                  <AutocompleteInput disabled={formData.bodycam !== 'SI'} value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamOptions || []} placeholder="Código..." error={errors.codigoBodycam} />
+                  {errors.codigoBodycam && <span className={errorMsgStyle}>Requerido</span>}
                 </div>
-                <div className="col-span-7">
-                  <label className={labelStyleEdit}>OBS. TASER</label>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>OBS. BODYCAM/TASER</label>
                   <input value={formData.obsBodycam || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsBodycam: e.target.value }))} className={inputStyle('obsBodycam')} placeholder="Observaciones..." />
                 </div>
+                <div className="col-span-7"></div>
               </div>
             ) : (
               <></>
