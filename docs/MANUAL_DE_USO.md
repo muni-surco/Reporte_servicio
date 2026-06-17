@@ -14,13 +14,15 @@ Versión: v2.5.0-PRO
 5. [Barra Superior (Header)](#5-barra-superior-header)
 6. [Gestión de Retenes](#6-gestión-de-retenes)
 7. [Vista Despachador (Visualization)](#7-vista-despachador-visualization)
-8. [Buscador de Vehículos Sospechosos](#8-buscador-de-vehículos-sospechosos)
-9. [Estadísticas](#9-estadísticas)
-10. [Vista de Personal](#10-vista-de-personal)
-11. [Centro de Reportes](#11-centro-de-reportes)
-12. [Cómo Guardar la Información](#12-cómo-guardar-la-información)
-13. [Turnos Pasados — Solo Lectura](#13-turnos-pasados--solo-lectura)
-14. [Preguntas Frecuentes](#14-preguntas-frecuentes)
+8. [Mapa de Cuadrantes](#8-mapa-de-cuadrantes)
+9. [Rostros Buscados](#9-rostros-buscados)
+10. [Buscador de Vehículos Sospechosos](#10-buscador-de-vehículos-sospechosos)
+11. [Estadísticas](#11-estadísticas)
+12. [Vista de Personal](#12-vista-de-personal)
+13. [Centro de Reportes](#13-centro-de-reportes)
+14. [Cómo Guardar la Información](#14-cómo-guardar-la-información)
+15. [Turnos Pasados — Solo Lectura](#15-turnos-pasados--solo-lectura)
+16. [Preguntas Frecuentes](#16-preguntas-frecuentes)
 
 ---
 
@@ -151,6 +153,24 @@ Al hacer clic en el botón ✏️, la tarjeta se expande a modo edición con tod
 - **Cuadrante:** Cuadrante asignado (soporta múltiples valores separados por coma)
 - **Observaciones:** Notas adicionales
 
+**TASER y BODYCAM (segunda fila):**
+
+Los campos de TASER y BODYCAM aparecen en la segunda fila del modo edición para todos los tipos de unidad (CHOFER, MOTO, SERENO), excepto para los sectores COVV, C4 y RESCATE donde están ocultos.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| **TIENE TASER** | Toggle (interruptor) | Activar si la unidad porta un dispositivo TASER |
+| **CÓDIGO TASER** | Autocomplete | Seleccionar el código del dispositivo TASER de la lista predefinida. **Solo se habilita cuando el toggle TIENE TASER está en SI** |
+| **TIENE BODYCAM** | Toggle (interruptor) | Activar si la unidad porta una cámara corporal (bodycam) |
+| **CÓDIGO BODYCAM** | Autocomplete | Seleccionar el código de la bodycam de la lista predefinida. **Solo se habilita cuando el toggle TIENE BODYCAM está en SI** |
+| **OBS. BODYCAM/TASER** | Texto | Observaciones adicionales sobre los dispositivos |
+
+**Comportamiento de los toggles:**
+- Al hacer clic en el toggle, cambia entre **NO** (apagado, valor vacío) y **SI** (encendido, valor "SI")
+- No existe un estado "NO" persistente — si se desactiva, el campo se limpia
+- Los campos de código asociados aparecen **deshabilitados** (fondo gris, no interactivos) hasta que su toggle respectivo esté en **SI**
+- Al activar el toggle, el campo de código se habilita automáticamente para que pueda seleccionar un valor de la lista
+
 **Validaciones:**
 
 - El campo ID es obligatorio para **PATRULLANDO** y se valida contra duplicados
@@ -159,6 +179,8 @@ Al hacer clic en el botón ✏️, la tarjeta se expande a modo edición con tod
 - **CON DESPERFECTOS** requiere ID y radio, pero no cuadrante
 - **SIN VEHICULO**, **APOYO OTRA AREA**, **CAMBIO DE TURNO** y **CAMBIO DESCANSO** requieren personal pero no ID, radio ni cuadrante
 - **SIN CONDUCTOR**, **MANTENIMIENTO**, **SINIESTRO**, **SIN DOCUMENTOS** y **FALTO (INASISTENCIA)** no requieren personal ni ID, radio o cuadrante
+- **CÓDIGO TASER:** Es obligatorio si TIENE TASER = SI. Muestra "Requerido" si está vacío o el código no está en la lista predefinida
+- **CÓDIGO BODYCAM:** Es obligatorio si TIENE BODYCAM = SI. Muestra "Requerido" si está vacío o el código no está en la lista predefinida
 
 ### 4.4 Catálogo de Estados
 
@@ -303,7 +325,23 @@ Cada sector muestra:
 
 ---
 
-## 8. Buscador de Vehículos Sospechosos
+## 8. Mapa de Cuadrantes
+
+Esta vista permite visualizar la distribución de unidades operativas sobre el plano de cuadrantes.
+
+- **Filtros:** Puede filtrar por estado, tipo de unidad o sector.
+- **Visualización:** Muestra el número de unidades activas (CHOFER, MOTO, SERENO) en cada cuadrante resaltado en el mapa.
+- **Detalle:** Al hacer clic en un cuadrante, se despliega una lista con los IDs, personal, placa y radio de las unidades presentes en dicho cuadrante.
+
+## 9. Rostros Buscados
+
+Esta vista permite consultar la base de datos de rostros buscados (personas requisitoriadas).
+
+- **Visualización:** Muestra una cuadrícula de fotos de personas buscadas.
+- **Búsqueda:** Filtra por nombre o apellido.
+- **Detalle:** Al hacer clic en la foto, se muestra información detallada (nombre, estado, tipo de búsqueda).
+
+## 10. Buscador de Vehículos Sospechosos
 
 Esta vista permite consultar y registrar vehículos en la base de datos de **Vehículos RQ** (vehículos implicados en delitos).
 
@@ -346,7 +384,7 @@ Para añadir un vehículo a la base de datos RQ:
 
 ---
 
-## 9. Estadísticas
+## 11. Estadísticas
 
 El módulo de **Estadísticas** muestra indicadores operativos en tiempo real basados en los datos del turno actual de **todos los sectores**.
 
@@ -388,7 +426,7 @@ Tabla del personal registrado en cada sector.
 
 ---
 
-## 10. Vista de Personal
+## 12. Vista de Personal
 
 El módulo **Vista de Personal** permite consultar la base de datos de todo el personal de seguridad ciudadana.
 
@@ -418,35 +456,54 @@ Muestra el total de registros encontrados: "Mostrando X personal(es)".
 
 ---
 
-## 11. Centro de Reportes
+## 13. Centro de Reportes
 
 El módulo **Centro de Reportes** permite generar documentos PDF con los datos del servicio.
 
 ### 11.1 Tipos de Reporte
 
 | Reporte | Descripción |
-|---|---|
+|---|---|---|
 | **Observaciones** | Reporte de observaciones y novedades del puesto de comando y cambios de turno |
 | **Motos Yamaha XTZ150** | Reporte numérico de la flota de motos Yamaha |
 | **Motos Honda SAHARA XRE300** | Reporte numérico de la flota de motos Honda |
 | **Flota Renting** | Reporte de la flota de vehículos de renting |
 | **Asistencia por Regimen** | Reporte de inasistencias agrupado por régimen laboral (276, 728, 1057, OS) |
 | **Reporte General** | Reporte consolidado de todos los registros |
+| **Reporte TASER y BODYCAM** | Reporte de asignación de dispositivos TASER y bodycam por unidad |
 
-### 11.2 Cómo Generar un Reporte
+### 11.2 Columnas del Reporte TASER y BODYCAM
+
+El reporte TASER y BODYCAM incluye las siguientes columnas:
+
+| Columna | Descripción |
+|---|---|
+| **FECHA** | Fecha del reporte |
+| **TURNO** | Turno (MAÑANA/TARDE/NOCHE) |
+| **SECTOR** | Sector operativo |
+| **UNIDAD** | ID de la unidad |
+| **NOMBRE PERSONAL** | Personal asignado a la unidad |
+| **RADIO** | Código de radio |
+| **TASER** | SI/NO si la unidad porta TASER |
+| **CÓDIGO TASER** | Código del dispositivo TASER asignado |
+| **BODYCAM** | SI/NO si la unidad porta bodycam |
+| **CÓDIGO BODYCAM** | Código de la bodycam asignada |
+| **OBSERVACIÓN** | Observaciones adicionales |
+
+### 11.3 Cómo Generar un Reporte
 
 1. Seleccione el tipo de reporte haciendo clic en la tarjeta correspondiente (se resalta con borde azul)
 2. Seleccione la **FECHA** y el **TURNO** en los filtros superiores
 3. Haga clic en **GENERAR REPORTE**
 4. El PDF se generará automáticamente en el navegador y se abrirá en una nueva pestaña o se descargará
 
-### 11.3 Progreso
+### 11.4 Progreso
 
 Durante la generación, la tarjeta activa muestra un spinner giratorio y el texto "PROCESANDO...". Una vez completado, se restablece el estado normal.
 
 ---
 
-## 12. Cómo Guardar la Información
+## 14. Cómo Guardar la Información
 
 El sistema maneja el guardado de datos de forma automática y manual:
 
@@ -477,7 +534,7 @@ El botón **SINCRONIZAR** sincroniza los datos con el sistema externo de recolec
 
 ---
 
-## 13. Turnos Pasados — Solo Lectura
+## 15. Turnos Pasados — Solo Lectura
 
 Cuando se selecciona una fecha o turno que ya ha pasado, el sistema automáticamente bloquea la edición de toda la información:
 
@@ -512,7 +569,7 @@ Para la NOCHE que cruza la medianoche, el sistema considera que el turno activo 
 
 ---
 
-## 14. Preguntas Frecuentes
+## 16. Preguntas Frecuentes
 
 ### ¿Cómo agrego una unidad nueva?
 
@@ -567,5 +624,5 @@ No. Desde la versión actual, cada sector tiene su propio valor independiente de
 
 ---
 
-*Documento actualizado el 25 de mayo de 2026*  
+*Documento actualizado el 17 de junio de 2026*  
 *Municipalidad de Santiago de Surco — Subgerencia de Seguridad Ciudadana*
