@@ -303,7 +303,7 @@ export const generateVehicleReport = (
 
   const summaryRows = sectors.map(s => {
     const sectorUnits = vehicleUnits.filter(u => normalize(u.sector).includes(s));
-    const baseFleet = mobileData.filter(u => normalize(u.sector).includes(s)).length; // Unidades asignadas por defecto
+    const baseFleet = mobileData.filter(u => u.type === 'CHOFER' && normalize(u.sector).includes(s)).length;
 
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12)
     const countReten = sectorUnits.filter(u => normalize(u.id).startsWith('AR-')).length;

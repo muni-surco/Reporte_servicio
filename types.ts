@@ -118,6 +118,7 @@ export interface MobileReference {
   quadrant?: string;
   sector?: string;
   status?: string;
+  type?: string;
 }
 
 export interface WantedPerson {

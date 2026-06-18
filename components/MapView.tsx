@@ -323,6 +323,11 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       });
 
       setTimeout(() => map.invalidateSize(), 500);
+
+      // Suprimir el outline negro de focus en polígonos de Leaflet y aplicar fuente del webapp
+      const styleTag = document.createElement('style');
+      styleTag.textContent = '.leaflet-interactive:focus, .leaflet-interactive:focus-visible { outline: none !important; } .leaflet-popup-content-wrapper, .leaflet-popup-tip, .leaflet-popup-content { font-family: \'Chivo\', sans-serif !important; }';
+      document.head.appendChild(styleTag);
     } catch (e) {
       console.error('MAP: Init error:', e);
     }
@@ -471,114 +476,117 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
           </div>
         )}
 
-        {/* Buscador Inteligente */}
-        <div className="absolute top-4 left-14 z-[1000] w-96 pointer-events-auto">
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
-              placeholder="Buscar unidad, apellido o radio"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowSearchResults(true);
-              }}
-              onFocus={() => setShowSearchResults(true)}
-            />
-            <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none z-10">search</span>
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 text-slate-400 hover:text-slate-600 transition-colors z-10"
-              >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            )}
-          </div>
-          
-          {showSearchResults && searchQuery.trim() !== '' && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto custom-scrollbar">
-              {searchResults.length === 0 ? (
-                <div className="p-4 text-center text-sm text-slate-500 font-medium">No se encontraron unidades</div>
-              ) : (
-                <div className="flex flex-col">
-                  {searchResults.map(u => (
-                    <button
-                      key={u.id}
-                      onClick={() => handleSelectSearchResult(u)}
-                      className="flex items-center gap-3 w-full p-3 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0 text-left"
-                    >
-                      <div className={`w-8 h-8 rounded-full flex shrink-0 items-center justify-center text-white ${u.type === 'CHOFER' ? 'bg-blue-500' : u.type === 'MOTO' ? 'bg-violet-500' : 'bg-teal-500'}`}>
-                        <span className="material-symbols-outlined text-[14px]">
-                          {TYPE_ICONS[u.type] || 'radio'}
-                        </span>
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-slate-800 truncate">{u.personnel1 || 'Desconocido'}</span>
-                        <span className="text-[10px] text-slate-500 truncate mt-0.5 uppercase">
-                          {u.radio ? 'Radio ' + u.radio + ' - ' : ''}ID {u.id} - Cuad {u.quadrant}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+        {/* Buscadores lado a lado */}
+        <div className="absolute top-4 left-14 z-[1000] flex gap-3 pointer-events-auto">
+          {/* Buscador Inteligente */}
+          <div className="relative w-72">
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+                placeholder="Buscar unidad, apellido o radio"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSearchResults(true);
+                }}
+                onFocus={() => setShowSearchResults(true)}
+              />
+              <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none z-10">search</span>
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 text-slate-400 hover:text-slate-600 transition-colors z-10"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
               )}
             </div>
-          )}
-        </div>
+            
+            {showSearchResults && searchQuery.trim() !== '' && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto custom-scrollbar">
+                {searchResults.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-slate-500 font-medium">No se encontraron unidades</div>
+                ) : (
+                  <div className="flex flex-col">
+                    {searchResults.map(u => (
+                      <button
+                        key={u.id}
+                        onClick={() => handleSelectSearchResult(u)}
+                        className="flex items-center gap-3 w-full p-3 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0 text-left"
+                      >
+                        <div className={`w-8 h-8 rounded-full flex shrink-0 items-center justify-center text-white ${u.type === 'CHOFER' ? 'bg-blue-500' : u.type === 'MOTO' ? 'bg-violet-500' : 'bg-teal-500'}`}>
+                          <span className="material-symbols-outlined text-[14px]">
+                            {TYPE_ICONS[u.type] || 'radio'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-slate-800 truncate">{u.personnel1 || 'Desconocido'}</span>
+                          <span className="text-[10px] text-slate-500 truncate mt-0.5 uppercase">
+                            <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.25 rounded leading-none mr-1.5"> {u.id} </span>- {u.radio ? 'Radio ' + u.radio + ' - ' : ''} - Cuad {u.quadrant}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-        {/* Buscador de Cuadrantes */}
-        <div className="absolute top-4 left-14 z-[1000] w-96 pointer-events-auto" style={{ marginTop: '56px' }}>
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
-              placeholder="Buscar cuadrante..."
-              value={quadrantSearchQuery}
-              onChange={(e) => {
-                setQuadrantSearchQuery(e.target.value);
-                setShowQuadrantResults(true);
-              }}
-              onFocus={() => setShowQuadrantResults(true)}
-            />
-            <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none z-10">grid_on</span>
-            {quadrantSearchQuery && (
-              <button 
-                onClick={() => setQuadrantSearchQuery('')}
-                className="absolute right-3 text-slate-400 hover:text-slate-600 transition-colors z-10"
-              >
-                <span className="material-symbols-outlined text-[16px]">close</span>
-              </button>
-            )}
-          </div>
-          
-          {showQuadrantResults && quadrantSearchQuery.trim() !== '' && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto custom-scrollbar">
-              {filteredQuadrants.length === 0 ? (
-                <div className="p-4 text-center text-sm text-slate-500 font-medium">No se encontraron cuadrantes</div>
-              ) : (
-                <div className="flex flex-col">
-                  {filteredQuadrants.map(name => (
-                    <button
-                      key={name}
-                      onClick={() => handleSelectQuadrant(name)}
-                      className="flex items-center gap-3 w-full p-3 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0 text-left"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex shrink-0 items-center justify-center text-slate-500">
-                        <span className="material-symbols-outlined text-[14px]">hexagon</span>
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-slate-800">Cuadrante {name}</span>
-                        <span className="text-[10px] text-slate-500 mt-0.5">
-                          {quadrantDetailMap.get(name)?.total || 0} unidades activas
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+          {/* Buscador de Cuadrantes */}
+          <div className="relative w-60">
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl pl-10 pr-10 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400"
+                placeholder="Buscar cuadrante..."
+                value={quadrantSearchQuery}
+                onChange={(e) => {
+                  setQuadrantSearchQuery(e.target.value);
+                  setShowQuadrantResults(true);
+                }}
+                onFocus={() => setShowQuadrantResults(true)}
+              />
+              <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[20px] pointer-events-none z-10">grid_on</span>
+              {quadrantSearchQuery && (
+                <button 
+                  onClick={() => setQuadrantSearchQuery('')}
+                  className="absolute right-3 text-slate-400 hover:text-slate-600 transition-colors z-10"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
               )}
             </div>
-          )}
+            
+            {showQuadrantResults && quadrantSearchQuery.trim() !== '' && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-64 overflow-y-auto custom-scrollbar">
+                {filteredQuadrants.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-slate-500 font-medium">No se encontraron cuadrantes</div>
+                ) : (
+                  <div className="flex flex-col">
+                    {filteredQuadrants.map(name => (
+                      <button
+                        key={name}
+                        onClick={() => handleSelectQuadrant(name)}
+                        className="flex items-center gap-3 w-full p-3 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0 text-left"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex shrink-0 items-center justify-center text-slate-500">
+                          <span className="material-symbols-outlined text-[14px]">hexagon</span>
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-slate-800">Cuadrante {name}</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5">
+                            {quadrantDetailMap.get(name)?.total || 0} unidades activas
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
