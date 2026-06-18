@@ -244,10 +244,11 @@ export const generateMotoReport = (
 
 export const generateVehicleReport = (
   units: UnitData[],
-  settingsMap: Record<string, AppSettings>,
+  settingsMap: Record<string, AppSettings>, // Renombrado de vuelta a settingsMap
   date: string,
   shift: string,
-  operatorName?: string
+  operatorName: string,
+  mobileData: MobileReference[]
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'portrait',
@@ -302,6 +303,7 @@ export const generateVehicleReport = (
 
   const summaryRows = sectors.map(s => {
     const sectorUnits = vehicleUnits.filter(u => normalize(u.sector).includes(s));
+    const baseFleet = mobileData.filter(u => normalize(u.sector).includes(s)).length; // Unidades asignadas por defecto
 
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12)
     const countReten = sectorUnits.filter(u => normalize(u.id).startsWith('AR-')).length;
@@ -317,7 +319,7 @@ export const generateVehicleReport = (
       normalize(u.status) !== 'SIN VEHICULO'
     ).length;
 
-    const efectivo = countPatrullando + countReten;
+    const efectivo = baseFleet; // Usar flota base
 
     return [
       s,

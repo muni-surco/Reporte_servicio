@@ -1116,7 +1116,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       } else if (type === 'motos_honda') {
         generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
       } else if (type === 'moviles') {
-        generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+        generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData);
       } else if (type === 'asistencia_regimen') {
         if (personnelList.length > 0) {
             generatePersonnelAbsenceReport(dataToUse.units, personnelList, date, shift, operatorName);
