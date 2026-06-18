@@ -41,6 +41,14 @@ const TYPE_LABELS: Record<string, string> = {
   SERENO: 'SERENO',
 };
 
+function extractSectorFromDescription(desc: any): string | null {
+  if (!desc) return null;
+  const descStr = typeof desc === 'string' ? desc : (desc.value || '');
+  if (typeof descStr !== 'string') return null;
+  const match = descStr.match(/SECTOR<\/td>\s*<td>([^<]+)<\/td>/);
+  return match ? match[1].trim().toUpperCase() : null;
+}
+
 function buildPopupContent(quadrantName: string, detail: QuadrantDetail | undefined): string {
   if (!detail || detail.total === 0) {
     return `
@@ -137,6 +145,30 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
   const darkLayerRef = useRef<any>(null);
   const quadrantLayersRef = useRef<Map<string, any>>(new Map());
 
+  const allQuadrantNames = useMemo(() => {
+    if (!geoJsonData?.features) return [];
+    const names = new Set<string>();
+    geoJsonData.features.forEach((f: any) => {
+      const n = f.properties?.name;
+      if (n) names.add(normalizeQuadrant(n));
+    });
+    return Array.from(names).sort();
+  }, [geoJsonData]);
+
+  const sectorQuadrants = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!geoJsonData?.features) return map;
+    geoJsonData.features.forEach((f: any) => {
+      const qName = normalizeQuadrant(f.properties?.name || '');
+      if (!qName) return;
+      const sector = extractSectorFromDescription(f.properties?.description || '');
+      if (!sector) return;
+      if (!map.has(sector)) map.set(sector, []);
+      map.get(sector)!.push(qName);
+    });
+    return map;
+  }, [geoJsonData]);
+
   const quadrantDetailMap = useMemo(() => {
     const map = new Map<string, QuadrantDetail>();
 
@@ -152,6 +184,14 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
         const quadrants = parseQuadrants(u.quadrant || '');
         if (quadrants.length === 0) return;
 
+        // TT (Todas) = cubre todos los cuadrantes del sector
+        const isTT = quadrants.some(q => q === 'TT');
+        const expandedQuadrants = isTT
+          ? (sectorQuadrants.get(sectorName.toUpperCase()) || [])
+          : quadrants;
+
+        if (expandedQuadrants.length === 0) return;
+
         const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO;
         if (!isActive) return;
 
@@ -164,7 +204,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
           indicative: u.indicative || ''
         };
 
-        quadrants.forEach(q => {
+        expandedQuadrants.forEach(q => {
           if (!map.has(q)) {
             map.set(q, { total: 0, choferes: 0, motos: 0, serenos: 0, units: [], sectorName });
           }
@@ -179,7 +219,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     });
 
     return map;
-  }, [allSectorsData, showChoferes, showMotos, showSerenos]);
+  }, [allSectorsData, showChoferes, showMotos, showSerenos, sectorQuadrants]);
 
   const quadrantDetailMapRef = useRef(quadrantDetailMap);
   useEffect(() => {
@@ -210,16 +250,6 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     });
     return results.slice(0, 8); // top 8 matches
   }, [allSectorsData, searchQuery]);
-
-  const allQuadrantNames = useMemo(() => {
-    if (!geoJsonData?.features) return [];
-    const names = new Set<string>();
-    geoJsonData.features.forEach((f: any) => {
-      const n = f.properties?.name;
-      if (n) names.add(normalizeQuadrant(n));
-    });
-    return Array.from(names).sort();
-  }, [geoJsonData]);
 
   const filteredQuadrants = useMemo(() => {
     if (!quadrantSearchQuery.trim()) return [];
