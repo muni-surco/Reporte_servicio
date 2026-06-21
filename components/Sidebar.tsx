@@ -14,7 +14,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
     { id: 'RETEN' as ViewMode, icon: 'swap_horizontal_circle', label: 'Registro de Retenes' },
     { id: 'VISUALIZATION' as ViewMode, icon: 'description', label: 'Vista de Despachador' },
     { id: 'VEHICLE_SEARCH' as ViewMode, icon: 'search', label: 'Buscador de Vehículos' },
-    { id: 'PERSONNEL' as ViewMode, icon: 'group', label: 'Vista de Personal' },
+    { id: 'PERSONNEL' as ViewMode, icon: 'group', label: 'Personal C4' },
     { id: 'MAP' as ViewMode, icon: 'map', label: 'Mapa de Cuadrantes' },
     { id: 'WANTED' as ViewMode, icon: 'scan', label: 'Rostros Buscados' },
     { id: 'STATISTICS' as ViewMode, icon: 'bar_chart', label: 'Estadísticas' },

@@ -187,7 +187,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       status: !formData.status || String(formData.status).trim() === '',
       id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
-      personnel1: !isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === ''),
+      personnel1: !isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase())),
       radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
