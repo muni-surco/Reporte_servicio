@@ -174,7 +174,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                   </div>
 
                   <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
-                    <span className={infoLabelStyle}>SUPERVISOR SECTOR</span>
+                    <span className={infoLabelStyle}>{safeSettings.supervisorRol === 'ENCARGADO' ? 'ENCARGADO SECTOR' : 'SUPERVISOR SECTOR'}</span>
                     <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.supervisor ? 'text-red-600' : ''}`}>{safeSettings.supervisor || 'NO ASIGNADO'}</span>
                   </div>
 
