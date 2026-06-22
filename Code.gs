@@ -1124,7 +1124,14 @@ function updateUnit(dateStr, shift, settings, unit) {
     } catch (e) { /* prev shift not available */ }
   }
 
-  // Update latest_km index with current unit's kmEnd
+  // Always update latest_km index with current kmStart (ensures getPreviousKmEnd
+  // always has a reference value, even when bridge doesn't run or kmEnd is 0)
+  if (unit.id && unit.kmStart && unit.kmStart !== '0') {
+    const searchId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    rtdbSet('latest_km/' + searchId, { kmEnd: unit.kmStart, updatedAt: timestamp });
+  }
+
+  // Update latest_km index with current unit's kmEnd (overwrites kmStart value when available)
   if (unit.id && unit.kmEnd && unit.kmEnd !== '0') {
     const searchId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
     rtdbSet('latest_km/' + searchId, { kmEnd: unit.kmEnd, updatedAt: timestamp });

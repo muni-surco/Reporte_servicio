@@ -41,6 +41,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const [kmEnd, setKmEnd] = useState('');
   const [kmDiff, setKmDiff] = useState('0');
   const [kmRecarga, setKmRecarga] = useState('');
+  const [prevKmEnd, setPrevKmEnd] = useState<string>('');
+  const [kmFetching, setKmFetching] = useState(false);
+  const [kmStartError, setKmStartError] = useState<string | null>(null);
 
   const [fuelType, setFuelType] = useState('');
   const [fuelQty, setFuelQty] = useState('');
@@ -95,15 +98,24 @@ const UnitCard: React.FC<UnitCardProps> = ({
   useEffect(() => {
     if (isEditing && formData.id && formData.id !== lastKmFetchedIdRef.current) {
       const unitId = String(formData.id).trim().toUpperCase();
-      if (unitId === '' || unitId.startsWith('AR-')) return;
+      if (unitId === '' || unitId.startsWith('AR-')) {
+        setPrevKmEnd('');
+        setKmFetching(false);
+        return;
+      }
 
       lastKmFetchedIdRef.current = formData.id;
+      setKmFetching(true);
 
       if (typeof google !== 'undefined' && google.script && google.script.run) {
         google.script.run
           .withSuccessHandler((km: string) => {
+            setKmFetching(false);
             if (km && km !== '0' && km !== 'undefined' && String(km).trim() !== '') {
               setKmStart(String(km));
+              setPrevKmEnd(String(km));
+            } else {
+              setPrevKmEnd('');
             }
           })
           .getPreviousKmEnd(currentDate, currentShift, formData.id, unit.sector || '');
@@ -200,6 +212,28 @@ const UnitCard: React.FC<UnitCardProps> = ({
     // If ID is provided even in special status, still check for duplicates
     if (isSpecialStatus && formData.id && isIdDuplicate) {
       newErrors.id = true;
+    }
+
+    // Validate kmStart >= previous reference km
+    setKmStartError(null);
+    if (kmFetching) {
+      setKmStartError('Consultando kilometraje previo, espere un momento...');
+      return;
+    }
+    const kmStartNum = parseFloat(kmStart);
+    if (!isSereno && !isNaN(kmStartNum)) {
+      const savedKmStart = parseFloat(unit.kmStart);
+      if (!isNaN(savedKmStart) && savedKmStart > 0 && kmStartNum < savedKmStart) {
+        setErrors(prev => ({ ...prev, kmStart: true }));
+        setKmStartError('El km no puede ser menor al anterior.');
+        return;
+      }
+      const prevKmEndNum = parseFloat(prevKmEnd);
+      if (prevKmEnd && !isNaN(prevKmEndNum) && kmStartNum < prevKmEndNum) {
+        setErrors(prev => ({ ...prev, kmStart: true }));
+        setKmStartError('El km no puede ser menor al anterior.');
+        return;
+      }
     }
 
     setErrors(newErrors);
@@ -479,8 +513,15 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 </div>
                 <div className="col-span-1">
                   <label className={labelStyleEdit}>KM INICIO <span className="text-red-500">*</span></label>
-                  <input type="number" name="kmStart" value={kmStart} min={0} step="0.1" placeholder="Km" onChange={(e) => { setKmStart(e.target.value); setErrors(prev => ({ ...prev, kmStart: false })); }} className={inputStyle('kmStart')} />
-                  {errors.kmStart && <span className={errorMsgStyle}>Requerido</span>}
+                  <input type="number" name="kmStart" value={kmStart} min={0} step="0.1" placeholder="Km" onChange={(e) => { setKmStart(e.target.value); setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false })); }} className={inputStyle('kmStart')} />
+                  {kmStartError ? (
+                    <span className="flex items-center gap-1 text-[10px] text-red-500 mt-0.5">
+                      <span className="material-symbols-outlined text-[12px]">error</span>
+                      {kmStartError}
+                    </span>
+                  ) : errors.kmStart ? (
+                    <span className={errorMsgStyle}>Requerido</span>
+                  ) : null}
                 </div>
                 <div className="col-span-1">
                   <label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} />
