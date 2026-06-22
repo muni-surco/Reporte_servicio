@@ -143,12 +143,12 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
       const parsed = JSON.parse(cached);
       const allSectorSettings = parsed.allSettings;
       const sectorDisplay = toDisplaySector(sector || '1A');
-      const shiftSettings = allSectorSettings[sectorDisplay] || { turno: shift, operador: '', supervisor: '', nombrePuesto: sectorDisplay, permanencia: '' };
+      const shiftSettings = allSectorSettings[sectorDisplay] || { turno: shift, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', nombrePuesto: sectorDisplay, permanencia: '' };
       return { settings: shiftSettings, allSettings: allSectorSettings, from: 'cache' };
     } catch (e) { /* invalid cache, fall through */ }
   }
 
-  let shiftSettings = { turno: shift, operador: '', supervisor: '', nombrePuesto: toDisplaySector(sector || '1A'), permanencia: '' };
+  let shiftSettings = { turno: shift, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', nombrePuesto: toDisplaySector(sector || '1A'), permanencia: '' };
   const allSectorSettings = {};
 
   try {
@@ -158,10 +158,10 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
       fbSettings.forEach(s => {
         const sectorName = toDisplaySector(s.sector);
         if (sectorName) {
-          allSectorSettings[sectorName] = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
+          allSectorSettings[sectorName] = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), supervisorRol: String(s.supervisorRol || 'SUPERVISOR'), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
         }
         if (toStorageSector(sectorName) === toStorageSector(sector)) {
-          shiftSettings = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
+          shiftSettings = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), supervisorRol: String(s.supervisorRol || 'SUPERVISOR'), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
         }
       });
       cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), 300);
@@ -184,10 +184,10 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
       } catch (e) { continue; }
       const sectorName = toDisplaySector(row[2]);
       if (sectorName) {
-        allSectorSettings[sectorName] = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: String(row[5] || '') };
+        allSectorSettings[sectorName] = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), supervisorRol: 'SUPERVISOR', nombrePuesto: sectorName, permanencia: String(row[5] || '') };
       }
       if (toStorageSector(sectorName) === toStorageSector(sector)) {
-        shiftSettings = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), nombrePuesto: sectorName, permanencia: String(row[5] || '') };
+        shiftSettings = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), supervisorRol: 'SUPERVISOR', nombrePuesto: sectorName, permanencia: String(row[5] || '') };
       }
     }
   }
@@ -945,6 +945,7 @@ function saveShiftSettings(dateStr, shift, settings) {
     sector: targetSector,
     operador: settings.operador || '',
     supervisor: settings.supervisor || '',
+    supervisorRol: settings.supervisorRol || 'SUPERVISOR',
     permanencia: settings.permanencia || '',
     updatedAt: Utilities.formatDate(new Date(), SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss')
   };

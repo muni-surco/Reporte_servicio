@@ -64,6 +64,7 @@ const App: React.FC = () => {
     nombrePuesto: '1A',
     operador: '',
     supervisor: '',
+    supervisorRol: 'SUPERVISOR',
     permanencia: '',
     turno: getAutoTurno(),
     ipServidor: '10.20.0.1',
@@ -466,6 +467,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                 nombrePuesto: s,
                 operador: '',
                 supervisor: '',
+                supervisorRol: 'SUPERVISOR',
                 permanencia: ''
               };
               let sectorUnits = allUnitsToUse.filter(u => u.sector === s);
@@ -577,7 +579,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     if (specificSettings) {
       setSettings(prev => ({ ...specificSettings, turno: prev.turno }));
     } else {
-      setSettings(prev => ({ ...prev, nombrePuesto: sector, operador: '', supervisor: '', permanencia: '' }));
+      setSettings(prev => ({ ...prev, nombrePuesto: sector, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', permanencia: '' }));
     }
   };
 
@@ -766,6 +768,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     nombrePuesto: sector,
     operador: String(base?.operador || ''),
     supervisor: String(base?.supervisor || ''),
+    supervisorRol: String(base?.supervisorRol || 'SUPERVISOR'),
     permanencia: String(base?.permanencia || ''),
     turno,
     ipServidor: String(base?.ipServidor || settings.ipServidor || ''),
@@ -853,6 +856,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       nombrePuesto: s,
       operador: '',
       supervisor: '',
+      supervisorRol: 'SUPERVISOR',
       permanencia: ''
     };
     let sectorUnits = units.filter(u => u.sector === s);

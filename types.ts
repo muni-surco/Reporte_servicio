@@ -99,6 +99,7 @@ export interface AppSettings {
   nombrePuesto: string;
   operador: string;
   supervisor: string;
+  supervisorRol: string;
   permanencia: string;
   turno: string;
   ipServidor: string;

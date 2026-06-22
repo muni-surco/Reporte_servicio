@@ -130,6 +130,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           nombrePuesto: sectorName,
           operador: '',
           supervisor: '',
+          supervisorRol: 'SUPERVISOR',
           permanencia: '',
           turno: settings.turno,
           ipServidor: '',
