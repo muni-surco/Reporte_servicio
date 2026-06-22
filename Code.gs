@@ -692,7 +692,8 @@ function getMobileData() {
       ];
       const operatorRoles = [
         'ANALISTA C4', 'OPERADOR C4', 'JEFE AREA', 'SUPERVISOR', 
-        'JEFE OPERACIONES', 'ASISTENTE ADMINISTRATIVO', 'PERMANENCIA'
+        'JEFE OPERACIONES', 'ASISTENTE ADMINISTRATIVO', 'PERMANENCIA',
+        'RESCATE'
       ];
       
       if (nameIdx !== -1) {
