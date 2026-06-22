@@ -86,17 +86,17 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
           if (containerRef.current && containerRef.current.contains(e.relatedTarget as Node)) {
             return;
           }
+          
+          // Strict mode: clear invalid value SYNCHRONOUSLY so save button validates correctly
+          if (strict && value && value.trim() !== '') {
+            const exists = suggestions.some(s => String(s).toLowerCase() === String(value).toLowerCase());
+            if (!exists) {
+              onChange('');
+            }
+          }
+          
           setTimeout(() => {
             setIsOpen(false);
-            
-            // Strict mode logic: If not in suggestions, clear it
-            if (strict && value && value.trim() !== '') {
-              const exists = suggestions.some(s => String(s).toLowerCase() === String(value).toLowerCase());
-              if (!exists) {
-                onChange('');
-              }
-            }
-            
             if (onBlur) onBlur();
           }, 150);
         }}

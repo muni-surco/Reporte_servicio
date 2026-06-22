@@ -275,7 +275,7 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="hidden sm:flex flex-col min-w-[180px] max-w-[280px] flex-1">
                       <span className={labelStyle}>SUPERVISOR</span>
                       {!readOnly && editingField === 'supervisor' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.supervisor} strict={true} />
+                         <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : operatorOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.supervisor} strict={true} />
                       ) : (
                         (() => {
                           const supName = normalizeRequiredField(settings.supervisor);
