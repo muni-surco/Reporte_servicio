@@ -991,8 +991,9 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
   try {
     const searchId = String(unitId).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
     const latest = rtdbGet('latest_km/' + searchId);
-    if (latest && latest.kmEnd) {
-      return String(latest.kmEnd);
+    // Only use kmStart (set by bridge from previous shift), never kmEnd
+    if (latest && latest.kmStart) {
+      return String(latest.kmStart);
     }
   } catch (e) {
     console.error('Error in getPreviousKmEnd:', e);
@@ -1120,20 +1121,13 @@ function updateUnit(dateStr, shift, settings, unit) {
         found.totalKm = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
         found.updatedAt = timestamp;
         rtdbSet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, found);
-        rtdbSet('latest_km/' + cleanId, { kmEnd: unit.kmStart, updatedAt: timestamp });
+        rtdbSet('latest_km/' + cleanId, { kmStart: unit.kmStart, updatedAt: timestamp });
         rtdbSet('_meta/units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift, { updatedAt: timestamp });
       }
     } catch (e) { /* prev shift not available */ }
   }
 
-  // Always update latest_km index with current kmStart (ensures getPreviousKmEnd
-  // always has a reference value, even when bridge doesn't run or kmEnd is 0)
-  if (unit.id && unit.kmStart && unit.kmStart !== '0') {
-    const searchId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    rtdbSet('latest_km/' + searchId, { kmEnd: unit.kmStart, updatedAt: timestamp });
-  }
-
-  // Update latest_km index with current unit's kmEnd (overwrites kmStart value when available)
+  // Update latest_km index with current unit's kmEnd (for next shift's reference)
   if (unit.id && unit.kmEnd && unit.kmEnd !== '0') {
     const searchId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
     rtdbSet('latest_km/' + searchId, { kmEnd: unit.kmEnd, updatedAt: timestamp });

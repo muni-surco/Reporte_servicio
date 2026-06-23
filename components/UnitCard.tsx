@@ -41,7 +41,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const [kmEnd, setKmEnd] = useState('');
   const [kmDiff, setKmDiff] = useState('0');
   const [kmRecarga, setKmRecarga] = useState('');
-  const [prevKmEnd, setPrevKmEnd] = useState<string>('');
+  const [prevKmStart, setPrevKmStart] = useState<string>('');
   const [kmFetching, setKmFetching] = useState(false);
   const [kmStartError, setKmStartError] = useState<string | null>(null);
 
@@ -99,7 +99,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     if (isEditing && formData.id && formData.id !== lastKmFetchedIdRef.current) {
       const unitId = String(formData.id).trim().toUpperCase();
       if (unitId === '' || unitId.startsWith('AR-')) {
-        setPrevKmEnd('');
+        setPrevKmStart('');
         setKmFetching(false);
         return;
       }
@@ -112,10 +112,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
           .withSuccessHandler((km: string) => {
             setKmFetching(false);
             if (km && km !== '0' && km !== 'undefined' && String(km).trim() !== '') {
-              setKmStart(String(km));
-              setPrevKmEnd(String(km));
+              setPrevKmStart(String(km));
             } else {
-              setPrevKmEnd('');
+              setPrevKmStart('');
             }
           })
           .getPreviousKmEnd(currentDate, currentShift, formData.id, unit.sector || '');
@@ -222,17 +221,19 @@ const UnitCard: React.FC<UnitCardProps> = ({
     }
     const kmStartNum = parseFloat(kmStart);
     if (!isSereno && !isNaN(kmStartNum)) {
-      const savedKmStart = parseFloat(unit.kmStart);
-      if (!isNaN(savedKmStart) && savedKmStart > 0 && kmStartNum < savedKmStart) {
+      const prevKmStartNum = parseFloat(prevKmStart);
+      if (prevKmStart && !isNaN(prevKmStartNum) && kmStartNum < prevKmStartNum) {
         setErrors(prev => ({ ...prev, kmStart: true }));
         setKmStartError('El km no puede ser menor al anterior.');
         return;
       }
-      const prevKmEndNum = parseFloat(prevKmEnd);
-      if (prevKmEnd && !isNaN(prevKmEndNum) && kmStartNum < prevKmEndNum) {
-        setErrors(prev => ({ ...prev, kmStart: true }));
-        setKmStartError('El km no puede ser menor al anterior.');
-        return;
+    }
+
+    // Validate kmRecarga > kmStart
+    if (kmRecarga && kmRecarga.trim() !== '' && kmRecarga !== '0') {
+      const kmRecargaNum = parseFloat(kmRecarga);
+      if (!isNaN(kmRecargaNum) && !isNaN(kmStartNum) && kmRecargaNum <= kmStartNum) {
+        newErrors.kmRecarga = true;
       }
     }
 
@@ -513,7 +514,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 </div>
                 <div className="col-span-1">
                   <label className={labelStyleEdit}>KM INICIO <span className="text-red-500">*</span></label>
-                  <input type="number" name="kmStart" value={kmStart} min={0} step="0.1" placeholder="Km" onChange={(e) => { setKmStart(e.target.value); setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false })); }} className={inputStyle('kmStart')} />
+                  <input type="number" name="kmStart" value={kmStart} min={0} max={999999} step="0.1" placeholder="Km" onChange={(e) => { const v = e.target.value; if (v === '' || parseFloat(v) <= 999999) { setKmStart(v); } setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false })); }} className={inputStyle('kmStart')} />
                   {kmStartError ? (
                     <span className="flex items-center gap-1 text-[10px] text-red-500 mt-0.5">
                       <span className="material-symbols-outlined text-[12px]">error</span>
@@ -524,7 +525,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   ) : null}
                 </div>
                 <div className="col-span-1">
-                  <label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} />
+                  <label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50 ${errors.kmRecarga ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`} />
+                  {errors.kmRecarga && <span className={errorMsgStyle}>Mayor al km inicial</span>}
                 </div>
                 <div className="col-span-1">
                   <label className={labelStyleEdit}>COMBUSTIBLE</label>
