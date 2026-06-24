@@ -111,7 +111,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
         google.script.run
           .withSuccessHandler((km: string) => {
             setKmFetching(false);
-            if (km && km !== '0' && km !== 'undefined' && String(km).trim() !== '') {
+            const kmNum = parseFloat(km);
+            if (km && km !== '0' && km !== 'undefined' && String(km).trim() !== '' && !isNaN(kmNum) && kmNum >= 0 && kmNum < 1000000) {
               setPrevKmStart(String(km));
             } else {
               setPrevKmStart('');
@@ -517,9 +518,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <input type="number" name="kmStart" value={kmStart} min={0} max={999999} step="0.1" placeholder="Km" onChange={(e) => { const v = e.target.value; if (v === '' || parseFloat(v) <= 999999) { setKmStart(v); } setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false })); }} className={inputStyle('kmStart')} />
                   {kmFetching ? (
                     <div className="text-[10px] text-slate-400 mt-0.5 animate-pulse">Cargando prev...</div>
-                  ) : prevKmStart ? (
-                    <div className="text-[10px] text-[#005ea5] mt-0.5 font-medium">Previo: {prevKmStart} km</div>
-                  ) : null}
+                  ) : (
+                    <div className="text-[10px] text-[#005ea5] mt-0.5 font-medium">Previo: {prevKmStart || '0'} km</div>
+                  )}
                   {kmStartError ? (
                     <span className="flex items-center gap-1 text-[10px] text-red-500 mt-0.5">
                       <span className="material-symbols-outlined text-[12px]">error</span>
