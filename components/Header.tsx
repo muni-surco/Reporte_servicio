@@ -290,7 +290,7 @@ const Header: React.FC<HeaderProps> = ({
                                 <span
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onSaveSettings({ ...settings, supervisor: supName || settings.supervisor, supervisorRol: newRole });
+                                    onHeaderSave({ ...settings, supervisor: supName || settings.supervisor, supervisorRol: newRole });
                                   }}
                                   className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all shrink-0 ${role === 'SUPERVISOR' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
                                 >

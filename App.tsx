@@ -983,11 +983,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
   const handleHeaderSave = (currentSettings?: AppSettings) => {
     if (isReadOnly) return;
-    const settingsToSave = currentSettings || settings;
-    if (!settingsToSave.operador.trim() || !settingsToSave.supervisor.trim() || !settingsToSave.permanencia.trim()) {
-      return;
-    }
-    persistSettingsOnly(settingsToSave);
+    persistSettingsOnly(currentSettings || settings);
   };
 
   const motivoStatusOptions = useMemo(() => {

@@ -995,34 +995,19 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
       timeZone = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone();
     } catch (err) {}
 
-    let targetDate = currentDateStr;
-    let targetShift = currentShift;
+    // Read directly from the previous shift's unit data (1 specific read, no scan)
+    const prevShiftInfo = getPreviousShift(currentDateStr, currentShift, timeZone);
+    const targetSector = toStorageSector(sector || '');
+    const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + searchId;
+    const found = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId);
+    if (found && found.kmStart) {
+      return String(found.kmStart);
+    }
 
-    // Search up to 6 shifts backwards (2 days)
-    for (let i = 0; i < 6; i++) {
-      const prevShiftInfo = getPreviousShift(targetDate, targetShift, timeZone);
-      targetDate = prevShiftInfo.date;
-      targetShift = prevShiftInfo.shift;
-
-      const prevUnitsData = rtdbGet('units/' + targetDate + '_' + targetShift);
-      if (prevUnitsData) {
-        for (const sect in prevUnitsData) {
-          const sectorUnits = prevUnitsData[sect];
-          for (const uid in sectorUnits) {
-            const unit = sectorUnits[uid];
-            if (unit && String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') === searchId) {
-              const prevKm = unit.kmStart;
-              if (prevKm && prevKm !== '0') {
-                const prevKmNum = parseFloat(prevKm);
-                if (!isNaN(prevKmNum) && prevKmNum >= 0 && prevKmNum < 1000000) {
-                  console.log('[getPreviousKmEnd] Encontrado kmStart valido para:', searchId, 'valor:', prevKm);
-                  return String(prevKm);
-                }
-              }
-            }
-          }
-        }
-      }
+    // Fallback: try latest_km (legacy data from before this change)
+    const latest = rtdbGet('latest_km/' + searchId);
+    if (latest && latest.kmStart) {
+      return String(latest.kmStart);
     }
   } catch (e) {
     console.error('Error in getPreviousKmEnd:', e);
@@ -1150,7 +1135,6 @@ function updateUnit(dateStr, shift, settings, unit) {
         found.totalKm = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
         found.updatedAt = timestamp;
         rtdbSet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, found);
-        rtdbSet('latest_km/' + cleanId, { kmStart: unit.kmStart, updatedAt: timestamp });
         rtdbSet('_meta/units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift, { updatedAt: timestamp });
       }
     } catch (e) { /* prev shift not available */ }
