@@ -602,9 +602,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       const shift = settings.turno;
 
       let threshold: number;
-      if (shift === 'MAÑANA') threshold = 510;
-      else if (shift === 'TARDE') threshold = 990;
-      else threshold = 30;
+      if (shift === 'MAÑANA') threshold = 750;
+      else if (shift === 'TARDE') threshold = 1230;
+      else threshold = 270;
 
       if (totalMinutes < threshold) {
         setKmToastVisible(false);
@@ -637,7 +637,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         if (kmToastDismissedAt.current === 0) {
           setKmToastClosing(false);
           setKmToastVisible(true);
-        } else if (Date.now() - kmToastDismissedAt.current >= 60000) {
+        } else if (Date.now() - kmToastDismissedAt.current >= 300000) {
           setKmToastClosing(false);
           setKmToastVisible(true);
         }
