@@ -204,7 +204,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
-      kmStart: !isSereno && String(kmStart).trim() === '',
+      kmStart: false,
       codigoTaser: formData.taser === 'SI' && (!formData.codigoTaser || String(formData.codigoTaser).trim() === '' || (codigoTaserOptions && !codigoTaserOptions.includes(formData.codigoTaser))),
       codigoBodycam: formData.bodycam === 'SI' && (!formData.codigoBodycam || String(formData.codigoBodycam).trim() === '' || (codigoBodycamOptions && !codigoBodycamOptions.includes(formData.codigoBodycam))),
     };
@@ -514,7 +514,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
                 </div>
                 <div className="col-span-1">
-                  <label className={labelStyleEdit}>KM INICIO <span className="text-red-500">*</span></label>
+                  <label className={labelStyleEdit}>KM INICIO</label>
                   <input type="number" name="kmStart" value={kmStart} min={0} max={999999} step="0.1" placeholder="Km" onChange={(e) => { const v = e.target.value; if (v === '' || parseFloat(v) <= 999999) { setKmStart(v); } setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false })); }} className={inputStyle('kmStart')} />
                   {kmFetching ? (
                     <div className="text-[10px] text-slate-400 mt-0.5 animate-pulse">Cargando prev...</div>
@@ -526,8 +526,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
                       <span className="material-symbols-outlined text-[12px]">error</span>
                       {kmStartError}
                     </span>
-                  ) : errors.kmStart ? (
-                    <span className={errorMsgStyle}>Requerido</span>
                   ) : null}
                 </div>
                 <div className="col-span-1">
