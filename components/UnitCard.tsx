@@ -228,6 +228,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
         setKmStartError('El km no puede ser menor al anterior.');
         return;
       }
+      if (prevKmStart && prevKmStart !== '0' && !isNaN(prevKmStartNum) && kmStartNum - prevKmStartNum > 250) {
+        setErrors(prev => ({ ...prev, kmStart: true }));
+        setKmStartError('La diferencia supera los 250 km respecto al turno anterior.');
+        return;
+      }
     }
 
     // Validate kmRecarga > kmStart

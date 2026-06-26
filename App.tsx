@@ -22,7 +22,7 @@ import VehicleSearchView from './components/VehicleSearchView';
 import MapView from './components/MapView';
 import WantedView from './components/WantedView';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS } from './types';
-import { Users, LayoutDashboard, FileText } from 'lucide-react';
+import { Users, LayoutDashboard, FileText, TriangleAlert } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal';
 
 declare const google: any;
@@ -103,6 +103,17 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
   const [loadingPersonnel, setLoadingPersonnel] = useState(false);
   const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
+
+  // KM reminder toast
+  const [kmToastList, setKmToastList] = useState<{ id: string, name: string }[]>([]);
+  const [kmToastVisible, setKmToastVisible] = useState(false);
+  const [kmToastClosing, setKmToastClosing] = useState(false);
+  const kmToastVisibleRef = useRef(false);
+  const kmToastClosingRef = useRef(false);
+  const kmToastDismissedAt = useRef(0);
+  const kmToastIntervalRef = useRef<number | null>(null);
+  useEffect(() => { kmToastVisibleRef.current = kmToastVisible; }, [kmToastVisible]);
+  useEffect(() => { kmToastClosingRef.current = kmToastClosing; }, [kmToastClosing]);
 
   const isReadOnly = (() => {
     const today = new Date().toLocaleDateString('en-CA');
@@ -583,6 +594,61 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     }
   };
 
+  // KM reminder toast: check every 30s
+  useEffect(() => {
+    const check = () => {
+      const now = new Date();
+      const totalMinutes = now.getHours() * 60 + now.getMinutes();
+      const shift = settings.turno;
+
+      let threshold: number;
+      if (shift === 'MAÑANA') threshold = 510;
+      else if (shift === 'TARDE') threshold = 990;
+      else threshold = 30;
+
+      if (totalMinutes < threshold) {
+        setKmToastVisible(false);
+        setKmToastClosing(false);
+        kmToastDismissedAt.current = 0;
+        setKmToastList([]);
+        return;
+      }
+
+      const pending = units.filter(u =>
+        u.type !== 'SERENO' &&
+        u.status !== 'FALTO' &&
+        u.status !== 'SIN VEHICULO' &&
+        u.status !== 'DESPERFECTOS' &&
+        (u.kmStart === '' || u.kmStart === '0' || u.kmStart === '0.0')
+      );
+
+      if (pending.length === 0) {
+        setKmToastVisible(false);
+        setKmToastClosing(false);
+        kmToastDismissedAt.current = 0;
+        setKmToastList([]);
+        return;
+      }
+
+      const list = pending.map(u => ({ id: u.id || u.unit_id || '(sin ID)', name: u.personnel1 || '(sin personal)' }));
+      setKmToastList(list);
+
+      if (!kmToastVisibleRef.current && !kmToastClosingRef.current) {
+        if (kmToastDismissedAt.current === 0) {
+          setKmToastClosing(false);
+          setKmToastVisible(true);
+        } else if (Date.now() - kmToastDismissedAt.current >= 60000) {
+          setKmToastClosing(false);
+          setKmToastVisible(true);
+        }
+      }
+    };
+
+    check();
+    kmToastIntervalRef.current = window.setInterval(check, 30000);
+    return () => { if (kmToastIntervalRef.current !== null) window.clearInterval(kmToastIntervalRef.current); };
+  }, [units, settings.turno]);
+
   // Save queue (non-blocking, sequential)
   const saveQueueRef = useRef<Array<{ unit: UnitData }>>([]);
   const isSavingRef = useRef(false);
@@ -630,6 +696,14 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                 return next;
               }), 2500);
             }
+            // Sync kmStart into local state so the toast reflects it immediately
+            const savedKmStart = item.unit.kmStart || '';
+            setUnits(prev => prev.map(u => {
+              const matchKey = u.unit_id || u.tempId || u.id;
+              const itemKey = item.unit.unit_id || item.unit.tempId || item.unit.id;
+              if (matchKey === itemKey) return { ...u, kmStart: savedKmStart };
+              return u;
+            }));
           } else {
             setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
           }
@@ -1186,6 +1260,43 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           onCancel={cancelViewChange}
         />
       )}
+
+      <style>{`
+        @keyframes km-fade-slide-in {
+          from { transform: translateY(-24px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes km-fade-slide-out {
+          from { transform: translateY(0); opacity: 1; }
+          to { transform: translateY(-24px); opacity: 0; }
+        }
+        .km-anim-in { animation: km-fade-slide-in 0.3s ease-out forwards; }
+        .km-anim-out { animation: km-fade-slide-out 0.25s ease-in forwards; }
+      `}</style>
+      {(kmToastVisible || kmToastClosing) && kmToastList.length > 0 && (
+        <div key={kmToastVisible ? 'in' : 'out'} className={`fixed top-4 right-4 z-[9999] ${kmToastClosing ? 'km-anim-out' : 'km-anim-in'}`}
+          onAnimationEnd={() => { if (kmToastClosing) { setKmToastVisible(false); setKmToastClosing(false); } }}>
+          <div className="flex items-start gap-3 bg-red-50 rounded-xl p-4 pr-10 shadow-lg border border-red-300 min-w-[300px] max-w-[420px] relative">
+            <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-100">
+              <TriangleAlert className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-[#1e3a5f]">KM INICIO PENDIENTE</p>
+              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 max-h-[180px] overflow-y-auto">
+                {kmToastList.map((item, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 text-[11px]">
+                    <span className="bg-red-50 text-red-700 font-medium px-1.5 py-0.5 rounded-md border border-red-200">{item.id}</span>
+                    <span className="text-slate-500">{item.name}</span>
+                  </span>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">{kmToastList.length} unidad(es) sin kilometraje inicial</p>
+            </div>
+            <button className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 w-5 h-5 flex items-center justify-center rounded" onClick={() => { setKmToastClosing(true); kmToastDismissedAt.current = Date.now(); }}>×</button>
+          </div>
+        </div>
+      )}
+
       <Sidebar currentView={currentView} onViewChange={handleViewChange} />
       <main className="ml-[76px] flex flex-col h-screen">
         <Header
