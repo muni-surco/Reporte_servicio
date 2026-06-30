@@ -33,6 +33,7 @@ interface HeaderProps {
   forceHeaderError?: boolean;
   codigoTaserOptions?: string[];
   codigoBodycamOptions?: string[];
+  radioOptions?: string[];
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -56,7 +57,8 @@ const Header: React.FC<HeaderProps> = ({
   hasPendingChanges,
   forceHeaderError,
   codigoTaserOptions,
-  codigoBodycamOptions
+  codigoBodycamOptions,
+  radioOptions
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
@@ -287,22 +289,18 @@ const Header: React.FC<HeaderProps> = ({
                       ) : (
                         (() => {
                           const supName = normalizeRequiredField(settings.supervisor);
-                          const role = settings.supervisorRol || 'SUPERVISOR';
-                          const newRole = role === 'SUPERVISOR' ? 'ENCARGADO' : 'SUPERVISOR';
+                          const supEstado = settings.supervisorEstado || '';
+                          const supEncargado = normalizeRequiredField(settings.supervisorEncargado || '');
+                          const displayName = (supEstado === 'Falto' && supEncargado) ? supEncargado : supName;
+                          const roleBadge = (supEstado === 'Falto' && supEncargado) ? 'ENCARGADO' : 'SUPERVISOR';
                           return (
                             <div className={`${displayBoxStyle} ${fieldErrors.supervisor || isFieldMissing('supervisor') ? 'border-red-400 bg-red-50' : ''}`}>
                               <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setEditingField('supervisor'); setFieldErrors(prev => ({ ...prev, supervisor: false })); }}>
-                                <p className={valueStyle}>{supName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
+                                <p className={valueStyle}>{displayName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
                               </div>
                               {!readOnly && (
-                                <span
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onHeaderSave({ ...settings, supervisor: supName || settings.supervisor, supervisorRol: newRole });
-                                  }}
-                                  className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider cursor-pointer transition-all shrink-0 ${role === 'SUPERVISOR' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}
-                                >
-                                  {role}
+                                <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 ${roleBadge === 'SUPERVISOR' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                  {roleBadge}
                                 </span>
                               )}
                               {supName && (
@@ -319,12 +317,19 @@ const Header: React.FC<HeaderProps> = ({
                       {!readOnly && editingField === 'permanencia' ? (
                         <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.permanencia} strict={true} />
                       ) : (
-                        <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('permanencia'); setFieldErrors(prev => ({ ...prev, permanencia: false })); }}>
-                          <p className={valueStyle}>{normalizeRequiredField(settings.permanencia) || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
-                          {normalizeRequiredField(settings.permanencia) && (
-                            <span ref={permanenciaEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('permanencia'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
-                          )}
-                        </div>
+                        (() => {
+                          const permName = normalizeRequiredField(settings.permanencia);
+                          return (
+                            <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('permanencia'); setFieldErrors(prev => ({ ...prev, permanencia: false })); }}>
+                              <div className="flex-1 min-w-0">
+                                <p className={valueStyle}>{permName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
+                              </div>
+                              {permName && (
+                                <span ref={permanenciaEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('permanencia'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
+                              )}
+                            </div>
+                          );
+                        })()
                       )}
                       {(fieldErrors.permanencia || isFieldMissing('permanencia')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
@@ -437,6 +442,8 @@ const Header: React.FC<HeaderProps> = ({
           anchorEl={equipPopover === 'supervisor' ? supervisorEquipRef.current : permanenciaEquipRef.current}
           codigoTaserOptions={codigoTaserOptions}
           codigoBodycamOptions={codigoBodycamOptions}
+          radioOptions={radioOptions}
+          personnelOptions={personnelOptions}
         />
       )}
     </header>

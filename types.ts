@@ -108,10 +108,16 @@ export interface AppSettings {
   supervisorBodycam: string;
   supervisorCodigoTaser: string;
   supervisorCodigoBodycam: string;
+  supervisorEstado: string;
+  supervisorRadio: string;
+  supervisorEncargado: string;
   permanenciaTaser: string;
   permanenciaBodycam: string;
   permanenciaCodigoTaser: string;
   permanenciaCodigoBodycam: string;
+  permanenciaEstado: string;
+  permanenciaRadio: string;
+  permanenciaEncargado: string;
 }
 
 export interface AppData {

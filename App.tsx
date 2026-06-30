@@ -851,10 +851,16 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     supervisorBodycam: String(base?.supervisorBodycam || ''),
     supervisorCodigoTaser: String(base?.supervisorCodigoTaser || ''),
     supervisorCodigoBodycam: String(base?.supervisorCodigoBodycam || ''),
+    supervisorEstado: String(base?.supervisorEstado || ''),
+    supervisorRadio: String(base?.supervisorRadio || ''),
+    supervisorEncargado: String(base?.supervisorEncargado || ''),
     permanenciaTaser: String(base?.permanenciaTaser || ''),
     permanenciaBodycam: String(base?.permanenciaBodycam || ''),
     permanenciaCodigoTaser: String(base?.permanenciaCodigoTaser || ''),
-    permanenciaCodigoBodycam: String(base?.permanenciaCodigoBodycam || '')
+    permanenciaCodigoBodycam: String(base?.permanenciaCodigoBodycam || ''),
+    permanenciaEstado: String(base?.permanenciaEstado || ''),
+    permanenciaRadio: String(base?.permanenciaRadio || ''),
+    permanenciaEncargado: String(base?.permanenciaEncargado || '')
   });
 
   const cancelViewChange = () => {
@@ -1326,6 +1332,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           operatorOptions={operatorOptions}
           personnelStats={personnelStats}
           readOnly={isReadOnly}
+          radioOptions={radioOptions}
           codigoTaserOptions={codigoTaserOptions}
           codigoBodycamOptions={codigoBodycamOptions}
           hasPendingChanges={hasPendingChanges}
