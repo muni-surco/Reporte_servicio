@@ -113,6 +113,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               onMouseEnter={() => setActiveIndex(idx)}
               onMouseDown={(e) => {
                 e.preventDefault();
+                e.nativeEvent.stopPropagation();
                 handleSelect(name);
               }}
               className={`px-3 py-2 text-[10px] cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${activeIndex === idx ? 'bg-blue-600 text-white' : 'text-slate-700 hover:bg-blue-50'

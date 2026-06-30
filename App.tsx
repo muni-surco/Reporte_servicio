@@ -846,7 +846,15 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     permanencia: String(base?.permanencia || ''),
     turno,
     ipServidor: String(base?.ipServidor || settings.ipServidor || ''),
-    version: String(base?.version || settings.version || '')
+    version: String(base?.version || settings.version || ''),
+    supervisorTaser: String(base?.supervisorTaser || ''),
+    supervisorBodycam: String(base?.supervisorBodycam || ''),
+    supervisorCodigoTaser: String(base?.supervisorCodigoTaser || ''),
+    supervisorCodigoBodycam: String(base?.supervisorCodigoBodycam || ''),
+    permanenciaTaser: String(base?.permanenciaTaser || ''),
+    permanenciaBodycam: String(base?.permanenciaBodycam || ''),
+    permanenciaCodigoTaser: String(base?.permanenciaCodigoTaser || ''),
+    permanenciaCodigoBodycam: String(base?.permanenciaCodigoBodycam || '')
   });
 
   const cancelViewChange = () => {
@@ -1037,6 +1045,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         .withSuccessHandler((res: { success: boolean, error?: string }) => {
           setSaving(false);
           if (res.success) {
+            setSettings(newSettings);
             setSectorSettingsMap(prev => ({
               ...prev,
               [newSettings.nombrePuesto || '1A']: newSettings
@@ -1317,6 +1326,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           operatorOptions={operatorOptions}
           personnelStats={personnelStats}
           readOnly={isReadOnly}
+          codigoTaserOptions={codigoTaserOptions}
+          codigoBodycamOptions={codigoBodycamOptions}
           hasPendingChanges={hasPendingChanges}
           forceHeaderError={currentView === 'DASHBOARD' && (hasNewRecordInCurrentSector || hasModifiedDefaultUnitInCurrentSector) && !headerFieldsComplete(settings)}
         />

@@ -9,6 +9,7 @@ declare global {
 import React, { useState, useEffect, useRef } from 'react';
 import { AppSettings, Sector, ViewMode, PERSONNEL_NAMES, SECTORS } from '../types';
 import AutocompleteInput from './AutocompleteInput';
+import EquipmentPopover from './EquipmentPopover';
 
 interface HeaderProps {
   settings: AppSettings;
@@ -30,6 +31,8 @@ interface HeaderProps {
   readOnly?: boolean;
   hasPendingChanges?: boolean;
   forceHeaderError?: boolean;
+  codigoTaserOptions?: string[];
+  codigoBodycamOptions?: string[];
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -51,13 +54,18 @@ const Header: React.FC<HeaderProps> = ({
   personnelStats,
   readOnly,
   hasPendingChanges,
-  forceHeaderError
+  forceHeaderError,
+  codigoTaserOptions,
+  codigoBodycamOptions
 }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [localDate, setLocalDate] = useState(selectedDate);
   const [fieldErrors, setFieldErrors] = useState<Record<string, boolean>>({});
+  const [equipPopover, setEquipPopover] = useState<'supervisor' | 'permanencia' | null>(null);
+  const supervisorEquipRef = useRef<HTMLSpanElement>(null);
+  const permanenciaEquipRef = useRef<HTMLSpanElement>(null);
   const tempSettingsRef = useRef<AppSettings>(settings);
 
   const normalizeRequiredField = (value: string) => {
@@ -297,6 +305,9 @@ const Header: React.FC<HeaderProps> = ({
                                   {role}
                                 </span>
                               )}
+                              {supName && (
+                                <span ref={supervisorEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('supervisor'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
+                              )}
                             </div>
                           );
                         })()
@@ -308,7 +319,12 @@ const Header: React.FC<HeaderProps> = ({
                       {!readOnly && editingField === 'permanencia' ? (
                         <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.permanencia} strict={true} />
                       ) : (
-                        <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('permanencia'); setFieldErrors(prev => ({ ...prev, permanencia: false })); }}><p className={valueStyle}>{normalizeRequiredField(settings.permanencia) || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p></div>
+                        <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('permanencia'); setFieldErrors(prev => ({ ...prev, permanencia: false })); }}>
+                          <p className={valueStyle}>{normalizeRequiredField(settings.permanencia) || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
+                          {normalizeRequiredField(settings.permanencia) && (
+                            <span ref={permanenciaEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('permanencia'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
+                          )}
+                        </div>
                       )}
                       {(fieldErrors.permanencia || isFieldMissing('permanencia')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
@@ -410,6 +426,19 @@ const Header: React.FC<HeaderProps> = ({
           )}
         </div>
       </div>
+      {equipPopover && (
+        <EquipmentPopover
+          key={equipPopover}
+          fieldPrefix={equipPopover}
+          personName={normalizeRequiredField(equipPopover === 'supervisor' ? settings.supervisor : settings.permanencia)}
+          settings={tempSettingsRef.current}
+          onSave={(s) => { onHeaderSave(s); setTempSettings(s); tempSettingsRef.current = s; setEquipPopover(null); }}
+          onClose={() => setEquipPopover(null)}
+          anchorEl={equipPopover === 'supervisor' ? supervisorEquipRef.current : permanenciaEquipRef.current}
+          codigoTaserOptions={codigoTaserOptions}
+          codigoBodycamOptions={codigoBodycamOptions}
+        />
+      )}
     </header>
   );
 };

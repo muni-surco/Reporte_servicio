@@ -104,6 +104,14 @@ export interface AppSettings {
   turno: string;
   ipServidor: string;
   version: string;
+  supervisorTaser: string;
+  supervisorBodycam: string;
+  supervisorCodigoTaser: string;
+  supervisorCodigoBodycam: string;
+  permanenciaTaser: string;
+  permanenciaBodycam: string;
+  permanenciaCodigoTaser: string;
+  permanenciaCodigoBodycam: string;
 }
 
 export interface AppData {

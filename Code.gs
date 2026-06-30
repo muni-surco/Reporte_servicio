@@ -76,7 +76,7 @@ function initialSetup() {
     settingsSheet = ss.insertSheet(APP_CONFIG.SHEETS.settings);
   }
   settingsSheet.clear();
-  const settingsHeaders = ['FECHA', 'TURNO', 'SECTOR', 'OPERADOR', 'SUPERVISOR', 'PERMANENCIA'];
+  const settingsHeaders = ['FECHA', 'TURNO', 'SECTOR', 'OPERADOR', 'SUPERVISOR', 'PERMANENCIA', 'SUP_TASER', 'SUP_BODYCAM', 'SUP_COD_TASER', 'SUP_COD_BODYCAM', 'PERM_TASER', 'PERM_BODYCAM', 'PERM_COD_TASER', 'PERM_COD_BODYCAM'];
   settingsSheet.getRange(1, 1, 1, settingsHeaders.length)
                .setValues([settingsHeaders])
                .setFontWeight('bold')
@@ -143,12 +143,12 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
       const parsed = JSON.parse(cached);
       const allSectorSettings = parsed.allSettings;
       const sectorDisplay = toDisplaySector(sector || '1A');
-      const shiftSettings = allSectorSettings[sectorDisplay] || { turno: shift, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', nombrePuesto: sectorDisplay, permanencia: '' };
+      const shiftSettings = allSectorSettings[sectorDisplay] || { turno: shift, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', nombrePuesto: sectorDisplay, permanencia: '', supervisorTaser: '', supervisorBodycam: '', supervisorCodigoTaser: '', supervisorCodigoBodycam: '', permanenciaTaser: '', permanenciaBodycam: '', permanenciaCodigoTaser: '', permanenciaCodigoBodycam: '' };
       return { settings: shiftSettings, allSettings: allSectorSettings, from: 'cache' };
     } catch (e) { /* invalid cache, fall through */ }
   }
 
-  let shiftSettings = { turno: shift, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', nombrePuesto: toDisplaySector(sector || '1A'), permanencia: '' };
+  let shiftSettings = { turno: shift, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', nombrePuesto: toDisplaySector(sector || '1A'), permanencia: '', supervisorTaser: '', supervisorBodycam: '', supervisorCodigoTaser: '', supervisorCodigoBodycam: '', permanenciaTaser: '', permanenciaBodycam: '', permanenciaCodigoTaser: '', permanenciaCodigoBodycam: '' };
   const allSectorSettings = {};
 
   try {
@@ -158,10 +158,10 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
       fbSettings.forEach(s => {
         const sectorName = toDisplaySector(s.sector);
         if (sectorName) {
-          allSectorSettings[sectorName] = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), supervisorRol: String(s.supervisorRol || 'SUPERVISOR'), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
+          allSectorSettings[sectorName] = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), supervisorRol: String(s.supervisorRol || 'SUPERVISOR'), nombrePuesto: sectorName, permanencia: String(s.permanencia || ''), supervisorTaser: String(s.supervisorTaser || ''), supervisorBodycam: String(s.supervisorBodycam || ''), supervisorCodigoTaser: String(s.supervisorCodigoTaser || ''), supervisorCodigoBodycam: String(s.supervisorCodigoBodycam || ''), permanenciaTaser: String(s.permanenciaTaser || ''), permanenciaBodycam: String(s.permanenciaBodycam || ''), permanenciaCodigoTaser: String(s.permanenciaCodigoTaser || ''), permanenciaCodigoBodycam: String(s.permanenciaCodigoBodycam || '') };
         }
         if (toStorageSector(sectorName) === toStorageSector(sector)) {
-          shiftSettings = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), supervisorRol: String(s.supervisorRol || 'SUPERVISOR'), nombrePuesto: sectorName, permanencia: String(s.permanencia || '') };
+          shiftSettings = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), supervisorRol: String(s.supervisorRol || 'SUPERVISOR'), nombrePuesto: sectorName, permanencia: String(s.permanencia || ''), supervisorTaser: String(s.supervisorTaser || ''), supervisorBodycam: String(s.supervisorBodycam || ''), supervisorCodigoTaser: String(s.supervisorCodigoTaser || ''), supervisorCodigoBodycam: String(s.supervisorCodigoBodycam || ''), permanenciaTaser: String(s.permanenciaTaser || ''), permanenciaBodycam: String(s.permanenciaBodycam || ''), permanenciaCodigoTaser: String(s.permanenciaCodigoTaser || ''), permanenciaCodigoBodycam: String(s.permanenciaCodigoBodycam || '') };
         }
       });
       cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), 300);
@@ -174,7 +174,7 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
   const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
   if (settingsSheet) {
     const sLastRow = settingsSheet.getLastRow();
-    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(2, 1, sLastRow - 1, 6).getValues() : [];
+    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(2, 1, sLastRow - 1, 14).getValues() : [];
     for (let i = 0; i < settingsRows.length; i++) {
       const row = settingsRows[i];
       if (!row[0]) continue;
@@ -184,10 +184,10 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
       } catch (e) { continue; }
       const sectorName = toDisplaySector(row[2]);
       if (sectorName) {
-        allSectorSettings[sectorName] = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), supervisorRol: 'SUPERVISOR', nombrePuesto: sectorName, permanencia: String(row[5] || '') };
+        allSectorSettings[sectorName] = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), supervisorRol: 'SUPERVISOR', nombrePuesto: sectorName, permanencia: String(row[5] || ''), supervisorTaser: String(row[6] || ''), supervisorBodycam: String(row[7] || ''), supervisorCodigoTaser: String(row[8] || ''), supervisorCodigoBodycam: String(row[9] || ''), permanenciaTaser: String(row[10] || ''), permanenciaBodycam: String(row[11] || ''), permanenciaCodigoTaser: String(row[12] || ''), permanenciaCodigoBodycam: String(row[13] || '') };
       }
       if (toStorageSector(sectorName) === toStorageSector(sector)) {
-        shiftSettings = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), supervisorRol: 'SUPERVISOR', nombrePuesto: sectorName, permanencia: String(row[5] || '') };
+        shiftSettings = { turno: String(row[1] || ''), operador: String(row[3] || ''), supervisor: String(row[4] || ''), supervisorRol: 'SUPERVISOR', nombrePuesto: sectorName, permanencia: String(row[5] || ''), supervisorTaser: String(row[6] || ''), supervisorBodycam: String(row[7] || ''), supervisorCodigoTaser: String(row[8] || ''), supervisorCodigoBodycam: String(row[9] || ''), permanenciaTaser: String(row[10] || ''), permanenciaBodycam: String(row[11] || ''), permanenciaCodigoTaser: String(row[12] || ''), permanenciaCodigoBodycam: String(row[13] || '') };
       }
     }
   }
@@ -948,6 +948,14 @@ function saveShiftSettings(dateStr, shift, settings) {
     supervisor: settings.supervisor || '',
     supervisorRol: settings.supervisorRol || 'SUPERVISOR',
     permanencia: settings.permanencia || '',
+    supervisorTaser: settings.supervisorTaser || '',
+    supervisorBodycam: settings.supervisorBodycam || '',
+    supervisorCodigoTaser: settings.supervisorCodigoTaser || '',
+    supervisorCodigoBodycam: settings.supervisorCodigoBodycam || '',
+    permanenciaTaser: settings.permanenciaTaser || '',
+    permanenciaBodycam: settings.permanenciaBodycam || '',
+    permanenciaCodigoTaser: settings.permanenciaCodigoTaser || '',
+    permanenciaCodigoBodycam: settings.permanenciaCodigoBodycam || '',
     updatedAt: Utilities.formatDate(new Date(), SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss')
   };
 
@@ -1386,6 +1394,10 @@ function migrateToFirebase() {
         fbSet('shifts', docId, {
           date: dateStr, shift: shift, sector: sector,
           operador: String(r[3] || ''), supervisor: String(r[4] || ''), permanencia: String(r[5] || ''),
+          supervisorTaser: String(r[6] || ''), supervisorBodycam: String(r[7] || ''),
+          supervisorCodigoTaser: String(r[8] || ''), supervisorCodigoBodycam: String(r[9] || ''),
+          permanenciaTaser: String(r[10] || ''), permanenciaBodycam: String(r[11] || ''),
+          permanenciaCodigoTaser: String(r[12] || ''), permanenciaCodigoBodycam: String(r[13] || ''),
           updatedAt: Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss')
         });
         count++;
@@ -1891,14 +1903,22 @@ function backupFirestoreToSheets() {
           toDisplaySector(s.sector || sectorKey || ''),
           s.operador || '',
           s.supervisor || '',
-          s.permanencia || ''
+          s.permanencia || '',
+          s.supervisorTaser || '',
+          s.supervisorBodycam || '',
+          s.supervisorCodigoTaser || '',
+          s.supervisorCodigoBodycam || '',
+          s.permanenciaTaser || '',
+          s.permanenciaBodycam || '',
+          s.permanenciaCodigoTaser || '',
+          s.permanenciaCodigoBodycam || ''
         ]);
       });
     });
 
     if (newRows.length > 0) {
       const startRow = existingData.length + 1;
-      settingsSheet.getRange(startRow, 1, newRows.length, 6).setValues(newRows);
+      settingsSheet.getRange(startRow, 1, newRows.length, 14).setValues(newRows);
     }
     console.log('[backup] SHIFT_SETTINGS: ' + newRows.length + ' new rows');
   }
