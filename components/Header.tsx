@@ -68,6 +68,8 @@ const Header: React.FC<HeaderProps> = ({
   const [equipPopover, setEquipPopover] = useState<'supervisor' | 'permanencia' | null>(null);
   const supervisorEquipRef = useRef<HTMLSpanElement>(null);
   const permanenciaEquipRef = useRef<HTMLSpanElement>(null);
+  const supervisorColRef = useRef<HTMLDivElement>(null);
+  const permanenciaColRef = useRef<HTMLDivElement>(null);
   const tempSettingsRef = useRef<AppSettings>(settings);
 
   const normalizeRequiredField = (value: string) => {
@@ -282,7 +284,7 @@ const Header: React.FC<HeaderProps> = ({
                       )}
                       {(fieldErrors.operador || isFieldMissing('operador')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
-                    <div className="hidden sm:flex flex-col min-w-[180px] max-w-[280px] flex-1">
+                    <div className="hidden sm:flex flex-col min-w-[180px] max-w-[280px] flex-1" ref={supervisorColRef}>
                       <span className={labelStyle}>SUPERVISOR</span>
                       {!readOnly && editingField === 'supervisor' ? (
                          <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : operatorOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.supervisor} strict={true} />
@@ -312,7 +314,7 @@ const Header: React.FC<HeaderProps> = ({
                       )}
                       {(fieldErrors.supervisor || isFieldMissing('supervisor')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
-                    <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1">
+                    <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1" ref={permanenciaColRef}>
                       <span className={labelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
                       {!readOnly && editingField === 'permanencia' ? (
                         <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.permanencia} strict={true} />
@@ -440,6 +442,7 @@ const Header: React.FC<HeaderProps> = ({
           onSave={(s) => { onHeaderSave(s); setTempSettings(s); tempSettingsRef.current = s; setEquipPopover(null); }}
           onClose={() => setEquipPopover(null)}
           anchorEl={equipPopover === 'supervisor' ? supervisorEquipRef.current : permanenciaEquipRef.current}
+          fieldEl={equipPopover === 'supervisor' ? supervisorColRef.current : permanenciaColRef.current}
           codigoTaserOptions={codigoTaserOptions}
           codigoBodycamOptions={codigoBodycamOptions}
           radioOptions={radioOptions}

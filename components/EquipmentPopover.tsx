@@ -9,6 +9,7 @@ interface Props {
   onSave: (settings: AppSettings) => void;
   onClose: () => void;
   anchorEl: HTMLElement | null;
+  fieldEl: HTMLElement | null;
   codigoTaserOptions?: string[];
   codigoBodycamOptions?: string[];
   radioOptions?: string[];
@@ -18,7 +19,7 @@ interface Props {
 const STATUS_OPTIONS = ['Patrullando', 'Apoyo', 'Fin Apoyo', 'Falto'];
 const ABSENCE_STATUSES = ['Falto'];
 
-const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, onSave, onClose, anchorEl, codigoTaserOptions, codigoBodycamOptions, radioOptions, personnelOptions }) => {
+const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, onSave, onClose, anchorEl, fieldEl, codigoTaserOptions, codigoBodycamOptions, radioOptions, personnelOptions }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
   const labelPrefix = fieldPrefix === 'supervisor' ? 'supervisor' : 'permanencia';
 
@@ -32,7 +33,11 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [arrowLeft, setArrowLeft] = useState(40);
   const [closing, setClosing] = useState(false);
+
+  const POPOVER_WIDTH = 360;
+  const ARROW_SIZE = 8;
 
   useEffect(() => {
     setSupTaser(settings[`${labelPrefix}Taser` as keyof AppSettings] as string || '');
@@ -46,11 +51,16 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
   }, [settings, labelPrefix]);
 
   useEffect(() => {
-    if (anchorEl) {
-      const rect = anchorEl.getBoundingClientRect();
-      setPosition({ top: rect.bottom + 6, left: Math.max(8, rect.left - 160) });
+    if (anchorEl && fieldEl) {
+      const fieldRect = fieldEl.getBoundingClientRect();
+      let left = fieldRect.left + 20;
+      const maxLeft = window.innerWidth - POPOVER_WIDTH - 8;
+      if (left > maxLeft) left = maxLeft;
+      left = Math.max(8, left);
+      setPosition({ top: fieldRect.bottom + 8, left });
+      setArrowLeft(fieldRect.left + fieldRect.width / 2 - left);
     }
-  }, [anchorEl]);
+  }, [anchorEl, fieldEl]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -125,9 +135,12 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
       <style>{`@keyframes equip-fade-in{from{opacity:0;transform:scale(0.95) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)}}@keyframes equip-fade-out{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(0.95) translateY(-4px)}}`}</style>
       <div
         ref={popoverRef}
-        className="fixed z-[9999] bg-white rounded-xl shadow-xl border border-slate-200 p-4 w-[480px]"
+        className="fixed z-[9999] bg-white rounded-xl shadow-xl border border-slate-200 p-4 w-[360px]"
         style={{ top: position.top, left: position.left, animation: `${closing ? 'equip-fade-out' : 'equip-fade-in'} 150ms ease forwards` }}
       >
+        {/* Arrow pointing to the edit icon */}
+        <div className="absolute w-0 h-0 z-10" style={{ top: -ARROW_SIZE, left: arrowLeft, marginLeft: `-${ARROW_SIZE}px`, borderLeft: `${ARROW_SIZE}px solid transparent`, borderRight: `${ARROW_SIZE}px solid transparent`, borderBottom: `${ARROW_SIZE}px solid white` }} />
+        <div className="absolute w-0 h-0 z-0" style={{ top: -ARROW_SIZE - 1, left: arrowLeft, marginLeft: `-${ARROW_SIZE + 1}px`, borderLeft: `${ARROW_SIZE + 1}px solid transparent`, borderRight: `${ARROW_SIZE + 1}px solid transparent`, borderBottom: `${ARROW_SIZE + 1}px solid #e2e8f0` }} />
       <div className="flex items-center justify-between mb-3">
         <span className="text-[13px] font-bold text-[#002d5a] uppercase tracking-tight">ASISTENCIA Y EQUIPAMIENTO</span>
         <button onClick={handleClose} className="text-slate-400 hover:text-slate-600 text-[18px] leading-none">&times;</button>
