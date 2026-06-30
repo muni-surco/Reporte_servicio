@@ -286,53 +286,45 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="hidden sm:flex flex-col min-w-[180px] max-w-[280px] flex-1" ref={supervisorColRef}>
                       <span className={labelStyle}>SUPERVISOR</span>
-                      {!readOnly && editingField === 'supervisor' ? (
-                         <AutocompleteInput autoFocus value={tempSettings.supervisor} onChange={(v) => updateTempField('supervisor', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={personnelOptions && personnelOptions.length > 0 ? personnelOptions : operatorOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.supervisor} strict={true} />
-                      ) : (
-                        (() => {
-                          const supName = normalizeRequiredField(settings.supervisor);
-                          const supEstado = settings.supervisorEstado || '';
-                          const supEncargado = normalizeRequiredField(settings.supervisorEncargado || '');
-                          const displayName = (supEstado === 'Falto' && supEncargado) ? supEncargado : supName;
-                          const roleBadge = (supEstado === 'Falto' && supEncargado) ? 'ENCARGADO' : 'SUPERVISOR';
-                          return (
-                            <div className={`${displayBoxStyle} ${fieldErrors.supervisor || isFieldMissing('supervisor') ? 'border-red-400 bg-red-50' : ''}`}>
-                              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setEditingField('supervisor'); setFieldErrors(prev => ({ ...prev, supervisor: false })); }}>
-                                <p className={valueStyle}>{displayName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
-                              </div>
-                              {!readOnly && (
-                                <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 ${roleBadge === 'SUPERVISOR' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                  {roleBadge}
-                                </span>
-                              )}
-                              {supName && (
-                                <span ref={supervisorEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('supervisor'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
-                              )}
+                      {(() => {
+                        const supName = normalizeRequiredField(settings.supervisor);
+                        const supEstado = settings.supervisorEstado || '';
+                        const supEncargado = normalizeRequiredField(settings.supervisorEncargado || '');
+                        const displayName = (supEstado === 'Falto' && supEncargado) ? supEncargado : supName;
+                        const roleBadge = (supEstado === 'Falto' && supEncargado) ? 'ENCARGADO' : 'SUPERVISOR';
+                        return (
+                          <div className={`${displayBoxStyle} ${fieldErrors.supervisor || isFieldMissing('supervisor') ? 'border-red-400 bg-red-50' : ''}`}>
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setEquipPopover('supervisor'); }}>
+                              <p className={valueStyle}>{displayName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
                             </div>
-                          );
-                        })()
-                      )}
+                            {!readOnly && (
+                              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 ${roleBadge === 'SUPERVISOR' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                {roleBadge}
+                              </span>
+                            )}
+                            {supName && (
+                              <span ref={supervisorEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('supervisor'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {(fieldErrors.supervisor || isFieldMissing('supervisor')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
                     <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1" ref={permanenciaColRef}>
                       <span className={labelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
-                      {!readOnly && editingField === 'permanencia' ? (
-                        <AutocompleteInput autoFocus value={tempSettings.permanencia} onChange={(v) => updateTempField('permanencia', v)} onBlur={handleBlur} placeholder="Buscar..." suggestions={operatorOptions || personnelOptions || PERSONNEL_NAMES} className="!h-9 !py-1 text-[13px] font-medium" error={!!fieldErrors.permanencia} strict={true} />
-                      ) : (
-                        (() => {
-                          const permName = normalizeRequiredField(settings.permanencia);
-                          return (
-                            <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEditingField('permanencia'); setFieldErrors(prev => ({ ...prev, permanencia: false })); }}>
-                              <div className="flex-1 min-w-0">
-                                <p className={valueStyle}>{permName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
-                              </div>
-                              {permName && (
-                                <span ref={permanenciaEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('permanencia'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
-                              )}
+                      {(() => {
+                        const permName = normalizeRequiredField(settings.permanencia);
+                        return (
+                          <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEquipPopover('permanencia'); }}>
+                            <div className="flex-1 min-w-0">
+                              <p className={valueStyle}>{permName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
                             </div>
-                          );
-                        })()
-                      )}
+                            {permName && (
+                              <span ref={permanenciaEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('permanencia'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {(fieldErrors.permanencia || isFieldMissing('permanencia')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
                     {!readOnly && (

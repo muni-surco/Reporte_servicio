@@ -30,6 +30,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
   const [estado, setEstado] = useState(settings[`${labelPrefix}Estado` as keyof AppSettings] as string || 'Patrullando');
   const [radio, setRadio] = useState(settings[`${labelPrefix}Radio` as keyof AppSettings] as string || '');
   const [encargado, setEncargado] = useState(settings[`${labelPrefix}Encargado` as keyof AppSettings] as string || '');
+  const [personValue, setPersonValue] = useState(settings[labelPrefix] || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -47,6 +48,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
     setEstado(settings[`${labelPrefix}Estado` as keyof AppSettings] as string || 'Patrullando');
     setRadio(settings[`${labelPrefix}Radio` as keyof AppSettings] as string || '');
     setEncargado(settings[`${labelPrefix}Encargado` as keyof AppSettings] as string || '');
+    setPersonValue(settings[labelPrefix] || '');
     setErrors({});
   }, [settings, labelPrefix]);
 
@@ -81,6 +83,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
 
   const buildUpdated = (): AppSettings => ({
     ...settings,
+    [fieldPrefix]: personValue,
     [`${labelPrefix}Taser`]: supTaser,
     [`${labelPrefix}Bodycam`]: supBodycam,
     [`${labelPrefix}CodigoTaser`]: supCodTaser,
@@ -92,6 +95,10 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
 
   const handleSave = () => {
     const newErrors: Record<string, string> = {};
+
+    if (!personValue || String(personValue).trim() === '') {
+      newErrors.personValue = 'Campo requerido';
+    }
 
     if (!estado) {
       newErrors.estado = 'Campo requerido';
@@ -145,7 +152,11 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
         <span className="text-[13px] font-bold text-[#002d5a] uppercase tracking-tight">ASISTENCIA Y EQUIPAMIENTO</span>
         <button onClick={handleClose} className="text-slate-400 hover:text-slate-600 text-[18px] leading-none">&times;</button>
       </div>
-      <div className="text-[12px] text-slate-500 font-medium mb-3 truncate">{label}: <strong>{personName || 'Sin asignar'}</strong></div>
+      <div className="mb-3">
+        <label className={labelStyle}>Nombre <span className="text-red-500">*</span></label>
+        <AutocompleteInput value={personValue} onChange={(v) => { setPersonValue(v); setErrors(prev => ({ ...prev, personValue: '' })); }} placeholder="Buscar..." suggestions={personnelOptions || []} className="!h-[32px] !text-[12px]" error={!!errors.personValue} strict={true} />
+        {errors.personValue && <span className="text-[10px] text-red-500 font-medium mt-0.5 block">{errors.personValue}</span>}
+      </div>
 
       <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">ASISTENCIA</div>
       <div className="grid grid-cols-2 gap-3 mb-3">
