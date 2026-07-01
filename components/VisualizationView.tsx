@@ -131,7 +131,11 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           operador: '',
           supervisor: '',
           supervisorRol: 'SUPERVISOR',
+          supervisorEstado: '',
+          supervisorEncargado: '',
+          supervisorTaser: '',
           permanencia: '',
+          permanenciaTaser: '',
           turno: settings.turno,
           ipServidor: '',
           version: ''
@@ -174,13 +178,27 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                   </div>
 
                   <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
-                    <span className={infoLabelStyle}>{safeSettings.supervisorRol === 'ENCARGADO' ? 'ENCARGADO SECTOR' : 'SUPERVISOR SECTOR'}</span>
-                    <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.supervisor ? 'text-red-600' : ''}`}>{safeSettings.supervisor || 'NO ASIGNADO'}</span>
+                    <span className={infoLabelStyle}>
+                      {safeSettings.supervisorEstado === 'Falto' && safeSettings.supervisorEncargado
+                        ? 'ENCARGADO SECTOR'
+                        : safeSettings.supervisorRol === 'DESPACHADOR'
+                          ? 'DESPACHADOR SECTOR'
+                          : 'SUPERVISOR SECTOR'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.supervisor ? 'text-red-600' : ''}`}>
+                        {(safeSettings.supervisorEstado === 'Falto' && safeSettings.supervisorEncargado) ? safeSettings.supervisorEncargado : (safeSettings.supervisor || 'NO ASIGNADO')}
+                      </span>
+                      {safeSettings.supervisorTaser === 'SI' && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">taser</span>}
+                    </div>
                   </div>
 
                   <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
                     <span className={infoLabelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
-                    <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.permanencia ? 'text-red-600' : ''}`}>{safeSettings.permanencia || '--'}</span>
+                    <div className="flex items-center gap-1">
+                      <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.permanencia ? 'text-red-600' : ''}`}>{safeSettings.permanencia || '--'}</span>
+                      {safeSettings.permanenciaTaser === 'SI' && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">taser</span>}
+                    </div>
                   </div>
                 </div>
 

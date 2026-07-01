@@ -14,12 +14,13 @@ interface Props {
   codigoBodycamOptions?: string[];
   radioOptions?: string[];
   personnelOptions?: string[];
+  motivoFaltoOptions?: string[];
 }
 
-const STATUS_OPTIONS = ['Patrullando', 'Apoyo', 'Fin Apoyo', 'Falto'];
+const STATUS_OPTIONS = ['Patrullando', 'Falto'];
 const ABSENCE_STATUSES = ['Falto'];
 
-const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, onSave, onClose, anchorEl, fieldEl, codigoTaserOptions, codigoBodycamOptions, radioOptions, personnelOptions }) => {
+const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, onSave, onClose, anchorEl, fieldEl, codigoTaserOptions, codigoBodycamOptions, radioOptions, personnelOptions, motivoFaltoOptions }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
   const labelPrefix = fieldPrefix === 'supervisor' ? 'supervisor' : 'permanencia';
 
@@ -30,6 +31,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
   const [estado, setEstado] = useState(settings[`${labelPrefix}Estado` as keyof AppSettings] as string || 'Patrullando');
   const [radio, setRadio] = useState(settings[`${labelPrefix}Radio` as keyof AppSettings] as string || '');
   const [encargado, setEncargado] = useState(settings[`${labelPrefix}Encargado` as keyof AppSettings] as string || '');
+  const [motivo, setMotivo] = useState(settings[`${labelPrefix}Motivo` as keyof AppSettings] as string || '');
   const [personValue, setPersonValue] = useState(settings[labelPrefix] || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -48,6 +50,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
     setEstado(settings[`${labelPrefix}Estado` as keyof AppSettings] as string || 'Patrullando');
     setRadio(settings[`${labelPrefix}Radio` as keyof AppSettings] as string || '');
     setEncargado(settings[`${labelPrefix}Encargado` as keyof AppSettings] as string || '');
+    setMotivo(settings[`${labelPrefix}Motivo` as keyof AppSettings] as string || '');
     setPersonValue(settings[labelPrefix] || '');
     setErrors({});
   }, [settings, labelPrefix]);
@@ -89,6 +92,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
     [`${labelPrefix}CodigoTaser`]: supCodTaser,
     [`${labelPrefix}CodigoBodycam`]: supCodBodycam,
     [`${labelPrefix}Estado`]: estado,
+    [`${labelPrefix}Motivo`]: motivo,
     [`${labelPrefix}Radio`]: radio,
     [`${labelPrefix}Encargado`]: encargado,
   });
@@ -135,14 +139,14 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
 
   const label = fieldPrefix === 'supervisor' ? 'Supervisor' : 'Jefe de Área';
   const labelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
-  const selectStyle = "w-full border border-slate-200 bg-slate-50 rounded px-2 py-1 text-[12px] h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm appearance-none cursor-pointer";
+  const selectStyle = "w-full border border-slate-200 bg-slate-50 rounded px-2 py-1 text-[12px] h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm cursor-pointer";
 
   return (
     <>
       <style>{`@keyframes equip-fade-in{from{opacity:0;transform:scale(0.95) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)}}@keyframes equip-fade-out{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(0.95) translateY(-4px)}}`}</style>
       <div
         ref={popoverRef}
-        className="fixed z-[9999] bg-white rounded-xl shadow-xl border border-slate-200 p-4 w-[360px]"
+        className="fixed z-[99999] bg-white rounded-xl shadow-xl border border-slate-200 p-4 w-[360px]"
         style={{ top: position.top, left: position.left, animation: `${closing ? 'equip-fade-out' : 'equip-fade-in'} 150ms ease forwards` }}
       >
         {/* Arrow pointing to the edit icon */}
@@ -163,16 +167,23 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
         <div>
           <label className={labelStyle}>Estado <span className="text-red-500">*</span></label>
           <select value={estado} onChange={(e) => { setEstado(e.target.value); setErrors(prev => ({ ...prev, estado: '' })); }} className={`${selectStyle} ${errors.estado ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`}>
-            <option value="">--</option>
-            {estado && !STATUS_OPTIONS.includes(estado) && <option value={estado}>{estado}</option>}
             {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           {errors.estado && <span className="text-[10px] text-red-500 font-medium mt-0.5 block">{errors.estado}</span>}
         </div>
+        {estado === 'Falto' && (
         <div>
-          <label className={labelStyle}>Radio</label>
-          <AutocompleteInput value={radio} onChange={(v) => { setRadio(v); }} placeholder="20xxx" suggestions={radioOptions || []} className="!h-[32px] !text-[12px]" />
+          <label className={labelStyle}>Motivo Estado</label>
+          {motivoFaltoOptions && motivoFaltoOptions.length > 0 ? (
+            <select value={motivo} onChange={(e) => { setMotivo(e.target.value); }} className={`${selectStyle} ${errors.motivo ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`}>
+              <option value="">--</option>
+              {motivoFaltoOptions.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          ) : (
+            <AutocompleteInput value={motivo} onChange={(v) => { setMotivo(v); }} placeholder="Motivo..." suggestions={[]} className="!h-[32px] !text-[12px]" />
+          )}
         </div>
+        )}
       </div>
 
       {isAbsent && (
@@ -186,6 +197,10 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
       <div className="border-t border-slate-200 my-3"></div>
 
       <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">EQUIPAMIENTO</div>
+      <div className="w-1/2 mb-3">
+        <label className={labelStyle}>Radio</label>
+        <AutocompleteInput value={radio} onChange={(v) => { setRadio(v); }} placeholder="20xxx" suggestions={radioOptions || []} className="!h-[32px] !text-[12px]" />
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelStyle}>TASER</label>

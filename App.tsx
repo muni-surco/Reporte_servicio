@@ -860,7 +860,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     permanenciaCodigoBodycam: String(base?.permanenciaCodigoBodycam || ''),
     permanenciaEstado: String(base?.permanenciaEstado || ''),
     permanenciaRadio: String(base?.permanenciaRadio || ''),
-    permanenciaEncargado: String(base?.permanenciaEncargado || '')
+    permanenciaEncargado: String(base?.permanenciaEncargado || ''),
+    supervisorMotivo: String(base?.supervisorMotivo || ''),
+    permanenciaMotivo: String(base?.permanenciaMotivo || '')
   });
 
   const cancelViewChange = () => {
@@ -1335,6 +1337,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           radioOptions={radioOptions}
           codigoTaserOptions={codigoTaserOptions}
           codigoBodycamOptions={codigoBodycamOptions}
+          motivoFaltoOptions={motivoFaltoOptions}
           hasPendingChanges={hasPendingChanges}
           forceHeaderError={currentView === 'DASHBOARD' && (hasNewRecordInCurrentSector || hasModifiedDefaultUnitInCurrentSector) && !headerFieldsComplete(settings)}
         />

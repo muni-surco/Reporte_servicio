@@ -118,6 +118,8 @@ export interface AppSettings {
   permanenciaEstado: string;
   permanenciaRadio: string;
   permanenciaEncargado: string;
+  supervisorMotivo: string;
+  permanenciaMotivo: string;
 }
 
 export interface AppData {

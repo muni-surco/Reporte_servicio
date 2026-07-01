@@ -34,32 +34,34 @@ interface HeaderProps {
   codigoTaserOptions?: string[];
   codigoBodycamOptions?: string[];
   radioOptions?: string[];
+  motivoFaltoOptions?: string[];
 }
 
-const Header: React.FC<HeaderProps> = ({
-  settings,
-  onSaveSettings,
-  onGlobalSave,
-  onHeaderSave,
-  onGeneratePDF,
-  onRefresh,
-  isSaving,
-  headerSaveStatus,
-  currentSector,
-  onSectorChange,
-  currentView,
-  selectedDate,
-  onDateChange,
-  personnelOptions,
-  operatorOptions,
-  personnelStats,
-  readOnly,
-  hasPendingChanges,
-  forceHeaderError,
-  codigoTaserOptions,
-  codigoBodycamOptions,
-  radioOptions
-}) => {
+  const Header: React.FC<HeaderProps> = ({
+    settings,
+    onSaveSettings,
+    onGlobalSave,
+    onHeaderSave,
+    onGeneratePDF,
+    onRefresh,
+    isSaving,
+    headerSaveStatus,
+    currentSector,
+    onSectorChange,
+    currentView,
+    selectedDate,
+    onDateChange,
+    personnelOptions,
+    operatorOptions,
+    personnelStats,
+    readOnly,
+    hasPendingChanges,
+    forceHeaderError,
+    codigoTaserOptions,
+    codigoBodycamOptions,
+    radioOptions,
+    motivoFaltoOptions,
+  }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -284,8 +286,8 @@ const Header: React.FC<HeaderProps> = ({
                       )}
                       {(fieldErrors.operador || isFieldMissing('operador')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
-                    <div className="hidden sm:flex flex-col min-w-[180px] max-w-[280px] flex-1" ref={supervisorColRef}>
-                      <span className={labelStyle}>SUPERVISOR</span>
+                    <div className="hidden sm:flex flex-col min-w-[180px] max-w-[320px] flex-1" ref={supervisorColRef}>
+                      <span className={labelStyle}>{settings.supervisorRol === 'DESPACHADOR' ? 'DESPACHADOR SECTOR' : 'SUPERVISOR'}</span>
                       {(() => {
                         const supName = normalizeRequiredField(settings.supervisor);
                         const supEstado = settings.supervisorEstado || '';
@@ -302,8 +304,11 @@ const Header: React.FC<HeaderProps> = ({
                                 {roleBadge}
                               </span>
                             )}
+                            {settings.supervisorTaser === 'SI' && (
+                              <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 bg-blue-100 text-blue-700">taser</span>
+                            )}
                             {supName && (
-                              <span ref={supervisorEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('supervisor'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
+                              <span ref={supervisorEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('supervisor'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[16px]">arrow_drop_down</span>
                             )}
                           </div>
                         );
@@ -319,8 +324,11 @@ const Header: React.FC<HeaderProps> = ({
                             <div className="flex-1 min-w-0">
                               <p className={valueStyle}>{permName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
                             </div>
+                            {settings.permanenciaTaser === 'SI' && (
+                              <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 bg-blue-100 text-blue-700">taser</span>
+                            )}
                             {permName && (
-                              <span ref={permanenciaEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('permanencia'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[14px]">edit</span>
+                              <span ref={permanenciaEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('permanencia'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[16px]">arrow_drop_down</span>
                             )}
                           </div>
                         );
@@ -439,6 +447,7 @@ const Header: React.FC<HeaderProps> = ({
           codigoBodycamOptions={codigoBodycamOptions}
           radioOptions={radioOptions}
           personnelOptions={personnelOptions}
+          motivoFaltoOptions={motivoFaltoOptions}
         />
       )}
     </header>
