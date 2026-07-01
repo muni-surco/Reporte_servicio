@@ -1088,6 +1088,30 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     return map;
   }, [motivoFaltoOptions, motivoDesperfectosOptions, motivoMantenimientoOptions, motivoSiniestroOptions, motivoSinDocumentosOptions, motivoSinVehiculoOptions]);
 
+  const usedTaserCodes = useMemo(() => {
+    const codes = new Set<string>();
+    if (settings.supervisorCodigoTaser) codes.add(settings.supervisorCodigoTaser);
+    if (settings.permanenciaCodigoTaser) codes.add(settings.permanenciaCodigoTaser);
+    units.forEach(u => { if (u.codigoTaser) codes.add(u.codigoTaser); });
+    return codes;
+  }, [settings.supervisorCodigoTaser, settings.permanenciaCodigoTaser, units]);
+
+  const usedBodycamCodes = useMemo(() => {
+    const codes = new Set<string>();
+    if (settings.supervisorCodigoBodycam) codes.add(settings.supervisorCodigoBodycam);
+    if (settings.permanenciaCodigoBodycam) codes.add(settings.permanenciaCodigoBodycam);
+    units.forEach(u => { if (u.codigoBodycam) codes.add(u.codigoBodycam); });
+    return codes;
+  }, [settings.supervisorCodigoBodycam, settings.permanenciaCodigoBodycam, units]);
+
+  const availableTaserOptions = useMemo(() =>
+    codigoTaserOptions.filter(c => !usedTaserCodes.has(c)),
+  [codigoTaserOptions, usedTaserCodes]);
+
+  const availableBodycamOptions = useMemo(() =>
+    codigoBodycamOptions.filter(c => !usedBodycamCodes.has(c)),
+  [codigoBodycamOptions, usedBodycamCodes]);
+
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {
     if (isReadOnly) return;
     // Guard: si ya existe una card en blanco (NEW-) del mismo tipo sin ID ni personal, no crear otra
@@ -1335,8 +1359,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           personnelStats={personnelStats}
           readOnly={isReadOnly}
           radioOptions={radioOptions}
-          codigoTaserOptions={codigoTaserOptions}
-          codigoBodycamOptions={codigoBodycamOptions}
+          codigoTaserOptions={availableTaserOptions}
+          codigoBodycamOptions={availableBodycamOptions}
           motivoFaltoOptions={motivoFaltoOptions}
           hasPendingChanges={hasPendingChanges}
           forceHeaderError={currentView === 'DASHBOARD' && (hasNewRecordInCurrentSector || hasModifiedDefaultUnitInCurrentSector) && !headerFieldsComplete(settings)}
@@ -1367,8 +1391,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   saveStatus={saveStatus}
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
-                  codigoBodycamOptions={codigoBodycamOptions}
-                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamOptions={availableBodycamOptions}
+                  codigoTaserOptions={availableTaserOptions}
                 />
               )}
               {currentSector !== 'RESCATE' && currentSector !== 'C4' && currentSector !== 'COVV' && (
@@ -1393,8 +1417,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   saveStatus={saveStatus}
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
-                  codigoBodycamOptions={codigoBodycamOptions}
-                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamOptions={availableBodycamOptions}
+                  codigoTaserOptions={availableTaserOptions}
                 />
               )}
               {currentSector !== 'RESCATE' && (
@@ -1420,8 +1444,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   saveStatus={saveStatus}
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
-                  codigoBodycamOptions={codigoBodycamOptions}
-                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamOptions={availableBodycamOptions}
+                  codigoTaserOptions={availableTaserOptions}
                 />
               )}
             </>
