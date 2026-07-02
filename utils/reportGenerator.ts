@@ -1432,6 +1432,7 @@ export const generateRetenExcel = (
 
 export const generateTaserReport = (
   units: UnitData[],
+  allSectorSettings: Record<string, AppSettings>,
   date: string,
   shift: string,
   operatorName?: string
@@ -1481,6 +1482,35 @@ export const generateTaserReport = (
     ]);
   });
 
+  // Add supervisor/permanencia with equipment from settings
+  const dateFormatted = formatShortDate(date);
+  Object.keys(allSectorSettings).forEach(sectorDisplay => {
+    const s = allSectorSettings[sectorDisplay];
+    const sector = sectorDisplay.toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
+    if (s.supervisorTaser === 'SI' || s.supervisorBodycam === 'SI' || s.supervisorCodigoTaser || s.supervisorCodigoBodycam) {
+      rows.push([
+        dateFormatted, shift.toUpperCase(), sector, '--',
+        (s.supervisor || '').toUpperCase(),
+        (s.supervisorRadio || '--'),
+        s.supervisorTaser === 'SI' ? 'SI' : (s.supervisorTaser === 'NO' ? 'NO' : '--'),
+        (s.supervisorCodigoTaser || '--'),
+        s.supervisorBodycam === 'SI' ? 'SI' : (s.supervisorBodycam === 'NO' ? 'NO' : '--'),
+        (s.supervisorCodigoBodycam || '--'), ''
+      ]);
+    }
+    if (s.permanenciaTaser === 'SI' || s.permanenciaBodycam === 'SI' || s.permanenciaCodigoTaser || s.permanenciaCodigoBodycam) {
+      rows.push([
+        dateFormatted, shift.toUpperCase(), sector, '--',
+        (s.permanencia || '').toUpperCase(),
+        (s.permanenciaRadio || '--'),
+        s.permanenciaTaser === 'SI' ? 'SI' : (s.permanenciaTaser === 'NO' ? 'NO' : '--'),
+        (s.permanenciaCodigoTaser || '--'),
+        s.permanenciaBodycam === 'SI' ? 'SI' : (s.permanenciaBodycam === 'NO' ? 'NO' : '--'),
+        (s.permanenciaCodigoBodycam || '--'), ''
+      ]);
+    }
+  });
+
   // Sort by sector then by unit ID
   rows.sort((a, b) => {
     const cmp = a[2].localeCompare(b[2]);
@@ -1488,13 +1518,13 @@ export const generateTaserReport = (
     return a[3].localeCompare(b[3], undefined, { numeric: true });
   });
 
-  // Totals
-  const totalTaserSI = taserUnits.filter(u => u.taser === 'SI').length;
-  const totalTaserNO = taserUnits.filter(u => u.taser === 'NO').length;
-  const totalBodycamSI = taserUnits.filter(u => u.bodycam === 'SI').length;
-  const totalBodycamNO = taserUnits.filter(u => u.bodycam === 'NO').length;
-  const totalCodigosTaser = taserUnits.filter(u => u.codigoTaser).length;
-  const totalCodigosBodycam = taserUnits.filter(u => u.codigoBodycam).length;
+  // Totals (from rows to include supervisor/permanencia)
+  const totalTaserSI = rows.filter(r => r[6] === 'SI').length;
+  const totalTaserNO = rows.filter(r => r[6] === 'NO').length;
+  const totalBodycamSI = rows.filter(r => r[8] === 'SI').length;
+  const totalBodycamNO = rows.filter(r => r[8] === 'NO').length;
+  const totalCodigosTaser = rows.filter(r => r[7] !== '--').length;
+  const totalCodigosBodycam = rows.filter(r => r[9] !== '--').length;
 
   (doc as any).autoTable({
     startY: 15,

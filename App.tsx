@@ -1257,7 +1257,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       } else if (type === 'general') {
         generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else if (type === 'taser') {
-        generateTaserReport(dataToUse.units, date, shift, operatorName);
+        generateTaserReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else {
         alert(`El reporte de "${type}" se encuentra en desarrollo.`);
       }
