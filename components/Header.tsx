@@ -33,6 +33,8 @@ interface HeaderProps {
   forceHeaderError?: boolean;
   codigoTaserOptions?: string[];
   codigoBodycamOptions?: string[];
+  codigoTaserSuggestions?: string[];
+  codigoBodycamSuggestions?: string[];
   radioOptions?: string[];
   motivoFaltoOptions?: string[];
 }
@@ -59,6 +61,8 @@ interface HeaderProps {
     forceHeaderError,
     codigoTaserOptions,
     codigoBodycamOptions,
+    codigoTaserSuggestions,
+    codigoBodycamSuggestions,
     radioOptions,
     motivoFaltoOptions,
   }) => {
@@ -445,6 +449,8 @@ interface HeaderProps {
           fieldEl={equipPopover === 'supervisor' ? supervisorColRef.current : permanenciaColRef.current}
           codigoTaserOptions={codigoTaserOptions}
           codigoBodycamOptions={codigoBodycamOptions}
+          codigoTaserSuggestions={codigoTaserSuggestions}
+          codigoBodycamSuggestions={codigoBodycamSuggestions}
           radioOptions={radioOptions}
           personnelOptions={personnelOptions}
           motivoFaltoOptions={motivoFaltoOptions}

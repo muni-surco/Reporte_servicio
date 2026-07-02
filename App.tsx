@@ -1359,8 +1359,10 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           personnelStats={personnelStats}
           readOnly={isReadOnly}
           radioOptions={radioOptions}
-          codigoTaserOptions={availableTaserOptions}
-          codigoBodycamOptions={availableBodycamOptions}
+          codigoTaserOptions={codigoTaserOptions}
+          codigoBodycamOptions={codigoBodycamOptions}
+          codigoTaserSuggestions={availableTaserOptions}
+          codigoBodycamSuggestions={availableBodycamOptions}
           motivoFaltoOptions={motivoFaltoOptions}
           hasPendingChanges={hasPendingChanges}
           forceHeaderError={currentView === 'DASHBOARD' && (hasNewRecordInCurrentSector || hasModifiedDefaultUnitInCurrentSector) && !headerFieldsComplete(settings)}
@@ -1391,8 +1393,10 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   saveStatus={saveStatus}
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
-                  codigoBodycamOptions={availableBodycamOptions}
-                  codigoTaserOptions={availableTaserOptions}
+                  codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamSuggestions={availableBodycamOptions}
+                  codigoTaserSuggestions={availableTaserOptions}
                 />
               )}
               {currentSector !== 'RESCATE' && currentSector !== 'C4' && currentSector !== 'COVV' && (
@@ -1417,8 +1421,10 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   saveStatus={saveStatus}
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
-                  codigoBodycamOptions={availableBodycamOptions}
-                  codigoTaserOptions={availableTaserOptions}
+                  codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamSuggestions={availableBodycamOptions}
+                  codigoTaserSuggestions={availableTaserOptions}
                 />
               )}
               {currentSector !== 'RESCATE' && (
@@ -1444,8 +1450,10 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   saveStatus={saveStatus}
                   readOnly={isReadOnly}
                   personnelRegimenMap={personnelRegimenMap}
-                  codigoBodycamOptions={availableBodycamOptions}
-                  codigoTaserOptions={availableTaserOptions}
+                  codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamSuggestions={availableBodycamOptions}
+                  codigoTaserSuggestions={availableTaserOptions}
                 />
               )}
             </>

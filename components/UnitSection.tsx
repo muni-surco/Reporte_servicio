@@ -30,6 +30,8 @@ interface UnitSectionProps {
   personnelRegimenMap?: Record<string, string>;
   codigoBodycamOptions?: string[];
   codigoTaserOptions?: string[];
+  codigoBodycamSuggestions?: string[];
+  codigoTaserSuggestions?: string[];
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -59,7 +61,9 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   readOnly,
   personnelRegimenMap,
   codigoBodycamOptions,
-  codigoTaserOptions
+  codigoTaserOptions,
+  codigoBodycamSuggestions,
+  codigoTaserSuggestions
 }) => {
   // Configuración de colores claros según el tipo
   const colorConfig = {
@@ -141,6 +145,8 @@ const UnitSection: React.FC<UnitSectionProps> = ({
                 personnelRegimenMap={personnelRegimenMap}
                 codigoBodycamOptions={codigoBodycamOptions}
                 codigoTaserOptions={codigoTaserOptions}
+                codigoBodycamSuggestions={codigoBodycamSuggestions}
+                codigoTaserSuggestions={codigoTaserSuggestions}
               />
             );
           })

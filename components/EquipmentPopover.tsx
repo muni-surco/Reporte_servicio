@@ -12,6 +12,8 @@ interface Props {
   fieldEl: HTMLElement | null;
   codigoTaserOptions?: string[];
   codigoBodycamOptions?: string[];
+  codigoTaserSuggestions?: string[];
+  codigoBodycamSuggestions?: string[];
   radioOptions?: string[];
   personnelOptions?: string[];
   motivoFaltoOptions?: string[];
@@ -20,7 +22,7 @@ interface Props {
 const STATUS_OPTIONS = ['Patrullando', 'Falto'];
 const ABSENCE_STATUSES = ['Falto'];
 
-const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, onSave, onClose, anchorEl, fieldEl, codigoTaserOptions, codigoBodycamOptions, radioOptions, personnelOptions, motivoFaltoOptions }) => {
+const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, onSave, onClose, anchorEl, fieldEl, codigoTaserOptions, codigoBodycamOptions, codigoTaserSuggestions, codigoBodycamSuggestions, radioOptions, personnelOptions, motivoFaltoOptions }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
   const labelPrefix = fieldPrefix === 'supervisor' ? 'supervisor' : 'permanencia';
 
@@ -214,7 +216,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
           {supTaser === 'SI' && (
             <div className="mt-1">
               <label className={labelStyle}>Código TASER</label>
-              <AutocompleteInput value={supCodTaser} onChange={(v) => { setSupCodTaser(v); setErrors(prev => ({ ...prev, codigoTaser: '' })); }} placeholder="Código..." suggestions={codigoTaserOptions || []} className="!h-[32px] !text-[12px]" error={!!errors.codigoTaser} />
+              <AutocompleteInput value={supCodTaser} onChange={(v) => { setSupCodTaser(v); setErrors(prev => ({ ...prev, codigoTaser: '' })); }} placeholder="Código..." suggestions={codigoTaserSuggestions || []} className="!h-[32px] !text-[12px]" error={!!errors.codigoTaser} />
               {errors.codigoTaser && <span className="text-[10px] text-red-500 font-medium mt-0.5 block">{errors.codigoTaser}</span>}
             </div>
           )}
@@ -232,7 +234,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
           {supBodycam === 'SI' && (
             <div className="mt-1">
               <label className={labelStyle}>Código BODYCAM</label>
-              <AutocompleteInput value={supCodBodycam} onChange={(v) => { setSupCodBodycam(v); setErrors(prev => ({ ...prev, codigoBodycam: '' })); }} placeholder="Código..." suggestions={codigoBodycamOptions || []} className="!h-[32px] !text-[12px]" error={!!errors.codigoBodycam} />
+              <AutocompleteInput value={supCodBodycam} onChange={(v) => { setSupCodBodycam(v); setErrors(prev => ({ ...prev, codigoBodycam: '' })); }} placeholder="Código..." suggestions={codigoBodycamSuggestions || []} className="!h-[32px] !text-[12px]" error={!!errors.codigoBodycam} />
               {errors.codigoBodycam && <span className="text-[10px] text-red-500 font-medium mt-0.5 block">{errors.codigoBodycam}</span>}
             </div>
           )}
