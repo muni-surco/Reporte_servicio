@@ -136,6 +136,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
   const [showChoferes, setShowChoferes] = useState(true);
   const [showMotos, setShowMotos] = useState(true);
   const [showSerenos, setShowSerenos] = useState(true);
+  const [showTaserOnly, setShowTaserOnly] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -196,6 +197,8 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
         const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO;
         if (!isActive) return;
 
+        if (showTaserOnly && u.taser !== 'SI') return;
+
         const entry = {
           id: u.id || '',
           personnel1: u.personnel1 || '',
@@ -221,7 +224,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     });
 
     return map;
-  }, [allSectorsData, showChoferes, showMotos, showSerenos, sectorQuadrants]);
+  }, [allSectorsData, showChoferes, showMotos, showSerenos, showTaserOnly, sectorQuadrants]);
 
   const quadrantDetailMapRef = useRef(quadrantDetailMap);
   useEffect(() => {
@@ -644,6 +647,14 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
             >
               <span className="material-symbols-outlined text-[16px]">hail</span>
               Serenos
+            </button>
+            <div className="h-px bg-slate-100 my-1"></div>
+            <button 
+              onClick={() => setShowTaserOnly(!showTaserOnly)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showTaserOnly ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-100'} border`}
+            >
+              <span className="text-[13px] font-bold">⚡</span>
+              {showTaserOnly ? 'Taser: Activo' : 'Taser'}
             </button>
             <div className="h-px bg-slate-100 my-1"></div>
             <button 
