@@ -510,6 +510,7 @@ export const generateVehicleReport = (
 export const generatePersonnelAbsenceReport = (
   units: UnitData[],
   personnel: PersonnelData[],
+  allSectorSettings: Record<string, AppSettings>,
   date: string,
   shift: string,
   operatorName?: string
@@ -575,6 +576,26 @@ export const generatePersonnelAbsenceReport = (
       nameToSector.set(name, sector);
       nameToUnitMotivo.set(name, motivo || 'INASISTENCIA');
       console.log(`DEBUG: Ausencia detectada para: '${name}' (Unidad ${u.id})`);
+    }
+  });
+
+  // 1b. Add supervisor/permanencia with Falto from settings
+  Object.keys(allSectorSettings).forEach(sectorDisplay => {
+    const s = allSectorSettings[sectorDisplay];
+    const sector = sectorDisplay.toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
+    const supName = normalize(s.supervisor);
+    const permName = normalize(s.permanencia);
+    const supEstado = (s.supervisorEstado || '').toString().trim().toUpperCase();
+    const permEstado = (s.permanenciaEstado || '').toString().trim().toUpperCase();
+    if (supName && supEstado === 'FALTO') {
+      explicitAbsentInUnits.add(supName);
+      nameToSector.set(supName, sector);
+      nameToUnitMotivo.set(supName, (s.supervisorMotivo || '').toUpperCase() || 'INASISTENCIA');
+    }
+    if (permName && permEstado === 'FALTO') {
+      explicitAbsentInUnits.add(permName);
+      nameToSector.set(permName, sector);
+      nameToUnitMotivo.set(permName, (s.permanenciaMotivo || '').toUpperCase() || 'INASISTENCIA');
     }
   });
 
@@ -784,6 +805,7 @@ export const generatePersonnelAbsenceReport = (
 export const generatePersonnelStatusReport = (
   units: UnitData[],
   personnel: PersonnelData[],
+  allSectorSettings: Record<string, AppSettings>,
   date: string,
   shift: string,
   operatorName?: string
@@ -841,6 +863,26 @@ export const generatePersonnelStatusReport = (
       explicitInUnits.add(name);
       nameToSector.set(name, sector);
       nameToStatus.set(name, status);
+    }
+  });
+
+  // 1b. Add supervisor/permanencia with matching status from settings
+  Object.keys(allSectorSettings).forEach(sectorDisplay => {
+    const s = allSectorSettings[sectorDisplay];
+    const sector = sectorDisplay.toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
+    const supName = normalize(s.supervisor);
+    const permName = normalize(s.permanencia);
+    const supEstado = (s.supervisorEstado || '').toString().trim().toUpperCase();
+    const permEstado = (s.permanenciaEstado || '').toString().trim().toUpperCase();
+    if (supName && statusToReport.includes(supEstado)) {
+      explicitInUnits.add(supName);
+      nameToSector.set(supName, sector);
+      nameToStatus.set(supName, supEstado);
+    }
+    if (permName && statusToReport.includes(permEstado)) {
+      explicitInUnits.add(permName);
+      nameToSector.set(permName, sector);
+      nameToStatus.set(permName, permEstado);
     }
   });
 

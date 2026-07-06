@@ -1234,23 +1234,23 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData);
       } else if (type === 'asistencia_regimen') {
         if (personnelList.length > 0) {
-            generatePersonnelAbsenceReport(dataToUse.units, personnelList, date, shift, operatorName);
+            generatePersonnelAbsenceReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         } else {
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
                 google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
             });
             setPersonnelList(loadedPersonnel);
-            generatePersonnelAbsenceReport(dataToUse.units, loadedPersonnel, date, shift, operatorName);
+            generatePersonnelAbsenceReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         }
       } else if (type === 'asistencia_estado') {
         if (personnelList.length > 0) {
-            generatePersonnelStatusReport(dataToUse.units, personnelList, date, shift, operatorName);
+            generatePersonnelStatusReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         } else {
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
                 google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
             });
             setPersonnelList(loadedPersonnel);
-            generatePersonnelStatusReport(dataToUse.units, loadedPersonnel, date, shift, operatorName);
+            generatePersonnelStatusReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         }
       } else if (type === 'observaciones') {
         generateObservationsReport(dataToUse.units, date, shift, operatorName);
