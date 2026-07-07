@@ -21,6 +21,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     UnitStatus.SIN_DOCUMENTOS,
     UnitStatus.SIN_CONDUCTOR,
     UnitStatus.SIN_VEHICULO,
+    UnitStatus.SIN_OPERADOR,
   ];
 
   const getStatusColor = (status: string) => {

@@ -176,7 +176,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.SIN_CONDUCTOR,
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
-      UnitStatus.FIN_APOYO
+      UnitStatus.FIN_APOYO,
+      UnitStatus.SIN_OPERADOR
     ];
     const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
     const isNoPersonnelStatus = [
@@ -185,7 +186,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.DESPERFECTOS,
       UnitStatus.SIN_DOCUMENTOS,
       UnitStatus.SINIESTRO,
-      UnitStatus.FIN_APOYO
+      UnitStatus.FIN_APOYO,
+      UnitStatus.SIN_OPERADOR
     ].includes(formData.status?.toUpperCase());
 
     const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.DESPERFECTOS;
@@ -271,6 +273,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
     [UnitStatus.SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
     [UnitStatus.SIN_VEHICULO]: "bg-yellow-100 text-yellow-700 border-yellow-200",
     [UnitStatus.SIN_CONDUCTOR]: "bg-amber-100 text-amber-700 border-amber-200",
+    [UnitStatus.SIN_OPERADOR]: "bg-slate-100 text-slate-700 border-slate-200",
   };
 
   const redStatusPatterns = [

@@ -194,7 +194,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
 
         if (expandedQuadrants.length === 0) return;
 
-        const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO;
+        const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO || u.status === UnitStatus.SIN_OPERADOR;
         if (!isActive) return;
 
         if (showTaserOnly && u.taser !== 'SI') return;
@@ -501,6 +501,30 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       }).length
     : 0;
 
+  const taserCount = useMemo(() => {
+    const countedUnits = new Set<string>();
+    Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
+      if (sectorName === 'C4' || sectorName === 'COVV') return;
+      sd.units.forEach(u => {
+        if (u.type === 'CHOFER' && !showChoferes) return;
+        if (u.type === 'MOTO' && !showMotos) return;
+        if (u.type === 'SERENO' && !showSerenos) return;
+        const quadrants = parseQuadrants(u.quadrant || '');
+        if (quadrants.length === 0) return;
+        const isTT = quadrants.some(q => q === 'TT');
+        const expandedQuadrants = isTT
+          ? (sectorQuadrants.get(sectorName.toUpperCase()) || [])
+          : quadrants;
+        if (expandedQuadrants.length === 0) return;
+        const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO || u.status === UnitStatus.SIN_OPERADOR;
+        if (!isActive) return;
+        if (u.taser !== 'SI') return;
+        if (u.id) countedUnits.add(u.id);
+      });
+    });
+    return countedUnits.size;
+  }, [allSectorsData, showChoferes, showMotos, showSerenos, sectorQuadrants]);
+
   return (
     <div className="h-full w-full flex flex-col bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-200">
       <div className="relative z-0 flex-1" style={{ minHeight: '750px', width: '100%' }}>
@@ -653,8 +677,8 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
               onClick={() => setShowTaserOnly(!showTaserOnly)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showTaserOnly ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-100'} border`}
             >
-              <span className="text-[13px] font-bold">⚡</span>
-              {showTaserOnly ? 'Taser: Activo' : 'Taser'}
+              <span className="material-symbols-outlined text-[16px]">offline_bolt</span>
+              {showTaserOnly ? `Taser: Activo (${taserCount})` : `Taser (${taserCount})`}
             </button>
             <div className="h-px bg-slate-100 my-1"></div>
             <button 

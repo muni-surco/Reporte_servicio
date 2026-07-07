@@ -108,6 +108,7 @@ const StatisticsView: React.FC<StatisticsViewProps> = ({ units, selectedDate, se
             case UnitStatus.CON_DESPERFECTOS: return 'bg-red-50 text-red-700 border-red-200';
             case UnitStatus.SIN_CONDUCTOR: return 'bg-amber-50 text-amber-700 border-amber-200';
             case UnitStatus.SIN_VEHICULO: return 'bg-amber-50 text-amber-700 border-amber-200';
+            case UnitStatus.SIN_OPERADOR: return 'bg-amber-50 text-amber-700 border-amber-200';
             case UnitStatus.SIN_DOCUMENTOS: return 'bg-red-50 text-red-700 border-red-200';
             case UnitStatus.APOYO_OTRA_AREA: return 'bg-blue-50 text-blue-700 border-blue-200';
             default: return 'bg-slate-50 text-slate-600 border-slate-200';
