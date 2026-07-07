@@ -102,8 +102,10 @@ interface HeaderProps {
     const s = tempSettingsRef.current;
     const errors: Record<string, boolean> = {};
     if (!normalizeRequiredField(s.operador)) errors.operador = true;
-    if (!normalizeRequiredField(s.supervisor)) errors.supervisor = true;
-    if (!normalizeRequiredField(s.permanencia)) errors.permanencia = true;
+    const supAbsent = s.supervisorEstado === 'Falto' || s.supervisorEstado === 'Sin Supervision';
+    if (!supAbsent && !normalizeRequiredField(s.supervisor)) errors.supervisor = true;
+    const permAbsent = s.permanenciaEstado === 'Falto' || s.permanenciaEstado === 'Sin Supervision';
+    if (!permAbsent && !normalizeRequiredField(s.permanencia)) errors.permanencia = true;
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -324,15 +326,26 @@ interface HeaderProps {
                       <span className={labelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
                       {(() => {
                         const permName = normalizeRequiredField(settings.permanencia);
+                        const permEstado = settings.permanenciaEstado || '';
+                        const permEncargado = normalizeRequiredField(settings.permanenciaEncargado || '');
+                        const isPermAbsent = permEstado === 'Falto' || permEstado === 'Sin Supervision';
+                        const displayPermName = (isPermAbsent && permEncargado) ? permEncargado : permName;
+                        const roleLabel = settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA';
+                        const roleBadge = (isPermAbsent && permEncargado) ? 'ENCARGADO' : roleLabel;
                         return (
-                          <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`} onClick={() => { setEquipPopover('permanencia'); }}>
-                            <div className="flex-1 min-w-0">
-                              <p className={valueStyle}>{permName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
+                          <div className={`${displayBoxStyle} ${fieldErrors.permanencia || isFieldMissing('permanencia') ? 'border-red-400 bg-red-50' : ''}`}>
+                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setEquipPopover('permanencia'); }}>
+                              <p className={valueStyle}>{displayPermName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
                             </div>
+                            {!readOnly && (
+                              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 ${roleBadge === 'ENCARGADO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {roleBadge}
+                              </span>
+                            )}
                             {settings.permanenciaTaser === 'SI' && (
                               <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 bg-blue-100 text-blue-700">taser</span>
                             )}
-                            {permName && (
+                            {(permName || displayPermName) && (
                               <span ref={permanenciaEquipRef} onClick={(e) => { e.stopPropagation(); setEquipPopover('permanencia'); }} className="ml-1 text-slate-300 hover:text-blue-600 cursor-pointer transition-colors shrink-0 material-symbols-outlined text-[16px]">arrow_drop_down</span>
                             )}
                           </div>

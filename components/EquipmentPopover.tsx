@@ -84,7 +84,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
     setTimeout(() => onClose(), 150);
   };
 
-  const isAbsent = fieldPrefix === 'supervisor' && ABSENCE_STATUSES.includes(estado);
+  const isAbsent = ABSENCE_STATUSES.includes(estado);
 
   const buildUpdated = (): AppSettings => ({
     ...settings,
