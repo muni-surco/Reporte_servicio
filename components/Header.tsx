@@ -296,8 +296,9 @@ interface HeaderProps {
                         const supName = normalizeRequiredField(settings.supervisor);
                         const supEstado = settings.supervisorEstado || '';
                         const supEncargado = normalizeRequiredField(settings.supervisorEncargado || '');
-                        const displayName = (supEstado === 'Falto' && supEncargado) ? supEncargado : supName;
-                        const roleBadge = (supEstado === 'Falto' && supEncargado) ? 'ENCARGADO' : 'SUPERVISOR';
+                        const isAbsent = supEstado === 'Falto' || supEstado === 'Sin Supervision';
+                        const displayName = (isAbsent && supEncargado) ? supEncargado : supName;
+                        const roleBadge = (isAbsent && supEncargado) ? 'ENCARGADO' : 'SUPERVISOR';
                         return (
                           <div className={`${displayBoxStyle} ${fieldErrors.supervisor || isFieldMissing('supervisor') ? 'border-red-400 bg-red-50' : ''}`}>
                             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setEquipPopover('supervisor'); }}>

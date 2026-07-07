@@ -19,8 +19,8 @@ interface Props {
   motivoFaltoOptions?: string[];
 }
 
-const STATUS_OPTIONS = ['Patrullando', 'Falto'];
-const ABSENCE_STATUSES = ['Falto'];
+const STATUS_OPTIONS = ['Patrullando', 'Falto', 'Sin Supervision'];
+const ABSENCE_STATUSES = ['Falto', 'Sin Supervision'];
 
 const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, onSave, onClose, anchorEl, fieldEl, codigoTaserOptions, codigoBodycamOptions, codigoTaserSuggestions, codigoBodycamSuggestions, radioOptions, personnelOptions, motivoFaltoOptions }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -58,7 +58,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
   }, [settings, labelPrefix]);
 
   useEffect(() => {
-    if (anchorEl && fieldEl) {
+    if (fieldEl) {
       const fieldRect = fieldEl.getBoundingClientRect();
       let left = fieldRect.left + 20;
       const maxLeft = window.innerWidth - POPOVER_WIDTH - 8;
@@ -67,7 +67,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
       setPosition({ top: fieldRect.bottom + 8, left });
       setArrowLeft(fieldRect.left + fieldRect.width / 2 - left);
     }
-  }, [anchorEl, fieldEl]);
+  }, [fieldEl]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -102,7 +102,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
   const handleSave = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!personValue || String(personValue).trim() === '') {
+    if (estado !== 'Sin Supervision' && (!personValue || String(personValue).trim() === '')) {
       newErrors.personValue = 'Campo requerido';
     }
 
@@ -168,8 +168,8 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
           <label className={labelStyle}>Estado <span className="text-red-500">*</span></label>
-          <select value={estado} onChange={(e) => { setEstado(e.target.value); setErrors(prev => ({ ...prev, estado: '' })); }} className={`${selectStyle} ${errors.estado ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`}>
-            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          <select value={estado} onChange={(e) => { setEstado(e.target.value); setErrors(prev => ({ ...prev, estado: '' })); }} className={`${selectStyle} uppercase ${errors.estado ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`}>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
           </select>
           {errors.estado && <span className="text-[10px] text-red-500 font-medium mt-0.5 block">{errors.estado}</span>}
         </div>
