@@ -1058,6 +1058,12 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               ...prev,
               [newSettings.nombrePuesto || '1A']: newSettings
             }));
+            setVisualizationSectorsData(prev => {
+              const sectorName = newSettings.nombrePuesto || '1A';
+              const existing = prev[sectorName];
+              if (!existing) return prev;
+              return { ...prev, [sectorName]: { ...existing, settings: newSettings } };
+            });
             setHeaderSaveStatus('saved');
             setTimeout(() => setHeaderSaveStatus('idle'), 2000);
           } else {
