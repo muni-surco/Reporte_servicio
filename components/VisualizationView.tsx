@@ -119,7 +119,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     );
   };
 
-  const infoLabelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-0.5 block";
+  const infoLabelStyle = "text-[11px] font-medium text-[#004b93] uppercase tracking-wider mb-0.5 block";
   const infoValueStyle = "text-[13px] font-medium text-slate-800 uppercase truncate leading-none bg-transparent border-none p-0 cursor-default";
 
   return (
