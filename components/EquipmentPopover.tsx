@@ -102,7 +102,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
   const handleSave = () => {
     const newErrors: Record<string, string> = {};
 
-    if (estado !== 'Sin Supervision' && (!personValue || String(personValue).trim() === '')) {
+    if (estado !== 'Falto' && estado !== 'Sin Supervision' && (!personValue || String(personValue).trim() === '')) {
       newErrors.personValue = 'Campo requerido';
     }
 
@@ -116,6 +116,10 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
       } else if (personnelOptions && !personnelOptions.includes(encargado)) {
         newErrors.encargado = 'Personal inválido';
       }
+    }
+
+    if (estado === 'Falto' && (!motivo || String(motivo).trim() === '')) {
+      newErrors.motivo = 'Campo requerido';
     }
 
     if (supTaser === 'SI') {
@@ -184,6 +188,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
           ) : (
             <AutocompleteInput value={motivo} onChange={(v) => { setMotivo(v); }} placeholder="Motivo..." suggestions={[]} className="!h-[32px] !text-[12px]" />
           )}
+          {errors.motivo && <span className="text-[10px] text-red-500 font-medium mt-0.5 block">{errors.motivo}</span>}
         </div>
         )}
       </div>

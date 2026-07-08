@@ -155,7 +155,16 @@ interface HeaderProps {
   const displayBoxStyle = "bg-slate-50 border border-slate-200 rounded-lg px-3 flex items-center cursor-pointer hover:border-primary hover:shadow-sm transition-all overflow-hidden shadow-sm h-9";
   const valueStyle = "text-[13px] font-medium text-[#002d5a] leading-none truncate uppercase";
   const showRequiredError = !!forceHeaderError;
-  const isFieldMissing = (field: keyof AppSettings) => showRequiredError && !normalizeRequiredField(tempSettings[field]);
+  const isFieldMissing = (field: keyof AppSettings) => {
+    if (!showRequiredError) return false;
+    const val = normalizeRequiredField(tempSettings[field]);
+    if (val) return false;
+    if (field === 'supervisor' || field === 'permanencia') {
+      const estado = String(tempSettings[`${field}Estado` as keyof AppSettings] || '');
+      if (estado === 'Falto' || estado === 'Sin Supervision') return false;
+    }
+    return true;
+  };
 
   const getSectorCode = (sectorName: string) => {
     return sectorName.toUpperCase().replace('SECTOR ', '').trim();
@@ -322,7 +331,7 @@ interface HeaderProps {
                       })()}
                       {(fieldErrors.supervisor || isFieldMissing('supervisor')) && <span className="text-[10px] text-red-500 font-medium mt-0.5">Requerido</span>}
                     </div>
-                    <div className="hidden xl:flex flex-col min-w-[110px] max-w-[200px] flex-1" ref={permanenciaColRef}>
+                    <div className="hidden xl:flex flex-col min-w-[140px] max-w-[260px] flex-1" ref={permanenciaColRef}>
                       <span className={labelStyle}>{settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}</span>
                       {(() => {
                         const permName = normalizeRequiredField(settings.permanencia);
