@@ -602,9 +602,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       const shift = settings.turno;
 
       let threshold: number;
-      if (shift === 'MAÑANA') threshold = 750;
-      else if (shift === 'TARDE') threshold = 1230;
-      else threshold = 270;
+      if (shift === 'MAÑANA') threshold = 690;
+      else if (shift === 'TARDE') threshold = 1170;
+      else threshold = 210;
 
       if (totalMinutes < threshold) {
         setKmToastVisible(false);
@@ -619,6 +619,12 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         u.status !== 'FALTO' &&
         u.status !== 'SIN VEHICULO' &&
         u.status !== 'DESPERFECTOS' &&
+        u.status !== 'APOYO' &&
+        u.status !== 'SINIESTRO' &&
+        u.status !== 'SIN CONDUCTOR' &&
+        u.status !== 'FIN APOYO' &&
+        u.status !== '' &&
+        u.status !== '--' &&
         (u.kmStart === '' || u.kmStart === '0' || u.kmStart === '0.0')
       );
 
@@ -630,7 +636,21 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         return;
       }
 
-      const list = pending.map(u => ({ id: u.id || u.unit_id || '(sin ID)', name: u.personnel1 || '(sin personal)' }));
+      const extractId = (u: UnitData): string => {
+        if (u.id) return u.id;
+        const uid = u.unit_id || '';
+        const parts = uid.split('_');
+        // Try last segment (GAS format: date_shift_sector_id)
+        if (parts.length >= 4) {
+          const last = parts[parts.length - 1];
+          if (last && !/^\d{8}$/.test(last) && !['MAÑANA', 'TARDE', 'NOCHE'].includes(last)) return last;
+          // Try second segment (frontend format: type_id_sector_date_shift)
+          const second = parts[1];
+          if (second && !['MAÑANA', 'TARDE', 'NOCHE', 'CHOFER', 'MOTO', 'SERENO'].includes(second)) return second;
+        }
+        return uid || '(sin ID)';
+      };
+      const list = pending.map(u => ({ id: extractId(u), name: u.personnel1 || '(sin personal)' }));
       setKmToastList(list);
 
       if (!kmToastVisibleRef.current && !kmToastClosingRef.current) {
