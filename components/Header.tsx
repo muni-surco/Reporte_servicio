@@ -315,8 +315,8 @@ interface HeaderProps {
                             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setEquipPopover('supervisor'); }}>
                               <p className={valueStyle}>{displayName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
                             </div>
-                            {!readOnly && (
-                              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 ${roleBadge === 'SUPERVISOR' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {!readOnly && roleBadge === 'ENCARGADO' && (
+                              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 bg-amber-100 text-amber-700`}>
                                 {roleBadge}
                               </span>
                             )}
@@ -346,8 +346,8 @@ interface HeaderProps {
                             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { setEquipPopover('permanencia'); }}>
                               <p className={valueStyle}>{displayPermName || <span className="text-slate-300 italic">SELECCIONAR...</span>}</p>
                             </div>
-                            {!readOnly && (
-                              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 ${roleBadge === 'ENCARGADO' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                            {!readOnly && roleBadge === 'ENCARGADO' && (
+                              <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0 bg-amber-100 text-amber-700`}>
                                 {roleBadge}
                               </span>
                             )}
