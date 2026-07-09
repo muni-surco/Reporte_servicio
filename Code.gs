@@ -174,7 +174,7 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
   const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
   if (settingsSheet) {
     const sLastRow = settingsSheet.getLastRow();
-    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(2, 1, sLastRow - 1, 20).getValues() : [];
+    const settingsRows = sLastRow > 1 ? settingsSheet.getRange(2, 1, sLastRow - 1, 22).getValues() : [];
     for (let i = 0; i < settingsRows.length; i++) {
       const row = settingsRows[i];
       if (!row[0]) continue;
