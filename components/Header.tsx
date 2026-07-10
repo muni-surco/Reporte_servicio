@@ -104,8 +104,7 @@ interface HeaderProps {
     if (!normalizeRequiredField(s.operador)) errors.operador = true;
     const supAbsent = s.supervisorEstado === 'Falto' || s.supervisorEstado === 'Sin Supervision';
     if (!supAbsent && !normalizeRequiredField(s.supervisor)) errors.supervisor = true;
-    const permAbsent = s.permanenciaEstado === 'Falto' || s.permanenciaEstado === 'Sin Supervision';
-    if (!permAbsent && !normalizeRequiredField(s.permanencia)) errors.permanencia = true;
+    if (!normalizeRequiredField(s.permanencia)) errors.permanencia = true;
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };

@@ -88,7 +88,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
 
   const buildUpdated = (): AppSettings => ({
     ...settings,
-    [fieldPrefix]: personValue,
+    [fieldPrefix]: isAbsent && encargado ? encargado : personValue,
     [`${labelPrefix}Taser`]: supTaser,
     [`${labelPrefix}Bodycam`]: supBodycam,
     [`${labelPrefix}CodigoTaser`]: supCodTaser,
