@@ -35,7 +35,6 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
   const ALLOWED_STATUSES = [
     UnitStatus.PATRULLANDO,
     UnitStatus.SIN_VEHICULO,
-    UnitStatus.SIN_DOCUMENTOS,
   ];
 
   const renderCompactUnit = (u: UnitData, type: string) => {
@@ -145,7 +144,10 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           version: ''
         };
 
-        const activeUnits = data.units.filter(u => ALLOWED_STATUSES.includes(u.status));
+        const activeUnits = data.units.filter(u =>
+          ALLOWED_STATUSES.includes(u.status) ||
+          (u.status === UnitStatus.SIN_DOCUMENTOS && u.type === 'CHOFER')
+        );
         const choferes = activeUnits.filter(u => u.type === 'CHOFER');
         const motos = activeUnits.filter(u => u.type === 'MOTO');
         const serenos = activeUnits.filter(u => u.type === 'SERENO');
