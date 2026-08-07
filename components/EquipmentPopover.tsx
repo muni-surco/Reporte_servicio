@@ -88,7 +88,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
 
   const buildUpdated = (): AppSettings => ({
     ...settings,
-    [fieldPrefix]: isAbsent && encargado ? encargado : personValue,
+    [fieldPrefix]: personValue,
     [`${labelPrefix}Taser`]: supTaser,
     [`${labelPrefix}Bodycam`]: supBodycam,
     [`${labelPrefix}CodigoTaser`]: supCodTaser,
@@ -102,7 +102,7 @@ const EquipmentPopover: React.FC<Props> = ({ fieldPrefix, personName, settings, 
   const handleSave = () => {
     const newErrors: Record<string, string> = {};
 
-    if (estado !== 'Falto' && estado !== 'Sin Supervision' && (!personValue || String(personValue).trim() === '')) {
+    if (!personValue || String(personValue).trim() === '') {
       newErrors.personValue = 'Campo requerido';
     }
 
