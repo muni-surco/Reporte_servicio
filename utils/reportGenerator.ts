@@ -182,37 +182,40 @@ export const generateMotoReport = (
 
   finalY += 15;
 
-  // --- DETAILS ---
+  // --- DETAILS --- unidad / estado / motivo
+  const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
   const inopData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map(u => [u.indicative || u.id, u.mechanics || u.status]);
+    .map(u => [u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
 
-  while (inopData.length < 15) inopData.push(['', '']);
+  while (inopData.length < 15) inopData.push(['', '', '']);
 
   const sinPatrullarData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map(u => [u.indicative || u.id, u.mechanics || u.status]);
+    .map(u => [u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
 
-  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '']);
+  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '']);
 
-  // Two columns for details
+  // Tres columnas para detalles: unidad / estado / motivo
   (doc as any).autoTable({
     startY: finalY,
-    head: [[{ content: 'INOPERATIVOS', colSpan: 2, styles: { halign: 'center', fillColor: [220, 53, 69] } }]],
+    head: [[{ content: 'INOPERATIVOS', colSpan: 3, styles: { halign: 'center', fillColor: [220, 53, 69] } }]],
     body: inopData,
     theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1 },
+    styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
     headStyles: { textColor: [255, 255, 255] },
+    columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 28 } },
     margin: { left: margin },
     tableWidth: (pageWidth / 2) - margin - 5
   });
 
   (doc as any).autoTable({
     startY: finalY,
-    head: [[{ content: 'SIN PATRULLAR', colSpan: 2, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }]],
+    head: [[{ content: 'SIN PATRULLAR', colSpan: 3, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }]],
     body: sinPatrullarData,
     theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1 },
+    styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
+    columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 28 } },
     margin: { left: pageWidth / 2 + 5 },
     tableWidth: (pageWidth / 2) - margin - 5
   });
@@ -420,6 +423,10 @@ export const generateVehicleReport = (
 
   // --- PERMANENCIA + OPERADOR CCO ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
+  // Supervisor CCO debe provenir del sector C4 (mismo criterio que reporte motos)
+  const c4Key = Object.keys(settingsMap).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
+  const c4Settings = (c4Key ? (settingsMap as any)[c4Key] : null) || (settingsMap as any)['C4'] || (settingsMap as any)['SECTOR C4'] || null;
+  const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
   const permanenciaLabel = 'PERMANENCIA';
   const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
   const dayOfWeek = new Date(date + 'T12:00:00').getDay();
@@ -457,7 +464,7 @@ export const generateVehicleReport = (
   // --- DETAILS TABLES ---
   const inopData = vehicleUnits
     .filter(u => inoperativeStatuses.includes(normalize(u.status)))
-    .map(u => [u.id, u.plate || '', u.mechanics || u.status]);
+    .map(u => [u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
 
   while (inopData.length < 15) inopData.push(['', '', '']);
 
@@ -468,7 +475,7 @@ export const generateVehicleReport = (
       const isUnidadMovil = id.startsWith('M-') || id.startsWith('H-') || id.startsWith('A-G');
       return isUnidadMovil && status !== 'PATRULLANDO' && !inoperativeStatuses.includes(status) && status !== 'SIN VEHICULO';
     })
-    .map(u => [u.id, u.plate || '', u.mechanics || u.status]);
+    .map(u => [u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
 
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '']);
 
@@ -479,7 +486,7 @@ export const generateVehicleReport = (
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
     headStyles: { textColor: [255, 255, 255] },
-    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 15 } },
+    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 28 } },
     margin: { left: margin },
     tableWidth: (pageWidth / 2) - margin - 2
   });
@@ -490,7 +497,7 @@ export const generateVehicleReport = (
     body: sinPatrullarData,
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
-    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 15 } },
+    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 28 } },
     margin: { left: pageWidth / 2 + 2 },
     tableWidth: (pageWidth / 2) - margin - 2
   });
@@ -502,7 +509,7 @@ export const generateVehicleReport = (
   const footerY = pageHeight - 20;
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.text(`SUPERVISOR CCO: ${firstSectorSettings.supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
+  doc.text(`SUPERVISOR CCO: ${c4Supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
   doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY + 3, { align: 'right' });
 
   // Timestamp
