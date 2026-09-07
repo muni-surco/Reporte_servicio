@@ -63,13 +63,17 @@ export const generateMotoReport = (
   ];
 
   const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
+  const isPatrullandoStatus = (status: unknown) => {
+    const s = String(status || '').trim().toUpperCase();
+    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO');
+  };
 
   const summaryRows = sectors.map(s => {
     const sectorCode = s;
     const sectorUnits = motoUnits.filter(u => (u.sector || '').toUpperCase().includes(sectorCode));
     const efectivo = sectorUnits.length;
     const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
-    const patrullando = sectorUnits.filter(u => (u.status || '').toUpperCase() === 'PATRULLANDO').length;
+    const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status)).length;
     const sinPatrullar = efectivo - inoperativos - patrullando;
 
     return [
@@ -180,13 +184,13 @@ export const generateMotoReport = (
 
   // --- DETAILS ---
   const inopData = motoUnits
-    .filter(u => u.status !== 'PATRULLANDO' && inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map(u => [u.indicative || u.id, u.mechanics || u.status]);
 
   while (inopData.length < 15) inopData.push(['', '']);
 
   const sinPatrullarData = motoUnits
-    .filter(u => u.status !== 'PATRULLANDO' && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map(u => [u.indicative || u.id, u.mechanics || u.status]);
 
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '']);
