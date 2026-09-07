@@ -726,6 +726,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             }));
           } else {
             setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
+            if (res.error && String(res.error).includes('DUPLICATE_PERSONNEL')) {
+              alert(res.error.replace('DUPLICATE_PERSONNEL: ', ''));
+            }
           }
           isSavingRef.current = false;
           processQueue();

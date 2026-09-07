@@ -164,6 +164,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
     }
   };
 
+  const normalizePersonnelName = (val: any) => String(val || '').trim().toUpperCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ').trim();
+
   const handleValidateAndSave = () => {
     const isIdDuplicate = formData.id && allUnits.some(u => u.id === formData.id && u.id !== unit.id);
 
@@ -199,11 +201,60 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const statusKey = formData.status?.toUpperCase();
     const hasMotivoOptions = !!(motivoStatusOptions && statusKey && motivoStatusOptions[statusKey]?.length);
 
+    // --- Validación anti-duplicado: mismo sector + misma sección (CHOFER/MOTO/SERENO) no permite mismo nombre ---
+    let isPersonnel1Duplicate = false;
+    let isPersonnel2Duplicate = false;
+    const newNameNorm = normalizePersonnelName(formData.personnel1);
+    const newName2Norm = normalizePersonnelName(formData.personnel2);
+    if (!isNoPersonnelStatus && newNameNorm) {
+      const targetSectorNorm = String(formData.sector || unit.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+      const targetTypeNorm = String(formData.type || unit.type || '').trim().toUpperCase();
+      const selfKey = unit.unit_id || unit.tempId || unit.id || '';
+      isPersonnel1Duplicate = allUnits.some(u => {
+        const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+        if (selfKey && otherKey && selfKey === otherKey) return false;
+        if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
+        const sectorNorm = String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+        if (sectorNorm !== targetSectorNorm) return false;
+        const typeNorm = String(u.type || '').trim().toUpperCase();
+        if (typeNorm !== targetTypeNorm) return false;
+        const existingNameNorm = normalizePersonnelName((u as any).personnel1);
+        if (!existingNameNorm) return false;
+        if (existingNameNorm === newNameNorm) return true;
+        // Para CHOFER, también considerar copiloto existente
+        if (targetTypeNorm === 'CHOFER') {
+          const existingP2Norm = normalizePersonnelName((u as any).personnel2);
+          if (existingP2Norm && existingP2Norm === newNameNorm) return true;
+        }
+        return false;
+      });
+      // Validar personnel2 (copiloto) también contra registros existentes en CHOFER
+      if (isChofer && newName2Norm) {
+        isPersonnel2Duplicate = allUnits.some(u => {
+          const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+          if (selfKey && otherKey && selfKey === otherKey) return false;
+          if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
+          const sectorNorm = String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+          if (sectorNorm !== targetSectorNorm) return false;
+          const typeNorm = String(u.type || '').trim().toUpperCase();
+          if (typeNorm !== 'CHOFER') return false;
+          const existingP1Norm = normalizePersonnelName((u as any).personnel1);
+          const existingP2Norm = normalizePersonnelName((u as any).personnel2);
+          return existingP1Norm === newName2Norm || existingP2Norm === newName2Norm;
+        });
+        // También evitar que personnel1 y personnel2 sean el mismo nombre dentro del mismo formulario
+        if (newName2Norm === newNameNorm) {
+          isPersonnel2Duplicate = true;
+        }
+      }
+    }
+
     const newErrors: Record<string, boolean> = {
       status: !formData.status || String(formData.status).trim() === '',
       id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
-      personnel1: !isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase())),
+      personnel1: (!isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
+      personnel2: isPersonnel2Duplicate,
       radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
@@ -254,6 +305,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
         alert(`El ID "${formData.id}" ya existe en la vista actual. No se permiten IDs duplicados.`);
       } else if (newErrors.id && (isChofer || isMoto) && formData.id && !isValidMobileId) {
         alert(`El ID "${formData.id}" no es válido. Para Choferes/Motos debe seleccionar una unidad de la lista.`);
+      } else if (isPersonnel1Duplicate) {
+        alert(`El nombre "${formData.personnel1}" ya está registrado en el sector ${String(formData.sector || unit.sector || '').toUpperCase().replace(/^SECTOR\s+/, '')} - sección ${String(formData.type || unit.type || '').toUpperCase()}. No se permite duplicar personal en el mismo sector y sección.`);
+      } else if (isPersonnel2Duplicate) {
+        alert(`El nombre "${formData.personnel2}" ya está registrado en el sector ${String(formData.sector || unit.sector || '').toUpperCase().replace(/^SECTOR\s+/, '')} - sección CHOFER. No se permite duplicar personal en el mismo sector y sección.`);
       }
       return;
     }
@@ -383,11 +438,36 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <AutocompleteInput
                 value={formData.personnel1}
                 onChange={(val) => { setFormData(prev => ({ ...prev, personnel1: val })); setErrors(prev => ({ ...prev, personnel1: false })); }}
-                suggestions={activePersonnelOptions}
+                suggestions={activePersonnelOptions.filter(n => {
+                  const norm = normalizePersonnelName(n);
+                  const targetSectorNorm = String(formData.sector || unit.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+                  const targetTypeNorm = String(formData.type || unit.type || '').trim().toUpperCase();
+                  const selfKey = unit.unit_id || unit.tempId || unit.id || '';
+                  return !allUnits.some(u => {
+                    const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+                    if (selfKey && otherKey && selfKey === otherKey) return false;
+                    if (String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '') !== targetSectorNorm) return false;
+                    if (String(u.type || '').trim().toUpperCase() !== targetTypeNorm) return false;
+                    return normalizePersonnelName((u as any).personnel1) === norm || (targetTypeNorm === 'CHOFER' && normalizePersonnelName((u as any).personnel2) === norm);
+                  });
+                })}
                 placeholder="Nombre..."
                 error={errors.personnel1}
               />
-              {errors.personnel1 && <span className={errorMsgStyle}>Requerido</span>}
+              {errors.personnel1 && <span className={errorMsgStyle}>{(() => {
+                const norm = normalizePersonnelName(formData.personnel1);
+                const targetSectorNorm = String(formData.sector || unit.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+                const targetTypeNorm = String(formData.type || unit.type || '').trim().toUpperCase();
+                const selfKey = unit.unit_id || unit.tempId || unit.id || '';
+                const isDup = norm && allUnits.some(u => {
+                  const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+                  if (selfKey && otherKey && selfKey === otherKey) return false;
+                  if (String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '') !== targetSectorNorm) return false;
+                  if (String(u.type || '').trim().toUpperCase() !== targetTypeNorm) return false;
+                  return normalizePersonnelName((u as any).personnel1) === norm || (targetTypeNorm === 'CHOFER' && normalizePersonnelName((u as any).personnel2) === norm);
+                });
+                return isDup ? 'Duplicado en sector/sección' : 'Requerido';
+              })()}</span>}
             </div>
 
             <div className="col-span-1">
@@ -419,10 +499,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   onChange={(e) => {
                     const cleaned = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.]/g, '');
                     setFormData(prev => ({ ...prev, personnel2: cleaned }));
+                    if (errors.personnel2) setErrors(prev => ({ ...prev, personnel2: false }));
                   }}
                   className={inputStyle('personnel2')}
                   placeholder="Nombre..."
                 />
+                {errors.personnel2 && <span className={errorMsgStyle}>Duplicado en sector/sección</span>}
               </div>
             )}
 

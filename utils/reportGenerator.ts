@@ -149,6 +149,10 @@ export const generateMotoReport = (
 
   // --- PERMANENCIA + OPERADOR CCO ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
+  // Supervisor CCO debe provenir del sector C4 (requerimiento específico para reporte de motos)
+  const c4Key = Object.keys(settingsMap).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
+  const c4Settings = (c4Key ? (settingsMap as any)[c4Key] : null) || (settingsMap as any)['C4'] || (settingsMap as any)['SECTOR C4'] || null;
+  const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
   const permanenciaLabel = 'PERMANENCIA';
   const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
   const dayOfWeek = new Date(date + 'T12:00:00').getDay();
@@ -230,7 +234,7 @@ export const generateMotoReport = (
   doc.text('OPERADOR CCO', pageWidth - margin - 40, signatureY + 5, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
-  doc.text(firstSectorSettings.supervisor || '______________________', margin + 40, signatureY + 10, { align: 'center' });
+  doc.text(c4Supervisor || '______________________', margin + 40, signatureY + 10, { align: 'center' });
   doc.text(resolvedOperator, pageWidth - margin - 40, signatureY + 10, { align: 'center' });
 
   // Timestamp

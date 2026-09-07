@@ -1075,11 +1075,68 @@ function getLastUnitTallerEntry(unitId) {
  * Fast single-unit save: always appends a new row. No locks, no timeouts.
  * The frontend deduplicates by unit_id on load, taking the most recent row.
  */
+function _normalizePersonnelName(val) {
+  return String(val || '').trim().toUpperCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ').trim();
+}
+
 function updateUnit(dateStr, shift, settings, unit) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
 
   const targetSector = unit.sector ? toStorageSector(unit.sector) : toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
+
+  // --- Validación anti-duplicado: mismo sector + misma sección (CHOFER/MOTO/SERENO) no permite mismo nombre ---
+  try {
+    var newNameNorm = _normalizePersonnelName(unit.personnel1);
+    var newName2Norm = _normalizePersonnelName(unit.personnel2);
+    var targetTypeNorm = String(unit.type || '').trim().toUpperCase();
+    var statusNorm = String(unit.status || '').trim().toUpperCase();
+    var isNoPersonnelStatus = ['SIN CONDUCTOR','MANTENIMIENTO','DESPERFECTOS','SIN DOCUMENTOS','SINIESTRO','FIN APOYO','SIN OPERADOR'].indexOf(statusNorm) !== -1;
+    if (newNameNorm && !isNoPersonnelStatus) {
+      var existingBySector = rtdbGet('units/' + dateStr + '_' + shift + '/' + targetSector);
+      if (existingBySector) {
+        var newUnitIdNorm = String(unit.unit_id || '').trim();
+        for (var key in existingBySector) {
+          if (!existingBySector.hasOwnProperty(key)) continue;
+          var ex = existingBySector[key];
+          if (!ex) continue;
+          // Skip self (mismo unit_id)
+          if (newUnitIdNorm && String(ex.unit_id || '').trim() === newUnitIdNorm) continue;
+          var exTypeNorm = String(ex.type || '').trim().toUpperCase();
+          if (exTypeNorm !== targetTypeNorm) continue;
+          var exNameNorm = _normalizePersonnelName(ex.personnel1);
+          if (!exNameNorm) continue;
+          if (exNameNorm === newNameNorm) {
+            return { success: false, error: 'DUPLICATE_PERSONNEL: El nombre "' + unit.personnel1 + '" ya está registrado en el sector ' + targetSector + ' - sección ' + targetTypeNorm + '. No se permite duplicar personal en el mismo sector y sección.' };
+          }
+          if (targetTypeNorm === 'CHOFER') {
+            var exP2Norm = _normalizePersonnelName(ex.personnel2);
+            if (exP2Norm && exP2Norm === newNameNorm) {
+              return { success: false, error: 'DUPLICATE_PERSONNEL: El nombre "' + unit.personnel1 + '" ya está registrado como copiloto en el sector ' + targetSector + ' - sección CHOFER.' };
+            }
+          }
+        }
+        // Validar personnel2 (copiloto) también
+        if (targetTypeNorm === 'CHOFER' && newName2Norm) {
+          if (newName2Norm === newNameNorm) {
+            return { success: false, error: 'DUPLICATE_PERSONNEL: El chofer y copiloto no pueden ser la misma persona.' };
+          }
+          for (var key2 in existingBySector) {
+            if (!existingBySector.hasOwnProperty(key2)) continue;
+            var ex2 = existingBySector[key2];
+            if (!ex2) continue;
+            if (newUnitIdNorm && String(ex2.unit_id || '').trim() === newUnitIdNorm) continue;
+            if (String(ex2.type || '').trim().toUpperCase() !== 'CHOFER') continue;
+            var ex2P1 = _normalizePersonnelName(ex2.personnel1);
+            var ex2P2 = _normalizePersonnelName(ex2.personnel2);
+            if (ex2P1 === newName2Norm || ex2P2 === newName2Norm) {
+              return { success: false, error: 'DUPLICATE_PERSONNEL: El nombre "' + unit.personnel2 + '" ya está registrado en el sector ' + targetSector + ' - sección CHOFER.' };
+            }
+          }
+        }
+      }
+    }
+  } catch (e) { /* no bloquear guardado por error de validación, loggear */ console.error('[updateUnit duplicate check] ERROR', e); }
 
   const email = Session.getActiveUser().getEmail();
   const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
