@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Save, Pencil } from 'lucide-react';
 import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
@@ -702,12 +703,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               onClick={handleValidateAndSave}
               disabled={isSaving}
               className={`bg-[#005cbb] text-white text-[12px] font-medium py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
-              <lord-icon
-                src="https://cdn.lordicon.com/egiwmiit.json"
-                trigger="hover"
-                colors="primary:#ffffff"
-                style={{ width: '16px', height: '16px' }}>
-              </lord-icon>
+              <Save className="w-4 h-4" />
               {isSaving ? 'GUARDANDO...' : (isNew ? 'GUARDAR' : 'GUARDAR')}
             </button>
           </div>
@@ -849,12 +845,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
             })()}
             {!readOnly && (
               <button onClick={onEdit} title="Editar" className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">
-                <lord-icon
-                  src="https://cdn.lordicon.com/puvaffet.json"
-                  trigger="hover"
-                  colors="primary:#2563eb,secondary:#1d4ed8"
-                  style={{ width: '20px', height: '20px' }}>
-                </lord-icon>
+                <Pencil className="w-5 h-5" />
               </button>
             )}
           </div>

@@ -6,12 +6,12 @@ import Header from './components/Header';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import ReportGeneratorView from './components/ReportGeneratorView';
-import { 
-  generateMotoReport, 
-  generateVehicleReport, 
-  generatePersonnelAbsenceReport, 
+import {
+  generateMotoReport,
+  generateVehicleReport,
+  generatePersonnelAbsenceReport,
   generatePersonnelStatusReport,
-  generateObservationsReport, 
+  generateObservationsReport,
   generateAllRecordsReport,
   generateTaserReport
 } from './utils/reportGenerator';

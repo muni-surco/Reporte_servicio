@@ -2122,6 +2122,10 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
+function getXlsxLibraryContent() {
+  return HtmlService.createHtmlOutputFromFile('XLSX').getContent();
+}
+
 /**
  * Script para migrar fotos de Drive a columnas URL y FILE_ID.
  * Ejecutar solo una vez.

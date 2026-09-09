@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 import UnitCard from './UnitCard';
 import { UnitData } from '../types';
 
@@ -103,12 +104,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
             onClick={() => onAdd(type)}
             className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-medium hover:opacity-70 group transition-all`}
           >
-            <lord-icon
-              src="https://cdn.lordicon.com/zrkkrrpl.json"
-              trigger="hover"
-              colors={`primary:${colorConfig.textAccent === 'text-blue-700' ? '#1d4ed8' : colorConfig.textAccent === 'text-violet-700' ? '#7c3aed' : '#0f766e'}`}
-              style={{ width: '20px', height: '20px' }}>
-            </lord-icon>
+            <Plus className="w-5 h-5" />
             NUEVO REGISTRO
           </button>
         )}

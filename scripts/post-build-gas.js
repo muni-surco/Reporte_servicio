@@ -73,13 +73,9 @@ if (fs.existsSync(indexFile)) {
         indexHtml = indexHtml.replace('</head>', includes.join('\n') + '\n</head>');
     }
 
-    // Inject JS at the end of body
+    // Inject JS at the end of body (XLSX is lazy-loaded on demand, not in initial HTML)
     if (jsContent) {
-        let scripts = "";
-        if (fs.existsSync(path.join(distPath, 'XLSX.html'))) {
-            scripts += "<?!= include('XLSX'); ?>\n";
-        }
-        scripts += "<?!= include('JavaScript'); ?>";
+        const scripts = "<?!= include('JavaScript'); ?>";
         indexHtml = indexHtml.replace('</body>', scripts + "\n</body>");
     }
 

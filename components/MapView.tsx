@@ -143,6 +143,9 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
   const [quadrantSearchQuery, setQuadrantSearchQuery] = useState('');
   const [showQuadrantResults, setShowQuadrantResults] = useState(false);
   const [mapDark, setMapDark] = useState(false);
+  const [sectorFilter, setSectorFilter] = useState<string[]>([]);
+  const [showSectorDropdown, setShowSectorDropdown] = useState(false);
+  const sectorDropdownRef = useRef<HTMLDivElement>(null);
   const lightLayerRef = useRef<any>(null);
   const darkLayerRef = useRef<any>(null);
   const quadrantLayersRef = useRef<Map<string, any>>(new Map());
@@ -170,6 +173,21 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     });
     return map;
   }, [geoJsonData]);
+
+  const availableSectors = useMemo(() => {
+    return Array.from(sectorQuadrants.keys()).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [sectorQuadrants]);
+
+  const filteredGeoJsonData = useMemo(() => {
+    if (!geoJsonData?.features) return geoJsonData;
+    if (sectorFilter.length === 0) return geoJsonData;
+    const selectedSet = new Set(sectorFilter);
+    const filtered = geoJsonData.features.filter((f: any) => {
+      const sector = extractSectorFromDescription(f.properties?.description || '');
+      return selectedSet.has(sector);
+    });
+    return { ...geoJsonData, features: filtered };
+  }, [geoJsonData, sectorFilter]);
 
   const quadrantDetailMap = useMemo(() => {
     const map = new Map<string, QuadrantDetail>();
@@ -239,6 +257,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
       // Excluir sectores técnicos del buscador del mapa
       if (sectorName === 'C4' || sectorName === 'COVV') return;
+      if (sectorFilter.length > 0 && !sectorFilter.includes(sectorName.toUpperCase())) return;
 
       sd.units.forEach(u => {
         const quadrants = parseQuadrants(u.quadrant || '');
@@ -254,13 +273,29 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       });
     });
     return results.slice(0, 8); // top 8 matches
-  }, [allSectorsData, searchQuery]);
+  }, [allSectorsData, searchQuery, sectorFilter]);
 
   const filteredQuadrants = useMemo(() => {
-    if (!quadrantSearchQuery.trim()) return [];
+    if (!quadrantSearchQuery.trim()) {
+      if (sectorFilter.length === 0) return [];
+      // Sin query pero con sectores filtrados: mostrar todos los cuadrantes de esos sectores
+      const allQs = new Set<string>();
+      sectorFilter.forEach(s => {
+        (sectorQuadrants.get(s) || []).forEach(q => allQs.add(q));
+      });
+      return Array.from(allQs).sort();
+    }
     const query = quadrantSearchQuery.toLowerCase().trim();
-    return allQuadrantNames.filter(n => n.includes(query));
-  }, [allQuadrantNames, quadrantSearchQuery]);
+    let candidates = allQuadrantNames;
+    if (sectorFilter.length > 0) {
+      const sectorQs = new Set<string>();
+      sectorFilter.forEach(s => {
+        (sectorQuadrants.get(s) || []).forEach(q => sectorQs.add(q));
+      });
+      candidates = candidates.filter(n => sectorQs.has(n));
+    }
+    return candidates.filter(n => n.includes(query));
+  }, [allQuadrantNames, quadrantSearchQuery, sectorFilter, sectorQuadrants]);
 
   const handleSelectSearchResult = (u: UnitData) => {
     setSearchQuery('');
@@ -346,22 +381,25 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       const map = L.map(containerRef.current).setView([-12.128, -76.995], 14);
       mapRef.current = map;
 
-      lightLayerRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 20
+      lightLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        subdomains: 'abc',
+        maxZoom: 19,
+        crossOrigin: true
       }).addTo(map);
-      darkLayerRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 20
+      darkLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        subdomains: 'abc',
+        maxZoom: 19,
+        crossOrigin: true,
+        className: 'dark-tiles'
       });
 
       setTimeout(() => map.invalidateSize(), 500);
 
-      // Suprimir el outline negro de focus en polígonos de Leaflet y aplicar fuente del webapp
+      // Suprimir el outline negro de focus en polígonos de Leaflet y aplicar fuente del webapp + filtro oscuro
       const styleTag = document.createElement('style');
-      styleTag.textContent = '.leaflet-interactive:focus, .leaflet-interactive:focus-visible { outline: none !important; } .leaflet-popup-content-wrapper, .leaflet-popup-tip, .leaflet-popup-content { font-family: \'Chivo\', sans-serif !important; }';
+      styleTag.textContent = '.leaflet-interactive:focus, .leaflet-interactive:focus-visible { outline: none !important; } .leaflet-popup-content-wrapper, .leaflet-popup-tip, .leaflet-popup-content { font-family: \'Chivo\', sans-serif !important; } .dark-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }';
       document.head.appendChild(styleTag);
     } catch (e) {
       console.error('MAP: Init error:', e);
@@ -389,18 +427,18 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !geoJsonData) return;
+    if (!map || !filteredGeoJsonData) return;
 
     if (geoLayerRef.current) {
       map.removeLayer(geoLayerRef.current);
       geoLayerRef.current = null;
     }
 
-    if (geoJsonData.features && geoJsonData.features.length > 0) {
+    if (filteredGeoJsonData.features && filteredGeoJsonData.features.length > 0) {
       const L = (window as any).L;
       quadrantLayersRef.current.clear();
 
-      const geoLayer = L.geoJson(geoJsonData, {
+      const geoLayer = L.geoJson(filteredGeoJsonData, {
         style: (feature: any) => {
           const name = feature?.properties?.name || '';
           const detail = quadrantDetailMapRef.current.get(name);
@@ -462,8 +500,10 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
 
       const combinedGroup = L.featureGroup([geoLayer, labelsLayer]).addTo(map);
       geoLayerRef.current = combinedGroup;
+      // Ajustar vista al sector filtrado
+      try { map.fitBounds(combinedGroup.getBounds(), { padding: [20, 20], maxZoom: 15 }); } catch {}
     }
-  }, [geoJsonData]); // Solo depende de geoJsonData para crearse 1 sola vez
+  }, [filteredGeoJsonData]);
 
   // Efecto separado para actualizar estilos y popups sin destruir la capa
   useEffect(() => {
@@ -493,18 +533,39 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     });
   }, [quadrantDetailMap]);
 
-  const totalQuadrants = geoJsonData?.features?.length || 0;
-  const occupiedCount = geoJsonData?.features
-    ? geoJsonData.features.filter((f: any) => {
+  const totalQuadrants = filteredGeoJsonData?.features?.length || 0;
+  const occupiedCount = filteredGeoJsonData?.features
+    ? filteredGeoJsonData.features.filter((f: any) => {
         const d = quadrantDetailMap.get(normalizeQuadrant(f.properties?.name || ''));
         return d && d.total > 0;
       }).length
     : 0;
 
+  const totalAssignedResources = useMemo(() => {
+    if (!filteredGeoJsonData?.features) return 0;
+    const visibleSet = new Set(filteredGeoJsonData.features.map((f: any) => normalizeQuadrant(f.properties?.name || '')));
+    let sum = 0;
+    quadrantDetailMap.forEach((detail, qName) => {
+      if (visibleSet.has(qName)) sum += detail.total;
+    });
+    return sum;
+  }, [filteredGeoJsonData, quadrantDetailMap]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (sectorDropdownRef.current && !sectorDropdownRef.current.contains(e.target as Node)) {
+        setShowSectorDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const taserCount = useMemo(() => {
     const countedUnits = new Set<string>();
     Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
       if (sectorName === 'C4' || sectorName === 'COVV') return;
+      if (sectorFilter.length > 0 && !sectorFilter.includes(sectorName.toUpperCase())) return;
       sd.units.forEach(u => {
         if (u.type === 'CHOFER' && !showChoferes) return;
         if (u.type === 'MOTO' && !showMotos) return;
@@ -523,7 +584,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
       });
     });
     return countedUnits.size;
-  }, [allSectorsData, showChoferes, showMotos, showSerenos, sectorQuadrants]);
+  }, [allSectorsData, showChoferes, showMotos, showSerenos, sectorQuadrants, sectorFilter]);
 
   return (
     <div className="h-full w-full flex flex-col bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-200">
@@ -535,8 +596,52 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
           </div>
         )}
 
-        {/* Buscadores lado a lado */}
+        {/* Filtro sector + Buscadores */}
         <div className="absolute top-4 left-14 z-[1000] flex gap-3 pointer-events-auto">
+          {/* Filtro por Sector - multiselect, texto sin negrita */}
+          <div className="relative w-48" ref={sectorDropdownRef}>
+            <button
+              onClick={() => setShowSectorDropdown(!showSectorDropdown)}
+              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-normal rounded-xl pl-9 pr-8 py-2.5 shadow-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-left truncate flex items-center"
+            >
+              <span className="truncate">
+                {sectorFilter.length === 0 ? 'Todos los sectores' : sectorFilter.length === 1 ? `Sector ${sectorFilter[0]}` : `${sectorFilter.length} sectores`}
+              </span>
+              <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px] pointer-events-none">filter_list</span>
+              <span className="material-symbols-outlined absolute right-2.5 text-slate-400 text-[18px] pointer-events-none">expand_more</span>
+            </button>
+            {showSectorDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-20 max-h-64 overflow-y-auto">
+                <label className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100">
+                  <input
+                    type="checkbox"
+                    checked={sectorFilter.length === 0}
+                    onChange={() => setSectorFilter([])}
+                    className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-normal text-slate-700">Todos</span>
+                </label>
+                {availableSectors.map(s => (
+                  <label key={s} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sectorFilter.includes(s)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSectorFilter(prev => [...prev, s].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })));
+                        } else {
+                          setSectorFilter(prev => prev.filter(v => v !== s));
+                        }
+                      }}
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-normal text-slate-700">Sector {s}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Buscador Inteligente */}
           <div className="relative w-72">
             <div className="relative flex items-center">
@@ -718,8 +823,15 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
                 </span>
                 <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">{totalQuadrants - occupiedCount}</span>
               </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-[#002d5a] flex items-center justify-center"><span className="material-symbols-outlined text-[10px] text-white">groups</span></span>
+                  <span className="font-medium text-slate-700">Recursos Asignados</span>
+                </span>
+                <span className="font-bold text-slate-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">{totalAssignedResources}</span>
+              </div>
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-500 uppercase tracking-wider">Total</span>
+                <span className="font-medium text-slate-500 uppercase tracking-wider">Total Cuadrantes</span>
                 <span className="font-bold text-[#002d5a]">{totalQuadrants}</span>
               </div>
             </div>

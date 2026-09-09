@@ -398,7 +398,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                 </button>
                 <button
                   type="button"
-                  onClick={() => generateRetenExcel(replacements, selectedDate, settings.turno)}
+                  onClick={() => { void generateRetenExcel(replacements, selectedDate, settings.turno); }}
                   className="flex items-center justify-center gap-2 h-[38px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm shadow-emerald-100"
                   title="Descargar Excel"
                 >
