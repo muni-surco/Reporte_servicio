@@ -8,6 +8,7 @@ export default defineConfig({
     }
   },
   build: {
+    target: 'es2018',
     outDir: 'dist/reports-assets',
     emptyOutDir: true,
     lib: {

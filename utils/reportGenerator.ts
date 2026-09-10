@@ -1219,7 +1219,11 @@ export const generateAllRecordsReport = (
     }
 
     // Combustible y Gasto
-    const fuelExp = `${(u.fuel || '').toString() || '--'}\n${(u.expense || '').toString() || 'S/ 0.00'}`;
+    const primaryFuel = `${(u.fuel || '').toString() || '--'}\n${(u.expense || '').toString() || 'S/ 0.00'}`;
+    const secondFuel = u.fuel2
+      ? `\n${u.fuel2.toString()}\n${(u.expense2 || '').toString() || 'S/ 0.00'}`
+      : '';
+    const fuelExp = `${primaryFuel}${secondFuel}`;
 
     rows.push({
       sector,

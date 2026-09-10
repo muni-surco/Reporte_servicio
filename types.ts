@@ -85,6 +85,12 @@ export interface UnitData {
   hours: string;
   fuel: string;
   expense: string;
+  fuel2?: string;
+  expense2?: string;
+  fuel2Type?: string;
+  fuel2Qty?: string;
+  combustible2?: string;
+  gasto2?: string;
   quadrant: string;
   mechanics: string;
   lugarEstado?: string;

@@ -20,10 +20,15 @@ let jsContent = '';
 let cssContent = '';
 let reportsContent = '';
 
+const createScriptHtml = (content) => {
+    const encoded = Buffer.from(content, 'utf8').toString('base64');
+    return `<script>(function(){var code=atob('${encoded}');eval(code);})();</script>`;
+};
+
 const reportsFile = path.join(reportsAssetsPath, 'reports.js');
 if (fs.existsSync(reportsFile)) {
     reportsContent = fs.readFileSync(reportsFile, 'utf-8');
-    fs.writeFileSync(path.join(distPath, 'ReportJavaScript.html'), `<script>\n${reportsContent}\n</script>`);
+    fs.writeFileSync(path.join(distPath, 'ReportJavaScript.html'), createScriptHtml(reportsContent));
     fs.rmSync(reportsAssetsPath, { recursive: true, force: true });
     console.log('Created dist/ReportJavaScript.html');
 }
@@ -48,7 +53,7 @@ if (!cssContent) {
 }
 
 if (jsContent) {
-    fs.writeFileSync(path.join(distPath, 'JavaScript.html'), `<script>\n${jsContent}\n</script>`);
+    fs.writeFileSync(path.join(distPath, 'JavaScript.html'), createScriptHtml(jsContent));
     console.log('Created dist/JavaScript.html');
 }
 

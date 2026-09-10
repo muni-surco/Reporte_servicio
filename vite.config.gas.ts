@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
+      target: 'es2018',
       cssInlineLimit: 0,
       rollupOptions: {
         output: {

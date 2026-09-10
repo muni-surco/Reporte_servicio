@@ -94,7 +94,7 @@ function initialSetup() {
     'PLACA', 'INDICATIVO', 'RADIO', 'ESTADO', 'MOTIVO', 
     'KM_INICIO', 'KM_FIN', 'TOTAL_KM', 'KM_RECARGA', 'HORARIO', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MECANICA_OBS', 'UNIT_ID',
     'LUGAR_ESTADO', 'MOTIVO_ESTADO', 'AUDIT_LOG',
-    'TASER', 'BODYCAM', 'CODIGO_BODYCAM', 'OBS_BODYCAM', 'CODIGO_TASER'
+    'TASER', 'BODYCAM', 'CODIGO_BODYCAM', 'OBS_BODYCAM', 'CODIGO_TASER', 'COMBUSTIBLE_2', 'GASTO_2'
   ];
   dataSheet.getRange(1, 1, 1, dataHeaders.length)
            .setValues([dataHeaders])
@@ -219,6 +219,8 @@ function _toUnitData(obj) {
     hours: String(obj.hours || ''),
     fuel: String(obj.fuel || '-- / --'),
     expense: String(obj.expense || 'S/ 0.00'),
+    fuel2: String(obj.fuel2 || obj.combustible2 || obj.COMBUSTIBLE_2 || ''),
+    expense2: String(obj.expense2 || obj.gasto2 || obj.GASTO_2 || ''),
     quadrant: String(obj.quadrant || ''),
     mechanics: String(obj.mechanics || ''),
     lugarEstado: String(obj.lugarEstado || ''),
@@ -290,7 +292,7 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
       const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
       if (dataSheet) {
         const dLastRow = dataSheet.getLastRow();
-        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 31).getValues() : [];
+        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, Math.max(31, dataSheet.getLastColumn())).getValues() : [];
         for (let i = 0; i < dataRows.length; i++) {
           const r = dataRows[i];
           if (!r[0]) continue;
@@ -300,7 +302,7 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
                 id: r[3], unit_id: r[23], sector: r[2], type: r[4], model: r[5],
                 personnel1: r[6], personnel2: r[7], plate: r[8], indicative: r[9], radio: r[10],
                 status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
-                kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19],
+                kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19], fuel2: r[32], expense2: r[33],
                 quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
                 lugarEstado: r[24], motivoEstado: r[25],
                 taser: r[27] || '', bodycam: r[28] || '', codigoBodycam: r[29] || '', obsBodycam: r[30] || ''
@@ -392,7 +394,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
       const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
       if (dataSheet) {
         const dLastRow = dataSheet.getLastRow();
-        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, 31).getValues() : [];
+        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, Math.max(31, dataSheet.getLastColumn())).getValues() : [];
         for (let i = 0; i < dataRows.length; i++) {
           const r = dataRows[i];
           if (!r[0]) continue;
@@ -402,7 +404,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
                 id: r[3], unit_id: r[23], sector: r[2], type: r[4], model: r[5],
                 personnel1: r[6], personnel2: r[7], plate: r[8], indicative: r[9], radio: r[10],
                 status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
-                kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19],
+                kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19], fuel2: r[32], expense2: r[33],
                 quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
                 lugarEstado: r[24], motivoEstado: r[25],
                 taser: r[27] || '', bodycam: r[28] || '', codigoBodycam: r[29] || '', obsBodycam: r[30] || ''
@@ -1081,6 +1083,21 @@ function _normalizePersonnelName(val) {
 
 function updateUnit(dateStr, shift, settings, unit) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const fuel2Value = String(unit.fuel2 || '').trim();
+  const expense2Value = String(unit.expense2 || '').trim();
+  console.log('[updateUnit] recibido: ' + JSON.stringify({
+    date: dateStr,
+    shift: shift,
+    sector: unit.sector || '',
+    unit_id: unit.unit_id || '',
+    id: unit.id || '',
+    fuel: unit.fuel || '',
+    expense: unit.expense || '',
+    fuel2: unit.fuel2,
+    expense2: unit.expense2,
+    fuel2Normalized: fuel2Value,
+    expense2Normalized: expense2Value
+  }));
 
   const targetSector = unit.sector ? toStorageSector(unit.sector) : toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
@@ -1177,6 +1194,8 @@ function updateUnit(dateStr, shift, settings, unit) {
     hours: unit.hours || '',
     fuel: unit.fuel || '',
     expense: unit.expense || '',
+    fuel2: fuel2Value,
+    expense2: expense2Value,
     partes: '0',
     quadrant: unit.quadrant || '',
     mechanics: unit.mechanics || '',
@@ -1192,7 +1211,26 @@ function updateUnit(dateStr, shift, settings, unit) {
     updatedAt: timestamp
   };
 
-  rtdbSet('units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id, data);
+  const unitPath = 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id;
+  console.log('[updateUnit] Persisting unit ' + unitPath + ' fuel2=' + fuel2Value + ' expense2=' + expense2Value);
+  rtdbSet(unitPath, data);
+  const persistedUnit = rtdbGet(unitPath);
+  console.log('[updateUnit] leído desde Firebase: ' + JSON.stringify({
+    path: unitPath,
+    fuel2: persistedUnit && persistedUnit.fuel2,
+    expense2: persistedUnit && persistedUnit.expense2,
+    fuel2Alias: persistedUnit && persistedUnit.combustible2,
+    expense2Alias: persistedUnit && persistedUnit.gasto2
+  }));
+  if (!persistedUnit ||
+      String(persistedUnit.fuel2 || '') !== fuel2Value ||
+      String(persistedUnit.expense2 || '') !== expense2Value) {
+    throw new Error(
+      'Firebase no confirmó COMBUSTIBLE_2/GASTO_2 para la unidad ' + unit_id +
+      '. fuel2 enviado="' + fuel2Value + '", fuel2 leído="' + String(persistedUnit && persistedUnit.fuel2 || '') +
+      '", expense2 enviado="' + expense2Value + '", expense2 leído="' + String(persistedUnit && persistedUnit.expense2 || '') + '".'
+    );
+  }
 
   // KM bridge: update prev unit's kmEnd from current unit's kmStart
   const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
@@ -1225,7 +1263,13 @@ function updateUnit(dateStr, shift, settings, unit) {
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
   cache.remove('UNITS_' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
   _fbLogUsage();
-  return { success: true, unit_id: unit_id, created: true };
+  return {
+    success: true,
+    unit_id: unit_id,
+    created: true,
+    fuel2: persistedUnit.fuel2,
+    expense2: persistedUnit.expense2
+  };
 }
 
 /**
@@ -1507,6 +1551,7 @@ function migrateToFirebase() {
               kmStart: String(r[13] || '0'), kmEnd: String(r[14] || '0'), totalKm: String(r[15] || '0'),
               kmRecarga: String(r[16] || '0'), hours: String(r[17] || ''),
               fuel: String(r[18] || ''), expense: String(r[19] || ''), partes: String(r[20] || '0'),
+              fuel2: String(r[32] || ''), expense2: String(r[33] || ''),
               quadrant: cellToStr(r[21], timeZone), mechanics: String(r[22] || ''),
               unit_id: unit_id, lugarEstado: String(r[24] || ''), motivoEstado: String(r[25] || ''),
               auditLog: String(r[26] || ''),
@@ -2052,7 +2097,9 @@ function backupFirestoreToSheets() {
             u.bodycam || '',
             u.codigoBodycam || '',
             u.obsBodycam || '',
-            u.codigoTaser || ''
+            u.codigoTaser || '',
+            u.fuel2 || '',
+            u.expense2 || ''
           ]);
         });
       });
@@ -2063,7 +2110,7 @@ function backupFirestoreToSheets() {
       const chunkSize = 500;
       for (let chunkStart = 0; chunkStart < newRows.length; chunkStart += chunkSize) {
         const chunk = newRows.slice(chunkStart, chunkStart + chunkSize);
-        dataSheet.getRange(startRow + chunkStart, 1, chunk.length, 32).setValues(chunk);
+        dataSheet.getRange(startRow + chunkStart, 1, chunk.length, 34).setValues(chunk);
       }
     }
     console.log('[backup] UNIT_DATA: ' + newRows.length + ' new rows');
@@ -2181,4 +2228,3 @@ function populateWantedMetadata() {
   sheet.getRange(2, colUrl + 1, updates.length, 2).setValues(updates);
   Logger.log("Migración completada con normalización avanzada (incluye guiones bajos).");
 }
-

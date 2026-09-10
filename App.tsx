@@ -382,6 +382,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             hours: String(u.hours || ''),
             fuel: String(u.fuel || '-- / --'),
             expense: String(u.expense || 'S/ 0.00'),
+            fuel2: String(u.fuel2 || ''),
+            expense2: String(u.expense2 || ''),
             quadrant: String(u.quadrant || ''),
             mechanics: String(u.mechanics || ''),
             model: String(u.model || ''),
@@ -444,6 +446,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                 kmRecarga: '0',
                 fuel: '-- / --',
                 expense: 'S/ 0.00',
+                fuel2: '',
+                expense2: '',
                 personnel1: '',
                 personnel2: '',
                 indicative: '',
@@ -493,6 +497,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                   status: '',
                   kmStart: '0', kmEnd: '0', totalKm: '0', kmRecarga: '0',
                   fuel: '-- / --', expense: 'S/ 0.00',
+                  fuel2: '', expense2: '',
                   personnel1: '', personnel2: '', indicative: '',
                   radio: d.radio || '', reason: '', mechanics: '',
                   hours: '--:-- - --:--'
@@ -678,10 +683,29 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
     const item = saveQueueRef.current.shift()!;
     const unitKey = item.unit.unit_id || item.unit.tempId || item.unit.id || 'unknown';
+    const unitPayload = JSON.parse(JSON.stringify({
+      ...item.unit,
+      fuel2: String(item.unit.fuel2 || ''),
+      expense2: String(item.unit.expense2 || '')
+    }));
+    console.info('[App] payload enviado a updateUnit', {
+      unitId: unitKey,
+      fuel: unitPayload.fuel,
+      expense: unitPayload.expense,
+      fuel2: unitPayload.fuel2,
+      expense2: unitPayload.expense2
+    });
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((res: { success: boolean, unit_id?: string, error?: string }) => {
+        .withSuccessHandler((res: { success: boolean, unit_id?: string, fuel2?: string, expense2?: string, error?: string }) => {
+          console.info('[App] respuesta de updateUnit', {
+            success: res.success,
+            unitId: res.unit_id || unitKey,
+            fuel2: res.fuel2,
+            expense2: res.expense2,
+            error: res.error
+          });
           if (res.success) {
             const newId = res.unit_id;
             if (newId && newId !== item.unit.unit_id) {
@@ -716,10 +740,22 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             }
             // Sync kmStart into local state so the toast reflects it immediately
             const savedKmStart = item.unit.kmStart || '';
+            const savedFuel2 = res.fuel2 !== undefined ? res.fuel2 : item.unit.fuel2;
+            const savedExpense2 = res.expense2 !== undefined ? res.expense2 : item.unit.expense2;
             setUnits(prev => prev.map(u => {
               const matchKey = u.unit_id || u.tempId || u.id;
               const itemKey = item.unit.unit_id || item.unit.tempId || item.unit.id;
-              if (matchKey === itemKey) return { ...u, kmStart: savedKmStart };
+              const savedKey = newId || itemKey;
+              if (matchKey === itemKey || matchKey === savedKey) {
+                return {
+                  ...u,
+                  ...item.unit,
+                  unit_id: newId || u.unit_id,
+                  kmStart: savedKmStart,
+                  fuel2: savedFuel2 || '',
+                  expense2: savedExpense2 || ''
+                };
+              }
               return u;
             }));
           } else {
@@ -731,12 +767,13 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           isSavingRef.current = false;
           processQueue();
         })
-        .withFailureHandler(() => {
+        .withFailureHandler((err: any) => {
+          console.error('[updateUnit] Error al guardar unidad', err);
           setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
           isSavingRef.current = false;
           processQueue();
         })
-        .updateUnit(selectedDate, settings.turno, settings, item.unit);
+        .updateUnit(selectedDate, settings.turno, settings, unitPayload);
     } else {
       isSavingRef.current = false;
       processQueue();
@@ -796,6 +833,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         hours: '',
         fuel: '-- / --',
         expense: 'S/ 0.00',
+        fuel2: '',
+        expense2: '',
         quadrant: source?.quadrant || '',
         mechanics: '',
         lugarEstado: '',
@@ -987,6 +1026,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         kmRecarga: '0',
         fuel: '-- / --',
         expense: 'S/ 0.00',
+        fuel2: '',
+        expense2: '',
         personnel1: '',
         personnel2: '',
         indicative: '',

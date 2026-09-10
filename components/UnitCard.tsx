@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Pencil } from 'lucide-react';
+import { Save, Pencil, Plus, X } from 'lucide-react';
 import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
@@ -50,6 +50,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
   const [fuelType, setFuelType] = useState('');
   const [fuelQty, setFuelQty] = useState('');
+  const [fuel2Type, setFuel2Type] = useState('');
+  const [fuel2Qty, setFuel2Qty] = useState('');
+  const [showSecondFuel, setShowSecondFuel] = useState(false);
+  const fuel2TypeRef = useRef('');
+  const fuel2QtyRef = useRef('');
+  const expense2Ref = useRef('');
 
   // Use provided status options or fallback to constants
   const activeStatusOptions = statusOptions && statusOptions.length > 0 ? statusOptions : Object.values(UnitStatus);
@@ -71,13 +77,27 @@ const UnitCard: React.FC<UnitCardProps> = ({
       const fuelParts = String(unit.fuel || '').split('/').map(p => p.trim());
       setFuelType(fuelParts[0] || '');
       setFuelQty(fuelParts[1] || '0');
+      const fuel2Parts = String(unit.fuel2 || '').split('/').map(p => p.trim());
+      const initialFuel2Type = fuel2Parts[0] && fuel2Parts[0] !== '--' ? fuel2Parts[0] : '';
+      const initialFuel2Qty = fuel2Parts[1] && fuel2Parts[1] !== '0' ? fuel2Parts[1] : '';
+      setFuel2Type(initialFuel2Type);
+      setFuel2Qty(initialFuel2Qty);
+      fuel2TypeRef.current = initialFuel2Type;
+      fuel2QtyRef.current = initialFuel2Qty;
+      expense2Ref.current = String(unit.expense2 || '');
+      setShowSecondFuel(Boolean(fuel2Parts[0] && fuel2Parts[0] !== '--'));
 
       // Always set formData to unit, ID field will be empty for new units
       setFormData(unit);
+      setFormData(prev => ({
+        ...prev,
+        fuel2Type: initialFuel2Type,
+        fuel2Qty: initialFuel2Qty
+      }));
 
       setErrors({});
     }
-  }, [isEditing, unit.id, unit.kmStart, unit.kmEnd, unit.kmRecarga, unit.fuel]);
+  }, [isEditing, unit.id, unit.kmStart, unit.kmEnd, unit.kmRecarga, unit.fuel, unit.fuel2]);
 
   useEffect(() => {
     const start = parseFloat(kmStart) || 0;
@@ -92,9 +112,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
       kmEnd: kmEnd || '0',
       totalKm: diff,
       kmRecarga: kmRecarga || '0',
-      fuel: `${fuelType || '--'} / ${fuelQty || '0'}`
+      fuel: `${fuelType || '--'} / ${fuelQty || '0'}`,
+      fuel2: fuel2Type ? `${fuel2Type} / ${fuel2Qty || '0'}` : '',
+      fuel2Type,
+      fuel2Qty,
     }));
-  }, [kmStart, kmEnd, kmRecarga, fuelType, fuelQty]);
+  }, [kmStart, kmEnd, kmRecarga, fuelType, fuelQty, fuel2Type, fuel2Qty]);
 
   const lastKmFetchedIdRef = useRef<string>('');
 
@@ -313,7 +336,25 @@ const UnitCard: React.FC<UnitCardProps> = ({
       }
       return;
     }
-    onSave(formData);
+    const formFuel2Parts = String(formData.fuel2 || '').split('/').map(part => part.trim());
+    const savedFuel2Type = String(fuel2TypeRef.current || formData.fuel2Type || fuel2Type || formFuel2Parts[0] || '').trim();
+    const savedFuel2Qty = String(fuel2QtyRef.current || formData.fuel2Qty || fuel2Qty || formFuel2Parts[1] || '').trim();
+    const dataToSave: UnitData = {
+      ...formData,
+      fuel: `${fuelType || '--'} / ${fuelQty || '0'}`,
+      fuel2: savedFuel2Type ? `${savedFuel2Type} / ${savedFuel2Qty || '0'}` : '',
+      fuel2Type: savedFuel2Type,
+      fuel2Qty: savedFuel2Qty,
+      expense2: savedFuel2Type ? (expense2Ref.current || formData.expense2 || '') : ''
+    };
+    console.info('[UnitCard] payload antes de onSave', {
+      unitId: dataToSave.unit_id || dataToSave.tempId || dataToSave.id,
+      fuel: dataToSave.fuel,
+      expense: dataToSave.expense,
+      fuel2: dataToSave.fuel2,
+      expense2: dataToSave.expense2
+    });
+    onSave(dataToSave);
   };
 
   const labelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
@@ -621,24 +662,75 @@ const UnitCard: React.FC<UnitCardProps> = ({
                     </span>
                   ) : null}
                 </div>
-                <div className="col-span-1">
-                  <label className={labelStyleEdit}>KM RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50 ${errors.kmRecarga ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`} />
-                  {errors.kmRecarga && <span className={errorMsgStyle}>Mayor al km inicial</span>}
+                <div className="col-span-1 relative order-last">
+                  <label className={labelStyleEdit}>COMBUSTIBLES</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowSecondFuel(prev => !prev)}
+                    className={`h-[32px] w-full rounded-lg px-2 text-[12px] uppercase tracking-tight flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all ${showSecondFuel ? 'bg-primary-dark text-white ring-2 ring-primary/20' : 'bg-primary text-white hover:bg-primary-dark hover:shadow-md'}`}
+                  >
+                    {showSecondFuel ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                    {showSecondFuel ? 'CERRAR' : (fuel2Type ? '2 REGISTRADOS' : 'RECARGA')}
+                  </button>
+                  {showSecondFuel && (
+                    <div className="absolute z-[70] top-[54px] left-0 w-72 rounded-lg border border-blue-200 bg-white p-3 shadow-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-semibold uppercase text-blue-700">Combustibles</span>
+                        <button type="button" onClick={() => { setFuel2Type(''); setFuel2Qty(''); setFormData(prev => ({ ...prev, fuel2: '', expense2: '' })); setShowSecondFuel(false); }} className="text-slate-400 hover:text-red-500" title="Quitar segundo combustible">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-2">
+                          <label className={labelStyleEdit}>KM RECARGA</label>
+                          <input type="number" min="0" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-white ${errors.kmRecarga ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`} />
+                          {errors.kmRecarga && <span className={errorMsgStyle}>Mayor al km inicial</span>}
+                        </div>
+                        <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">1° combustible</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className={labelStyleEdit}>TIPO</label>
+                              <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
+                                <option value="">--</option>
+                                {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelStyleEdit}>CANTIDAD</label>
+                              <input type="number" min="0" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} />
+                            </div>
+                            <div className="col-span-2">
+                              <label className={labelStyleEdit}>GASTO</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: e.target.value ? `S/ ${e.target.value}` : '' }))} className={inputStyle('expense')} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">2° combustible (opcional)</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className={labelStyleEdit}>TIPO</label>
+                              <select value={String(formData.fuel2Type || fuel2Type)} onChange={(e) => { const value = e.target.value; fuel2TypeRef.current = value; console.info('[UnitCard] segundo combustible seleccionado', value); setFuel2Type(value); setFormData(prev => ({ ...prev, fuel2Type: value, fuel2: value ? `${value} / ${prev.fuel2Qty || fuel2QtyRef.current || '0'}` : '' })); }} className={`${inputStyle('fuel2Type')} py-0 text-[11px]`}>
+                                <option value="">--</option>
+                                {FUEL_TYPES.filter(f => f !== fuelType).map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelStyleEdit}>CANTIDAD</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.fuel2Qty || fuel2Qty)} onChange={(e) => { const value = e.target.value; fuel2QtyRef.current = value; console.info('[UnitCard] cantidad segundo combustible', value); setFuel2Qty(value); setFormData(prev => ({ ...prev, fuel2Qty: value, fuel2: (prev.fuel2Type || fuel2TypeRef.current) ? `${prev.fuel2Type || fuel2TypeRef.current} / ${value || '0'}` : '' })); }} className={inputStyle('fuel2Qty')} />
+                            </div>
+                            <div className="col-span-2">
+                              <label className={labelStyleEdit}>GASTO</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.expense2 || '').replace('S/ ', '')} onChange={(e) => { const value = e.target.value ? `S/ ${e.target.value}` : ''; expense2Ref.current = value; console.info('[UnitCard] gasto segundo combustible', value); setFormData(prev => ({ ...prev, expense2: value })); }} className={inputStyle('expense2')} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="col-span-1">
-                  <label className={labelStyleEdit}>COMBUSTIBLE</label>
-                  <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
-                    <option value="">--</option>
-                    {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-1">
-                  <label className={labelStyleEdit}>CANTIDAD</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} />
-                </div>
-                <div className="col-span-1">
-                  <label className={labelStyleEdit}>GASTO</label><input type="number" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} />
-                </div>
-                <div className="col-span-1">
+                <div className="col-span-2">
                   <label className={labelStyleEdit}>Observaciones</label><input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
                 </div>
                 {showTaserFields && (
@@ -659,7 +751,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                       <AutocompleteInput disabled={formData.bodycam !== 'SI'} value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamSuggestions || []} placeholder="Código..." error={errors.codigoBodycam} />
                       {errors.codigoBodycam && <span className={errorMsgStyle}>Requerido</span>}
                     </div>
-                    <div className="col-span-1">
+                    <div className="col-span-2">
                       <label className={labelStyleEdit}>OBS. BODYCAM/TASER</label>
                       <input value={formData.obsBodycam || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsBodycam: e.target.value }))} className={inputStyle('obsBodycam')} placeholder="Observaciones..." />
                     </div>
@@ -801,6 +893,13 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <span className="text-slate-200">/</span>
                   <span className="text-slate-900 font-medium">{String(unit.km || '').split('/')[2] || '0'}</span>
                 </div>
+                {unit.fuel2 && String(unit.fuel2).split('/')[0] !== '--' && (
+                  <div className="mt-0.5 text-[11px] text-slate-500">
+                    <span>{String(unit.fuel2).split('/')[0]}</span>
+                    <span className="text-amber-600"> ({String(unit.fuel2).split('/')[1]?.trim() || '0'} GL)</span>
+                    {unit.expense2 && <span className="ml-1 text-green-600">| {unit.expense2}</span>}
+                  </div>
+                )}
               </div>
 
               {/* Columna Combustible Centrada con Recarga integrada */}
