@@ -22,7 +22,7 @@ let reportsContent = '';
 
 const createScriptHtml = (content) => {
     const encoded = Buffer.from(content, 'utf8').toString('base64');
-    return `<script>(function(){var code=atob('${encoded}');eval(code);})();</script>`;
+    return `<script>(function(){var binary=atob('${encoded}');var bytes=Array.prototype.map.call(binary,function(char){return '%' + ('00' + char.charCodeAt(0).toString(16)).slice(-2);}).join('');var code=decodeURIComponent(bytes);eval(code);})();</script>`;
 };
 
 const reportsFile = path.join(reportsAssetsPath, 'reports.js');
