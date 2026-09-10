@@ -6,15 +6,6 @@ import Header from './components/Header';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
 import ReportGeneratorView from './components/ReportGeneratorView';
-import {
-  generateMotoReport,
-  generateVehicleReport,
-  generatePersonnelAbsenceReport,
-  generatePersonnelStatusReport,
-  generateObservationsReport,
-  generateAllRecordsReport,
-  generateTaserReport
-} from './utils/reportGenerator';
 import PersonnelView from './components/PersonnelView';
 import StatisticsView from './components/StatisticsView';
 import RetenManagementView from './components/RetenManagementView';
@@ -26,6 +17,13 @@ import { Users, LayoutDashboard, FileText, TriangleAlert } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal';
 
 declare const google: any;
+
+type ReportGenerators = typeof import('./utils/reportGenerator');
+declare global {
+  interface Window {
+    reportGenerators?: ReportGenerators;
+  }
+}
 
 const getAutoTurno = () => {
   const now = new Date();
@@ -1212,6 +1210,11 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     setIsGeneratingStructuredReport(true);
 
     try {
+      const reportGenerators = window.reportGenerators;
+      if (!reportGenerators) {
+        throw new Error('El módulo de reportes no se ha cargado. Recarga la aplicación e inténtalo nuevamente.');
+      }
+
       // 1. Check if data is up-to-date
       const meta: any = await new Promise((resolve, reject) => {
         google.script.run
@@ -1256,37 +1259,37 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
       }
 
       if (type === 'motos') {
-        generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
+        reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
       } else if (type === 'motos_honda') {
-        generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
+        reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
       } else if (type === 'moviles') {
-        generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData);
+        reportGenerators.generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData);
       } else if (type === 'asistencia_regimen') {
         if (personnelList.length > 0) {
-            generatePersonnelAbsenceReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+            reportGenerators.generatePersonnelAbsenceReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         } else {
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
                 google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
             });
             setPersonnelList(loadedPersonnel);
-            generatePersonnelAbsenceReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+            reportGenerators.generatePersonnelAbsenceReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         }
       } else if (type === 'asistencia_estado') {
         if (personnelList.length > 0) {
-            generatePersonnelStatusReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+            reportGenerators.generatePersonnelStatusReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         } else {
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
                 google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
             });
             setPersonnelList(loadedPersonnel);
-            generatePersonnelStatusReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+            reportGenerators.generatePersonnelStatusReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         }
       } else if (type === 'observaciones') {
-        generateObservationsReport(dataToUse.units, date, shift, operatorName);
+        reportGenerators.generateObservationsReport(dataToUse.units, date, shift, operatorName);
       } else if (type === 'general') {
-        generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+        reportGenerators.generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else if (type === 'taser') {
-        generateTaserReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+        reportGenerators.generateTaserReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else {
         alert(`El reporte de "${type}" se encuentra en desarrollo.`);
       }

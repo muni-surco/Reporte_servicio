@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppSettings } from '../types';
-import { generateRetenExcel } from '../utils/reportGenerator';
 import AutocompleteInput from './AutocompleteInput';
 
 interface RetenReplacement {
@@ -398,7 +397,14 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                 </button>
                 <button
                   type="button"
-                  onClick={() => { void generateRetenExcel(replacements, selectedDate, settings.turno); }}
+                  onClick={() => {
+                    const reportGenerators = window.reportGenerators;
+                    if (!reportGenerators) {
+                      alert('El módulo de reportes no se ha cargado. Recarga la aplicación e inténtalo nuevamente.');
+                      return;
+                    }
+                    void reportGenerators.generateRetenExcel(replacements, selectedDate, settings.turno);
+                  }}
                   className="flex items-center justify-center gap-2 h-[38px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm shadow-emerald-100"
                   title="Descargar Excel"
                 >

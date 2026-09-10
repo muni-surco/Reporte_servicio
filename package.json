@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:gas": "vite build --config vite.config.gas.ts && node scripts/post-build-gas.js",
+    "build:gas": "vite build --config vite.config.gas.ts && vite build --config vite.config.reports.ts && node scripts/post-build-gas.js",
     "preview": "vite preview"
   },
   "dependencies": {

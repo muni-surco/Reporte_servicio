@@ -3,6 +3,7 @@ import path from 'path';
 
 const distPath = path.join(process.cwd(), 'dist');
 const assetsPath = path.join(distPath, 'assets');
+const reportsAssetsPath = path.join(distPath, 'reports-assets');
 
 // 1. Copy Code.gs to dist
 const sourceGs = path.join(process.cwd(), 'Code.gs');
@@ -17,6 +18,15 @@ const files = fs.readdirSync(assetsPath);
 
 let jsContent = '';
 let cssContent = '';
+let reportsContent = '';
+
+const reportsFile = path.join(reportsAssetsPath, 'reports.js');
+if (fs.existsSync(reportsFile)) {
+    reportsContent = fs.readFileSync(reportsFile, 'utf-8');
+    fs.writeFileSync(path.join(distPath, 'ReportJavaScript.html'), `<script>\n${reportsContent}\n</script>`);
+    fs.rmSync(reportsAssetsPath, { recursive: true, force: true });
+    console.log('Created dist/ReportJavaScript.html');
+}
 
 files.forEach(file => {
     const ext = path.extname(file);
@@ -69,7 +79,8 @@ if (fs.existsSync(indexFile)) {
 
     // Inject JS at the end of body
     if (jsContent) {
-        const scripts = "<?!= include('JavaScript'); ?>";
+        let scripts = "<?!= include('JavaScript'); ?>";
+        if (reportsContent) scripts += "\n<?!= include('ReportJavaScript'); ?>";
         indexHtml = indexHtml.replace('</body>', scripts + "\n</body>");
     }
 
