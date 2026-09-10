@@ -1452,30 +1452,7 @@ export const generateRetenExcel = async (
   date: string,
   shift: string
 ) => {
-  let xlsxLib: any = (window as any).XLSX || (globalThis as any).XLSX || (typeof XLSX !== 'undefined' ? (globalThis as any).XLSX || (window as any).XLSX : null);
-
-  if (!xlsxLib && typeof google !== 'undefined' && (google as any).script && (google as any).script.run) {
-    try {
-      const scriptContent: string = await new Promise<string>((resolve, reject) => {
-        (google as any).script.run
-          .withSuccessHandler((content: string) => resolve(content))
-          .withFailureHandler((err: any) => reject(err))
-          .getXlsxLibraryContent();
-      });
-      const jsCode = scriptContent.replace(/<\/?script[^>]*>/gi, '').trim();
-      if (jsCode) {
-        const scriptEl = document.createElement('script');
-        scriptEl.textContent = jsCode;
-        document.head.appendChild(scriptEl);
-        await new Promise<void>(r => setTimeout(r, 100));
-        xlsxLib = (window as any).XLSX || (globalThis as any).XLSX;
-      }
-    } catch (err) {
-      console.error('Failed to load XLSX library:', err);
-      alert('Error al cargar la librería de Excel. Intente recargar la página.');
-      return;
-    }
-  }
+  const xlsxLib: any = (window as any).XLSX || (globalThis as any).XLSX;
 
   if (!xlsxLib) {
     alert("Error: La librería de Excel (SheetJS) no se ha cargado correctamente. Esto puede deberse a restricciones de red o a que el script fue bloqueado por el navegador. Por favor, intenta recargar la página.");
@@ -1657,4 +1634,3 @@ export const generateTaserReport = (
 
   doc.save(`REPORTE_TASER_${shift}_${date}.pdf`);
 };
-

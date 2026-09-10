@@ -48,9 +48,7 @@ Este comando genera los artefactos listos para su uso en la carpeta `dist/`:
 - **`dist/index.html`**: Archivo de entrada HTML estructurado con directivas de GAS.
 - **`dist/JavaScript.html`**: Bundle de JavaScript inyectado.
 - **`dist/styles.html`**: Estilos compilados inyectados.
-- **`dist/XLSX.html`**: Librería de soporte para manejo de hojas de cálculo.
 
 Copia los contenidos de estos archivos al editor de Google Apps Script para actualizar la aplicación web.
 
 Más detalles en [docs/ANALYSIS.md](docs/ANALYSIS.md) y [gas_deployment_instructions.txt](gas_deployment_instructions.txt).
-

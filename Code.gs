@@ -2122,10 +2122,6 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-function getXlsxLibraryContent() {
-  return HtmlService.createHtmlOutputFromFile('XLSX').getContent();
-}
-
 /**
  * Script para migrar fotos de Drive a columnas URL y FILE_ID.
  * Ejecutar solo una vez.
@@ -2185,5 +2181,4 @@ function populateWantedMetadata() {
   sheet.getRange(2, colUrl + 1, updates.length, 2).setValues(updates);
   Logger.log("Migración completada con normalización avanzada (incluye guiones bajos).");
 }
-
 

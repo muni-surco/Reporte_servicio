@@ -14,12 +14,6 @@ if (fs.existsSync(sourceGs)) {
 
 // 2. Process JS and CSS into .html files
 const files = fs.readdirSync(assetsPath);
-const xlsxLibPath = path.join(process.cwd(), 'libs', 'xlsx.full.min.js');
-if (fs.existsSync(xlsxLibPath)) {
-    const xlsxContent = fs.readFileSync(xlsxLibPath, 'utf-8');
-    fs.writeFileSync(path.join(distPath, 'XLSX.html'), `<script>\n${xlsxContent}\n</script>`);
-    console.log('Created dist/XLSX.html from libs/xlsx.full.min.js');
-}
 
 let jsContent = '';
 let cssContent = '';
@@ -73,7 +67,7 @@ if (fs.existsSync(indexFile)) {
         indexHtml = indexHtml.replace('</head>', includes.join('\n') + '\n</head>');
     }
 
-    // Inject JS at the end of body (XLSX is lazy-loaded on demand, not in initial HTML)
+    // Inject JS at the end of body
     if (jsContent) {
         const scripts = "<?!= include('JavaScript'); ?>";
         indexHtml = indexHtml.replace('</body>', scripts + "\n</body>");
