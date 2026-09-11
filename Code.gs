@@ -9,6 +9,7 @@ const APP_CONFIG = {
   MOBILE_DATA_SPREADSHEET_ID: '11j6Ipd3J6HjUnG91RCliCbjrgzJWhzUwktCgfnAESKU',
   VEHICLE_RQ_SPREADSHEET_ID: '1ZdHMyeGTrz6ylAhP3J-h3coTmN0w6w_KrDOFQo-T75k',
   WANTED_SPREADSHEET_ID: '1EWiRDCUbHEFuEPqG-z1AFhCWlY8aL1AaHKTKKohbs0o',
+  FUEL_SPREADSHEET_ID: '1AxxSBf_KdCHjtGPxWmb10QMPAoAvpXGaAVI6d_-zcHM',
   WANTED_DRIVE_FOLDER_ID: '1faER1P0Pq7DaDmmeanw34WO6HPHa4L_d',
 };
 
@@ -1081,6 +1082,154 @@ function _normalizePersonnelName(val) {
   return String(val || '').trim().toUpperCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ').trim();
 }
 
+function _parseFuelValue(value) {
+  const parts = String(value || '').split('/').map(function (part) { return part.trim(); });
+  const type = parts[0] && parts[0] !== '--' ? parts[0] : '';
+  const quantity = parts[1] && parts[1] !== '0' ? parts[1] : '';
+  return { type: type, quantity: quantity };
+}
+
+function _parseAmount(value) {
+  const amount = String(value || '').replace(/[^0-9.,-]/g, '').replace(',', '.');
+  const parsed = parseFloat(amount);
+  return isNaN(parsed) ? '' : parsed;
+}
+
+function _normalizeFuelHeader(value) {
+  return String(value || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function _fuelVehicleType(unit) {
+  const sourceType = String(unit.type || '').trim().toUpperCase();
+  const model = String(unit.model || '').trim().toUpperCase();
+  if (sourceType === 'MOTO' || model.indexOf('MOTO') !== -1) return 'MOTOCICLETA';
+  if (model.indexOf('CAMIONETA') !== -1 || model.indexOf('PICKUP') !== -1 || model.indexOf('SUV') !== -1) return 'CAMIONETA';
+  return 'AUTOMOVIL';
+}
+
+function _getFuelVehicleReference(unit) {
+  const lookupKey = String(unit.id || unit.plate || '').trim().toUpperCase();
+  const fallback = { brand: unit.brand || '', model: unit.model || '', year: unit.year || '' };
+  if (!lookupKey) return fallback;
+
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'FUEL_VEHICLE_' + lookupKey.replace(/[^A-Z0-9_-]/g, '_');
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return Object.assign(fallback, JSON.parse(cached)); } catch (e) {}
+  }
+
+  try {
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.referenceData);
+    if (!sheet) return fallback;
+    const values = sheet.getDataRange().getValues();
+    if (values.length < 2) return fallback;
+
+    const headers = values[0].map(function (header) { return _normalizeFuelHeader(header); });
+    const findColumn = function (names) {
+      for (let i = 0; i < names.length; i++) {
+        const index = headers.indexOf(_normalizeFuelHeader(names[i]));
+        if (index !== -1) return index;
+      }
+      return -1;
+    };
+    const idIndex = findColumn(['MOVIL', 'CODIGO', 'ID']);
+    const plateIndex = findColumn(['PLACA']);
+    const brandIndex = findColumn(['MARCA']);
+    const modelIndex = findColumn(['MODELO']);
+    const yearIndex = findColumn(['AÑO', 'ANO', 'YEAR']);
+
+    for (let i = 1; i < values.length; i++) {
+      const rowId = idIndex === -1 ? '' : String(values[i][idIndex] || '').trim().toUpperCase();
+      const rowPlate = plateIndex === -1 ? '' : String(values[i][plateIndex] || '').trim().toUpperCase();
+      if (rowId !== lookupKey && rowPlate !== lookupKey) continue;
+
+      const reference = {
+        brand: brandIndex === -1 ? fallback.brand : String(values[i][brandIndex] || '').trim(),
+        model: modelIndex === -1 ? fallback.model : String(values[i][modelIndex] || '').trim(),
+        year: yearIndex === -1 ? fallback.year : String(values[i][yearIndex] || '').trim()
+      };
+      cache.put(cacheKey, JSON.stringify(reference), 300);
+      return Object.assign(fallback, reference);
+    }
+  } catch (e) {
+    console.error('[fuel vehicle reference] ERROR', e);
+  }
+  return fallback;
+}
+
+function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit) {
+  const fuelSpreadsheet = SpreadsheetApp.openById(APP_CONFIG.FUEL_SPREADSHEET_ID);
+  let sheet = fuelSpreadsheet.getSheetByName('ABASTECIMIENTO');
+  if (!sheet) sheet = fuelSpreadsheet.insertSheet('ABASTECIMIENTO');
+
+  const headers = ['OPERADOR', 'C4', 'FECHA', 'MUNICIPALIDAD', 'TIPO', 'SECTOR', 'MARCA', 'MODELO', 'PLACA', 'AÑO', 'CODIGO', 'CONDUCTOR', 'ODOMETRO', 'COMBUSTIBLE', 'GALONES', 'MONTO'];
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+
+  const lastColumn = Math.max(sheet.getLastColumn(), headers.length);
+  const headerRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const columnByHeader = {};
+  headerRow.forEach(function (header, index) {
+    const normalizedHeader = _normalizeFuelHeader(header);
+    if (normalizedHeader && columnByHeader[normalizedHeader] === undefined) columnByHeader[normalizedHeader] = index;
+  });
+  headers.forEach(function (header, index) {
+    const normalizedHeader = _normalizeFuelHeader(header);
+    if (columnByHeader[normalizedHeader] === undefined) columnByHeader[normalizedHeader] = index;
+  });
+
+  const spreadsheetTimeZone = fuelSpreadsheet.getSpreadsheetTimeZone();
+  const recordDate = Utilities.parseDate(String(dateStr), spreadsheetTimeZone, 'yyyy-MM-dd');
+  const vehicleReference = _getFuelVehicleReference(unit);
+  const vehicleType = _fuelVehicleType(Object.assign({}, unit, { model: vehicleReference.model }));
+  const valuesByHeader = function (fuel) {
+    const parsed = _parseFuelValue(fuel.value);
+    const values = {
+      OPERADOR: settings.operador || '',
+      C4: unit.indicative || '',
+      FECHA: recordDate,
+      MUNICIPALIDAD: 'RENTING',
+      TIPO: vehicleType,
+      SECTOR: targetSector,
+      MARCA: vehicleReference.brand,
+      MODELO: vehicleReference.model,
+      PLACA: unit.plate || '',
+      ANO: vehicleReference.year,
+      CODIGO: unit.id || '',
+      CONDUCTOR: unit.personnel1 || '',
+      ODOMETRO: unit.kmRecarga || unit.kmEnd || '',
+      COMBUSTIBLE: parsed.type,
+      GALONES: parseFloat(parsed.quantity) || parsed.quantity,
+      MONTO: _parseAmount(fuel.amount)
+    };
+    return values;
+  };
+
+  const previous = previousUnit || {};
+  const fuels = [
+    { value: unit.fuel, amount: unit.expense, previous: previous.fuel },
+    { value: unit.fuel2, amount: unit.expense2, previous: previous.fuel2 }
+  ];
+  const rows = [];
+  fuels.forEach(function (fuel) {
+    const parsed = _parseFuelValue(fuel.value);
+    if (!parsed.type || !parsed.quantity || String(fuel.value || '').trim() === String(fuel.previous || '').trim()) return;
+    const values = valuesByHeader(fuel);
+    const row = new Array(lastColumn).fill('');
+    Object.keys(values).forEach(function (header) {
+      const normalizedHeader = header === 'ANO' ? 'AÑO' : header;
+      const columnIndex = columnByHeader[_normalizeFuelHeader(normalizedHeader)];
+      if (columnIndex !== undefined) row[columnIndex] = values[header];
+    });
+    rows.push(row);
+  });
+  if (rows.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, lastColumn).setValues(rows);
+}
+
 function updateUnit(dateStr, shift, settings, unit) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   const fuel2Value = String(unit.fuel2 || '').trim();
@@ -1101,6 +1250,11 @@ function updateUnit(dateStr, shift, settings, unit) {
 
   const targetSector = unit.sector ? toStorageSector(unit.sector) : toStorageSector(settings.nombrePuesto || '1A');
   const timeZone = ss.getSpreadsheetTimeZone();
+  let previousUnit = null;
+  if (unit.unit_id) {
+    const previousPath = 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit.unit_id;
+    previousUnit = rtdbGet(previousPath);
+  }
 
   // --- Validación anti-duplicado: mismo sector + misma sección (CHOFER/MOTO/SERENO) no permite mismo nombre ---
   try {
@@ -1231,6 +1385,8 @@ function updateUnit(dateStr, shift, settings, unit) {
       '", expense2 enviado="' + expense2Value + '", expense2 leído="' + String(persistedUnit && persistedUnit.expense2 || '') + '".'
     );
   }
+
+  _appendFuelRecords(settings || {}, unit, dateStr, targetSector, previousUnit);
 
   // KM bridge: update prev unit's kmEnd from current unit's kmStart
   const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);

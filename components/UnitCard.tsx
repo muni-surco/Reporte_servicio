@@ -455,7 +455,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
         <div className="flex-1 min-w-0">
           {/* Línea 1: Identificación, Logística y Estado (Exactamente 12 cols) */}
-          <div className="mt-1 text-[11px] font-semibold uppercase tracking-tight text-slate-500 pb-1 flex items-center gap-1.5">
+          <div className="mt-1 text-[12px] font-semibold uppercase tracking-tight text-slate-500 pb-2 flex items-center gap-1.5">
             <span className="material-symbols-outlined text-[14px] text-[#005ea5]">badge</span>
             Identificación y ubicación operativa
             <span className="h-px flex-1 bg-slate-200"></span>
@@ -918,30 +918,29 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <span className="text-slate-200">/</span>
                   <span className="text-slate-900 font-medium">{String(unit.km || '').split('/')[2] || '0'}</span>
                 </div>
-                {unit.fuel2 && String(unit.fuel2).split('/')[0] !== '--' && (
-                  <div className="mt-0.5 text-[11px] text-slate-500">
-                    <span>{String(unit.fuel2).split('/')[0]}</span>
-                    <span className="text-amber-600"> ({String(unit.fuel2).split('/')[1]?.trim() || '0'} GL)</span>
-                    {unit.expense2 && <span className="ml-1 text-green-600">| {unit.expense2}</span>}
-                  </div>
-                )}
               </div>
 
               {/* Columna Combustible Centrada con Recarga integrada */}
               <div className="border-r border-slate-100 px-2 max-[1399px]:hidden">
                 <label className={labelStyle}>Combustible</label>
-                <div className="flex items-center gap-1 text-[11px] font-medium">
+                <div className="flex flex-col gap-0.5 text-[11px] font-medium">
                   <div className="flex items-center gap-1 text-slate-500">
                     <span>{String(unit.fuel || '').split('/')[0] || '--'}</span>
                     {(() => {
                       const gal = String(unit.fuel || '').split('/')[1]?.trim();
-                      return gal && gal !== '0' ? (
-                        <span className="text-amber-600 text-[11px] font-medium" title="Galones">({gal} GL)</span>
-                      ) : null;
+                      return gal && gal !== '0' ? <span className="text-amber-600" title="Galones">({gal} GL)</span> : null;
                     })()}
+                    <span className="text-slate-200">|</span>
+                    <span className={`${unit.expense !== 'S/ 0.00' ? 'text-green-600' : 'text-slate-400'}`}>{unit.expense}</span>
                   </div>
-                  <span className="text-slate-200">|</span>
-                  <span className={`${unit.expense !== 'S/ 0.00' ? 'text-green-600' : 'text-slate-400'}`}>{unit.expense}</span>
+                  {unit.fuel2 && String(unit.fuel2).split('/')[0] !== '--' && (
+                    <div className="flex items-center gap-1 text-slate-500">
+                      <span>{String(unit.fuel2).split('/')[0]}</span>
+                      <span className="text-amber-600">({String(unit.fuel2).split('/')[1]?.trim() || '0'} GL)</span>
+                      <span className="text-slate-200">|</span>
+                      <span className={`${unit.expense2 ? 'text-green-600' : 'text-slate-400'}`}>{unit.expense2 || 'S/ 0.00'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
