@@ -324,6 +324,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
     setErrors(newErrors);
 
+    // FIX: si hay error de kmRecarga el popover está cerrado el usuario no ve el mensaje.
+    // Reabrir automáticamente el popover para que la validación sea visible.
+    if (newErrors.kmRecarga) {
+      setShowSecondFuel(true);
+    }
+
     if (Object.values(newErrors).some(v => v)) {
       if (isIdDuplicate && (formData.id || !isSpecialStatus)) {
         alert(`El ID "${formData.id}" ya existe en la vista actual. No se permiten IDs duplicados.`);
@@ -649,7 +655,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 </div>
                 <div className="col-span-1">
                   <label className={labelStyleEdit}>KM INICIO</label>
-                  <input type="number" name="kmStart" value={kmStart} min={0} max={999999} step="0.1" placeholder="Km" onChange={(e) => { const v = e.target.value; if (v === '' || parseFloat(v) <= 999999) { setKmStart(v); } setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false })); }} className={inputStyle('kmStart')} />
+                  <input type="number" name="kmStart" value={kmStart} min={0} max={999999} step="0.1" placeholder="Km" onChange={(e) => { const v = e.target.value; if (v === '' || parseFloat(v) <= 999999) { setKmStart(v); } setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false, kmRecarga: false })); }} className={inputStyle('kmStart')} />
                   {kmFetching ? (
                     <div className="text-[10px] text-slate-400 mt-0.5 animate-pulse">Cargando prev...</div>
                   ) : (
@@ -666,12 +672,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <label className={labelStyleEdit}>COMBUSTIBLES</label>
                   <button
                     type="button"
-                    onClick={() => setShowSecondFuel(prev => !prev)}
-                    className={`h-[32px] w-full rounded-lg px-2 text-[12px] uppercase tracking-tight flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all ${showSecondFuel ? 'bg-primary-dark text-white ring-2 ring-primary/20' : 'bg-primary text-white hover:bg-primary-dark hover:shadow-md'}`}
+                    onClick={() => { setShowSecondFuel(prev => !prev); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }}
+                    className={`h-[32px] w-full rounded-lg px-2 text-[12px] uppercase tracking-tight flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all ${errors.kmRecarga && !showSecondFuel ? 'bg-red-600 text-white ring-2 ring-red-200 hover:bg-red-700' : showSecondFuel ? 'bg-primary-dark text-white ring-2 ring-primary/20' : 'bg-primary text-white hover:bg-primary-dark hover:shadow-md'}`}
+                    title={errors.kmRecarga ? 'KM RECARGA inválido - click para corregir' : undefined}
                   >
-                    {showSecondFuel ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                    {showSecondFuel ? 'CERRAR' : (fuel2Type ? '2 REGISTRADOS' : 'RECARGA')}
+                    {showSecondFuel ? <X className="w-3.5 h-3.5" /> : errors.kmRecarga ? <span className="material-symbols-outlined text-[14px]">warning</span> : <Plus className="w-3.5 h-3.5" />}
+                    {showSecondFuel ? 'CERRAR' : errors.kmRecarga ? 'CORREGIR KM' : (fuel2Type ? '2 REGISTRADOS' : 'RECARGA')}
                   </button>
+                  {errors.kmRecarga && !showSecondFuel && <span className="absolute -bottom-1 left-0 text-[9px] text-red-600 font-medium whitespace-nowrap">KM recarga inválido</span>}
                   {showSecondFuel && (
                     <div className="absolute z-[70] top-[54px] left-0 w-72 rounded-lg border border-blue-200 bg-white p-3 shadow-xl">
                       <div className="flex items-center justify-between mb-2">
@@ -683,8 +691,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
                       <div className="space-y-3">
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-2">
                           <label className={labelStyleEdit}>KM RECARGA</label>
-                          <input type="number" min="0" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-white ${errors.kmRecarga ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`} />
-                          {errors.kmRecarga && <span className={errorMsgStyle}>Mayor al km inicial</span>}
+                          <input type="number" min="0" value={kmRecarga} onChange={(e) => { setKmRecarga(e.target.value); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }} className={`${inputStyle('kmRecarga')} bg-white ${errors.kmRecarga ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`} />
+                          {errors.kmRecarga && <span className={errorMsgStyle}>Debe ser mayor al KM INICIO ({kmStart || '0'})</span>}
                         </div>
                         <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
                           <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">1° combustible</div>
