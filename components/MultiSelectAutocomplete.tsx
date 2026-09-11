@@ -91,7 +91,7 @@ const MultiSelectAutocomplete: React.FC<MultiSelectAutocompleteProps> = ({
     return (
         <div className="relative w-full" ref={containerRef}>
             <div
-                className={`flex flex-wrap items-center gap-1 h-[32px] p-1 border rounded bg-white shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500 ${error ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : 'border-slate-300'
+                className={`flex flex-wrap items-center gap-1 h-[32px] p-1 border-none rounded bg-[#F4F6FB] shadow-sm transition-all focus-within:ring-2 focus-within:ring-blue-500 ${error ? 'ring-1 ring-red-500 bg-red-50' : ''
                     } ${className}`}
                 onClick={() => containerRef.current?.querySelector('input')?.focus()}
             >

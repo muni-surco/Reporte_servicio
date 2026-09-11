@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Pencil, Plus, X } from 'lucide-react';
+import { Save, Pencil, Plus, X, Fuel } from 'lucide-react';
 import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
@@ -364,11 +364,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
   };
 
   const labelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
-  const errorInputStyle = "border-red-500 ring-1 ring-red-500 bg-red-50";
-  const inputStyle = (fieldName: string) => `w-full border ${errors[fieldName] ? errorInputStyle : 'border-slate-200 bg-slate-50'} rounded px-2 py-1 text-[13px]  h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
+  const errorInputStyle = "ring-1 ring-red-500 bg-red-50";
+  const inputStyle = (fieldName: string) => `w-full ${errors[fieldName] ? 'ring-1 ring-red-500 bg-red-50' : 'border-none bg-[#F4F6FB]'} rounded px-2 py-1 text-[11px]  h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
   const labelStyleEdit = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
   const errorMsgStyle = "text-[10px]  text-red-600 uppercase leading-tight mt-0.5";
-  const infoValueStyle = "text-[13px] font-medium text-slate-800 truncate leading-tight uppercase";
+  const infoValueStyle = "text-[11px] font-medium text-slate-800 truncate leading-tight uppercase";
 
   const badgeColors: Record<string, string> = {
     [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
@@ -455,6 +455,11 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
         <div className="flex-1 min-w-0">
           {/* Línea 1: Identificación, Logística y Estado (Exactamente 12 cols) */}
+          <div className="mt-1 text-[11px] font-semibold uppercase tracking-tight text-slate-500 pb-1 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-[#005ea5]">badge</span>
+            Identificación y ubicación operativa
+            <span className="h-px flex-1 bg-slate-200"></span>
+          </div>
           <div className="grid grid-cols-12 gap-1.5 pb-2">
             <div className="col-span-1">
               <label className={labelStyleEdit}>ID</label>
@@ -480,7 +485,191 @@ const UnitCard: React.FC<UnitCardProps> = ({
               />
               {errors.id && <span className={errorMsgStyle}>Requerido</span>}
             </div>
+                  {!isSereno && (
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>Placa</label>
+                  <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'text-slate-500' : ''}`} />
+                </div>
+                  )}
 
+            {!isSereno && (
+              <div className="col-span-1">
+                <label className={labelStyleEdit}>Cuadrante</label>
+                <MultiSelectAutocomplete
+                  value={formData.quadrant || ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
+                  suggestions={activeQuadrantOptions}
+                  placeholder="Selec..."
+                  error={errors.quadrant}
+                  strict={true}
+                />
+                {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
+              </div>
+            )}
+            {isSereno && (
+              <div className="col-span-1">
+                <label className={labelStyleEdit}>Cuadrante</label>
+                <MultiSelectAutocomplete
+                  value={formData.quadrant || ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
+                  suggestions={activeQuadrantOptions}
+                  placeholder="Selec..."
+                  strict={true}
+                />
+              </div>
+            )}
+
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Estado <span className="text-red-500">*</span></label>
+              <select name="status" value={formData.status} onChange={(e) => { handleChange(e); setErrors(prev => ({ ...prev, status: false })); }} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
+                <option value="">--</option>
+                {formData.status && !activeStatusOptions.includes(formData.status) && <option value={formData.status}>{formData.status}</option>}
+                {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {errors.status && <span className={errorMsgStyle}>Requerido</span>}
+            </div>
+
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Lugar Estado</label>
+              {lugarOptions && lugarOptions.length > 0 ? (
+                <select name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('lugarEstado')} py-0 text-[11px]`}>
+                  <option value="">--</option>
+                  {lugarOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : (
+                <input name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} className={inputStyle('lugarEstado')} placeholder="Lugar..." />
+              )}
+              {errors.lugarEstado && <span className={errorMsgStyle}>Requerido</span>}
+            </div>
+
+            <div className="col-span-2">
+              <label className={labelStyleEdit}>Motivo Estado</label>
+              {(() => {
+                const statusKey = formData.status?.toUpperCase();
+                const motivoList = motivoStatusOptions && statusKey ? motivoStatusOptions[statusKey] : undefined;
+                if (motivoList && motivoList.length > 0) {
+                  return (
+                    <select name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('motivoEstado')} py-0 text-[11px]`}>
+                      <option value="">--</option>
+                      {motivoList.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  );
+                }
+                return <input name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} className={inputStyle('motivoEstado')} placeholder="Motivo..." />;
+              })()}
+              {errors.motivoEstado && <span className={errorMsgStyle}>Requerido</span>}
+            </div>
+
+            {isSereno && (
+              <div className="col-span-3">
+                <label className={labelStyleEdit}>Observaciones</label>
+                <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
+              </div>
+            )}
+                  {!isSereno && (
+                <div className="col-span-3">
+                  <label className={labelStyleEdit}>Observaciones</label><input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
+                </div>
+                  )}
+                  {!isSereno && (
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>KM INICIO</label>
+                  <input type="number" name="kmStart" value={kmStart} min={0} max={999999} step="0.1" placeholder="Km" onChange={(e) => { const v = e.target.value; if (v === '' || parseFloat(v) <= 999999) { setKmStart(v); } setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false, kmRecarga: false })); }} className={inputStyle('kmStart')} />
+                  {kmFetching ? (
+                    <div className="text-[10px] text-slate-400 mt-0.5 animate-pulse">Cargando prev...</div>
+                  ) : (
+                    <div className="text-[10px] text-[#005ea5] mt-0.5 font-medium">Previo: {prevKmStart || '0'} km</div>
+                  )}
+                  {kmStartError ? (
+                    <span className="flex items-center gap-1 text-[10px] text-red-500 mt-0.5">
+                      <span className="material-symbols-outlined text-[12px]">error</span>
+                      {kmStartError}
+                    </span>
+                  ) : null}
+                </div>
+                  )}
+                  {!isSereno && (
+                <div className="col-span-1 relative order-last">
+                  <label className={labelStyleEdit}>COMBUSTIBLES</label>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSecondFuel(prev => !prev); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }}
+                    className={`h-[32px] w-full rounded-lg px-2 text-[12px] uppercase tracking-tight flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all ${errors.kmRecarga && !showSecondFuel ? 'bg-red-600 text-white ring-2 ring-red-200 hover:bg-red-700' : showSecondFuel ? 'bg-primary-dark text-white ring-2 ring-primary/20' : 'bg-primary text-white hover:bg-primary-dark hover:shadow-md'}`}
+                    title={errors.kmRecarga ? 'KM RECARGA inválido - click para corregir' : undefined}
+                  >
+                    {showSecondFuel ? <X className="w-3.5 h-3.5" /> : errors.kmRecarga ? <span className="material-symbols-outlined text-[14px]">warning</span> : <Fuel className="w-3.5 h-3.5" />}
+                    {showSecondFuel ? 'CERRAR' : errors.kmRecarga ? 'CORREGIR KM' : (fuel2Type ? '2 REGISTRADOS' : 'RECARGA')}
+                  </button>
+                  {errors.kmRecarga && !showSecondFuel && <span className="absolute -bottom-1 left-0 text-[9px] text-red-600 font-medium whitespace-nowrap">KM recarga inválido</span>}
+                  {showSecondFuel && (
+                    <div className="absolute z-[70] top-[54px] right-0 w-72 rounded-lg border border-blue-200 bg-white p-3 shadow-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-semibold uppercase text-blue-700">Combustibles</span>
+                        <button type="button" onClick={() => { setFuel2Type(''); setFuel2Qty(''); setFormData(prev => ({ ...prev, fuel2: '', expense2: '' })); setShowSecondFuel(false); }} className="text-slate-400 hover:text-red-500" title="Quitar segundo combustible">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-2">
+                          <label className={labelStyleEdit}>KM RECARGA</label>
+                          <input type="number" min="0" value={kmRecarga} onChange={(e) => { setKmRecarga(e.target.value); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }} className={`${inputStyle('kmRecarga')} bg-white ${errors.kmRecarga ? 'ring-1 ring-red-200 bg-red-50' : ''}`} />
+                          {errors.kmRecarga && <span className={errorMsgStyle}>Debe ser mayor al KM INICIO ({kmStart || '0'})</span>}
+                        </div>
+                        <div className="rounded-md border border-slate-200 p-2">
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">1° combustible</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className={labelStyleEdit}>TIPO</label>
+                              <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
+                                <option value="">--</option>
+                                {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelStyleEdit}>CANTIDAD</label>
+                              <input type="number" min="0" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} />
+                            </div>
+                            <div className="col-span-2">
+                              <label className={labelStyleEdit}>GASTO</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: e.target.value ? `S/ ${e.target.value}` : '' }))} className={inputStyle('expense')} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="rounded-md border border-slate-200 p-2">
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">2° combustible (opcional)</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className={labelStyleEdit}>TIPO</label>
+                              <select value={String(formData.fuel2Type || fuel2Type)} onChange={(e) => { const value = e.target.value; fuel2TypeRef.current = value; console.info('[UnitCard] segundo combustible seleccionado', value); setFuel2Type(value); setFormData(prev => ({ ...prev, fuel2Type: value, fuel2: value ? `${value} / ${prev.fuel2Qty || fuel2QtyRef.current || '0'}` : '' })); }} className={`${inputStyle('fuel2Type')} py-0 text-[11px]`}>
+                                <option value="">--</option>
+                                {FUEL_TYPES.filter(f => f !== fuelType).map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelStyleEdit}>CANTIDAD</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.fuel2Qty || fuel2Qty)} onChange={(e) => { const value = e.target.value; fuel2QtyRef.current = value; console.info('[UnitCard] cantidad segundo combustible', value); setFuel2Qty(value); setFormData(prev => ({ ...prev, fuel2Qty: value, fuel2: (prev.fuel2Type || fuel2TypeRef.current) ? `${prev.fuel2Type || fuel2TypeRef.current} / ${value || '0'}` : '' })); }} className={inputStyle('fuel2Qty')} />
+                            </div>
+                            <div className="col-span-2">
+                              <label className={labelStyleEdit}>GASTO</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.expense2 || '').replace('S/ ', '')} onChange={(e) => { const value = e.target.value ? `S/ ${e.target.value}` : ''; expense2Ref.current = value; console.info('[UnitCard] gasto segundo combustible', value); setFormData(prev => ({ ...prev, expense2: value })); }} className={inputStyle('expense2')} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                  )}
+            {isSereno ? <div className="col-span-3"></div> : null}
+          </div>
+
+          {/* Línea 2: Operatividad Detallada + TASER (Exactamente 12 cols) */}
+          <div className="mt-1 text-[11px] font-semibold uppercase tracking-tight text-slate-500 pb-1 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-[#005ea5]">security</span>
+            Dotación y equipamiento
+            <span className="h-px flex-1 bg-slate-200"></span>
+          </div>
+          <div className="grid grid-cols-12 gap-1.5 pt-0.5">
             <div className="col-span-2">
               <label className={labelStyleEdit}>{isSereno ? personalLabel : isMoto ? 'Motorizado' : 'Chofer'}</label>
               <AutocompleteInput
@@ -566,181 +755,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
                 </select>
               </div>
             )}
-
-            {!isSereno && (
-              <div className="col-span-1">
-                <label className={labelStyleEdit}>Cuadrante</label>
-                <MultiSelectAutocomplete
-                  value={formData.quadrant || ''}
-                  onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
-                  suggestions={activeQuadrantOptions}
-                  placeholder="Selec..."
-                  error={errors.quadrant}
-                  strict={true}
-                />
-                {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
-              </div>
-            )}
-            {isSereno && (
-              <div className="col-span-1">
-                <label className={labelStyleEdit}>Cuadrante</label>
-                <MultiSelectAutocomplete
-                  value={formData.quadrant || ''}
-                  onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
-                  suggestions={activeQuadrantOptions}
-                  placeholder="Selec..."
-                  strict={true}
-                />
-              </div>
-            )}
-
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Estado <span className="text-red-500">*</span></label>
-              <select name="status" value={formData.status} onChange={(e) => { handleChange(e); setErrors(prev => ({ ...prev, status: false })); }} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
-                <option value="">--</option>
-                {formData.status && !activeStatusOptions.includes(formData.status) && <option value={formData.status}>{formData.status}</option>}
-                {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              {errors.status && <span className={errorMsgStyle}>Requerido</span>}
-            </div>
-
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Lugar Estado</label>
-              {lugarOptions && lugarOptions.length > 0 ? (
-                <select name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('lugarEstado')} py-0 text-[11px]`}>
-                  <option value="">--</option>
-                  {lugarOptions.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
-              ) : (
-                <input name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} className={inputStyle('lugarEstado')} placeholder="Lugar..." />
-              )}
-              {errors.lugarEstado && <span className={errorMsgStyle}>Requerido</span>}
-            </div>
-
-            <div className="col-span-2">
-              <label className={labelStyleEdit}>Motivo Estado</label>
-              {(() => {
-                const statusKey = formData.status?.toUpperCase();
-                const motivoList = motivoStatusOptions && statusKey ? motivoStatusOptions[statusKey] : undefined;
-                if (motivoList && motivoList.length > 0) {
-                  return (
-                    <select name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('motivoEstado')} py-0 text-[11px]`}>
-                      <option value="">--</option>
-                      {motivoList.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  );
-                }
-                return <input name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} className={inputStyle('motivoEstado')} placeholder="Motivo..." />;
-              })()}
-              {errors.motivoEstado && <span className={errorMsgStyle}>Requerido</span>}
-            </div>
-
-            {isSereno && (
-              <div className="col-span-2">
-                <label className={labelStyleEdit}>Observaciones</label>
-                <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
-              </div>
-            )}
-
-            <div className={isChofer ? "col-span-0" : isSereno ? "col-span-1" : "col-span-3"}></div>
-          </div>
-
-          {/* Línea 2: Operatividad Detallada + TASER (Exactamente 12 cols) */}
-          <div className="grid grid-cols-12 gap-1.5 pt-0.5">
             {!isSereno ? (
               <>
-                <div className="col-span-1">
-                  <label className={labelStyleEdit}>Placa</label>
-                  <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-50 text-slate-500' : ''}`} />
-                </div>
-                <div className="col-span-1">
-                  <label className={labelStyleEdit}>KM INICIO</label>
-                  <input type="number" name="kmStart" value={kmStart} min={0} max={999999} step="0.1" placeholder="Km" onChange={(e) => { const v = e.target.value; if (v === '' || parseFloat(v) <= 999999) { setKmStart(v); } setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false, kmRecarga: false })); }} className={inputStyle('kmStart')} />
-                  {kmFetching ? (
-                    <div className="text-[10px] text-slate-400 mt-0.5 animate-pulse">Cargando prev...</div>
-                  ) : (
-                    <div className="text-[10px] text-[#005ea5] mt-0.5 font-medium">Previo: {prevKmStart || '0'} km</div>
-                  )}
-                  {kmStartError ? (
-                    <span className="flex items-center gap-1 text-[10px] text-red-500 mt-0.5">
-                      <span className="material-symbols-outlined text-[12px]">error</span>
-                      {kmStartError}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="col-span-1 relative order-last">
-                  <label className={labelStyleEdit}>COMBUSTIBLES</label>
-                  <button
-                    type="button"
-                    onClick={() => { setShowSecondFuel(prev => !prev); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }}
-                    className={`h-[32px] w-full rounded-lg px-2 text-[12px] uppercase tracking-tight flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all ${errors.kmRecarga && !showSecondFuel ? 'bg-red-600 text-white ring-2 ring-red-200 hover:bg-red-700' : showSecondFuel ? 'bg-primary-dark text-white ring-2 ring-primary/20' : 'bg-primary text-white hover:bg-primary-dark hover:shadow-md'}`}
-                    title={errors.kmRecarga ? 'KM RECARGA inválido - click para corregir' : undefined}
-                  >
-                    {showSecondFuel ? <X className="w-3.5 h-3.5" /> : errors.kmRecarga ? <span className="material-symbols-outlined text-[14px]">warning</span> : <Plus className="w-3.5 h-3.5" />}
-                    {showSecondFuel ? 'CERRAR' : errors.kmRecarga ? 'CORREGIR KM' : (fuel2Type ? '2 REGISTRADOS' : 'RECARGA')}
-                  </button>
-                  {errors.kmRecarga && !showSecondFuel && <span className="absolute -bottom-1 left-0 text-[9px] text-red-600 font-medium whitespace-nowrap">KM recarga inválido</span>}
-                  {showSecondFuel && (
-                    <div className="absolute z-[70] top-[54px] left-0 w-72 rounded-lg border border-blue-200 bg-white p-3 shadow-xl">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-semibold uppercase text-blue-700">Combustibles</span>
-                        <button type="button" onClick={() => { setFuel2Type(''); setFuel2Qty(''); setFormData(prev => ({ ...prev, fuel2: '', expense2: '' })); setShowSecondFuel(false); }} className="text-slate-400 hover:text-red-500" title="Quitar segundo combustible">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="rounded-md border border-amber-200 bg-amber-50 p-2">
-                          <label className={labelStyleEdit}>KM RECARGA</label>
-                          <input type="number" min="0" value={kmRecarga} onChange={(e) => { setKmRecarga(e.target.value); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }} className={`${inputStyle('kmRecarga')} bg-white ${errors.kmRecarga ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : ''}`} />
-                          {errors.kmRecarga && <span className={errorMsgStyle}>Debe ser mayor al KM INICIO ({kmStart || '0'})</span>}
-                        </div>
-                        <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                          <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">1° combustible</div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className={labelStyleEdit}>TIPO</label>
-                              <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
-                                <option value="">--</option>
-                                {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                              </select>
-                            </div>
-                            <div>
-                              <label className={labelStyleEdit}>CANTIDAD</label>
-                              <input type="number" min="0" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} />
-                            </div>
-                            <div className="col-span-2">
-                              <label className={labelStyleEdit}>GASTO</label>
-                              <input type="number" min="0" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: e.target.value ? `S/ ${e.target.value}` : '' }))} className={inputStyle('expense')} />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                          <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">2° combustible (opcional)</div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className={labelStyleEdit}>TIPO</label>
-                              <select value={String(formData.fuel2Type || fuel2Type)} onChange={(e) => { const value = e.target.value; fuel2TypeRef.current = value; console.info('[UnitCard] segundo combustible seleccionado', value); setFuel2Type(value); setFormData(prev => ({ ...prev, fuel2Type: value, fuel2: value ? `${value} / ${prev.fuel2Qty || fuel2QtyRef.current || '0'}` : '' })); }} className={`${inputStyle('fuel2Type')} py-0 text-[11px]`}>
-                                <option value="">--</option>
-                                {FUEL_TYPES.filter(f => f !== fuelType).map(f => <option key={f} value={f}>{f}</option>)}
-                              </select>
-                            </div>
-                            <div>
-                              <label className={labelStyleEdit}>CANTIDAD</label>
-                              <input type="number" min="0" step="0.01" value={String(formData.fuel2Qty || fuel2Qty)} onChange={(e) => { const value = e.target.value; fuel2QtyRef.current = value; console.info('[UnitCard] cantidad segundo combustible', value); setFuel2Qty(value); setFormData(prev => ({ ...prev, fuel2Qty: value, fuel2: (prev.fuel2Type || fuel2TypeRef.current) ? `${prev.fuel2Type || fuel2TypeRef.current} / ${value || '0'}` : '' })); }} className={inputStyle('fuel2Qty')} />
-                            </div>
-                            <div className="col-span-2">
-                              <label className={labelStyleEdit}>GASTO</label>
-                              <input type="number" min="0" step="0.01" value={String(formData.expense2 || '').replace('S/ ', '')} onChange={(e) => { const value = e.target.value ? `S/ ${e.target.value}` : ''; expense2Ref.current = value; console.info('[UnitCard] gasto segundo combustible', value); setFormData(prev => ({ ...prev, expense2: value })); }} className={inputStyle('expense2')} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <label className={labelStyleEdit}>Observaciones</label><input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
-                </div>
                 {showTaserFields && (
                   <>
                     <div className="col-span-1">
@@ -765,9 +781,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
                     </div>
                   </>
                 )}
+                {!isChofer && (<div className="col-span-3"></div>)}
               </>
             ) : showTaserFields ? (
-              <div className="col-span-12 grid grid-cols-12 gap-1.5">
+              <>
                 <div className="col-span-1">
                   {renderToggle('taser', 'TIENE TASER')}
                 </div>
@@ -788,8 +805,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
                   <label className={labelStyleEdit}>OBS. BODYCAM/TASER</label>
                   <input value={formData.obsBodycam || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsBodycam: e.target.value }))} className={inputStyle('obsBodycam')} placeholder="Observaciones..." />
                 </div>
-                <div className="col-span-7"></div>
-              </div>
+                <div className="col-span-4"></div>
+              </>
             ) : (
               <></>
             )}
@@ -823,7 +840,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
-            <div className={`${typeConfig.idBadge} h-9 flex items-center justify-center rounded-lg font-medium text-[13px] shadow-sm`}>
+            <div className={`${typeConfig.idBadge} h-9 flex items-center justify-center rounded-lg font-medium text-[11px] shadow-sm`}>
               {unit.id}
             </div>
           </div>
@@ -882,7 +899,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
           {/* Columna Estado */}
           <div className="border-r border-slate-100 px-2 w-32 shrink-0">
             <label className={labelStyle}>Estado</label>
-            <span className={`px-1.5 rounded text-[13px] font-medium border uppercase inline-block ${getBadgeClass(unit.status)}`} style={{ whiteSpace: 'normal', lineHeight: '1.2' }}>
+            <span className={`px-1.5 rounded text-[11px] font-medium border uppercase inline-block ${getBadgeClass(unit.status)}`} style={{ whiteSpace: 'normal', lineHeight: '1.2' }}>
               {unit.status}
             </span>
             {unit.lugarEstado && <div className="text-[9px] text-slate-500 mt-0.5 leading-tight">Lugar: {unit.lugarEstado}</div>}
@@ -894,7 +911,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               {/* Columna KM Centrada */}
               <div className="border-r border-slate-100 px-2">
                 <label className={labelStyle}>KM (Inicio/Fin/Recorrido)</label>
-                <div className="flex items-center gap-1 text-[13px] font-medium">
+                <div className="flex items-center gap-1 text-[11px] font-medium">
                   <span className="text-slate-400">{String(unit.km || '').split('/')[0] || '0'}</span>
                   <span className="text-slate-200">/</span>
                   <span className="text-slate-400">{String(unit.km || '').split('/')[1] || '0'}</span>
@@ -913,13 +930,13 @@ const UnitCard: React.FC<UnitCardProps> = ({
               {/* Columna Combustible Centrada con Recarga integrada */}
               <div className="border-r border-slate-100 px-2 max-[1399px]:hidden">
                 <label className={labelStyle}>Combustible</label>
-                <div className="flex items-center gap-1 text-[13px] font-medium">
+                <div className="flex items-center gap-1 text-[11px] font-medium">
                   <div className="flex items-center gap-1 text-slate-500">
                     <span>{String(unit.fuel || '').split('/')[0] || '--'}</span>
                     {(() => {
                       const gal = String(unit.fuel || '').split('/')[1]?.trim();
                       return gal && gal !== '0' ? (
-                        <span className="text-amber-600 text-[13px] font-medium" title="Galones">({gal} GL)</span>
+                        <span className="text-amber-600 text-[11px] font-medium" title="Galones">({gal} GL)</span>
                       ) : null;
                     })()}
                   </div>

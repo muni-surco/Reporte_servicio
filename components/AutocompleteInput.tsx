@@ -102,7 +102,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         }}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full border ${error ? 'border-red-500 ring-1 ring-red-200 bg-red-50' : 'border-slate-200 bg-slate-50'} rounded px-2 py-1 text-[11px]  h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm text-slate-800 ${disabled ? 'bg-slate-100 cursor-not-allowed' : ''} ${className}`}
+        className={`w-full border-none ${error ? 'ring-1 ring-red-500 bg-red-50' : 'bg-[#F4F6FB]'} rounded px-2 py-1 text-[11px]  h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm text-slate-800 ${disabled ? 'bg-slate-300 cursor-not-allowed' : ''} ${className}`}
       />
       {isOpen && filtered.length > 0 && (
         <div className="absolute z-[9999] mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-2xl max-h-[200px] overflow-y-auto ring-1 ring-black ring-opacity-5">
