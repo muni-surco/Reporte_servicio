@@ -1124,7 +1124,7 @@ function _fuelVehicleType(unit) {
 
 function _getFuelVehicleReference(unit) {
   const lookupKey = String(unit.id || unit.plate || '').trim().toUpperCase();
-  const fallback = { brand: unit.brand || '', model: unit.model || '', year: unit.year || '' };
+  const fallback = { brand: unit.brand || '', model: unit.model || '', year: unit.year || '', propiedad: '' };
   if (!lookupKey) return fallback;
 
   const cache = CacheService.getScriptCache();
@@ -1154,6 +1154,7 @@ function _getFuelVehicleReference(unit) {
     const brandIndex = findColumn(['MARCA']);
     const modelIndex = findColumn(['MODELO']);
     const yearIndex = findColumn(['AÑO', 'ANO', 'YEAR']);
+    const propiedadIndex = findColumn(['PROPIEDAD']);
 
     for (let i = 1; i < values.length; i++) {
       const rowId = idIndex === -1 ? '' : String(values[i][idIndex] || '').trim().toUpperCase();
@@ -1163,7 +1164,8 @@ function _getFuelVehicleReference(unit) {
       const reference = {
         brand: brandIndex === -1 ? fallback.brand : String(values[i][brandIndex] || '').trim(),
         model: modelIndex === -1 ? fallback.model : String(values[i][modelIndex] || '').trim(),
-        year: yearIndex === -1 ? fallback.year : String(values[i][yearIndex] || '').trim()
+        year: yearIndex === -1 ? fallback.year : String(values[i][yearIndex] || '').trim(),
+        propiedad: propiedadIndex === -1 ? fallback.propiedad : String(values[i][propiedadIndex] || '').trim()
       };
       cache.put(cacheKey, JSON.stringify(reference), 300);
       return Object.assign(fallback, reference);
@@ -1207,7 +1209,7 @@ function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit)
       OPERADOR: settings.operador || '',
       C4: unit.indicative || '',
       FECHA: recordDate,
-      MUNICIPALIDAD: 'RENTING',
+      PROPIEDAD: vehicleReference.propiedad,
       TIPO: vehicleType,
       SECTOR: targetSector,
       MARCA: vehicleReference.brand,
