@@ -1075,6 +1075,21 @@ function getLastUnitTallerEntry(unitId) {
 }
 
 /**
+ * Makes a value safe to use as a single RTDB path token (key).
+ * RTDB keys cannot contain . # $ [ ] / nor ASCII control chars (they corrupt
+ * the path/URL). Whitespace is also collapsed since paths are concatenated
+ * into fetch URLs.
+ */
+function _sanitizeRtdbKey(value) {
+  var key = String(value === undefined || value === null ? '' : value);
+  var banned = ['.', '#', '$', '[', ']', '/'];
+  for (var i = 0; i < banned.length; i++) {
+    key = key.split(banned[i]).join('_');
+  }
+  return key.replace(/\s+/g, '_').replace(/[\u0000-\u001F\u007F]/g, '_').trim();
+}
+
+/**
  * Fast single-unit save: always appends a new row. No locks, no timeouts.
  * The frontend deduplicates by unit_id on load, taking the most recent row.
  */
@@ -1164,7 +1179,7 @@ function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit)
   let sheet = fuelSpreadsheet.getSheetByName('ABASTECIMIENTO');
   if (!sheet) sheet = fuelSpreadsheet.insertSheet('ABASTECIMIENTO');
 
-  const headers = ['OPERADOR', 'C4', 'FECHA', 'MUNICIPALIDAD', 'TIPO', 'SECTOR', 'MARCA', 'MODELO', 'PLACA', 'AÑO', 'CODIGO', 'CONDUCTOR', 'ODOMETRO', 'COMBUSTIBLE', 'GALONES', 'MONTO'];
+  const headers = ['OPERADOR', 'C4', 'FECHA', 'PROPIEDAD', 'TIPO', 'SECTOR', 'MARCA', 'MODELO', 'PLACA', 'AÑO', 'CODIGO', 'CONDUCTOR', 'ODOMETRO', 'COMBUSTIBLE', 'GALONES', 'MONTO'];
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
     sheet.setFrozenRows(1);
@@ -1252,7 +1267,8 @@ function updateUnit(dateStr, shift, settings, unit) {
   const timeZone = ss.getSpreadsheetTimeZone();
   let previousUnit = null;
   if (unit.unit_id) {
-    const previousPath = 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit.unit_id;
+    const previousUnitId = _sanitizeRtdbKey(unit.unit_id);
+    const previousPath = 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + previousUnitId;
     previousUnit = rtdbGet(previousPath);
   }
 
@@ -1266,7 +1282,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     if (newNameNorm && !isNoPersonnelStatus) {
       var existingBySector = rtdbGet('units/' + dateStr + '_' + shift + '/' + targetSector);
       if (existingBySector) {
-        var newUnitIdNorm = String(unit.unit_id || '').trim();
+        var newUnitIdNorm = _sanitizeRtdbKey(unit.unit_id);
         for (var key in existingBySector) {
           if (!existingBySector.hasOwnProperty(key)) continue;
           var ex = existingBySector[key];
@@ -1326,6 +1342,7 @@ function updateUnit(dateStr, shift, settings, unit) {
       unit_id = 'UID-' + cleanDate + '-' + Utilities.getUuid().substring(0, 5).toUpperCase();
     }
   }
+  unit_id = _sanitizeRtdbKey(unit_id);
 
   const data = {
     date: dateStr,

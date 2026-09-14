@@ -52,6 +52,10 @@ const generateUnitId = (type: string, id: string, sector: string, date: string, 
   return `${cleanType}_${cleanId}_${cleanSector}_${cleanDate}_${cleanShift}`;
 };
 
+// Strips characters not allowed in a Firebase RTDB path token (., #, $, [, ], /
+// and whitespace) from the id portion of a unit key.
+const cleanUnitIdPart = (id: string) => String(id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+
 
 const App: React.FC = () => {
   const [units, setUnits] = useState<UnitData[]>([]);
@@ -434,7 +438,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             if (!existingSectorIds.has(uniqueKey)) {
               finalUnitsMap.set(uniqueKey + '_', {
                 id: d.id,
-                unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${d.id}-${dateStr.replace(/-/g, '')}-${shift}`,
+                unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${dateStr.replace(/-/g, '')}-${shift}`,
                 type: d.type as any,
                 sector: currentSector,
                 plate: d.plate,
@@ -488,9 +492,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
               if (sectorUnits.length === 0) {
                 sectorUnits = defaults.map(d => ({
-                  id: d.id,
-                  unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${dateStr.replace(/-/g, '')}-${shift}`,
-                  type: d.type as any,
+id: d.id,
+                        unit_id: `DEF-${s.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${dateStr.replace(/-/g, '')}-${shift}`,
+                        type: d.type as any,
                   sector: s,
                   plate: d.plate,
                   quadrant: d.quadrant,
@@ -516,7 +520,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                       .filter(d => d.type === type)
                       .map(d => ({
                         id: d.id,
-                        unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${dateStr.replace(/-/g, '')}-${shift}`,
+                        unit_id: `DEF-${s.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${dateStr.replace(/-/g, '')}-${shift}`,
                         type: d.type as any,
                         sector: s,
                         plate: d.plate,
@@ -1034,9 +1038,9 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         radio: d.radio || '',
         reason: '',
         mechanics: '',
-        hours: '--:-- - --:--',
-        unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
-      }));
+hours: '--:-- - --:--',
+              unit_id: `DEF-${s.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
+            }));
     } else {
       const isTechnicalSector = s === 'C4' || s === 'COVV';
       const isRescate = s === 'RESCATE';
@@ -1070,7 +1074,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               reason: '',
               mechanics: '',
               hours: '--:-- - --:--',
-              unit_id: `DEF-${s.replace(/\s+/g, '')}-${d.id}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
+              unit_id: `DEF-${s.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
             }));
           sectorUnits = [...sectorUnits, ...typeDefaults];
         }
