@@ -368,7 +368,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const inputStyle = (fieldName: string) => `w-full ${errors[fieldName] ? 'ring-1 ring-red-500 bg-red-50' : 'border-none bg-[#F4F6FB]'} rounded px-2 py-1 text-[11px]  h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
   const labelStyleEdit = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
   const errorMsgStyle = "text-[10px]  text-red-600 uppercase leading-tight mt-0.5";
-  const infoValueStyle = "text-[11px] font-medium text-slate-800 truncate leading-tight uppercase";
+  const infoValueStyle = "text-[12px] font-medium text-slate-800 truncate leading-tight uppercase";
 
   const badgeColors: Record<string, string> = {
     [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
