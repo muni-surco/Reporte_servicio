@@ -320,10 +320,10 @@ const UnitCard: React.FC<UnitCardProps> = ({
       }
     }
 
-    // Validate kmRecarga > kmStart
+    // Validate kmRecarga >= kmStart
     if (kmRecarga && kmRecarga.trim() !== '' && kmRecarga !== '0') {
       const kmRecargaNum = parseFloat(kmRecarga);
-      if (!isNaN(kmRecargaNum) && !isNaN(kmStartNum) && kmRecargaNum <= kmStartNum) {
+      if (!isNaN(kmRecargaNum) && !isNaN(kmStartNum) && kmRecargaNum < kmStartNum) {
         newErrors.kmRecarga = true;
       }
     }
@@ -621,7 +621,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
                         <div className="rounded-md border border-amber-200 bg-amber-50 p-2">
                           <label className={labelStyleEdit}>KM RECARGA</label>
                           <input type="number" min="0" value={kmRecarga} onChange={(e) => { setKmRecarga(e.target.value); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }} className={`${inputStyle('kmRecarga')} bg-white ${errors.kmRecarga ? 'ring-1 ring-red-200 bg-red-50' : ''}`} />
-                          {errors.kmRecarga && <span className={errorMsgStyle}>Debe ser mayor al KM INICIO ({kmStart || '0'})</span>}
+                          {errors.kmRecarga && <span className={errorMsgStyle}>Debe ser mayor o igual al KM INICIO ({kmStart || '0'})</span>}
                         </div>
                         <div className="rounded-md border border-slate-200 p-2">
                           <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">1° combustible</div>
