@@ -1225,7 +1225,7 @@ function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit,
     // Layout base solo para hoja nueva. La unica columna nueva que este codigo
     // necesita es UNIT_ID. En hojas existentes NO se agrega nada mas: si la hoja
     // usa la columna combinada 'OPERADOR C4' se respeta tal cual.
-    const baseHeaders = ['OPERADOR C4', 'FECHA', 'PROPIEDAD', 'TIPO', 'SECTOR', 'MARCA', 'MODELO', 'PLACA', 'AÑO', 'CODIGO', 'CONDUCTOR', 'ODOMETRO', 'COMBUSTIBLE', 'GALONES', 'MONTO', 'UNIT_ID'];
+    const baseHeaders = ['OPERADOR C4', 'FECHA', 'PROPIEDAD', 'TIPO', 'SECTOR', 'MARCA', 'MODELO', 'PLACA', 'AÑO', 'CODIGO', 'CONDUCTOR', 'ODOMETRO', 'COMBUSTIBLE', 'GALONES', 'MONTO', 'HORA REGISTRO', 'UNIT_ID'];
     var lastColumn;
     var headerRow;
     if (sheet.getLastRow() === 0) {
@@ -1261,6 +1261,7 @@ function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit,
     const codigoCol = resolveCol(['CODIGO', 'COD', 'MOVIL']);
     const sectorCol = resolveCol(['SECTOR']);
     const turnoCol = resolveCol(['TURNO']); // defensivo: solo si existiera de antes
+    const horaRegistroCol = resolveCol(['HORA REGISTRO', 'HORA_REGISTRO', 'HORAREGISTRO', 'HORA DE REGISTRO']);
     const operadorC4Col = resolveCol(['OPERADOR C4', 'OPERADORC4', 'OPERADOR_C4']);
     const operadorCol = resolveCol(['OPERADOR']);
     const c4Col = resolveCol(['C4']);
@@ -1332,6 +1333,8 @@ function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit,
 
     // 6. Solo aqui se consulta la referencia vehicular (hoja DATA).
     const recordDate = Utilities.parseDate(String(dateStr), spreadsheetTimeZone, 'yyyy-MM-dd');
+    // Hora explicita de Lima: la zona horaria del spreadsheet puede ser otra (daba 2h menos).
+    const horaRegistro = Utilities.formatDate(new Date(), 'America/Lima', 'HH:mm:ss');
     const vehicleReference = _getFuelVehicleReference(unit);
     const vehicleType = _fuelVehicleType(Object.assign({}, unit, { model: vehicleReference.model }));
     const buildRow = function (fuel) {
@@ -1359,6 +1362,7 @@ function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit,
       setVal(resolveCol(['COMBUSTIBLE']), parsed.type);
       setVal(resolveCol(['GALONES']), parseFloat(parsed.quantity) || parsed.quantity);
       setVal(resolveCol(['MONTO']), _parseAmount(fuel.amount));
+      setVal(horaRegistroCol, horaRegistro);
       setVal(unitIdCol, finalUnitId);
       return row;
     };

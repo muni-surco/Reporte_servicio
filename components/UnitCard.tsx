@@ -72,7 +72,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
     if (isEditing) {
       setKmStart(formatKmStartForEdit(unit.kmStart));
       setKmEnd(String(unit.kmEnd || '0'));
-      setKmRecarga(String(unit.kmRecarga || '0'));
+      // KM recarga sin valor por defecto: en blanco si es '0' o vacio.
+      const recargaRaw = String(unit.kmRecarga ?? '').trim();
+      setKmRecarga(recargaRaw && recargaRaw !== '0' ? recargaRaw : '');
 
       const fuelParts = String(unit.fuel || '').split('/').map(p => p.trim());
       setFuelType(fuelParts[0] || '');
