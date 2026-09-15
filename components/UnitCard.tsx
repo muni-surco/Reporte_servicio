@@ -87,8 +87,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
       expense2Ref.current = String(unit.expense2 || '');
       setShowSecondFuel(Boolean(fuel2Parts[0] && fuel2Parts[0] !== '--'));
 
+      // Normalizar valor legacy "--" a vacío para que el input sea editable
+      // (con "--" el filtro de solo-dígitos bloqueaba cualquier edición incremental)
+      const normalizedUnit = {
+        ...unit,
+        radio: unit.radio === '--' ? '' : unit.radio,
+      };
       // Always set formData to unit, ID field will be empty for new units
-      setFormData(unit);
+      setFormData(normalizedUnit);
       setFormData(prev => ({
         ...prev,
         fuel2Type: initialFuel2Type,
@@ -279,7 +285,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: (!isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
       personnel2: isPersonnel2Duplicate,
-      radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === ''),
+      radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'),
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
@@ -347,6 +353,8 @@ const UnitCard: React.FC<UnitCardProps> = ({
     const savedFuel2Qty = String(fuel2QtyRef.current || formData.fuel2Qty || fuel2Qty || formFuel2Parts[1] || '').trim();
     const dataToSave: UnitData = {
       ...formData,
+      // Nunca persistir el placeholder "--" como valor real de radio
+      radio: String(formData.radio ?? '').trim() === '--' ? '' : formData.radio,
       fuel: `${fuelType || '--'} / ${fuelQty || '0'}`,
       fuel2: savedFuel2Type ? `${savedFuel2Type} / ${savedFuel2Qty || '0'}` : '',
       fuel2Type: savedFuel2Type,
@@ -712,15 +720,19 @@ const UnitCard: React.FC<UnitCardProps> = ({
               <AutocompleteInput
                 value={formData.radio}
                 onChange={(val) => {
-                  if (val !== '' && !/^\d+$/.test(val)) return;
-                  setFormData(prev => ({ ...prev, radio: val }));
+                  // Sanitizar en lugar de bloquear: extraer solo dígitos.
+                  // El bloqueo anterior (`if (!/^\d+$/.test(val)) return`) dejaba el
+                  // input congelado cuando el valor era "--" (borrar un "-" daba "-",
+                  // agregar un dígito daba "--2", ambos rechazados).
+                  const cleaned = String(val ?? '').replace(/[^\d]/g, '');
+                  setFormData(prev => ({ ...prev, radio: cleaned }));
                   setErrors(prev => ({ ...prev, radio: false }));
                 }}
                 suggestions={Array.from(new Set([
                   ...RADIOS,
                   ...(radioOptions || []),
-                  ...(mobileData ? mobileData.map(d => d.radio).filter(r => r) : [])
-                ])) as string[]}
+                  ...(mobileData ? mobileData.map(d => d.radio).filter(r => r && r !== '--') : [])
+                ].filter(r => r && r !== '--'))) as string[]}
                 placeholder="20xxx"
                 error={errors.radio}
               />
