@@ -236,6 +236,7 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
 
     const isValidMobileId = !formData.id || String(formData.id).trim() === '' ||
       isSereno ||
+      isFreeIdCase ||
       (mobileData && mobileData.some(m => m.id === formData.id));
 
     const statusKey = formData.status?.toUpperCase();
@@ -420,6 +421,10 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
   const isChofer = unit.type === 'CHOFER';
   const isMoto = unit.type === 'MOTO';
   const isSereno = unit.type === 'SERENO';
+  // Escenario especial: estado PATRULLANDO + lugar estado UU.MM. → ID libre (no restringido a la flota)
+  const isFreeIdCase =
+    String(formData.status || '').trim().toUpperCase() === UnitStatus.PATRULLANDO &&
+    String(formData.lugarEstado || '').trim().toUpperCase().replace(/[\s.]/g, '') === 'UUMM';
   const hasPersonnel2 = isChofer;
   const hasPlate = !isSereno;
   const hasIndicative = isChofer;
@@ -499,7 +504,7 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
                 suggestions={isSereno ? [] : (mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
                 placeholder="M-01"
                 error={errors.id}
-                strict={isChofer || isMoto}
+                strict={(isChofer || isMoto) && !isFreeIdCase}
               />
               {errors.id && <span className={errorMsgStyle}>Requerido</span>}
             </div>

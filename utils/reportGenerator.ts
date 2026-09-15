@@ -3,7 +3,7 @@ declare const jspdf: any;
 declare const google: any;
 declare const XLSX: any;
 
-import { UnitData, AppSettings, Sector, PersonnelData, MobileReference, RetenReplacement } from '../types';
+import { UnitData, AppSettings, Sector, PersonnelData, MobileReference, RetenReplacement, isTacticoPPFFStatus } from '../types';
 
 export const generateMotoReport = (
   units: UnitData[],
@@ -318,7 +318,7 @@ export const generateVehicleReport = (
     '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'GIR', 'RESCATE'
   ];
 
-  const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
+  const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
 
   const summaryRows = sectors.map(s => {
     const sectorUnits = vehicleUnits.filter(u => normalize(u.sector).includes(s));
@@ -335,7 +335,8 @@ export const generateVehicleReport = (
     const countSinPatrullar = regularUnits.filter(u =>
       normalize(u.status) !== 'PATRULLANDO' &&
       !inoperativeStatuses.includes(normalize(u.status)) &&
-      normalize(u.status) !== 'SIN VEHICULO'
+      normalize(u.status) !== 'SIN VEHICULO' &&
+      !isTacticoPPFFStatus(u.status)
     ).length;
 
     const efectivo = baseFleet; // Usar flota base
@@ -450,7 +451,7 @@ export const generateVehicleReport = (
   });
 
   const inopData = vehicleUnits
-    .filter(u => inoperativeStatuses.includes(normalize(u.status)))
+    .filter(u => !normalize(u.id).startsWith('AR-') && inoperativeStatuses.includes(normalize(u.status)))
     .map(u => [
       u.id,
       (u.lugarEstado || '--').toString().toUpperCase(),
@@ -464,8 +465,13 @@ export const generateVehicleReport = (
     .filter(u => {
       const status = normalize(u.status);
       const id = normalize(u.id);
-      const isUnidadMovil = id.startsWith('M-') || id.startsWith('H-') || id.startsWith('A-G');
-      return isUnidadMovil && status !== 'PATRULLANDO' && !inoperativeStatuses.includes(status) && status !== 'SIN VEHICULO';
+      return (
+        !id.startsWith('AR-') &&
+        status !== 'PATRULLANDO' &&
+        !inoperativeStatuses.includes(status) &&
+        status !== 'SIN VEHICULO' &&
+        !isTacticoPPFFStatus(u.status)
+      );
     })
     .map(u => [u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
 
