@@ -318,7 +318,7 @@ export const generateVehicleReport = (
     '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'GIR', 'RESCATE'
   ];
 
-  const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
+  const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
 
   const summaryRows = sectors.map(s => {
     const sectorUnits = vehicleUnits.filter(u => normalize(u.sector).includes(s));
