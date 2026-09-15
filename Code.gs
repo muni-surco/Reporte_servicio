@@ -1167,7 +1167,7 @@ function _getFuelVehicleReference(unit) {
         year: yearIndex === -1 ? fallback.year : String(values[i][yearIndex] || '').trim(),
         propiedad: propiedadIndex === -1 ? fallback.propiedad : String(values[i][propiedadIndex] || '').trim()
       };
-      cache.put(cacheKey, JSON.stringify(reference), 300);
+      cache.put(cacheKey, JSON.stringify(reference), 3600);
       return Object.assign(fallback, reference);
     }
   } catch (e) {
@@ -1176,75 +1176,212 @@ function _getFuelVehicleReference(unit) {
   return fallback;
 }
 
-function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit) {
-  const fuelSpreadsheet = SpreadsheetApp.openById(APP_CONFIG.FUEL_SPREADSHEET_ID);
-  let sheet = fuelSpreadsheet.getSheetByName('ABASTECIMIENTO');
-  if (!sheet) sheet = fuelSpreadsheet.insertSheet('ABASTECIMIENTO');
+function _fuelCellDateEquals(cell, dateStr, timeZone) {
+  try {
+    var target = Utilities.parseDate(String(dateStr), timeZone, 'yyyy-MM-dd');
+    var d = null;
+    if (Object.prototype.toString.call(cell) === '[object Date]') {
+      d = cell;
+    } else if (cell) {
+      var s = String(cell).trim().substring(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        d = Utilities.parseDate(s, timeZone, 'yyyy-MM-dd');
+      } else if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(s)) {
+        d = new Date(cell);
+      }
+    }
+    if (!d || isNaN(d.getTime())) return false;
+    return d.getFullYear() === target.getFullYear() &&
+      d.getMonth() === target.getMonth() &&
+      d.getDate() === target.getDate();
+  } catch (e) { return false; }
+}
 
-  const headers = ['OPERADOR', 'C4', 'FECHA', 'PROPIEDAD', 'TIPO', 'SECTOR', 'MARCA', 'MODELO', 'PLACA', 'AÑO', 'CODIGO', 'CONDUCTOR', 'ODOMETRO', 'COMBUSTIBLE', 'GALONES', 'MONTO'];
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
-    sheet.setFrozenRows(1);
-  }
+function _appendFuelRecords(settings, unit, dateStr, targetSector, previousUnit, optShift, optUnitId) {
+  // Toda la sincronizacion va dentro de try/catch: un error del spreadsheet
+  // nunca debe bloquear el guardado en Firebase ni dejar al cliente colgado.
+  try {
+    const shift = optShift || '';
+    const finalUnitId = String(optUnitId || unit.unit_id || '');
+    const unitCode = String(unit.id || '').trim();
+    const sectorNorm = String(targetSector || '').trim().toUpperCase();
 
-  const lastColumn = Math.max(sheet.getLastColumn(), headers.length);
-  const headerRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-  const columnByHeader = {};
-  headerRow.forEach(function (header, index) {
-    const normalizedHeader = _normalizeFuelHeader(header);
-    if (normalizedHeader && columnByHeader[normalizedHeader] === undefined) columnByHeader[normalizedHeader] = index;
-  });
-  headers.forEach(function (header, index) {
-    const normalizedHeader = _normalizeFuelHeader(header);
-    if (columnByHeader[normalizedHeader] === undefined) columnByHeader[normalizedHeader] = index;
-  });
-
-  const spreadsheetTimeZone = fuelSpreadsheet.getSpreadsheetTimeZone();
-  const recordDate = Utilities.parseDate(String(dateStr), spreadsheetTimeZone, 'yyyy-MM-dd');
-  const vehicleReference = _getFuelVehicleReference(unit);
-  const vehicleType = _fuelVehicleType(Object.assign({}, unit, { model: vehicleReference.model }));
-  const valuesByHeader = function (fuel) {
-    const parsed = _parseFuelValue(fuel.value);
-    const values = {
-      OPERADOR: settings.operador || '',
-      C4: unit.indicative || '',
-      FECHA: recordDate,
-      PROPIEDAD: vehicleReference.propiedad,
-      TIPO: vehicleType,
-      SECTOR: targetSector,
-      MARCA: vehicleReference.brand,
-      MODELO: vehicleReference.model,
-      PLACA: unit.plate || '',
-      ANO: vehicleReference.year,
-      CODIGO: unit.id || '',
-      CONDUCTOR: unit.personnel1 || '',
-      ODOMETRO: unit.kmRecarga || unit.kmEnd || '',
-      COMBUSTIBLE: parsed.type,
-      GALONES: parseFloat(parsed.quantity) || parsed.quantity,
-      MONTO: _parseAmount(fuel.amount)
-    };
-    return values;
-  };
-
-  const previous = previousUnit || {};
-  const fuels = [
-    { value: unit.fuel, amount: unit.expense, previous: previous.fuel },
-    { value: unit.fuel2, amount: unit.expense2, previous: previous.fuel2 }
-  ];
-  const rows = [];
-  fuels.forEach(function (fuel) {
-    const parsed = _parseFuelValue(fuel.value);
-    if (!parsed.type || !parsed.quantity || String(fuel.value || '').trim() === String(fuel.previous || '').trim()) return;
-    const values = valuesByHeader(fuel);
-    const row = new Array(lastColumn).fill('');
-    Object.keys(values).forEach(function (header) {
-      const normalizedHeader = header === 'ANO' ? 'AÑO' : header;
-      const columnIndex = columnByHeader[_normalizeFuelHeader(normalizedHeader)];
-      if (columnIndex !== undefined) row[columnIndex] = values[header];
+    // 1. Combustibles vigentes (sin llamadas API).
+    var fuels = [
+      { value: unit.fuel, amount: unit.expense },
+      { value: unit.fuel2, amount: unit.expense2 }
+    ];
+    var validFuels = [];
+    fuels.forEach(function (fuel) {
+      var parsed = _parseFuelValue(fuel.value);
+      if (parsed.type && parsed.quantity) validFuels.push(fuel);
     });
-    rows.push(row);
-  });
-  if (rows.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, lastColumn).setValues(rows);
+
+    const fuelSpreadsheet = SpreadsheetApp.openById(APP_CONFIG.FUEL_SPREADSHEET_ID);
+    let sheet = fuelSpreadsheet.getSheetByName('ABASTECIMIENTO');
+    if (!sheet) sheet = fuelSpreadsheet.insertSheet('ABASTECIMIENTO');
+    const spreadsheetTimeZone = fuelSpreadsheet.getSpreadsheetTimeZone();
+
+    // Layout base solo para hoja nueva. La unica columna nueva que este codigo
+    // necesita es UNIT_ID. En hojas existentes NO se agrega nada mas: si la hoja
+    // usa la columna combinada 'OPERADOR C4' se respeta tal cual.
+    const baseHeaders = ['OPERADOR C4', 'FECHA', 'PROPIEDAD', 'TIPO', 'SECTOR', 'MARCA', 'MODELO', 'PLACA', 'AÑO', 'CODIGO', 'CONDUCTOR', 'ODOMETRO', 'COMBUSTIBLE', 'GALONES', 'MONTO', 'UNIT_ID'];
+    var lastColumn;
+    var headerRow;
+    if (sheet.getLastRow() === 0) {
+      sheet.getRange(1, 1, 1, baseHeaders.length).setValues([baseHeaders]).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+      headerRow = baseHeaders.slice();
+      lastColumn = baseHeaders.length;
+    } else {
+      headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      // Solo agregar UNIT_ID si falta. Nada mas.
+      var existingNorm = headerRow.map(function (h) { return _normalizeFuelHeader(h); });
+      if (existingNorm.indexOf(_normalizeFuelHeader('UNIT_ID')) === -1) {
+        sheet.getRange(1, headerRow.length + 1).setValue('UNIT_ID').setFontWeight('bold');
+        headerRow = headerRow.concat(['UNIT_ID']);
+      }
+      lastColumn = headerRow.length;
+    }
+    const columnByHeader = {};
+    headerRow.forEach(function (header, index) {
+      const normalizedHeader = _normalizeFuelHeader(header);
+      if (normalizedHeader && columnByHeader[normalizedHeader] === undefined) columnByHeader[normalizedHeader] = index;
+    });
+    var resolveCol = function (names) {
+      for (var i = 0; i < names.length; i++) {
+        var c = columnByHeader[_normalizeFuelHeader(names[i])];
+        if (c !== undefined) return c;
+      }
+      return undefined;
+    };
+
+    const unitIdCol = resolveCol(['UNIT_ID']);
+    const fechaCol = resolveCol(['FECHA']);
+    const codigoCol = resolveCol(['CODIGO', 'COD', 'MOVIL']);
+    const sectorCol = resolveCol(['SECTOR']);
+    const turnoCol = resolveCol(['TURNO']); // defensivo: solo si existiera de antes
+    const operadorC4Col = resolveCol(['OPERADOR C4', 'OPERADORC4', 'OPERADOR_C4']);
+    const operadorCol = resolveCol(['OPERADOR']);
+    const c4Col = resolveCol(['C4']);
+
+    // 2. Filas actuales de la unidad por UNIT_ID (barato, busqueda del servidor).
+    var lastRow = sheet.getLastRow();
+    var hitRows = [];
+    if (lastRow > 1 && unitIdCol !== undefined && finalUnitId) {
+      try {
+        var idHits = sheet.getRange(2, unitIdCol + 1, lastRow - 1, 1)
+          .createTextFinder(finalUnitId).matchEntireCell(true).matchCase(true).findAll();
+        for (var i = 0; i < idHits.length; i++) hitRows.push(idHits[i].getRow());
+      } catch (e) { hitRows = []; }
+    }
+    hitRows.sort(function (a, b) { return a - b; });
+
+    // 3. Filas legacy (sin UNIT_ID) de la misma unidad: solo se buscan si aun
+    // no hay filas con UNIT_ID (tras la primera sincronizacion ya no hace falta).
+    // Nunca se toca una fila con UNIT_ID de otra unidad. Inspeccion acotada.
+    if (!hitRows.length && lastRow > 1 && codigoCol !== undefined && unitCode) {
+      try {
+        var codeHits = sheet.getRange(2, codigoCol + 1, lastRow - 1, 1)
+          .createTextFinder(unitCode).matchEntireCell(true).matchCase(false).findAll();
+        var inspected = 0;
+        for (var j = codeHits.length - 1; j >= 0 && inspected < 15; j--) {
+          var rowNum = codeHits[j].getRow();
+          inspected++;
+          var rowVals = sheet.getRange(rowNum, 1, 1, lastColumn).getValues()[0];
+          var rowUnitId = unitIdCol !== undefined ? String(rowVals[unitIdCol] || '').trim() : '';
+          if (rowUnitId && rowUnitId !== finalUnitId) continue;
+          if (fechaCol === undefined || !_fuelCellDateEquals(rowVals[fechaCol], dateStr, spreadsheetTimeZone)) continue;
+          if (sectorCol !== undefined && String(rowVals[sectorCol] || '').trim().toUpperCase() !== sectorNorm) continue;
+          if (turnoCol !== undefined && String(rowVals[turnoCol] || '').trim() && String(rowVals[turnoCol] || '').trim() !== String(shift || '').trim()) continue;
+          hitRows.push(rowNum);
+        }
+      } catch (e) { console.error('[fuel sync] ERROR buscando filas legacy', e); }
+      hitRows.sort(function (a, b) { return a - b; });
+    }
+
+    // 4. Si no hay combustible vigente: borrar filas previas (si las hay) y listo.
+    // No se consulta la referencia vehicular.
+    if (!validFuels.length) {
+      if (hitRows.length) {
+        try {
+          hitRows.sort(function (a, b) { return b - a; });
+          hitRows.forEach(function (rowNum) { sheet.deleteRow(rowNum); });
+        } catch (e) { console.error('[fuel sync] ERROR borrando registros previos', e); }
+      }
+      return;
+    }
+
+    // 5. Si los datos de combustible son identicos a los ya guardados y la
+    // cantidad de filas coincide, no hay nada que escribir (ediciones de otros
+    // campos no tocan el spreadsheet).
+    var prev = previousUnit || {};
+    var norm = function (v) { return String(v || '').trim(); };
+    var sameAsPrevious = hitRows.length === validFuels.length &&
+      norm(unit.fuel) === norm(prev.fuel) &&
+      norm(unit.expense) === norm(prev.expense) &&
+      norm(unit.fuel2) === norm(prev.fuel2) &&
+      norm(unit.expense2) === norm(prev.expense2) &&
+      norm(unit.personnel1) === norm(prev.personnel1) &&
+      norm(unit.plate) === norm(prev.plate) &&
+      norm(unit.indicative) === norm(prev.indicative) &&
+      norm(unit.kmRecarga) === norm(prev.kmRecarga) &&
+      norm(unit.kmEnd) === norm(prev.kmEnd) &&
+      norm(targetSector) === norm(prev.sector);
+    if (sameAsPrevious) return;
+
+    // 6. Solo aqui se consulta la referencia vehicular (hoja DATA).
+    const recordDate = Utilities.parseDate(String(dateStr), spreadsheetTimeZone, 'yyyy-MM-dd');
+    const vehicleReference = _getFuelVehicleReference(unit);
+    const vehicleType = _fuelVehicleType(Object.assign({}, unit, { model: vehicleReference.model }));
+    const buildRow = function (fuel) {
+      const parsed = _parseFuelValue(fuel.value);
+      const row = new Array(lastColumn).fill('');
+      var setVal = function (col, v) { if (col !== undefined) row[col] = v; };
+      // Columna combinada 'OPERADOR C4' o columnas separadas, segun la hoja.
+      if (operadorC4Col !== undefined) {
+        setVal(operadorC4Col, settings.operador || '');
+      } else {
+        setVal(operadorCol, settings.operador || '');
+        setVal(c4Col, unit.indicative || '');
+      }
+      setVal(fechaCol, recordDate);
+      setVal(resolveCol(['PROPIEDAD']), vehicleReference.propiedad);
+      setVal(resolveCol(['TIPO']), vehicleType);
+      setVal(sectorCol, targetSector);
+      setVal(resolveCol(['MARCA']), vehicleReference.brand);
+      setVal(resolveCol(['MODELO']), vehicleReference.model);
+      setVal(resolveCol(['PLACA']), unit.plate || '');
+      setVal(resolveCol(['AÑO', 'ANO']), vehicleReference.year);
+      setVal(codigoCol, unit.id || '');
+      setVal(resolveCol(['CONDUCTOR']), unit.personnel1 || '');
+      setVal(resolveCol(['ODOMETRO']), unit.kmRecarga || unit.kmEnd || '');
+      setVal(resolveCol(['COMBUSTIBLE']), parsed.type);
+      setVal(resolveCol(['GALONES']), parseFloat(parsed.quantity) || parsed.quantity);
+      setVal(resolveCol(['MONTO']), _parseAmount(fuel.amount));
+      setVal(unitIdCol, finalUnitId);
+      return row;
+    };
+    const newRows = [];
+    validFuels.forEach(function (fuel) { newRows.push(buildRow(fuel)); });
+
+    // 7. Reconciliar en el lugar: sobrescribir las filas existentes (sin el
+    // costo de deleteRow que reordena la hoja), borrar sobrantes e insertar
+    // faltantes al final.
+    try {
+      var overwriteCount = Math.min(hitRows.length, newRows.length);
+      for (var k = 0; k < overwriteCount; k++) {
+        sheet.getRange(hitRows[k], 1, 1, lastColumn).setValues([newRows[k]]);
+      }
+      if (hitRows.length > newRows.length) {
+        var extras = hitRows.slice(newRows.length).sort(function (a, b) { return b - a; });
+        extras.forEach(function (rowNum) { sheet.deleteRow(rowNum); });
+      } else if (newRows.length > hitRows.length) {
+        var missing = newRows.slice(hitRows.length);
+        sheet.getRange(sheet.getLastRow() + 1, 1, missing.length, lastColumn).setValues(missing);
+      }
+    } catch (e) { console.error('[fuel sync] ERROR escribiendo registros', e); }
+  } catch (e) { console.error('[fuel sync] ERROR general, se guarda solo Firebase', e); }
 }
 
 function updateUnit(dateStr, shift, settings, unit) {
@@ -1405,7 +1542,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     );
   }
 
-  _appendFuelRecords(settings || {}, unit, dateStr, targetSector, previousUnit);
+  _appendFuelRecords(settings || {}, unit, dateStr, targetSector, previousUnit, shift, unit_id);
 
   // KM bridge: update prev unit's kmEnd from current unit's kmStart
   const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
