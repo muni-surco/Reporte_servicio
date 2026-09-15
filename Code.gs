@@ -314,6 +314,7 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
       }
     }
 
+    allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, null, timeZone);
     cache.put(cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     _fbLogUsage();
@@ -416,6 +417,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
       }
     }
 
+    allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, targetSectorStorage, timeZone);
     cache.put(cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     _fbLogUsage();
@@ -992,6 +994,155 @@ function getPreviousShift(dateStr, shift, timeZone) {
     date.setDate(date.getDate() - 1);
     let prevDateStr = Utilities.formatDate(date, timeZone, "yyyy-MM-dd");
     return { date: prevDateStr, shift: 'NOCHE' };
+  }
+}
+
+var _LOCKED_STATUSES = { DESPERFECTOS: true, SINIESTRO: true, MANTENIMIENTO: true };
+
+function _normUnitId(id) {
+  return String(id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+}
+
+/**
+ * Reads the previous shift's units (optionally filtered by sector) from RTDB, falling back to the sheet.
+ */
+function _readPrevShiftUnits(prevDateStr, prevShift, sectorStorage, timeZone) {
+  var out = [];
+  try {
+    var raw = sectorStorage
+      ? rtdbGet('units/' + prevDateStr + '_' + prevShift + '/' + sectorStorage)
+      : rtdbGet('units/' + prevDateStr + '_' + prevShift);
+    if (raw && typeof raw === 'object') {
+      if (sectorStorage) {
+        Object.values(raw).forEach(function(u) {
+          if (u && typeof u === 'object' && u.id !== undefined) out.push(_toUnitData(u));
+        });
+      } else {
+        Object.values(raw).forEach(function(sec) {
+          if (sec && typeof sec === 'object') {
+            Object.values(sec).forEach(function(u) {
+              if (u && typeof u === 'object' && u.id !== undefined) out.push(_toUnitData(u));
+            });
+          }
+        });
+      }
+    }
+    if (out.length) return out;
+  } catch (e) { /* fallback */ }
+
+  var ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  var dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+  if (dataSheet) {
+    var lastRow = dataSheet.getLastRow();
+    var rows = lastRow > 1 ? dataSheet.getRange(2, 1, lastRow - 1, Math.max(31, dataSheet.getLastColumn())).getValues() : [];
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (!r[0]) continue;
+      try {
+        var rd = Utilities.formatDate(new Date(r[0]), timeZone, 'yyyy-MM-dd');
+        if (rd === prevDateStr && String(r[1]) === prevShift && (!sectorStorage || toStorageSector(r[2]) === sectorStorage)) {
+          out.push(_toUnitData({
+            id: r[3], unit_id: r[23], sector: r[2], type: r[4], model: r[5],
+            personnel1: r[6], personnel2: r[7], plate: r[8], indicative: r[9], radio: r[10],
+            status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
+            kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19], fuel2: r[32], expense2: r[33],
+            quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
+            lugarEstado: r[24], motivoEstado: r[25],
+            taser: r[27] || '', bodycam: r[28] || '', codigoBodycam: r[29] || '', obsBodycam: r[30] || ''
+          }));
+        }
+      } catch (e) { continue; }
+    }
+  }
+  return out;
+}
+
+function _buildLockedInheritedUnit(prevU, unitId) {
+  return {
+    id: String(prevU.id || ''),
+    unit_id: unitId,
+    sector: String(prevU.sector || ''),
+    type: String(prevU.type || ''),
+    model: String(prevU.model || ''),
+    personnel1: '',
+    personnel2: '',
+    plate: String(prevU.plate || ''),
+    indicative: String(prevU.indicative || ''),
+    radio: String(prevU.radio || ''),
+    status: String(prevU.status || ''),
+    reason: '',
+    kmStart: '0',
+    kmEnd: '0',
+    totalKm: '0',
+    kmRecarga: '0',
+    hours: '--:-- - --:--',
+    fuel: '-- / --',
+    expense: 'S/ 0.00',
+    fuel2: '',
+    expense2: '',
+    quadrant: String(prevU.quadrant || ''),
+    mechanics: String(prevU.mechanics || ''),
+    lugarEstado: String(prevU.lugarEstado || ''),
+    motivoEstado: String(prevU.motivoEstado || ''),
+    taser: '',
+    bodycam: '',
+    codigoBodycam: '',
+    obsBodycam: '',
+    codigoTaser: ''
+  };
+}
+
+/**
+ * If a unit was in DESPERFECTOS / SINIESTRO / MANTENIMIENTO in the previous shift,
+ * it inherits that status in the current shift whenever its status is still empty.
+ * Units absent from the current shift but locked in the previous one are re-added.
+ */
+function _inheritLockedStatuses(allUnits, dateStr, shift, sectorStorage, timeZone) {
+  try {
+    var prevInfo = getPreviousShift(dateStr, shift, timeZone);
+    var prevUnits = _readPrevShiftUnits(prevInfo.date, prevInfo.shift, sectorStorage, timeZone);
+    if (!prevUnits || prevUnits.length === 0) return allUnits;
+
+    var prevByNorm = {};
+    prevUnits.forEach(function(u) {
+      var idNorm = _normUnitId(u.id);
+      var sNorm = String(u.sector || '').trim().toUpperCase();
+      if (idNorm && _LOCKED_STATUSES[String(u.status || '').toUpperCase()]) {
+        prevByNorm[sNorm + '|' + idNorm] = u;
+      }
+    });
+    if (Object.keys(prevByNorm).length === 0) return allUnits;
+
+    var result = allUnits.slice();
+    var idxByNorm = {};
+    result.forEach(function(o, i) {
+      if (o && String(o.id || '').trim()) {
+        idxByNorm[String(o.sector || '').trim().toUpperCase() + '|' + _normUnitId(o.id)] = i;
+      }
+    });
+
+    for (var k in prevByNorm) {
+      var prevU = prevByNorm[k];
+      if (idxByNorm[k] !== undefined) {
+        var cur = result[idxByNorm[k]];
+        if (!String(cur.status || '').trim()) {
+          cur.status = String(prevU.status || '');
+          cur.reason = String(cur.reason || prevU.reason || '');
+          cur.lugarEstado = String(prevU.lugarEstado || '');
+          cur.motivoEstado = String(prevU.motivoEstado || '');
+          cur.mechanics = String(prevU.mechanics || '');
+        }
+      } else {
+        var cleanId = k.split('|')[1];
+        var uid = 'INH-' + String(prevU.sector || '').trim().toUpperCase().replace(/\s+/g, '') + '-' + cleanId + '-' + dateStr.replace(/-/g, '') + '-' + shift;
+        result.push(_buildLockedInheritedUnit(prevU, uid));
+      }
+    }
+
+    return result;
+  } catch (e) {
+    console.error('[inheritLockedStatuses] ERROR', e);
+    return allUnits;
   }
 }
 
