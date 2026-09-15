@@ -10,8 +10,14 @@ export enum UnitStatus {
   SIN_DOCUMENTOS = 'SIN DOCUMENTOS',
   SIN_VEHICULO = 'SIN VEHICULO',
   SIN_OPERADOR = 'SIN OPERADOR',
-  FIN_APOYO = 'FIN APOYO'
+  FIN_APOYO = 'FIN APOYO',
+  TACTICO_PPFF = 'TACTICO PP.FF.'
 }
+
+export const isTacticoPPFFStatus = (value: unknown) => {
+  const norm = String(value ?? '').trim().toUpperCase().replace(/[.\s]/g, '');
+  return norm === 'TACTICOPPFF';
+};
 
 export type Sector =
   | '1A' | '1B'
@@ -143,6 +149,22 @@ export interface MobileReference {
   sector?: string;
   status?: string;
   type?: string;
+  propiedad?: string;
+}
+
+export interface RetenReplacement {
+  fecha: string;
+  turno: string;
+  retenUnit: string;
+  placaReten: string;
+  replacedUnit: string;
+  placa: string;
+  motivo: string;
+  hora: string;
+  fechaIngresoTaller?: string;
+  horaIngresoTaller?: string;
+  fechaSalidaTaller?: string;
+  horaSalidaTaller?: string;
 }
 
 export interface WantedPerson {

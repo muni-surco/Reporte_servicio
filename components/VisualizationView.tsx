@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { UnitData, AppSettings, UnitStatus, SECTORS } from '../types';
+import { UnitData, AppSettings, UnitStatus, SECTORS, isTacticoPPFFStatus } from '../types';
 
 interface VisualizationViewProps {
   allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }>;
@@ -27,6 +27,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
   const getStatusColor = (status: string) => {
     if (status === UnitStatus.PATRULLANDO) return "bg-green-500 ring-2 ring-green-200";
     if (status === UnitStatus.APOYO_OTRA_AREA) return "bg-blue-500 ring-2 ring-blue-200";
+    if (isTacticoPPFFStatus(status)) return "bg-blue-500 ring-2 ring-blue-200";
     if (redStatusPatterns.includes(status)) return "bg-red-500 ring-2 ring-red-200";
     if (amberStatusPatterns.includes(status)) return "bg-amber-500 ring-2 ring-amber-200";
     return "bg-slate-300 ring-2 ring-slate-100";
@@ -62,7 +63,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
         <div className="flex-1 flex items-center justify-between min-w-0 gap-6">
           <div className="flex-1 min-w-0">
               <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex items-center gap-2">
-                {u.personnel1}
+                {u.personnel1 || (isTacticoPPFFStatus(u.status) && u.personnel2)}
                 {u.taser === 'SI' && (
                   <span className="inline-flex items-center px-1.5 py-[1px] rounded text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-[#005ea5] border border-blue-200 leading-none shrink-0">
                     TASER
@@ -146,7 +147,8 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
         const activeUnits = data.units.filter(u =>
           ALLOWED_STATUSES.includes(u.status) ||
-          (u.status === UnitStatus.SIN_DOCUMENTOS && u.type === 'CHOFER')
+          (u.status === UnitStatus.SIN_DOCUMENTOS && u.type === 'CHOFER') ||
+          isTacticoPPFFStatus(u.status)
         );
         const choferes = activeUnits.filter(u => u.type === 'CHOFER');
         const motos = activeUnits.filter(u => u.type === 'MOTO');

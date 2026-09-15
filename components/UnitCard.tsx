@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Pencil, Plus, X, Fuel } from 'lucide-react';
-import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS } from '../types';
+import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS, isTacticoPPFFStatus } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
 
@@ -183,6 +183,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
   }, [formData.id, isEditing, unit.type, mobileData, unit.id]);
 
   useEffect(() => {
+if (isEditing && isTacticoPPFFStatus(formData.status)) {
+      if (!formData.lugarEstado || String(formData.lugarEstado).trim() === '') {
+        setFormData(prev => ({ ...prev, lugarEstado: 'PP.FF.' }));
+      }
+    }
+  }, [formData.status, isEditing]);
+
+  useEffect(() => {
     if (!isEditing) {
       lastKmFetchedIdRef.current = '';
     }
@@ -222,7 +230,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       UnitStatus.SINIESTRO,
       UnitStatus.FIN_APOYO,
       UnitStatus.SIN_OPERADOR
-    ].includes(formData.status?.toUpperCase());
+    ].includes(formData.status?.toUpperCase()) || isTacticoPPFFStatus(formData.status);
 
     const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.DESPERFECTOS;
 
@@ -531,7 +539,14 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
             <div className="col-span-1">
               <label className={labelStyleEdit}>Estado <span className="text-red-500">*</span></label>
-              <select name="status" value={formData.status} onChange={(e) => { handleChange(e); setErrors(prev => ({ ...prev, status: false })); }} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
+              <select name="status" value={formData.status} onChange={(e) => {
+const v = e.target.value;
+                handleChange(e);
+                if (isTacticoPPFFStatus(v)) {
+                  setFormData(prev => ({ ...prev, lugarEstado: 'PP.FF.' }));
+                }
+                setErrors(prev => ({ ...prev, status: false, lugarEstado: false }));
+              }} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
                 <option value="">--</option>
                 {formData.status && !activeStatusOptions.includes(formData.status) && <option value={formData.status}>{formData.status}</option>}
                 {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
@@ -544,6 +559,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
               {lugarOptions && lugarOptions.length > 0 ? (
                 <select name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('lugarEstado')} py-0 text-[11px]`}>
                   <option value="">--</option>
+                  {formData.lugarEstado && !lugarOptions.includes(formData.lugarEstado) && <option value={formData.lugarEstado}>{formData.lugarEstado}</option>}
                   {lugarOptions.map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               ) : (

@@ -3,7 +3,7 @@ declare const jspdf: any;
 declare const google: any;
 declare const XLSX: any;
 
-import { UnitData, AppSettings, Sector, PersonnelData, MobileReference } from '../types';
+import { UnitData, AppSettings, Sector, PersonnelData, MobileReference, RetenReplacement } from '../types';
 
 export const generateMotoReport = (
   units: UnitData[],
@@ -261,7 +261,8 @@ export const generateVehicleReport = (
   date: string,
   shift: string,
   operatorName: string,
-  mobileData: MobileReference[]
+  mobileData: MobileReference[],
+  retenData: RetenReplacement[] = []
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'portrait',
@@ -273,8 +274,14 @@ export const generateVehicleReport = (
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
 
-  // Filter for CHOFER units (Vehicles)
-  const vehicleUnits = units.filter(u => u.type === 'CHOFER');
+  // Filter for CHOFER units (Vehicles) with propiedad = RENTING
+  const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
+  const rentingMobileIds = new Set(
+    mobileData
+      .filter(m => m.type === 'CHOFER' && normalize(m.propiedad) === 'RENTING')
+      .map(m => normalize(m.id))
+  );
+  const vehicleUnits = units.filter(u => u.type === 'CHOFER' && rentingMobileIds.has(normalize(u.id)));
 
   const formatLongDate = (dateStr: string) => {
     try {
@@ -312,11 +319,10 @@ export const generateVehicleReport = (
   ];
 
   const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
-  const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
 
   const summaryRows = sectors.map(s => {
     const sectorUnits = vehicleUnits.filter(u => normalize(u.sector).includes(s));
-    const baseFleet = mobileData.filter(u => u.type === 'CHOFER' && normalize(u.sector).includes(s)).length;
+    const baseFleet = mobileData.filter(u => u.type === 'CHOFER' && normalize(u.sector).includes(s) && normalize(u.propiedad) === 'RENTING').length;
 
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12)
     const countReten = sectorUnits.filter(u => normalize(u.id).startsWith('AR-')).length;
@@ -408,21 +414,6 @@ export const generateVehicleReport = (
 
   let finalY = (doc as any).lastAutoTable.finalY + 4;
 
-  // --- CHOFERES SIN CARRO bar ---
-  const choferesSinCarro = vehicleUnits.filter(u => normalize(u.status) === 'SIN VEHICULO').length;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setFillColor(38, 70, 83);
-  doc.rect(margin + 10, finalY, 50, 5, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.text('CHOFERES SIN CARRO', margin + 12, finalY + 3.8);
-  doc.setDrawColor(0);
-  doc.rect(margin + 60, finalY, 20, 5);
-  doc.setTextColor(0, 0, 0);
-  doc.text(choferesSinCarro.toString(), margin + 70, finalY + 3.8, { align: 'center' });
-
-  finalY += 9;
-
   // --- PERMANENCIA + OPERADOR CCO ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
   // Supervisor CCO debe provenir del sector C4 (mismo criterio que reporte motos)
@@ -449,26 +440,25 @@ export const generateVehicleReport = (
     doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 4.8);
     finalY += 7;
   }
-  // Row 2: OPERADOR CCO
-  doc.setFont('helvetica', 'bold');
-  doc.setFillColor(38, 70, 83);
-  doc.rect(margin, finalY, 40, 7, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.text(' OPERADOR CCO :', margin + 2, finalY + 4.8);
-  doc.setDrawColor(0);
-  doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
-  doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'bold');
-  doc.text(resolvedOperator, margin + 45, finalY + 4.8);
-
   finalY += 9;
 
   // --- DETAILS TABLES ---
+  const retenByUnit = new Map<string, string>();
+  retenData.forEach(r => {
+    const key = normalize(r.replacedUnit);
+    if (key && !retenByUnit.has(key)) retenByUnit.set(key, String(r.retenUnit || '').trim());
+  });
+
   const inopData = vehicleUnits
     .filter(u => inoperativeStatuses.includes(normalize(u.status)))
-    .map(u => [u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map(u => [
+      u.id,
+      (u.lugarEstado || '--').toString().toUpperCase(),
+      (u.motivoEstado || u.mechanics || '--').toString().toUpperCase(),
+      retenByUnit.get(normalize(u.id)) || '--'
+    ]);
 
-  while (inopData.length < 15) inopData.push(['', '', '']);
+  while (inopData.length < 15) inopData.push(['', '', '', '']);
 
   const sinPatrullarData = vehicleUnits
     .filter(u => {
@@ -483,19 +473,27 @@ export const generateVehicleReport = (
 
   (doc as any).autoTable({
     startY: finalY,
-    head: [[{ content: 'INOPERATIVOS', colSpan: 3, styles: { halign: 'center', fillColor: [220, 53, 69] } }]],
+    head: [[
+      { content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } }
+    ], [
+      'UNIDAD', 'LUGAR', 'MOTIVO', 'RETEN'
+    ]],
     body: inopData,
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
     headStyles: { textColor: [255, 255, 255] },
-    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 28 } },
+    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 22 }, 3: { cellWidth: 18 } },
     margin: { left: margin },
     tableWidth: (pageWidth / 2) - margin - 2
   });
 
   (doc as any).autoTable({
     startY: finalY,
-    head: [[{ content: 'SIN PATRULLAR', colSpan: 3, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }]],
+    head: [[
+      { content: 'SIN PATRULLAR', colSpan: 3, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
+    ], [
+      'UNIDAD', 'ESTADO', 'MOTIVO'
+    ]],
     body: sinPatrullarData,
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },

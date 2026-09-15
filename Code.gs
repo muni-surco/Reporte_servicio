@@ -573,6 +573,7 @@ function getMobileData() {
   const motivoSinVehiculoIdx = headers.indexOf('motivo_sin_vehiculo');
   const codigoBodycamIdx = headers.indexOf('codigo_bodycam');
   const codigoTaserIdx = headers.indexOf('codigo_taser');
+  const propiedadIdx = headers.indexOf('propiedad');
   
   const mobileData = [];
   const indicativesSet = new Set();
@@ -604,7 +605,8 @@ function getMobileData() {
         quadrant: cuadranteIdx !== -1 ? cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()) : '',
         sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
         status: estadoIdx !== -1 ? String(row[estadoIdx] || '').trim() : '',
-        type: getUnitType(id, tipoIdx !== -1 ? row[tipoIdx] : null, sectorIdx !== -1 ? row[sectorIdx] : null)
+        type: getUnitType(id, tipoIdx !== -1 ? row[tipoIdx] : null, sectorIdx !== -1 ? row[sectorIdx] : null),
+        propiedad: propiedadIdx !== -1 ? String(row[propiedadIdx] || '').trim() : ''
       });
     }
 
@@ -1421,7 +1423,7 @@ function updateUnit(dateStr, shift, settings, unit) {
     var newName2Norm = _normalizePersonnelName(unit.personnel2);
     var targetTypeNorm = String(unit.type || '').trim().toUpperCase();
     var statusNorm = String(unit.status || '').trim().toUpperCase();
-    var isNoPersonnelStatus = ['SIN CONDUCTOR','MANTENIMIENTO','DESPERFECTOS','SIN DOCUMENTOS','SINIESTRO','FIN APOYO','SIN OPERADOR'].indexOf(statusNorm) !== -1;
+    var isNoPersonnelStatus = ['SIN CONDUCTOR','MANTENIMIENTO','DESPERFECTOS','SIN DOCUMENTOS','SINIESTRO','FIN APOYO','SIN OPERADOR'].indexOf(statusNorm) !== -1 || statusNorm.replace(/[.\s]/g,'') === 'TACTICOPPFF';
     if (newNameNorm && !isNoPersonnelStatus) {
       var existingBySector = rtdbGet('units/' + dateStr + '_' + shift + '/' + targetSector);
       if (existingBySector) {

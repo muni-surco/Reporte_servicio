@@ -12,7 +12,7 @@ import RetenManagementView from './components/RetenManagementView';
 import VehicleSearchView from './components/VehicleSearchView';
 import MapView from './components/MapView';
 import WantedView from './components/WantedView';
-import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS } from './types';
+import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS, RetenReplacement } from './types';
 import { Users, LayoutDashboard, FileText, TriangleAlert } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal';
 
@@ -1308,7 +1308,13 @@ hours: '--:-- - --:--',
       } else if (type === 'motos_honda') {
         reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
       } else if (type === 'moviles') {
-        reportGenerators.generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData);
+        const retenData: RetenReplacement[] = await new Promise((resolve) => {
+          google.script.run
+            .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
+            .withFailureHandler(() => resolve([]))
+            .getRetenData(date, shift);
+        });
+        reportGenerators.generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
       } else if (type === 'asistencia_regimen') {
         if (personnelList.length > 0) {
             reportGenerators.generatePersonnelAbsenceReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
