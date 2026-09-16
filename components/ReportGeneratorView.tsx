@@ -25,15 +25,15 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
 
   const reportTypes = [
     {
-      id: 'observaciones',
-      title: 'Reporte de Observaciones',
-      subtitle: 'PUESTOS DE COMANDO',
-      description: 'Reporte detallado de observaciones, cambios de turno y novedades reportadas por el personal.',
+      id: 'general',
+      title: 'Reporte General',
+      subtitle: 'TODOS LOS REGISTROS',
+      description: 'Lista completa de todos los registros del turno y fecha incluyendo todos los sectores.',
       icon: <FileText className="w-8 h-8" />,
-      color: 'amber',
-      themeClass: 'border-amber-100',
-      iconClass: 'bg-amber-50 text-amber-600',
-      btnClass: 'bg-amber-600 hover:bg-amber-700'
+      color: 'emerald',
+      themeClass: 'border-emerald-100',
+      iconClass: 'bg-emerald-50 text-emerald-600',
+      btnClass: 'bg-emerald-600 hover:bg-emerald-700'
     },
     {
       id: 'motos',
@@ -58,6 +58,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       btnClass: 'bg-red-600 hover:bg-red-700'
     },
     {
+      id: 'motos_consolidado',
+      title: 'Motos Consolidado',
+      subtitle: 'YAMAHA + HONDA',
+      description: 'Reporte único con el resumen de motos Yamaha y Honda por sector y el detalle combinado.',
+      icon: <PieChart className="w-8 h-8" />,
+      color: 'violet',
+      themeClass: 'border-violet-100',
+      iconClass: 'bg-violet-50 text-violet-600',
+      btnClass: 'bg-violet-600 hover:bg-violet-700'
+    },
+    {
       id: 'moviles',
       title: 'Flota Renting',
       subtitle: 'CAMIONETAS Y AUTOS',
@@ -67,6 +78,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       themeClass: 'border-indigo-100',
       iconClass: 'bg-indigo-50 text-indigo-600',
       btnClass: 'bg-indigo-600 hover:bg-indigo-700'
+    },
+    {
+      id: 'sipcop',
+      title: 'Flota SIPCOP',
+      subtitle: 'VEHÍCULOS SIPCOP',
+      description: 'Reporte general de operatividad, patrullaje y personal de los vehículos con SIPCOP.',
+      icon: <FileText className="w-8 h-8" />,
+      color: 'orange',
+      themeClass: 'border-orange-100',
+      iconClass: 'bg-orange-50 text-orange-600',
+      btnClass: 'bg-orange-600 hover:bg-orange-700'
     },
     {
       id: 'asistencia_regimen',
@@ -89,17 +111,6 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       themeClass: 'border-cyan-100',
       iconClass: 'bg-cyan-50 text-cyan-600',
       btnClass: 'bg-cyan-600 hover:bg-cyan-700'
-    },
-    {
-      id: 'general',
-      title: 'Reporte General',
-      subtitle: 'TODOS LOS REGISTROS',
-      description: 'Lista completa de todos los registros del turno y fecha incluyendo todos los sectores.',
-      icon: <FileText className="w-8 h-8" />,
-      color: 'emerald',
-      themeClass: 'border-emerald-100',
-      iconClass: 'bg-emerald-50 text-emerald-600',
-      btnClass: 'bg-emerald-600 hover:bg-emerald-700'
     },
     {
       id: 'taser',

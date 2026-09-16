@@ -589,6 +589,7 @@ function getMobileData() {
   const codigoBodycamIdx = headers.indexOf('codigo_bodycam');
   const codigoTaserIdx = headers.indexOf('codigo_taser');
   const propiedadIdx = headers.indexOf('propiedad');
+  const sipcopIdx = headers.indexOf('sipcop');
   
   const mobileData = [];
   const indicativesSet = new Set();
@@ -621,7 +622,8 @@ function getMobileData() {
         sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
         status: estadoIdx !== -1 ? String(row[estadoIdx] || '').trim() : '',
         type: getUnitType(id, tipoIdx !== -1 ? row[tipoIdx] : null, sectorIdx !== -1 ? row[sectorIdx] : null),
-        propiedad: propiedadIdx !== -1 ? String(row[propiedadIdx] || '').trim() : ''
+        propiedad: propiedadIdx !== -1 ? String(row[propiedadIdx] || '').trim() : '',
+        sipcop: sipcopIdx !== -1 ? String(row[sipcopIdx] || '').trim() : ''
       });
     }
 

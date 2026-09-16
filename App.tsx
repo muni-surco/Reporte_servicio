@@ -1269,61 +1269,48 @@ hours: '--:-- - --:--',
         throw new Error('El módulo de reportes no se ha cargado. Recarga la aplicación e inténtalo nuevamente.');
       }
 
-      // 1. Check if data is up-to-date
-      const meta: any = await new Promise((resolve, reject) => {
+      // 1. Load full-shift data in a SINGLE backend call. getShiftData reads all
+      // sectors at once (one spreadsheet open + one flat RTDB read + one
+      // previous-shift read), instead of one getSectorData call per sector.
+      // The backend script cache (60s) makes repeated generations nearly instant.
+      const res: any = await new Promise((resolve, reject) => {
         google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .checkShiftTimestamp(date, shift);
+          .getShiftData(date, shift, currentSector);
       });
 
       let dataToUse: { units: UnitData[], allSectorSettings: Record<string, AppSettings> };
-      
-      if (meta.updatedAt && meta.updatedAt === lastShiftTimestampRef.current) {
-        // Data is fresh
-        dataToUse = { units, allSectorSettings: sectorSettingsMap };
-      } else {
-        // Data needs refresh - load sector by sector
-        const sectorResults: any[] = await Promise.all(SECTORS.map(s => 
-          new Promise((resolve, reject) => {
-            google.script.run
-              .withSuccessHandler(resolve)
-              .withFailureHandler(reject)
-              .getSectorData(date, shift, s);
-          })
-        ));
 
-        const aggregatedUnits: UnitData[] = [];
-        const aggregatedSettings: Record<string, AppSettings> = {};
+      if (res && res.units) {
+        dataToUse = { units: res.units, allSectorSettings: res.allSectorSettings || {} };
 
-        sectorResults.forEach((res, sIndex) => {
-          const sName = SECTORS[sIndex];
-          if (res && res.units) {
-            aggregatedUnits.push(...res.units);
-            aggregatedSettings[sName] = res.settings;
-          }
-        });
-
-        dataToUse = { units: aggregatedUnits, allSectorSettings: aggregatedSettings };
-        
         // Update local state and timestamp
-        setUnits(aggregatedUnits);
-        setSectorSettingsMap(aggregatedSettings);
-        if (meta.updatedAt) lastShiftTimestampRef.current = meta.updatedAt;
+        setUnits(res.units);
+        if (res.allSectorSettings) setSectorSettingsMap(res.allSectorSettings);
+        if (res.updatedAt) lastShiftTimestampRef.current = res.updatedAt;
+      } else {
+        throw new Error('No se pudo cargar la información del turno.');
       }
 
       if (type === 'motos') {
         reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName);
       } else if (type === 'motos_honda') {
         reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName);
-      } else if (type === 'moviles') {
+      } else if (type === 'motos_consolidado') {
+        reportGenerators.generateConsolidatedMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+      } else if (type === 'moviles' || type === 'sipcop') {
         const retenData: RetenReplacement[] = await new Promise((resolve) => {
           google.script.run
             .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
             .withFailureHandler(() => resolve([]))
             .getRetenData(date, shift);
         });
-        reportGenerators.generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
+        if (type === 'sipcop') {
+          reportGenerators.generateSipcopReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
+        } else {
+          reportGenerators.generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
+        }
       } else if (type === 'asistencia_regimen') {
         if (personnelList.length > 0) {
             reportGenerators.generatePersonnelAbsenceReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
@@ -1344,8 +1331,6 @@ hours: '--:-- - --:--',
             setPersonnelList(loadedPersonnel);
             reportGenerators.generatePersonnelStatusReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         }
-      } else if (type === 'observaciones') {
-        reportGenerators.generateObservationsReport(dataToUse.units, date, shift, operatorName);
       } else if (type === 'general') {
         reportGenerators.generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else if (type === 'taser') {

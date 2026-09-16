@@ -236,14 +236,12 @@ export const generateMotoReport = (
   doc.save(fileName);
 };
 
-export const generateVehicleReport = (
+export const generateConsolidatedMotoReport = (
   units: UnitData[],
-  settingsMap: Record<string, AppSettings>, // Renombrado de vuelta a settingsMap
+  settingsMap: Record<string, AppSettings>,
   date: string,
   shift: string,
-  operatorName: string,
-  mobileData: MobileReference[],
-  retenData: RetenReplacement[] = []
+  operatorName?: string
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'portrait',
@@ -255,14 +253,19 @@ export const generateVehicleReport = (
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
 
-  // Filter for CHOFER units (Vehicles) with propiedad = RENTING
-  const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
-  const rentingMobileIds = new Set(
-    mobileData
-      .filter(m => m.type === 'CHOFER' && normalize(m.propiedad) === 'RENTING')
-      .map(m => normalize(m.id))
-  );
-  const vehicleUnits = units.filter(u => u.type === 'CHOFER' && rentingMobileIds.has(normalize(u.id)));
+  // Tolerant model matching (same criteria as the individual moto reports)
+  const normModel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/[\s.\-_]+/g, '');
+  const motoUnitsFor = (modelFilter: string, titleSuffix: string) => {
+    const filterKeys = [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
+    return units.filter(u => {
+      if (u.type !== 'MOTO') return false;
+      const m = normModel(u.model);
+      if (!m) return false;
+      return filterKeys.some(k => m.includes(k) || k.includes(m));
+    });
+  };
+  const yamahaUnits = motoUnitsFor('YAMAHA XTZ150', 'YAMAHA XTZ150');
+  const hondaUnits = motoUnitsFor('HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300');
 
   const formatLongDate = (dateStr: string) => {
     try {
@@ -281,7 +284,255 @@ export const generateVehicleReport = (
   // --- HEADER ---
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
-  doc.text('REPORTE NUMÉRICO DE VEHÍCULOS RENTING', pageWidth / 2, 12, { align: 'center' });
+  doc.text('REPORTE NUMÉRICO MOTOS', pageWidth / 2, 15, { align: 'center' });
+
+  // Shift Box
+  doc.setLineWidth(0.7);
+  doc.rect(margin + 20, 20, pageWidth - (margin * 2) - 40, 15);
+  doc.setFontSize(22);
+  doc.text(`TURNO ${shift}`, pageWidth / 2, 31, { align: 'center' });
+
+  // Date
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatLongDate(date).toUpperCase(), pageWidth / 2, 42, { align: 'center' });
+
+  // --- SUMMARY TABLES ---
+  const sectors = [
+    '1A', '1B', '2A', '2B', '3',
+    '4', '5', '6', '7', '8',
+    '9A', '9B', 'GIR', 'OTRAS AREAS'
+  ];
+
+  const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
+  const isPatrullandoStatus = (status: unknown) => {
+    const s = String(status || '').trim().toUpperCase();
+    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO');
+  };
+
+  const renderMotoSummary = (motoUnits: UnitData[], label: string, startY: number) => {
+    const summaryRows = sectors.map(s => {
+      const sectorCode = s;
+      const sectorUnits = motoUnits.filter(u => (u.sector || '').toUpperCase().includes(sectorCode));
+      const efectivo = sectorUnits.length;
+      const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+      const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status)).length;
+      const sinPatrullar = efectivo - inoperativos - patrullando;
+
+      return [
+        sectorCode,
+        blankZero(efectivo),
+        blankZero(inoperativos),
+        blankZero(patrullando),
+        blankZero(sinPatrullar)
+      ];
+    });
+
+    // Calculate Totals
+    const totals = summaryRows.reduce((acc: number[], curr: any[]) => {
+      acc[0] += Number(curr[1]) || 0;
+      acc[1] += Number(curr[2]) || 0;
+      acc[2] += Number(curr[3]) || 0;
+      acc[3] += Number(curr[4]) || 0;
+      return acc;
+    }, [0, 0, 0, 0]);
+
+    summaryRows.push([
+      'TOTALES',
+      blankZero(totals[0]),
+      blankZero(totals[1]),
+      blankZero(totals[2]),
+      blankZero(totals[3])
+    ]);
+
+    (doc as any).autoTable({
+      startY,
+      head: [[
+        { content: `PATRULLAJE MOTOS ${label}`, colSpan: 5, styles: { halign: 'center', fillColor: [38, 70, 83] } }
+      ], [
+        'SECTORES', 'EFECTIVO', 'INOPERATIVOS', 'PATRULLANDO', 'SIN PATRULLAR'
+      ]],
+      body: summaryRows,
+      theme: 'grid',
+      styles: { fontSize: 9, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1 },
+      headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 35, fillColor: [240, 240, 240] },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 30 }
+      },
+      didParseCell: function (data: any) {
+        if (data.row.section === 'body') {
+          const isTotalRow = data.row.index === summaryRows.length - 1;
+
+          // Color for 'EFECTIVO' column (Green)
+          if (data.column.index === 1) {
+            data.cell.styles.fillColor = [144, 238, 144]; // Light Green
+          }
+          // Color for 'INOPERATIVOS' column (Red)
+          if (data.column.index === 2) {
+            data.cell.styles.fillColor = [255, 182, 193]; // Light Coral
+          }
+          // Color for 'PATRULLANDO' and 'SIN PATRULLAR' (Yellowish)
+          if (data.column.index >= 3) {
+            data.cell.styles.fillColor = [255, 255, 224]; // Light Yellow
+          }
+
+          if (isTotalRow) {
+            data.cell.styles.fillColor = [38, 70, 83];
+            data.cell.styles.textColor = [255, 255, 255];
+            if (data.column.index === 1) data.cell.styles.fillColor = [40, 167, 69];
+            if (data.column.index === 2) data.cell.styles.fillColor = [220, 53, 69];
+            if (data.column.index >= 3) data.cell.styles.fillColor = [255, 193, 7];
+          }
+        }
+      },
+      margin: { left: 30, right: 30 }
+    });
+
+    return (doc as any).lastAutoTable.finalY + 8;
+  };
+
+  // Resumen único combinado Yamaha + Honda
+  // (evita duplicados si una unidad matcheara ambos modelos)
+  const seenMotoKeys = new Set<string>();
+  const allMotoUnits = [...yamahaUnits, ...hondaUnits].filter(u => {
+    const key = u.unit_id || u.id;
+    if (key && seenMotoKeys.has(key)) return false;
+    if (key) seenMotoKeys.add(key);
+    return true;
+  });
+  let finalY = renderMotoSummary(allMotoUnits, 'YAMAHA + HONDA', 48);
+
+  // --- FOOTER DATA ---
+  const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
+  // Supervisor CCO debe provenir del sector C4 (requerimiento específico para reporte de motos)
+  const c4Key = Object.keys(settingsMap).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
+  const c4Settings = (c4Key ? (settingsMap as any)[c4Key] : null) || (settingsMap as any)['C4'] || (settingsMap as any)['SECTOR C4'] || null;
+  const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
+  const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
+
+  finalY += 8;
+
+  // --- DETAILS (combined Yamaha + Honda) --- n° / unidad / estado / motivo
+  // Una sola tabla de 8 columnas (dos bloques lado a lado) para que
+  // INOPERATIVOS y SIN PATRULLAR siempre queden al mismo nivel,
+  // incluso si el contenido fluye a más páginas
+  const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
+  const inopRows = allMotoUnits
+    .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+
+  const sinPatRows = allMotoUnits
+    .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+
+  const detailRows: any[][] = [];
+  const maxDetailRows = Math.max(inopRows.length, sinPatRows.length, 15);
+  for (let i = 0; i < maxDetailRows; i++) {
+    detailRows.push([
+      ...(inopRows[i] || ['', '', '', '']),
+      ...(sinPatRows[i] || ['', '', '', ''])
+    ]);
+  }
+
+  // Si el bloque de detalle no cabe en la página, empezar en una nueva
+  if (finalY > pageHeight - 85) {
+    doc.addPage();
+    finalY = 15;
+  }
+
+  // Bloques INOPERATIVOS | SIN PATRULLAR lado a lado con correlativo a la izquierda
+  (doc as any).autoTable({
+    startY: finalY,
+    head: [[
+      { content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } },
+      { content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
+    ]],
+    body: detailRows,
+    theme: 'grid',
+    styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
+    headStyles: { textColor: [255, 255, 255] },
+    columnStyles: {
+      0: { cellWidth: 8 }, 1: { cellWidth: 15 }, 2: { cellWidth: 24 },
+      4: { cellWidth: 8 }, 5: { cellWidth: 14 }, 6: { cellWidth: 24 }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  // --- FOOTER (mismo estilo que reporte renting) ---
+  const footerY = pageHeight - 20;
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`SUPERVISOR CCO: ${c4Supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY + 3, { align: 'right' });
+
+  // Timestamp
+  const now = new Date();
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+
+  const fileName = `REPORTE_MOTOS_CONSOLIDADO_${shift}_${date}.pdf`;
+  doc.save(fileName);
+};
+
+export interface FleetReportOptions {
+  fleetPredicate: (m: MobileReference) => boolean;
+  title: string;
+  tableHeader: string;
+  filePrefix: string;
+}
+
+const generateFleetReport = (
+  units: UnitData[],
+  settingsMap: Record<string, AppSettings>,
+  date: string,
+  shift: string,
+  operatorName: string,
+  mobileData: MobileReference[],
+  retenData: RetenReplacement[] = [],
+  opts: FleetReportOptions
+) => {
+  const doc = new jspdf.jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 10;
+
+  // Filter for CHOFER units (Vehicles) belonging to the fleet (RENTING / SIPCOP)
+  const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
+  const fleetMobileIds = new Set(
+    mobileData
+      .filter(m => opts.fleetPredicate(m))
+      .map(m => normalize(m.id))
+  );
+  const vehicleUnits = units.filter(u => u.type === 'CHOFER' && fleetMobileIds.has(normalize(u.id)));
+
+  const formatLongDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // --- HEADER ---
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(opts.title, pageWidth / 2, 12, { align: 'center' });
 
   // Shift Box
   doc.setLineWidth(0.5);
@@ -308,13 +559,18 @@ export const generateVehicleReport = (
       isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s)
     );
     const baseFleet = mobileData.filter(u =>
-      u.type === 'CHOFER' &&
-      normalize(u.propiedad) === 'RENTING' &&
+      opts.fleetPredicate(u) &&
       (isOtrasAreas ? sourceSectorsFor(s).includes(normalize(u.sector)) : normalize(u.sector).includes(s))
     ).length;
 
-    // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12)
-    const countReten = sectorUnits.filter(u => normalize(u.id).startsWith('AR-')).length;
+    // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12).
+    // AR units are counted even when their DATA row lacks the fleet mark
+    // (e.g. SIPCOP), since a registered replacement always belongs to the sector.
+    const sectorChoferUnits = units.filter(u =>
+      u.type === 'CHOFER' &&
+      (isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s))
+    );
+    const countReten = sectorChoferUnits.filter(u => normalize(u.id).startsWith('AR-')).length;
 
     // Regular statuses only for non-AR units
     const regularUnits = sectorUnits.filter(u => !normalize(u.id).startsWith('AR-'));
@@ -362,7 +618,7 @@ export const generateVehicleReport = (
   (doc as any).autoTable({
     startY: 38,
     head: [[
-      { content: 'FLOTA VEHICULAR', colSpan: 6, styles: { halign: 'center', fillColor: [38, 70, 83] } }
+      { content: opts.tableHeader, colSpan: 6, styles: { halign: 'center', fillColor: [38, 70, 83] } }
     ], [
       'SECTORES', 'EFECTIVO', 'INOPERATIVOS', 'PATRULLANDO', 'SIN PATRULLAR', 'RETEN'
     ]],
@@ -497,9 +753,39 @@ export const generateVehicleReport = (
   doc.setFont('helvetica', 'normal');
   doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
 
-  const fileName = `REPORTE_VEHICULOS_RENTING_${shift.toUpperCase()}_${date}.pdf`;
+  const fileName = `${opts.filePrefix}_${shift.toUpperCase()}_${date}.pdf`;
   doc.save(fileName);
 };
+
+export const generateVehicleReport = (
+  units: UnitData[],
+  settingsMap: Record<string, AppSettings>,
+  date: string,
+  shift: string,
+  operatorName: string,
+  mobileData: MobileReference[],
+  retenData: RetenReplacement[] = []
+) => generateFleetReport(units, settingsMap, date, shift, operatorName, mobileData, retenData, {
+  fleetPredicate: (m) => m.type === 'CHOFER' && String(m.propiedad ?? '').trim().toUpperCase() === 'RENTING',
+  title: 'REPORTE NUMÉRICO DE VEHÍCULOS RENTING',
+  tableHeader: 'FLOTA VEHICULAR',
+  filePrefix: 'REPORTE_VEHICULOS_RENTING'
+});
+
+export const generateSipcopReport = (
+  units: UnitData[],
+  settingsMap: Record<string, AppSettings>,
+  date: string,
+  shift: string,
+  operatorName: string,
+  mobileData: MobileReference[],
+  retenData: RetenReplacement[] = []
+) => generateFleetReport(units, settingsMap, date, shift, operatorName, mobileData, retenData, {
+  fleetPredicate: (m) => m.type === 'CHOFER' && String(m.sipcop ?? '').trim().toUpperCase() === 'SIPCOP',
+  title: 'REPORTE NUMÉRICO DE VEHÍCULOS SIPCOP',
+  tableHeader: 'FLOTA VEHICULAR SIPCOP',
+  filePrefix: 'REPORTE_VEHICULOS_SIPCOP'
+});
 
 export const generatePersonnelAbsenceReport = (
   units: UnitData[],
@@ -1017,113 +1303,6 @@ export const generatePersonnelStatusReport = (
   doc.save(`REPORTE_PERSONAL_ESTADO_${shift}_${date}.pdf`);
 };
 
-
-export const generateObservationsReport = (
-  units: UnitData[],
-  date: string,
-  shift: string,
-  operatorName?: string
-) => {
-  const doc = new jspdf.jsPDF({
-    orientation: 'landscape',
-    unit: 'mm',
-    format: 'a4'
-  });
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 10;
-
-  const formatShortDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr + 'T12:00:00');
-      const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-      return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
-    } catch (e) {
-      return dateStr;
-    }
-  };
-
-  const resolvedOperator = operatorName || '--';
-
-  // Filter units with observations (mechanics)
-  // Requisito: Nombre y apellidos no en blanco y que tengan letras.
-  const unitsWithObservations = units.filter(u => {
-    const hasValidPersonnel = (u.personnel1 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(u.personnel1)) ||
-                              (u.personnel2 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(u.personnel2));
-    const hasMechanics = u.mechanics && u.mechanics.trim() !== '';
-    return hasValidPersonnel && hasMechanics;
-  });
-
-  const rows: any[] = [];
-  unitsWithObservations.forEach(u => {
-    const sector = (u.sector || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '');
-    const dateFormatted = formatShortDate(date);
-    
-    // Incluir lugarEstado, motivoEstado, y observaciones (mechanics)
-    const extraInfo = [u.lugarEstado, u.motivoEstado].filter(x => x && x.trim() !== '').join(' - ');
-
-    // Each person gets a row with the same observation
-    if (u.personnel1 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(u.personnel1)) {
-      rows.push([
-        dateFormatted,
-        shift.toUpperCase(),
-        sector,
-        u.personnel1.toUpperCase(),
-        extraInfo || '--',
-        u.mechanics.toUpperCase()
-      ]);
-    }
-    if (u.personnel2 && /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(u.personnel2)) {
-      rows.push([
-        dateFormatted,
-        shift.toUpperCase(),
-        sector,
-        u.personnel2.toUpperCase(),
-        extraInfo || '--',
-        u.mechanics.toUpperCase()
-      ]);
-    }
-  });
-
-  // Sort by sector
-  rows.sort((a, b) => a[2].localeCompare(b[2]));
-
-  (doc as any).autoTable({
-    startY: 15,
-    head: [[
-      { content: `REPORTE DE LOS PUESTOS DE COMANDOS - TURNO ${shift.toUpperCase()}`, colSpan: 6, styles: { halign: 'center', fillColor: [180, 180, 180], textColor: [0, 0, 0], fontSize: 11 } }
-    ], [
-      'FECHA', 'TURNO', 'SECTOR', 'NOMBRES Y APELLIDOS', 'LUGAR/MOTIVO ESTADO', 'OBSERVACIONES'
-    ]],
-    body: rows,
-    theme: 'grid',
-    styles: { fontSize: 8, halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1 },
-    headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold' },
-    columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 20 },
-      2: { cellWidth: 15 },
-      3: { cellWidth: 60, halign: 'left' },
-      4: { cellWidth: 40, halign: 'left' },
-      5: { cellWidth: 'auto', halign: 'left' }
-    },
-    margin: { left: margin, right: margin }
-  });
-
-  // --- FOOTER ---
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const footerY = pageHeight - 15;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
-
-  const now = new Date();
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
-
-  doc.save(`REPORTE_OBSERVACIONES_${shift}_${date}.pdf`);
-};
 
 export const generateAllRecordsReport = (
   units: UnitData[],

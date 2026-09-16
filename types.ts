@@ -151,6 +151,7 @@ export interface MobileReference {
   status?: string;
   type?: string;
   propiedad?: string;
+  sipcop?: string;
 }
 
 export interface RetenReplacement {
