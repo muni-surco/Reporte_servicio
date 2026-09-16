@@ -3,7 +3,7 @@ declare const jspdf: any;
 declare const google: any;
 declare const XLSX: any;
 
-import { UnitData, AppSettings, Sector, PersonnelData, MobileReference, RetenReplacement, isTacticoPPFFStatus } from '../types';
+import { UnitData, AppSettings, Sector, PersonnelData, MobileReference, RetenReplacement, isTacticoPPFFStatus, sourceSectorsFor } from '../types';
 
 export const generateMotoReport = (
   units: UnitData[],
@@ -314,15 +314,23 @@ export const generateVehicleReport = (
   doc.text(formatLongDate(date), pageWidth / 2, 33, { align: 'center' });
 
   // --- SUMMARY TABLE (FLOTA VEHICULAR) ---
+  // OTRAS AREAS agrupa la flota/unidades de los sectores FISCA, ADM y TRANSITO
   const sectors = [
-    '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'GIR', 'RESCATE'
+    '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'GIR', 'RESCATE', 'OTRAS AREAS'
   ];
 
   const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
 
   const summaryRows = sectors.map(s => {
-    const sectorUnits = vehicleUnits.filter(u => normalize(u.sector).includes(s));
-    const baseFleet = mobileData.filter(u => u.type === 'CHOFER' && normalize(u.sector).includes(s) && normalize(u.propiedad) === 'RENTING').length;
+    const isOtrasAreas = normalize(s) === 'OTRAS AREAS';
+    const sectorUnits = vehicleUnits.filter(u =>
+      isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s)
+    );
+    const baseFleet = mobileData.filter(u =>
+      u.type === 'CHOFER' &&
+      normalize(u.propiedad) === 'RENTING' &&
+      (isOtrasAreas ? sourceSectorsFor(s).includes(normalize(u.sector)) : normalize(u.sector).includes(s))
+    ).length;
 
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12)
     const countReten = sectorUnits.filter(u => normalize(u.id).startsWith('AR-')).length;
