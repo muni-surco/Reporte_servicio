@@ -155,6 +155,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
         const serenos = activeUnits.filter(u => u.type === 'SERENO');
         const isRescate = sectorName === 'RESCATE';
         const isTechnical = sectorName === 'C4' || sectorName === 'COVV';
+        const isOtrasAreas = isOtrasAreasSector(sectorName);
         const missingHeaderClass = highlightMissingHeader
           ? 'border-red-200 bg-red-50/60 text-red-700'
           : 'border-slate-100 bg-white text-slate-700';
@@ -235,7 +236,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
             </div>
 
             {/* Grid de Secciones */}
-            <div className={`p-4 grid gap-4 ${(isRescate || isTechnical) ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
+            <div className={`p-4 grid gap-4 ${(isRescate || isTechnical) ? 'grid-cols-1' : (isOtrasAreas ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-3')}`}>
               {/* Columna Choferes - Solo se muestra si NO es técnico (C4/COVV) */}
               {!isTechnical && (
                 <div className={`flex flex-col rounded-xl border border-blue-50 overflow-hidden ${isRescate ? 'w-full' : ''}`}>
@@ -271,7 +272,8 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                     </div>
                   </div>
 
-                  {/* Columna Serenos */}
+                  {/* Columna Serenos (oculta en OTRAS AREAS) */}
+                  {!isOtrasAreas && (
                   <div className="flex flex-col rounded-xl border border-teal-50 overflow-hidden">
                     <div className="text-[16px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-teal-100 font-medium">
                       <div className="flex items-center gap-2">
@@ -285,6 +287,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                       {serenos.length === 0 && <p className="text-[12px] italic text-slate-300 py-10 text-center bg-white font-medium uppercase tracking-widest">Sin registros</p>}
                     </div>
                   </div>
+                  )}
                 </>
               )}
 

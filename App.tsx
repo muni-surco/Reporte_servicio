@@ -12,7 +12,7 @@ import RetenManagementView from './components/RetenManagementView';
 import VehicleSearchView from './components/VehicleSearchView';
 import MapView from './components/MapView';
 import WantedView from './components/WantedView';
-import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS, RetenReplacement, sourceSectorsFor } from './types';
+import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS, RetenReplacement, sourceSectorsFor, isOtrasAreasSector } from './types';
 import { Users, LayoutDashboard, FileText, TriangleAlert } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal';
 
@@ -520,6 +520,8 @@ id: d.id,
                   : (isRescate ? ['CHOFER'] as const : ['CHOFER', 'MOTO', 'SERENO'] as const);
 
                 typesToLoad.forEach(type => {
+                  // OTRAS AREAS no usa la sección Serenos
+                  if (isOtrasAreasSector(s) && type === 'SERENO') return;
                   if (!sectorUnits.some(u => u.type === type)) {
                     const typeDefaults = defaults
                       .filter(d => d.type === type)
@@ -1055,6 +1057,8 @@ hours: '--:-- - --:--',
         : (isRescate ? ['CHOFER'] as const : ['CHOFER', 'MOTO', 'SERENO'] as const);
 
       typesToLoad.forEach(type => {
+        // OTRAS AREAS no usa la sección Serenos
+        if (isOtrasAreasSector(s) && type === 'SERENO') return;
         const hasType = sectorUnits.some(u => u.type === type);
         if (!hasType) {
           const typeDefaults = defaults
@@ -1467,6 +1471,7 @@ hours: '--:-- - --:--',
                   allUnits={units}
                   editingId={editingId}
                   onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                  showAdd={!isOtrasAreasSector(currentSector)}
                   mobileData={mobileData}
                   statusOptions={statusOptions}
                   indicativeOptions={indicativeOptions}
@@ -1495,6 +1500,7 @@ hours: '--:-- - --:--',
                   allUnits={units}
                   editingId={editingId}
                   onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                  showAdd={!isOtrasAreasSector(currentSector)}
                   mobileData={mobileData}
                   statusOptions={statusOptions}
                   indicativeOptions={indicativeOptions}
@@ -1515,7 +1521,7 @@ hours: '--:-- - --:--',
                   codigoTaserSuggestions={availableTaserOptions}
                 />
               )}
-              {currentSector !== 'RESCATE' && (
+              {currentSector !== 'RESCATE' && !isOtrasAreasSector(currentSector) && (
                 <UnitSection
                   title={(currentSector === 'C4' || currentSector === 'COVV') ? 'OPERADORES' : 'SERENOS'} 
                   type="SERENO" icon="hail"

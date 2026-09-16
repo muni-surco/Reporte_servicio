@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Pencil, Plus, X, Fuel } from 'lucide-react';
-import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS, isTacticoPPFFStatus } from '../types';
+import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS, isTacticoPPFFStatus, isOtrasAreasSector } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
 
@@ -234,6 +234,9 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
 
     const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.DESPERFECTOS;
 
+    // OTRAS AREAS: chofer y radio son opcionales (unidades de administración/finanzas/transporte)
+    const isOtrasAreasCard = isOtrasAreasSector(formData.sector || unit.sector);
+
     const isValidMobileId = !formData.id || String(formData.id).trim() === '' ||
       isSereno ||
       isFreeIdCase ||
@@ -294,9 +297,9 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
       status: !formData.status || String(formData.status).trim() === '',
       id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
-      personnel1: (!isNoPersonnelStatus && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
+      personnel1: (!isNoPersonnelStatus && !isOtrasAreasCard && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
       personnel2: isPersonnel2Duplicate,
-      radio: !isSpecialStatus && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'),
+      radio: !isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'),
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),

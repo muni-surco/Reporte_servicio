@@ -28,6 +28,8 @@ interface UnitSectionProps {
   isSaving?: boolean;
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
   readOnly?: boolean;
+  // Cuando es false, oculta el botón "NUEVO REGISTRO" (pero permite editar)
+  showAdd?: boolean;
   personnelRegimenMap?: Record<string, string>;
   codigoBodycamOptions?: string[];
   codigoTaserOptions?: string[];
@@ -60,6 +62,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   isSaving,
   saveStatus,
   readOnly,
+  showAdd = true,
   personnelRegimenMap,
   codigoBodycamOptions,
   codigoTaserOptions,
@@ -99,7 +102,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
             </h2>
           </div>
         </div>
-        {!readOnly && (
+        {!readOnly && showAdd && (
           <button
             onClick={() => onAdd(type)}
             className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-medium hover:opacity-70 group transition-all`}
