@@ -70,6 +70,13 @@ function toDisplaySector(value) {
   return stored;
 }
 
+// Virtual sectors have a storage key that never existed in the legacy UNIT_DATA
+// sheet (defaults come from the DATA sheet / RTDB). For them, the full-sheet
+// fallback is guaranteed to find nothing, so it must be skipped to avoid slow scans.
+function _isVirtualSector(storageSector) {
+  return storageSector === 'OTRAS_AREAS';
+}
+
 /**
  * INITIAL SETUP: Creates the database structure for historical persistence.
  * Run this function once from the GAS editor.
@@ -398,7 +405,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
       } catch (e) { /* fallback */ }
     }
 
-    if (!fromFirebase) {
+    if (!fromFirebase && !_isVirtualSector(targetSectorStorage)) {
       const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
       if (dataSheet) {
         const dLastRow = dataSheet.getLastRow();
@@ -1035,6 +1042,9 @@ function _readPrevShiftUnits(prevDateStr, prevShift, sectorStorage, timeZone) {
     }
     if (out.length) return out;
   } catch (e) { /* fallback */ }
+
+  // Virtual sectors never existed in the legacy sheet; skip the full-sheet fallback.
+  if (_isVirtualSector(sectorStorage)) return [];
 
   var ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   var dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
