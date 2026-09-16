@@ -5,6 +5,12 @@ declare const XLSX: any;
 
 import { UnitData, AppSettings, Sector, PersonnelData, MobileReference, RetenReplacement, isTacticoPPFFStatus, sourceSectorsFor } from '../types';
 
+// Los valores numéricos iguales a 0 se muestran en blanco en los reportes
+const blankZero = (v: number | string): string => {
+  const n = Number(v);
+  return n ? String(v) : '';
+};
+
 export const generateMotoReport = (
   units: UnitData[],
   settingsMap: Record<string, AppSettings>,
@@ -24,8 +30,16 @@ export const generateMotoReport = (
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
 
-  // Filter specifically for the selected model
-  const motoUnits = units.filter(u => u.type === 'MOTO' && (u.model || '').toUpperCase().includes(titleSuffix.toUpperCase()));
+  // Filter specifically for the selected model (tolerant: ignores spaces/punctuation
+  // and uses the short model key, since DATA may store 'XTZ 150' instead of 'YAMAHA XTZ150')
+  const normModel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/[\s.\-_]+/g, '');
+  const filterKeys = [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
+  const motoUnits = units.filter(u => {
+    if (u.type !== 'MOTO') return false;
+    const m = normModel(u.model);
+    if (!m) return false;
+    return filterKeys.some(k => m.includes(k) || k.includes(m));
+  });
 
   const formatLongDate = (dateStr: string) => {
     try {
@@ -61,7 +75,7 @@ export const generateMotoReport = (
   const sectors = [
     '1A', '1B', '2A', '2B', '3',
     '4', '5', '6', '7', '8',
-    '9A', 'GIR'
+    '9A', '9B', 'GIR', 'OTRAS AREAS'
   ];
 
   const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
@@ -80,10 +94,10 @@ export const generateMotoReport = (
 
     return [
       sectorCode,
-      efectivo || '0',
-      inoperativos || '0',
-      patrullando || '0',
-      sinPatrullar || '0'
+      blankZero(efectivo),
+      blankZero(inoperativos),
+      blankZero(patrullando),
+      blankZero(sinPatrullar)
     ];
   });
 
@@ -98,10 +112,10 @@ export const generateMotoReport = (
 
   summaryRows.push([
     'TOTALES',
-    totals[0].toString(),
-    totals[1].toString(),
-    totals[2].toString(),
-    totals[3].toString()
+    blankZero(totals[0]),
+    blankZero(totals[1]),
+    blankZero(totals[2]),
+    blankZero(totals[3])
   ]);
 
   (doc as any).autoTable({
@@ -153,36 +167,19 @@ export const generateMotoReport = (
 
   let finalY = (doc as any).lastAutoTable.finalY + 8;
 
-  // --- PERMANENCIA + OPERADOR CCO ---
+  // --- PERMANENCIA (sin cuadro OPERADOR CCO) ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
   // Supervisor CCO debe provenir del sector C4 (requerimiento específico para reporte de motos)
   const c4Key = Object.keys(settingsMap).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
   const c4Settings = (c4Key ? (settingsMap as any)[c4Key] : null) || (settingsMap as any)['C4'] || (settingsMap as any)['SECTOR C4'] || null;
   const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
-  const permanenciaLabel = 'PERMANENCIA';
   const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
-  const dayOfWeek = new Date(date + 'T12:00:00').getDay();
-  const showPermanencia = dayOfWeek === 0 || dayOfWeek === 6 || shift === 'NOCHE';
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.setDrawColor(0);
-  if (showPermanencia) {
-    // Row 1: PERMANENCIA
-    doc.rect(margin, finalY, pageWidth - (margin * 2), 10);
-    doc.text(`${permanenciaLabel} :`, margin + 5, finalY + 6.5);
-    doc.setFont('helvetica', 'normal');
-    doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 6.5);
-    finalY += 10;
-  }
-  // Row 2: OPERADOR CCO
-  doc.setFont('helvetica', 'bold');
-  doc.rect(margin, finalY, pageWidth - (margin * 2), 10);
-  doc.text('OPERADOR CCO :', margin + 5, finalY + 6.5);
-  doc.setFont('helvetica', 'normal');
-  doc.text(resolvedOperator, margin + 45, finalY + 6.5);
 
-  finalY += 15;
+  finalY += 8;
 
   // --- DETAILS --- unidad / estado / motivo
   const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
@@ -222,34 +219,18 @@ export const generateMotoReport = (
     tableWidth: (pageWidth / 2) - margin - 5
   });
 
-  const previousAutoTable = (doc as any).lastAutoTable;
-  const finalDetailY = Math.max(previousAutoTable ? previousAutoTable.finalY : 0, finalY);
-  const signatureBlockHeight = 25;
-  let signatureY = finalDetailY + 10;
-
-  if (signatureY + signatureBlockHeight > pageHeight - 10) {
-    doc.addPage();
-    signatureY = 20;
-  }
-
-  // --- SIGNATURES ---
-  doc.setLineWidth(0.5);
-  doc.line(margin + 10, signatureY, margin + 70, signatureY);
-  doc.line(pageWidth - margin - 70, signatureY, pageWidth - margin - 10, signatureY);
-
-  doc.setFontSize(8);
+  // --- FOOTER (mismo estilo que reporte renting) ---
+  const footerY = pageHeight - 20;
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.text('SUPERVISOR CCO', margin + 40, signatureY + 5, { align: 'center' });
-  doc.text('OPERADOR CCO', pageWidth - margin - 40, signatureY + 5, { align: 'center' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.text(c4Supervisor || '______________________', margin + 40, signatureY + 10, { align: 'center' });
-  doc.text(resolvedOperator, pageWidth - margin - 40, signatureY + 10, { align: 'center' });
+  doc.text(`SUPERVISOR CCO: ${c4Supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
+  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY + 3, { align: 'right' });
 
   // Timestamp
   const now = new Date();
   doc.setFontSize(7);
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, signatureY + 18);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
 
   const fileName = `REPORTE_MOTOS_${titleSuffix.toUpperCase()}_${shift}_${date}.pdf`;
   doc.save(fileName);
@@ -351,11 +332,11 @@ export const generateVehicleReport = (
 
     return [
       s,
-      efectivo || '0',
-      countInoperativos || '0',
-      countPatrullando || '0',
-      countSinPatrullar || '0',
-      countReten || '0'
+      blankZero(efectivo),
+      blankZero(countInoperativos),
+      blankZero(countPatrullando),
+      blankZero(countSinPatrullar),
+      blankZero(countReten)
     ];
   });
 
@@ -371,11 +352,11 @@ export const generateVehicleReport = (
 
   summaryRows.push([
     'TOTALES',
-    totals[0].toString(),
-    totals[1].toString(),
-    totals[2].toString(),
-    totals[3].toString(),
-    totals[4].toString()
+    blankZero(totals[0]),
+    blankZero(totals[1]),
+    blankZero(totals[2]),
+    blankZero(totals[3]),
+    blankZero(totals[4])
   ]);
 
   (doc as any).autoTable({
@@ -429,27 +410,11 @@ export const generateVehicleReport = (
   const c4Key = Object.keys(settingsMap).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
   const c4Settings = (c4Key ? (settingsMap as any)[c4Key] : null) || (settingsMap as any)['C4'] || (settingsMap as any)['SECTOR C4'] || null;
   const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
-  const permanenciaLabel = 'PERMANENCIA';
   const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
-  const dayOfWeek = new Date(date + 'T12:00:00').getDay();
-  const showPermanencia = dayOfWeek === 0 || dayOfWeek === 6 || shift === 'NOCHE';
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  if (showPermanencia) {
-    // Row 1: PERMANENCIA
-    doc.setFillColor(38, 70, 83);
-    doc.rect(margin, finalY, 40, 7, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.text(` ${permanenciaLabel} :`, margin + 2, finalY + 4.8);
-    doc.setDrawColor(0);
-    doc.rect(margin + 40, finalY, pageWidth - (margin * 2) - 40, 7);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.text(firstSectorSettings.permanencia || '--', margin + 45, finalY + 4.8);
-    finalY += 7;
-  }
-  finalY += 9;
+  finalY += 5;
 
   // --- DETAILS TABLES ---
   const retenByUnit = new Map<string, string>();
