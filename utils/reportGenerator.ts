@@ -181,40 +181,40 @@ export const generateMotoReport = (
 
   finalY += 8;
 
-  // --- DETAILS --- unidad / estado / motivo
+  // --- DETAILS --- n° / unidad / estado / motivo
   const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
   const inopData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map(u => [u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
 
-  while (inopData.length < 15) inopData.push(['', '', '']);
+  while (inopData.length < 15) inopData.push(['', '', '', '']);
 
   const sinPatrullarData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map(u => [u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
 
-  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '']);
+  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '', '']);
 
-  // Tres columnas para detalles: unidad / estado / motivo
+  // Cuatro columnas para detalles: n° / unidad / estado / motivo
   (doc as any).autoTable({
     startY: finalY,
-    head: [[{ content: 'INOPERATIVOS', colSpan: 3, styles: { halign: 'center', fillColor: [220, 53, 69] } }]],
+    head: [[{ content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } }]],
     body: inopData,
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
     headStyles: { textColor: [255, 255, 255] },
-    columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 28 } },
+    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 15 }, 2: { cellWidth: 28 }, 3: { cellWidth: 25 } },
     margin: { left: margin },
     tableWidth: (pageWidth / 2) - margin - 5
   });
 
   (doc as any).autoTable({
     startY: finalY,
-    head: [[{ content: 'SIN PATRULLAR', colSpan: 3, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }]],
+    head: [[{ content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }]],
     body: sinPatrullarData,
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
-    columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 28 } },
+    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 15 }, 2: { cellWidth: 28 }, 3: { cellWidth: 25 } },
     margin: { left: pageWidth / 2 + 5 },
     tableWidth: (pageWidth / 2) - margin - 5
   });
@@ -483,6 +483,7 @@ export interface FleetReportOptions {
   fleetPredicate: (m: MobileReference) => boolean;
   title: string;
   tableHeader: string;
+  camionetaHeader: string;
   filePrefix: string;
 }
 
@@ -545,15 +546,17 @@ const generateFleetReport = (
   doc.setFont('helvetica', 'normal');
   doc.text(formatLongDate(date), pageWidth / 2, 33, { align: 'center' });
 
-  // --- SUMMARY TABLE (FLOTA VEHICULAR) ---
-  // OTRAS AREAS agrupa la flota/unidades de los sectores FISCA, ADM y TRANSITO
-  const sectors = [
-    '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'GIR', 'RESCATE', 'OTRAS AREAS'
+  // --- SUMMARY TABLES (FLOTA VEHICULAR + FLOTA CAMIONETAS) ---
+  // OTRAS AREAS agrupa la flota/unidades de los sectores FISCA, ADM y TRANSITO.
+  // GIR, RESCATE y OTRAS AREAS van en una tabla aparte debajo: FLOTA CAMIONETAS.
+  const mainSectors = [
+    '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B'
   ];
+  const camionetaSectors = ['GIR', 'RESCATE', 'OTRAS AREAS'];
 
   const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
 
-  const summaryRows = sectors.map(s => {
+  const buildFleetRow = (s: string) => {
     const isOtrasAreas = normalize(s) === 'OTRAS AREAS';
     const sectorUnits = vehicleUnits.filter(u =>
       isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s)
@@ -576,7 +579,10 @@ const generateFleetReport = (
     const regularUnits = sectorUnits.filter(u => !normalize(u.id).startsWith('AR-'));
 
     const countInoperativos = regularUnits.filter(u => inoperativeStatuses.includes(normalize(u.status))).length;
-    const countPatrullando = regularUnits.filter(u => normalize(u.status) === 'PATRULLANDO').length;
+    // TACTICO PP.FF. se considera como PATRULLANDO
+    const countPatrullando = regularUnits.filter(u =>
+      normalize(u.status) === 'PATRULLANDO' || isTacticoPPFFStatus(u.status)
+    ).length;
     const countSinPatrullar = regularUnits.filter(u =>
       normalize(u.status) !== 'PATRULLANDO' &&
       !inoperativeStatuses.includes(normalize(u.status)) &&
@@ -592,71 +598,84 @@ const generateFleetReport = (
       blankZero(countInoperativos),
       blankZero(countPatrullando),
       blankZero(countSinPatrullar),
-      blankZero(countReten)
+      // En FLOTA CAMIONETAS el retén no aplica
+      camionetaSectors.includes(s) ? 'NO APLICA' : blankZero(countReten)
     ];
-  });
+  };
 
   // Calculate Totals
-  const totals = summaryRows.reduce((acc: number[], curr: any[]) => {
-    acc[0] += Number(curr[1]) || 0;
-    acc[1] += Number(curr[2]) || 0;
-    acc[2] += Number(curr[3]) || 0;
-    acc[3] += Number(curr[4]) || 0;
-    acc[4] += Number(curr[5]) || 0;
-    return acc;
-  }, [0, 0, 0, 0, 0]);
+  const withTotals = (rows: any[][], retenNA: boolean) => {
+    const totals = rows.reduce((acc: number[], curr: any[]) => {
+      acc[0] += Number(curr[1]) || 0;
+      acc[1] += Number(curr[2]) || 0;
+      acc[2] += Number(curr[3]) || 0;
+      acc[3] += Number(curr[4]) || 0;
+      acc[4] += Number(curr[5]) || 0;
+      return acc;
+    }, [0, 0, 0, 0, 0]);
 
-  summaryRows.push([
-    'TOTALES',
-    blankZero(totals[0]),
-    blankZero(totals[1]),
-    blankZero(totals[2]),
-    blankZero(totals[3]),
-    blankZero(totals[4])
-  ]);
+    rows.push([
+      'TOTALES',
+      blankZero(totals[0]),
+      blankZero(totals[1]),
+      blankZero(totals[2]),
+      blankZero(totals[3]),
+      retenNA ? 'NO APLICA' : blankZero(totals[4])
+    ]);
+    return rows;
+  };
 
-  (doc as any).autoTable({
-    startY: 38,
-    head: [[
-      { content: opts.tableHeader, colSpan: 6, styles: { halign: 'center', fillColor: [38, 70, 83] } }
-    ], [
-      'SECTORES', 'EFECTIVO', 'INOPERATIVOS', 'PATRULLANDO', 'SIN PATRULLAR', 'RETEN'
-    ]],
-    body: summaryRows,
-    theme: 'grid',
-    styles: { fontSize: 7.5, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1, cellPadding: 1 },
-    headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 7.5 },
-    columnStyles: {
-      0: { cellWidth: 35, fillColor: [240, 240, 240] },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 25 },
-      3: { cellWidth: 25 },
-      4: { cellWidth: 25 },
-      5: { cellWidth: 25 }
-    },
-    didParseCell: function (data: any) {
-      if (data.row.section === 'body') {
-        const isTotalRow = data.row.index === summaryRows.length - 1;
+  const summaryRows = withTotals(mainSectors.map(buildFleetRow), false);
+  const camionetaRows = withTotals(camionetaSectors.map(buildFleetRow), true);
 
-        if (data.column.index === 1) data.cell.styles.fillColor = [220, 255, 220];
-        if (data.column.index === 2) data.cell.styles.fillColor = [255, 200, 200];
-        if (data.column.index === 3) data.cell.styles.fillColor = [255, 255, 200];
-        if (data.column.index === 4) data.cell.styles.fillColor = [255, 255, 200];
-        if (data.column.index === 5) data.cell.styles.fillColor = [255, 230, 230];
+  const renderFleetSummary = (title: string, rows: any[][], startY: number) => {
+    (doc as any).autoTable({
+      startY,
+      head: [[
+        { content: title, colSpan: 6, styles: { halign: 'center', fillColor: [38, 70, 83] } }
+      ], [
+        'SECTORES', 'EFECTIVO', 'INOPERATIVOS', 'PATRULLANDO', 'SIN PATRULLAR', 'RETEN'
+      ]],
+      body: rows,
+      theme: 'grid',
+      styles: { fontSize: 7.5, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1, cellPadding: 1 },
+      headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 7.5 },
+      columnStyles: {
+        0: { cellWidth: 35, fillColor: [240, 240, 240] },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 25 }
+      },
+      didParseCell: function (data: any) {
+        if (data.row.section === 'body') {
+          const isTotalRow = data.row.index === rows.length - 1;
 
-        if (isTotalRow) {
-          data.cell.styles.fillColor = [38, 70, 83];
-          data.cell.styles.textColor = [255, 255, 255];
-          if (data.column.index === 1) data.cell.styles.fillColor = [40, 167, 69];
-          if (data.column.index === 2) data.cell.styles.fillColor = [220, 53, 69];
-          if (data.column.index === 3) data.cell.styles.fillColor = [255, 193, 7];
-          if (data.column.index === 4) data.cell.styles.fillColor = [255, 193, 7];
-          if (data.column.index === 5) data.cell.styles.fillColor = [220, 160, 160];
+          if (data.column.index === 1) data.cell.styles.fillColor = [220, 255, 220];
+          if (data.column.index === 2) data.cell.styles.fillColor = [255, 200, 200];
+          if (data.column.index === 3) data.cell.styles.fillColor = [255, 255, 200];
+          if (data.column.index === 4) data.cell.styles.fillColor = [255, 255, 200];
+          if (data.column.index === 5) data.cell.styles.fillColor = [255, 230, 230];
+
+          if (isTotalRow) {
+            data.cell.styles.fillColor = [38, 70, 83];
+            data.cell.styles.textColor = [255, 255, 255];
+            if (data.column.index === 1) data.cell.styles.fillColor = [40, 167, 69];
+            if (data.column.index === 2) data.cell.styles.fillColor = [220, 53, 69];
+            if (data.column.index === 3) data.cell.styles.fillColor = [255, 193, 7];
+            if (data.column.index === 4) data.cell.styles.fillColor = [255, 193, 7];
+            if (data.column.index === 5) data.cell.styles.fillColor = [220, 160, 160];
+          }
         }
-      }
-    },
-    margin: { left: 15, right: 15 }
-  });
+      },
+      margin: { left: 15, right: 15 }
+    });
+    return (doc as any).lastAutoTable.finalY;
+  };
+
+  renderFleetSummary(opts.tableHeader, summaryRows, 38);
+  renderFleetSummary(opts.camionetaHeader, camionetaRows, (doc as any).lastAutoTable.finalY + 6);
 
   let finalY = (doc as any).lastAutoTable.finalY + 4;
 
@@ -681,14 +700,15 @@ const generateFleetReport = (
 
   const inopData = vehicleUnits
     .filter(u => !normalize(u.id).startsWith('AR-') && inoperativeStatuses.includes(normalize(u.status)))
-    .map(u => [
+    .map((u, idx) => [
+      String(idx + 1),
       u.id,
       (u.lugarEstado || '--').toString().toUpperCase(),
       (u.motivoEstado || u.mechanics || '--').toString().toUpperCase(),
       retenByUnit.get(normalize(u.id)) || '--'
     ]);
 
-  while (inopData.length < 15) inopData.push(['', '', '', '']);
+  while (inopData.length < 15) inopData.push(['', '', '', '', '']);
 
   const sinPatrullarData = vehicleUnits
     .filter(u => {
@@ -702,22 +722,22 @@ const generateFleetReport = (
         !isTacticoPPFFStatus(u.status)
       );
     })
-    .map(u => [u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
 
-  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '']);
+  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '', '']);
 
   (doc as any).autoTable({
     startY: finalY,
     head: [[
-      { content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } }
+      { content: 'INOPERATIVOS', colSpan: 5, styles: { halign: 'center', fillColor: [220, 53, 69] } }
     ], [
-      'UNIDAD', 'LUGAR', 'MOTIVO', 'RETEN'
+      'N°', 'UNIDAD', 'LUGAR', 'MOTIVO', 'RETEN'
     ]],
     body: inopData,
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
     headStyles: { textColor: [255, 255, 255] },
-    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 22 }, 3: { cellWidth: 18 } },
+    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 14 }, 2: { cellWidth: 22 }, 4: { cellWidth: 18 } },
     margin: { left: margin },
     tableWidth: (pageWidth / 2) - margin - 2
   });
@@ -725,14 +745,14 @@ const generateFleetReport = (
   (doc as any).autoTable({
     startY: finalY,
     head: [[
-      { content: 'SIN PATRULLAR', colSpan: 3, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
+      { content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
     ], [
-      'UNIDAD', 'ESTADO', 'MOTIVO'
+      'N°', 'UNIDAD', 'ESTADO', 'MOTIVO'
     ]],
     body: sinPatrullarData,
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
-    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 28 } },
+    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 14 }, 2: { cellWidth: 28 } },
     margin: { left: pageWidth / 2 + 2 },
     tableWidth: (pageWidth / 2) - margin - 2
   });
@@ -768,7 +788,8 @@ export const generateVehicleReport = (
 ) => generateFleetReport(units, settingsMap, date, shift, operatorName, mobileData, retenData, {
   fleetPredicate: (m) => m.type === 'CHOFER' && String(m.propiedad ?? '').trim().toUpperCase() === 'RENTING',
   title: 'REPORTE NUMÉRICO DE VEHÍCULOS RENTING',
-  tableHeader: 'FLOTA VEHICULAR',
+  tableHeader: 'FLOTA AUTOS',
+  camionetaHeader: 'FLOTA CAMIONETAS',
   filePrefix: 'REPORTE_VEHICULOS_RENTING'
 });
 
@@ -784,6 +805,7 @@ export const generateSipcopReport = (
   fleetPredicate: (m) => m.type === 'CHOFER' && String(m.sipcop ?? '').trim().toUpperCase() === 'SIPCOP',
   title: 'REPORTE NUMÉRICO DE VEHÍCULOS SIPCOP',
   tableHeader: 'FLOTA VEHICULAR SIPCOP',
+  camionetaHeader: 'FLOTA CAMIONETAS SIPCOP',
   filePrefix: 'REPORTE_VEHICULOS_SIPCOP'
 });
 

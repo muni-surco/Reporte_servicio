@@ -77,6 +77,16 @@ function _isVirtualSector(storageSector) {
   return storageSector === 'OTRAS_AREAS';
 }
 
+// CacheService values are limited to 100KB. Full-shift payloads can exceed it,
+// so cache writes must never throw (a throw would fail the whole backend call).
+function _cachePutSafe(cache, key, value, ttlSeconds) {
+  try {
+    cache.put(key, value, ttlSeconds);
+  } catch (e) {
+    console.warn('[_cachePutSafe] skip cache for ' + key + ': ' + e);
+  }
+}
+
 /**
  * INITIAL SETUP: Creates the database structure for historical persistence.
  * Run this function once from the GAS editor.
@@ -328,7 +338,7 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
     }
 
     allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, null, timeZone);
-    cache.put(cacheKey, JSON.stringify(allUnits), 60);
+    _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
@@ -431,7 +441,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
     }
 
     allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, targetSectorStorage, timeZone);
-    cache.put(cacheKey, JSON.stringify(allUnits), 60);
+    _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
     _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
