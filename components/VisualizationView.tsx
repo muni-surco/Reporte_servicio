@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { UnitData, AppSettings, UnitStatus, SECTORS, isTacticoPPFFStatus } from '../types';
+import { UnitData, AppSettings, UnitStatus, SECTORS, isTacticoPPFFStatus, isOtrasAreasSector } from '../types';
 
 interface VisualizationViewProps {
   allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }>;
@@ -172,7 +172,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 <div className="flex items-center gap-3 shrink-0 min-w-[140px]">
                   <div className="w-2 h-8 bg-[#004b93] rounded-full shadow-sm shadow-blue-200"></div>
                   <h2 className="text-[24px] font-medium tracking-tighter uppercase text-[#002d5a] leading-none">
-                    {sectorName === 'GIR' || sectorName === 'RESCATE' || sectorName === 'C4' || sectorName === 'COVV' ? sectorName : `SECTOR ${sectorName}`}
+                    {sectorName === 'GIR' || sectorName === 'RESCATE' || sectorName === 'C4' || sectorName === 'COVV' || isOtrasAreasSector(sectorName) ? sectorName : `SECTOR ${sectorName}`}
                   </h2>
                 </div>
 

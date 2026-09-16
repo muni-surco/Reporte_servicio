@@ -30,6 +30,7 @@ export type Sector =
   | 'GIR'
   | 'C4'
   | 'COVV'
+  | 'OTRAS AREAS'
   | string;
 
 export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH' | 'MAP' | 'WANTED';
@@ -205,8 +206,20 @@ export const SECTORS: Sector[] = [
   'RESCATE',
   'GIR',
   'C4',
-  'COVV'
+  'COVV',
+  'OTRAS AREAS'
 ];
+
+// OTRAS AREAS agrupa unidades de la hoja DATA con estos sectores
+export const OTRAS_AREAS_SOURCE_SECTORS = ['FISCA', 'ADM', 'TRANSITO'];
+
+export const isOtrasAreasSector = (value: unknown) =>
+  String(value ?? '').trim().toUpperCase() === 'OTRAS AREAS';
+
+export const sourceSectorsFor = (sector: unknown): string[] => {
+  const norm = String(sector ?? '').trim().toUpperCase();
+  return isOtrasAreasSector(norm) ? OTRAS_AREAS_SOURCE_SECTORS : [norm];
+};
 
 export const FUEL_TYPES = ['GLP', 'GASOLINA', 'PETROLEO'];
 export const RADIOS: string[] = [];

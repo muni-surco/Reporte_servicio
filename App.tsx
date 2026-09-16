@@ -12,7 +12,7 @@ import RetenManagementView from './components/RetenManagementView';
 import VehicleSearchView from './components/VehicleSearchView';
 import MapView from './components/MapView';
 import WantedView from './components/WantedView';
-import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS, RetenReplacement } from './types';
+import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS, RetenReplacement, sourceSectorsFor } from './types';
 import { Users, LayoutDashboard, FileText, TriangleAlert } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal';
 
@@ -55,6 +55,11 @@ const generateUnitId = (type: string, id: string, sector: string, date: string, 
 // Strips characters not allowed in a Firebase RTDB path token (., #, $, [, ], /
 // and whitespace) from the id portion of a unit key.
 const cleanUnitIdPart = (id: string) => String(id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+
+const selectMobileDefaults = (mobile: MobileReference[], sectorName: string) => {
+  const sources = sourceSectorsFor(sectorName);
+  return mobile.filter(m => sources.includes((m.sector || '').trim().toUpperCase()));
+};
 
 
 const App: React.FC = () => {
@@ -431,7 +436,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
           // 4. Inject Missing Defaults (Only for current sector to keep dashboard populated)
           const currentSectorNormalized = currentSector.trim().toUpperCase();
-          const defaults = mobileData.filter(m => (m.sector || '').trim().toUpperCase() === currentSectorNormalized);
+          const defaults = selectMobileDefaults(mobileData, currentSector);
           defaults.forEach(d => {
             const displayId = d.id.toUpperCase();
             const uniqueKey = `${currentSectorNormalized}_${displayId}`;
@@ -488,7 +493,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
                 permanencia: ''
               };
               let sectorUnits = allUnitsToUse.filter(u => u.sector === s);
-              const defaults = mobileData.filter(m => m.sector === s);
+              const defaults = selectMobileDefaults(mobileData, s);
 
               if (sectorUnits.length === 0) {
                 sectorUnits = defaults.map(d => ({
@@ -817,7 +822,7 @@ id: d.id,
       if (unitSector !== sectorKey || !isDefaultLoaded) return false;
 
       const source = mobileData.find(m =>
-        normalize(m.sector) === sectorKey &&
+        sourceSectorsFor(sectorKey).includes(normalize(m.sector)) &&
         normalize(m.id) === normalize(u.id) &&
         normalize(m.plate) === normalize(u.plate)
       );
@@ -1014,7 +1019,7 @@ id: d.id,
       permanencia: ''
     };
     let sectorUnits = units.filter(u => u.sector === s);
-    const defaults = mobileData.filter(m => m.sector === s);
+    const defaults = selectMobileDefaults(mobileData, s);
     
     if (sectorUnits.length === 0) {
       sectorUnits = defaults.map(d => ({

@@ -39,7 +39,10 @@ function toStorageSector(value) {
   if (!normalized) return '';
   if (normalized === 'RESCATE' || normalized === 'GIR') return normalized;
   // Handle cases like "SECTOR 1A" -> "1A"
-  return normalized.replace(/^SECTOR\s+/, '');
+  const cleaned = normalized.replace(/^SECTOR\s+/, '');
+  // OTRAS AREAS uses underscore in storage to avoid spaces in RTDB keys
+  if (cleaned === 'OTRAS AREAS') return 'OTRAS_AREAS';
+  return cleaned;
 }
 
 function getUnitType(id, typeFromSheet, sector) {
@@ -61,7 +64,10 @@ function getUnitType(id, typeFromSheet, sector) {
 }
 
 function toDisplaySector(value) {
-  return toStorageSector(value);
+  const stored = toStorageSector(value);
+  // OTRAS_AREAS is stored with underscore; display uses space
+  if (stored === 'OTRAS_AREAS') return 'OTRAS AREAS';
+  return stored;
 }
 
 /**
