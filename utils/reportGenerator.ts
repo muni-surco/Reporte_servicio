@@ -213,13 +213,13 @@ export const generateMotoReport = (
   // --- DETAILS --- n° / unidad / estado / motivo
   const inopData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
   while (inopData.length < 15) inopData.push(['', '', '', '']);
 
   const sinPatrullarData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '', '']);
 
@@ -480,11 +480,11 @@ export const generateConsolidatedMotoReport = (
   // incluso si el contenido fluye a más páginas
   const inopRows = allMotoUnits
     .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
   const sinPatRows = allMotoUnits
     .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
   const detailRows: any[][] = [];
   const maxDetailRows = Math.max(inopRows.length, sinPatRows.length, 15);
@@ -770,9 +770,9 @@ const generateFleetReport = (
     .map((u, idx) => [
       String(idx + 1),
       u.id,
-      (u.lugarEstado || '--').toString().toUpperCase(),
-      (u.motivoEstado || u.mechanics || '--').toString().toUpperCase(),
-      retenByUnit.get(normalize(u.id)) || '--'
+      (u.lugarEstado || 'NO APLICA').toString().toUpperCase(),
+      (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase(),
+      retenByUnit.get(normalize(u.id)) || 'NO APLICA'
     ]);
 
   while (inopData.length < 15) inopData.push(['', '', '', '', '']);
@@ -789,7 +789,7 @@ const generateFleetReport = (
         !isTacticoPPFFStatus(u.status)
       );
     })
-    .map((u, idx) => [String(idx + 1), u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
   while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '', '']);
 
@@ -1005,7 +1005,7 @@ export const generatePersonnelAbsenceReport = (
   console.log("DEBUG: Total ausencias únicas en Set:", explicitAbsentInUnits.size);
   console.log("DEBUG: Contenido del Set de ausentes:", Array.from(explicitAbsentInUnits));
 
-  // 2. Filter personnel list
+  // 2. Filter personnel list (solo personal de la hoja Personal)
   const absents = personnel.filter(p => {
     const name = normalize(p.apellidos_nombres);
     const isExplicit = explicitAbsentInUnits.has(name);
@@ -1015,21 +1015,7 @@ export const generatePersonnelAbsenceReport = (
     return isExplicit; 
   });
 
-  // 3. Add unmatched absent people from units
-  const personnelNormalizedNames = new Set(personnel.map(p => normalize(p.apellidos_nombres)));
-  explicitAbsentInUnits.forEach(name => {
-    if (!personnelNormalizedNames.has(name)) {
-      absents.push({
-        apellidos_nombres: name,
-        regimen_laboral: 'OS',
-        rol_operativo: '--',
-        estado: 'FALTO',
-        n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: '',
-        foto_url: ''
-      });
-      if (!nameToUnitMotivo.has(name)) nameToUnitMotivo.set(name, 'INASISTENCIA');
-    }
-  });
+  // NOTA: no se agregan ausentes sin ficha en Personal (solo hoja Personal)
 
   // 4. Group by regime and motif
   const getRegime = (p: any) => {
@@ -1152,7 +1138,9 @@ export const generatePersonnelAbsenceReport = (
                 p.apellidos_nombres?.toUpperCase() || '',
                 (p.rol_operativo || '').toUpperCase() || '',
                 shift.toUpperCase(),
-                nameToSector.get(nameNorm) || '--'
+                // Sector asignado originalmente (hoja Personal, columna sector_id);
+                // fallback al sector del registro del turno
+                (p.sector_id || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '') || nameToSector.get(nameNorm) || '--'
             ];
         });
 
@@ -1289,22 +1277,8 @@ export const generatePersonnelStatusReport = (
     }
   });
 
+  // Solo personal de la hoja Personal (no se agregan nombres sin ficha)
   const filteredPersonnel = personnel.filter(p => explicitInUnits.has(normalize(p.apellidos_nombres)));
-
-  // Add unmatched from units
-  const personnelNormalizedNames = new Set(personnel.map(p => normalize(p.apellidos_nombres)));
-  explicitInUnits.forEach(name => {
-    if (!personnelNormalizedNames.has(name)) {
-      filteredPersonnel.push({
-        apellidos_nombres: name,
-        regimen_laboral: 'OS',
-        rol_operativo: '--',
-        estado: 'ACTIVO',
-        n: '', dni: '', codigo_interno: '', sector_id: '', correo: '', telefono: '', rol_sistema: '', persona_id: '', pin_operativo: '', fecha_alta: '', fecha_baja: '',
-        foto_url: ''
-      });
-    }
-  });
 
   const getRegime = (p: any) => {
     const reg = (p.regimen_laboral || '').toString().toUpperCase();
@@ -1388,7 +1362,9 @@ export const generatePersonnelStatusReport = (
               p.apellidos_nombres?.toUpperCase() || '',
               (p.rol_operativo || '').toUpperCase() || '',
               shift.toUpperCase(),
-              nameToSector.get(nameNorm) || '--'
+              // Sector asignado originalmente (hoja Personal, columna sector_id);
+              // fallback al sector del registro del turno
+              (p.sector_id || '').toString().trim().toUpperCase().replace(/^SECTOR\s+/, '') || nameToSector.get(nameNorm) || '--'
           ];
       });
 
