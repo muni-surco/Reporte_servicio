@@ -18,7 +18,8 @@ export const generateMotoReport = (
   shift: string,
   modelFilter: string = 'XTZ150',
   titleSuffix: string = 'YAMAHA XTZ150',
-  operatorName?: string
+  operatorName?: string,
+  mobileData: MobileReference[] = []
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'portrait',
@@ -40,6 +41,26 @@ export const generateMotoReport = (
     if (!m) return false;
     return filterKeys.some(k => m.includes(k) || k.includes(m));
   });
+  // Matcher del modelo para la flota DATA (misma tolerancia que el filtro de registros)
+  const isFleetModel = (model: unknown) => {
+    const m = normModel(model);
+    if (!m) return false;
+    return filterKeys.some(k => m.includes(k) || k.includes(m));
+  };
+
+  // Normalizador de texto (declarado antes de su primer uso)
+  const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
+
+  // Sector por ID de mobileData (hoja DATA), con fallback a u.sector
+  const sectorById = new Map<string, string>();
+  mobileData.forEach(m => {
+    const id = normalize(m.id);
+    if (m.sector) sectorById.set(id, normalize(m.sector));
+  });
+  const getSector = (u: UnitData) => {
+    const fromData = sectorById.get(normalize(u.id));
+    return fromData || normalize(u.sector);
+  };
 
   const formatLongDate = (dateStr: string) => {
     try {
@@ -85,15 +106,23 @@ export const generateMotoReport = (
   };
 
   const summaryRows = sectors.map(s => {
-    const sectorCode = s;
-    const sectorUnits = motoUnits.filter(u => (u.sector || '').toUpperCase().includes(sectorCode));
-    const efectivo = sectorUnits.length;
+    const sectorCode = normalize(s);
+    // OTRAS AREAS agrupa FISCA/ADM/TRANSITO (igual que el reporte de flota)
+    const allowedSectors = sectorCode === 'OTRAS AREAS'
+      ? sourceSectorsFor(s).map(x => normalize(x))
+      : [sectorCode];
+    const inSector = (sectorValue: unknown) => allowedSectors.includes(normalize(sectorValue));
+    const sectorUnits = motoUnits.filter(u => inSector(getSector(u)));
+    // EFECTIVO: total por sector desde la hoja DATA (mobileData), no cuenta registros.
+    // Se matchea solo por modelo (sin exigir type=MOTO) para no excluir filas
+    // DATA con la columna tipo vacía o mal rotulada.
+    const efectivo = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector)).length;
     const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
     const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status)).length;
     const sinPatrullar = efectivo - inoperativos - patrullando;
 
     return [
-      sectorCode,
+      s,
       blankZero(efectivo),
       blankZero(inoperativos),
       blankZero(patrullando),
@@ -182,7 +211,6 @@ export const generateMotoReport = (
   finalY += 8;
 
   // --- DETAILS --- n° / unidad / estado / motivo
-  const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
   const inopData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
@@ -241,7 +269,8 @@ export const generateConsolidatedMotoReport = (
   settingsMap: Record<string, AppSettings>,
   date: string,
   shift: string,
-  operatorName?: string
+  operatorName?: string,
+  mobileData: MobileReference[] = []
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'portrait',
@@ -253,10 +282,26 @@ export const generateConsolidatedMotoReport = (
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
 
+  // Normalizador de texto (declarado antes de su primer uso)
+  const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
+
+  // Sector por ID de mobileData (hoja DATA), con fallback a u.sector
+  const sectorById = new Map<string, string>();
+  mobileData.forEach(m => {
+    const id = normalize(m.id);
+    if (m.sector) sectorById.set(id, normalize(m.sector));
+  });
+  const getSector = (u: UnitData) => {
+    const fromData = sectorById.get(normalize(u.id));
+    return fromData || normalize(u.sector);
+  };
+
   // Tolerant model matching (same criteria as the individual moto reports)
   const normModel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/[\s.\-_]+/g, '');
+  const modelKeysFor = (modelFilter: string, titleSuffix: string) =>
+    [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
   const motoUnitsFor = (modelFilter: string, titleSuffix: string) => {
-    const filterKeys = [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
+    const filterKeys = modelKeysFor(modelFilter, titleSuffix);
     return units.filter(u => {
       if (u.type !== 'MOTO') return false;
       const m = normModel(u.model);
@@ -266,6 +311,13 @@ export const generateConsolidatedMotoReport = (
   };
   const yamahaUnits = motoUnitsFor('YAMAHA XTZ150', 'YAMAHA XTZ150');
   const hondaUnits = motoUnitsFor('HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300');
+  // Matcher combinado Yamaha+Honda para contar la flota desde DATA
+  const allModelKeys = [...modelKeysFor('YAMAHA XTZ150', 'YAMAHA XTZ150'), ...modelKeysFor('HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300')];
+  const isFleetModel = (model: unknown) => {
+    const m = normModel(model);
+    if (!m) return false;
+    return allModelKeys.some(k => m.includes(k) || k.includes(m));
+  };
 
   const formatLongDate = (dateStr: string) => {
     try {
@@ -312,9 +364,15 @@ export const generateConsolidatedMotoReport = (
 
   const renderMotoSummary = (motoUnits: UnitData[], label: string, startY: number) => {
     const summaryRows = sectors.map(s => {
-      const sectorCode = s;
-      const sectorUnits = motoUnits.filter(u => (u.sector || '').toUpperCase().includes(sectorCode));
-      const efectivo = sectorUnits.length;
+      const sectorCode = normalize(s);
+      // OTRAS AREAS agrupa FISCA/ADM/TRANSITO (igual que el reporte de flota)
+      const allowedSectors = sectorCode === 'OTRAS AREAS'
+        ? sourceSectorsFor(s).map(x => normalize(x))
+        : [sectorCode];
+      const inSector = (sectorValue: unknown) => allowedSectors.includes(normalize(sectorValue));
+      const sectorUnits = motoUnits.filter(u => inSector(getSector(u)));
+      // EFECTIVO: total por sector desde la hoja DATA (mobileData), no cuenta registros
+      const efectivo = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector)).length;
       const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
       const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status)).length;
       const sinPatrullar = efectivo - inoperativos - patrullando;
@@ -420,7 +478,6 @@ export const generateConsolidatedMotoReport = (
   // Una sola tabla de 8 columnas (dos bloques lado a lado) para que
   // INOPERATIVOS y SIN PATRULLAR siempre queden al mismo nivel,
   // incluso si el contenido fluye a más páginas
-  const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
   const inopRows = allMotoUnits
     .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '--', (u.motivoEstado || u.mechanics || '--').toString().toUpperCase()]);
@@ -807,6 +864,24 @@ export const generateSipcopReport = (
   tableHeader: 'FLOTA VEHICULAR SIPCOP',
   camionetaHeader: 'FLOTA CAMIONETAS SIPCOP',
   filePrefix: 'REPORTE_VEHICULOS_SIPCOP'
+});
+
+export const generateConsolidatedMobileReport = (
+  units: UnitData[],
+  settingsMap: Record<string, AppSettings>,
+  date: string,
+  shift: string,
+  operatorName: string,
+  mobileData: MobileReference[],
+  retenData: RetenReplacement[] = []
+) => generateFleetReport(units, settingsMap, date, shift, operatorName, mobileData, retenData, {
+  fleetPredicate: (m) =>
+    m.type === 'CHOFER' &&
+    ['RENTING', 'SURCO', 'LIMA'].includes(String(m.propiedad ?? '').trim().toUpperCase()),
+  title: 'REPORTE CONSOLIDADO UNIDADES MÓVILES',
+  tableHeader: 'FLOTA CONSOLIDADA',
+  camionetaHeader: 'FLOTA CAMIONETAS CONSOLIDADA',
+  filePrefix: 'REPORTE_CONSOLIDADO_MOVILES'
 });
 
 export const generatePersonnelAbsenceReport = (

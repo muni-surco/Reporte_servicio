@@ -80,6 +80,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       btnClass: 'bg-indigo-600 hover:bg-indigo-700'
     },
     {
+      id: 'consolidado',
+      title: 'Unidades Consolidadas',
+      subtitle: 'RENTING · SURCO · LIMA',
+      description: 'Reporte consolidado de todas las unidades móviles (autos, camionetas y minivan) de propiedades Renting, Surco y Lima.',
+      icon: <FileText className="w-8 h-8" />,
+      color: 'teal',
+      themeClass: 'border-teal-100',
+      iconClass: 'bg-teal-50 text-teal-600',
+      btnClass: 'bg-teal-600 hover:bg-teal-700'
+    },
+    {
       id: 'sipcop',
       title: 'Flota SIPCOP',
       subtitle: 'VEHÍCULOS SIPCOP',
