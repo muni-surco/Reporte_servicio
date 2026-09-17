@@ -11,6 +11,39 @@ const blankZero = (v: number | string): string => {
   return n ? String(v) : '';
 };
 
+// Supervisor CCO desde los ajustes del sector C4 (misma regla en todos los reportes)
+const resolveC4Supervisor = (settingsMap: Record<string, any> | undefined) => {
+  const map = settingsMap || {};
+  const first = (Object.values(map)[0] || {}) as any;
+  const c4Key = Object.keys(map).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
+  const c4 = (c4Key ? (map as any)[c4Key] : null) || (map as any)['C4'] || (map as any)['SECTOR C4'] || null;
+  return (((c4 as any)?.supervisor || '').trim() || first.supervisor || '').trim();
+};
+
+// Pie de página en TODAS las páginas: Generado el (izq.) alineado en la
+// misma línea con SUPERVISOR CCO (der.), y OPERADOR CCO debajo
+const stampReportFooter = (
+  doc: any,
+  pageWidth: number,
+  pageHeight: number,
+  margin: number,
+  supervisor: string,
+  operator: string,
+  timestamp: string
+) => {
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generado el: ${timestamp}`, margin, pageHeight - 9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`SUPERVISOR CCO: ${supervisor || '--'}`, pageWidth - margin, pageHeight - 9, { align: 'right' });
+    doc.text(`OPERADOR CCO: ${operator || '--'}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+  }
+  doc.setPage(totalPages);
+};
+
 export const generateMotoReport = (
   units: UnitData[],
   settingsMap: Record<string, AppSettings>,
@@ -215,18 +248,18 @@ export const generateMotoReport = (
     .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
-  while (inopData.length < 15) inopData.push(['', '', '', '']);
-
   const sinPatrullarData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
-
-  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '', '']);
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '', (u.motivoEstado || u.mechanics || '').toString().toUpperCase()]);
 
   // Cuatro columnas para detalles: n° / unidad / estado / motivo
   (doc as any).autoTable({
     startY: finalY,
-    head: [[{ content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } }]],
+    head: [[
+      { content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } }
+    ], [
+      'N°', 'UNIDAD', 'ESTADO', 'MOTIVO'
+    ]],
     body: inopData,
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
@@ -238,7 +271,11 @@ export const generateMotoReport = (
 
   (doc as any).autoTable({
     startY: finalY,
-    head: [[{ content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }]],
+    head: [[
+      { content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
+    ], [
+      'N°', 'UNIDAD', 'ESTADO', 'MOTIVO'
+    ]],
     body: sinPatrullarData,
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
@@ -251,14 +288,10 @@ export const generateMotoReport = (
   const footerY = pageHeight - 20;
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.text(`SUPERVISOR CCO: ${c4Supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
-  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY + 3, { align: 'right' });
+  stampReportFooter(doc, pageWidth, pageHeight, margin, c4Supervisor, resolvedOperator, new Date().toLocaleString());
 
   // Timestamp
-  const now = new Date();
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  // Timestamp integrado al pie de página (stampReportFooter)
 
   const fileName = `REPORTE_MOTOS_${titleSuffix.toUpperCase()}_${shift}_${date}.pdf`;
   doc.save(fileName);
@@ -484,10 +517,11 @@ export const generateConsolidatedMotoReport = (
 
   const sinPatRows = allMotoUnits
     .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
-    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
+    .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '', (u.motivoEstado || u.mechanics || '').toString().toUpperCase()]);
 
   const detailRows: any[][] = [];
-  const maxDetailRows = Math.max(inopRows.length, sinPatRows.length, 15);
+  // Solo registros, sin filas en blanco de relleno
+  const maxDetailRows = Math.max(inopRows.length, sinPatRows.length);
   for (let i = 0; i < maxDetailRows; i++) {
     detailRows.push([
       ...(inopRows[i] || ['', '', '', '']),
@@ -507,6 +541,9 @@ export const generateConsolidatedMotoReport = (
     head: [[
       { content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } },
       { content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
+    ], [
+      'N°', 'UNIDAD', 'ESTADO', 'MOTIVO',
+      'N°', 'UNIDAD', 'ESTADO', 'MOTIVO'
     ]],
     body: detailRows,
     theme: 'grid',
@@ -523,14 +560,10 @@ export const generateConsolidatedMotoReport = (
   const footerY = pageHeight - 20;
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.text(`SUPERVISOR CCO: ${c4Supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
-  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY + 3, { align: 'right' });
+  stampReportFooter(doc, pageWidth, pageHeight, margin, c4Supervisor, resolvedOperator, new Date().toLocaleString());
 
   // Timestamp
-  const now = new Date();
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  // Timestamp integrado al pie de página (stampReportFooter)
 
   const fileName = `REPORTE_MOTOS_CONSOLIDADO_${shift}_${date}.pdf`;
   doc.save(fileName);
@@ -775,8 +808,6 @@ const generateFleetReport = (
       retenByUnit.get(normalize(u.id)) || 'NO APLICA'
     ]);
 
-  while (inopData.length < 15) inopData.push(['', '', '', '', '']);
-
   const sinPatrullarData = vehicleUnits
     .filter(u => {
       const status = normalize(u.status);
@@ -790,8 +821,6 @@ const generateFleetReport = (
       );
     })
     .map((u, idx) => [String(idx + 1), u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
-
-  while (sinPatrullarData.length < 15) sinPatrullarData.push(['', '', '', '']);
 
   (doc as any).autoTable({
     startY: finalY,
@@ -831,14 +860,9 @@ const generateFleetReport = (
   const footerY = pageHeight - 20;
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.text(`SUPERVISOR CCO: ${c4Supervisor || '--'}`, pageWidth - margin, footerY, { align: 'right' });
-  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY + 3, { align: 'right' });
+  stampReportFooter(doc, pageWidth, pageHeight, margin, c4Supervisor, resolvedOperator, new Date().toLocaleString());
 
-  // Timestamp
-  const now = new Date();
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  // Timestamp integrado al pie de página (stampReportFooter)
 
   const fileName = `${opts.filePrefix}_${shift.toUpperCase()}_${date}.pdf`;
   doc.save(fileName);
@@ -1177,18 +1201,10 @@ export const generatePersonnelAbsenceReport = (
     });
   });
 
-  // --- FOOTER ---
+  // --- FOOTER (pie de página en todas las páginas) ---
+  stampReportFooter(doc, pageWidth, pageHeight, margin, resolveC4Supervisor(allSectorSettings), resolvedOperator, new Date().toLocaleString());
 
-  const footerY = pageHeight - 15;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0); // Explicitly set text color to black
-  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
-
-  const now = new Date();
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  // Timestamp integrado al pie de página (stampReportFooter)
 
   doc.save(`REPORTE_ASISTENCIA_REGIMEN_${shift}_${date}.pdf`);
 };
@@ -1393,11 +1409,9 @@ export const generatePersonnelStatusReport = (
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0); // Explicitly set text color to black
-  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
-  const now = new Date();
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  // Pie de página en todas las páginas
+  stampReportFooter(doc, pageWidth, pageHeight, margin, resolveC4Supervisor(allSectorSettings), resolvedOperator, new Date().toLocaleString());
+  // Timestamp integrado al pie de página (stampReportFooter)
 
   doc.save(`REPORTE_PERSONAL_ESTADO_${shift}_${date}.pdf`);
 };
@@ -1625,12 +1639,10 @@ export const generateAllRecordsReport = (
   const footerY = pageHeight - 15;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
+  // Pie de página en todas las páginas
+  stampReportFooter(doc, pageWidth, pageHeight, margin, resolveC4Supervisor(settingsMap), resolvedOperator, new Date().toLocaleString());
 
-  const now = new Date();
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  // Timestamp integrado al pie de página (stampReportFooter)
 
   doc.save(`REPORTE_GENERAL_${shift}_${date}.pdf`);
 };
@@ -1639,7 +1651,8 @@ export const generateRetenReport = (
   replacements: any[],
   date: string,
   shift: string,
-  operatorName?: string
+  operatorName?: string,
+  settingsMap?: Record<string, AppSettings>
 ) => {
   if (!replacements || replacements.length === 0) {
     alert("No hay registros para generar el reporte.");
@@ -1691,17 +1704,10 @@ export const generateRetenReport = (
     }
   });
 
-  // --- FOOTER ---
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const footerY = pageHeight - 15;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`OPERADOR CCO: ${operatorName || '______________________'}`, pageWidth - margin, footerY, { align: 'right' });
+  // --- FOOTER (pie de página en todas las páginas) ---
+  stampReportFooter(doc, pageWidth, pageHeight, margin, resolveC4Supervisor(settingsMap), operatorName || '______________________', new Date().toLocaleString());
 
-  const now = new Date();
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  // Timestamp integrado al pie de página (stampReportFooter)
 
   doc.save(`REPORTE_RETEN_${shift}_${date}.pdf`);
 };
@@ -1884,12 +1890,10 @@ export const generateTaserReport = (
   const footerY = pageHeight - 15;
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text(`OPERADOR CCO: ${resolvedOperator}`, pageWidth - margin, footerY, { align: 'right' });
+  // Pie de página en todas las páginas
+  stampReportFooter(doc, pageWidth, pageHeight, margin, resolveC4Supervisor(allSectorSettings), resolvedOperator, new Date().toLocaleString());
 
-  const now = new Date();
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Generado el: ${now.toLocaleString()}`, margin, pageHeight - 5);
+  // Timestamp integrado al pie de página (stampReportFooter)
 
   doc.save(`REPORTE_TASER_${shift}_${date}.pdf`);
 };
