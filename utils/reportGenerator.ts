@@ -227,7 +227,7 @@ export const generateMotoReport = (
     margin: { left: 30, right: 30 }
   });
 
-  let finalY = (doc as any).lastAutoTable.finalY + 8;
+  let finalY = (doc as any).lastAutoTable.finalY + 2;
 
   // --- PERMANENCIA (sin cuadro OPERADOR CCO) ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
@@ -241,7 +241,7 @@ export const generateMotoReport = (
   doc.setFont('helvetica', 'bold');
   doc.setDrawColor(0);
 
-  finalY += 8;
+  finalY += 2;
 
   // --- DETAILS --- n° / unidad / estado / motivo
   const inopData = motoUnits
@@ -483,7 +483,7 @@ export const generateConsolidatedMotoReport = (
       margin: { left: 30, right: 30 }
     });
 
-    return (doc as any).lastAutoTable.finalY + 8;
+    return (doc as any).lastAutoTable.finalY + 2;
   };
 
   // Resumen único combinado Yamaha + Honda
@@ -505,7 +505,7 @@ export const generateConsolidatedMotoReport = (
   const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
   const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
 
-  finalY += 8;
+  finalY += 2;
 
   // --- DETAILS (combined Yamaha + Honda) --- n° / unidad / estado / motivo
   // Una sola tabla de 8 columnas (dos bloques lado a lado) para que
@@ -601,6 +601,31 @@ const generateFleetReport = (
 
   // Filter for CHOFER units (Vehicles) belonging to the fleet (RENTING / SIPCOP)
   const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
+
+  // Vigencia del retén según hora actual: sigue vigente salvo que tenga salida
+  // de taller registrada con fecha/hora ya pasada (el reemplazo ya terminó).
+  // Sin salida registrada o con formato inválido se considera vigente.
+  const reportNow = new Date().getTime();
+  const parseRetenSalida = (r: RetenReplacement): number | null => {
+    const fs = (r.fechaSalidaTaller || '').trim();
+    if (!fs) return null;
+    const hs = (r.horaSalidaTaller || '').trim() || '00:00';
+    const d = new Date(`${fs}T${/^\d{2}:\d{2}$/.test(hs) ? hs + ':00' : hs}`);
+    const t = d.getTime();
+    return isNaN(t) ? null : t;
+  };
+  const isRetenActive = (r: RetenReplacement) => {
+    const salida = parseRetenSalida(r);
+    return salida === null || salida > reportNow;
+  };
+  // retenUnit -> tiene al menos un registro vigente (false = todos terminados)
+  const retenHasActive = new Map<string, boolean>();
+  (retenData || []).forEach(r => {
+    const key = normalize(r.retenUnit);
+    if (!key) return;
+    if (isRetenActive(r)) retenHasActive.set(key, true);
+    else if (!retenHasActive.has(key)) retenHasActive.set(key, false);
+  });
   const fleetMobileIds = new Set(
     mobileData
       .filter(m => opts.fleetPredicate(m))
@@ -665,7 +690,11 @@ const generateFleetReport = (
       u.type === 'CHOFER' &&
       (isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s))
     );
-    const countReten = sectorChoferUnits.filter(u => normalize(u.id).startsWith('AR-')).length;
+    // Solo cuentan los retenes vigentes: si su reemplazo ya terminó (salida de taller pasada), no cuenta
+    const countReten = sectorChoferUnits.filter(u => {
+      const id = normalize(u.id);
+      return id.startsWith('AR-') && retenHasActive.get(id) !== false;
+    }).length;
 
     // Regular statuses only for non-AR units
     const regularUnits = sectorUnits.filter(u => !normalize(u.id).startsWith('AR-'));
@@ -777,7 +806,7 @@ const generateFleetReport = (
     renderFleetSummary(opts.camionetaHeader, camionetaRows, (doc as any).lastAutoTable.finalY + 6);
   }
 
-  let finalY = (doc as any).lastAutoTable.finalY + 4;
+  let finalY = (doc as any).lastAutoTable.finalY + 2;
 
   // --- PERMANENCIA + OPERADOR CCO ---
   const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
@@ -789,13 +818,23 @@ const generateFleetReport = (
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  finalY += 5;
+  finalY += 2;
 
   // --- DETAILS TABLES ---
   const retenByUnit = new Map<string, string>();
-  retenData.forEach(r => {
+  (retenData || []).forEach(r => {
+    if (!isRetenActive(r)) return; // los terminados se agregan después con etiqueta
     const key = normalize(r.replacedUnit);
     if (key && !retenByUnit.has(key)) retenByUnit.set(key, String(r.retenUnit || '').trim());
+  });
+  // Reemplazos terminados: TERMINADO (hora salida taller)
+  (retenData || []).forEach(r => {
+    if (isRetenActive(r)) return;
+    const key = normalize(r.replacedUnit);
+    if (key && !retenByUnit.has(key)) {
+      const hora = (r.horaSalidaTaller || '').trim() || (r.fechaSalidaTaller || '').trim();
+      retenByUnit.set(key, hora ? `TERMINADO (${hora.toUpperCase()})` : 'TERMINADO');
+    }
   });
 
   const inopData = vehicleUnits
@@ -822,35 +861,36 @@ const generateFleetReport = (
     })
     .map((u, idx) => [String(idx + 1), u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
-  (doc as any).autoTable({
-    startY: finalY,
-    head: [[
-      { content: 'INOPERATIVOS', colSpan: 5, styles: { halign: 'center', fillColor: [220, 53, 69] } }
-    ], [
-      'N°', 'UNIDAD', 'LUGAR', 'MOTIVO', 'RETEN'
-    ]],
-    body: inopData,
-    theme: 'grid',
-    styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
-    headStyles: { textColor: [255, 255, 255] },
-    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 14 }, 2: { cellWidth: 22 }, 4: { cellWidth: 18 } },
-    margin: { left: margin },
-    tableWidth: (pageWidth / 2) - margin - 2
-  });
+  // Una sola tabla de 9 columnas (dos bloques lado a lado) para que
+  // INOPERATIVOS y SIN PATRULLAR siempre queden alineados,
+  // incluso si el contenido fluye a más páginas
+  const detailRows: any[][] = [];
+  const maxDetailRows = Math.max(inopData.length, sinPatrullarData.length);
+  for (let i = 0; i < maxDetailRows; i++) {
+    detailRows.push([
+      ...(inopData[i] || ['', '', '', '', '']),
+      ...(sinPatrullarData[i] || ['', '', '', ''])
+    ]);
+  }
 
   (doc as any).autoTable({
     startY: finalY,
     head: [[
+      { content: 'INOPERATIVOS', colSpan: 5, styles: { halign: 'center', fillColor: [220, 53, 69] } },
       { content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
     ], [
+      'N°', 'UNIDAD', 'LUGAR', 'MOTIVO', 'RETEN',
       'N°', 'UNIDAD', 'ESTADO', 'MOTIVO'
     ]],
-    body: sinPatrullarData,
+    body: detailRows,
     theme: 'grid',
     styles: { fontSize: 6.5, cellPadding: 0.8, halign: 'center' },
-    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 14 }, 2: { cellWidth: 28 } },
-    margin: { left: pageWidth / 2 + 2 },
-    tableWidth: (pageWidth / 2) - margin - 2
+    headStyles: { textColor: [255, 255, 255] },
+    columnStyles: {
+      0: { cellWidth: 8 }, 1: { cellWidth: 14 }, 2: { cellWidth: 22 }, 4: { cellWidth: 18 },
+      5: { cellWidth: 8 }, 6: { cellWidth: 14 }, 7: { cellWidth: 28 }
+    },
+    margin: { left: margin, right: margin }
   });
 
   const previousAutoTable = (doc as any).lastAutoTable;
@@ -895,7 +935,7 @@ export const generateSipcopReport = (
 ) => generateFleetReport(units, settingsMap, date, shift, operatorName, mobileData, retenData, {
   fleetPredicate: (m) => m.type === 'CHOFER' && String(m.sipcop ?? '').trim().toUpperCase() === 'SIPCOP',
   title: 'REPORTE NUMÉRICO DE VEHÍCULOS SIPCOP',
-  tableHeader: 'FLOTA VEHICULAR SIPCOP',
+  tableHeader: 'FLOTA AUTOS SIPCOP',
   camionetaHeader: 'FLOTA CAMIONETAS SIPCOP',
   filePrefix: 'REPORTE_VEHICULOS_SIPCOP'
 });
