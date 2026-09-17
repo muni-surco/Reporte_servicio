@@ -542,6 +542,8 @@ export interface FleetReportOptions {
   tableHeader: string;
   camionetaHeader: string;
   filePrefix: string;
+  // true = una sola tabla con todos los sectores (no separa FLOTA CAMIONETAS)
+  singleTable?: boolean;
 }
 
 const generateFleetReport = (
@@ -613,7 +615,7 @@ const generateFleetReport = (
 
   const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
 
-  const buildFleetRow = (s: string) => {
+  const buildFleetRow = (s: string, retenNA = false) => {
     const isOtrasAreas = normalize(s) === 'OTRAS AREAS';
     const sectorUnits = vehicleUnits.filter(u =>
       isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s)
@@ -656,7 +658,7 @@ const generateFleetReport = (
       blankZero(countPatrullando),
       blankZero(countSinPatrullar),
       // En FLOTA CAMIONETAS el retén no aplica
-      camionetaSectors.includes(s) ? 'NO APLICA' : blankZero(countReten)
+      retenNA ? 'NO APLICA' : blankZero(countReten)
     ];
   };
 
@@ -681,9 +683,6 @@ const generateFleetReport = (
     ]);
     return rows;
   };
-
-  const summaryRows = withTotals(mainSectors.map(buildFleetRow), false);
-  const camionetaRows = withTotals(camionetaSectors.map(buildFleetRow), true);
 
   const renderFleetSummary = (title: string, rows: any[][], startY: number) => {
     (doc as any).autoTable({
@@ -731,8 +730,19 @@ const generateFleetReport = (
     return (doc as any).lastAutoTable.finalY;
   };
 
-  renderFleetSummary(opts.tableHeader, summaryRows, 38);
-  renderFleetSummary(opts.camionetaHeader, camionetaRows, (doc as any).lastAutoTable.finalY + 6);
+  if (opts.singleTable) {
+    // Una sola tabla consolidada con todos los sectores (no se separa camionetas)
+    const consolidatedRows = withTotals(
+      [...mainSectors, ...camionetaSectors].map(s => buildFleetRow(s, false)),
+      false
+    );
+    renderFleetSummary(opts.tableHeader, consolidatedRows, 38);
+  } else {
+    const summaryRows = withTotals(mainSectors.map(s => buildFleetRow(s, false)), false);
+    const camionetaRows = withTotals(camionetaSectors.map(s => buildFleetRow(s, true)), true);
+    renderFleetSummary(opts.tableHeader, summaryRows, 38);
+    renderFleetSummary(opts.camionetaHeader, camionetaRows, (doc as any).lastAutoTable.finalY + 6);
+  }
 
   let finalY = (doc as any).lastAutoTable.finalY + 4;
 
@@ -866,6 +876,21 @@ export const generateSipcopReport = (
   filePrefix: 'REPORTE_VEHICULOS_SIPCOP'
 });
 
+// Predicado del consolidado extraído para reutilizarlo en el diagnóstico
+const consolidatedNorm = (v: unknown) => String(v ?? '').trim().toUpperCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const consolidatedFleetPredicate = (m: MobileReference) => {
+  // Tipo desde la columna tipo de la hoja DATA (CAMIONETA, MINIVAN, AUTOMOVIL).
+  // Fallback a CHOFER si el backend aún no envía el campo tipo (pre-redeploy).
+  const t = consolidatedNorm(m.tipo);
+  const tipoOk = t
+    ? ['CAMIONETA', 'MINIVAN', 'AUTOMOVIL'].some(k => t.includes(k) || (t.length >= 3 && k.includes(t)))
+    : consolidatedNorm(m.type) === 'CHOFER';
+  if (!tipoOk) return false;
+  const p = consolidatedNorm(m.propiedad);
+  return ['RENTING', 'SURCO', 'LIMA'].some(k => p === k || p.includes(k));
+};
+
 export const generateConsolidatedMobileReport = (
   units: UnitData[],
   settingsMap: Record<string, AppSettings>,
@@ -874,15 +899,16 @@ export const generateConsolidatedMobileReport = (
   operatorName: string,
   mobileData: MobileReference[],
   retenData: RetenReplacement[] = []
-) => generateFleetReport(units, settingsMap, date, shift, operatorName, mobileData, retenData, {
-  fleetPredicate: (m) =>
-    m.type === 'CHOFER' &&
-    ['RENTING', 'SURCO', 'LIMA'].includes(String(m.propiedad ?? '').trim().toUpperCase()),
+) => {
+  return generateFleetReport(units, settingsMap, date, shift, operatorName, mobileData, retenData, {
+  fleetPredicate: consolidatedFleetPredicate,
   title: 'REPORTE CONSOLIDADO UNIDADES MÓVILES',
   tableHeader: 'FLOTA CONSOLIDADA',
   camionetaHeader: 'FLOTA CAMIONETAS CONSOLIDADA',
-  filePrefix: 'REPORTE_CONSOLIDADO_MOVILES'
-});
+  filePrefix: 'REPORTE_CONSOLIDADO_MOVILES',
+  singleTable: true
+  });
+};
 
 export const generatePersonnelAbsenceReport = (
   units: UnitData[],

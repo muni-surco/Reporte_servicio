@@ -150,6 +150,7 @@ export interface MobileReference {
   sector?: string;
   status?: string;
   type?: string;
+  tipo?: string;
   propiedad?: string;
   sipcop?: string;
 }

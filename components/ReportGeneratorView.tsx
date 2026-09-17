@@ -82,8 +82,8 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
     {
       id: 'consolidado',
       title: 'Unidades Consolidadas',
-      subtitle: 'RENTING · SURCO · LIMA',
-      description: 'Reporte consolidado de todas las unidades móviles (autos, camionetas y minivan) de propiedades Renting, Surco y Lima.',
+      subtitle: 'CAMIONETA · MINIVAN · AUTOMÓVIL',
+      description: 'Tabla única consolidada por sector de camionetas, minivan y automóviles (propiedades Renting, Surco y Lima).',
       icon: <FileText className="w-8 h-8" />,
       color: 'teal',
       themeClass: 'border-teal-100',

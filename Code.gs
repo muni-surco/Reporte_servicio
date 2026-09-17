@@ -632,6 +632,7 @@ function getMobileData() {
         sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
         status: estadoIdx !== -1 ? String(row[estadoIdx] || '').trim() : '',
         type: getUnitType(id, tipoIdx !== -1 ? row[tipoIdx] : null, sectorIdx !== -1 ? row[sectorIdx] : null),
+        tipo: tipoIdx !== -1 ? String(row[tipoIdx] || '').trim() : '',
         propiedad: propiedadIdx !== -1 ? String(row[propiedadIdx] || '').trim() : '',
         sipcop: sipcopIdx !== -1 ? String(row[sipcopIdx] || '').trim() : ''
       });
