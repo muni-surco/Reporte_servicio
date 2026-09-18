@@ -50,6 +50,8 @@ export interface VehicleRQ {
   sector: string;
   cuadrante: string;
   urlImg: string;
+  propietario: string;
+  origen: string;
 }
 
 export interface PersonnelData {

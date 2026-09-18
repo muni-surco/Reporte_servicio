@@ -11,6 +11,15 @@ const blankZero = (v: number | string): string => {
   return n ? String(v) : '';
 };
 
+// Línea gruesa de separación vertical entre los bloques INOPERATIVOS | SIN PATRULLAR
+// cuando se dibujan lado a lado. Se aplica al borde izquierdo de la primera columna
+// del bloque SIN PATRULLAR (boundaryColumn) en TODAS las filas (head + body).
+const applyBlockSeparator = (data: any, boundaryColumn: number, width: number = 1.5) => {
+  if (data.column.index !== boundaryColumn) return;
+  const w = typeof data.cell.styles.lineWidth === 'number' ? data.cell.styles.lineWidth : 0.15;
+  data.cell.styles.lineWidth = { top: w, right: w, bottom: w, left: width };
+};
+
 // Supervisor CCO desde los ajustes del sector C4 (misma regla en todos los reportes)
 const resolveC4Supervisor = (settingsMap: Record<string, any> | undefined) => {
   const map = settingsMap || {};
@@ -553,6 +562,9 @@ export const generateConsolidatedMotoReport = (
       0: { cellWidth: 8 }, 1: { cellWidth: 15 }, 2: { cellWidth: 24 },
       4: { cellWidth: 8 }, 5: { cellWidth: 14 }, 6: { cellWidth: 24 }
     },
+    didParseCell: (data: any) => {
+      applyBlockSeparator(data, 4);
+    },
     margin: { left: margin, right: margin }
   });
 
@@ -889,6 +901,9 @@ const generateFleetReport = (
     columnStyles: {
       0: { cellWidth: 8 }, 1: { cellWidth: 14 }, 2: { cellWidth: 22 }, 4: { cellWidth: 18 },
       5: { cellWidth: 8 }, 6: { cellWidth: 14 }, 7: { cellWidth: 28 }
+    },
+    didParseCell: (data: any) => {
+      applyBlockSeparator(data, 5);
     },
     margin: { left: margin, right: margin }
   });

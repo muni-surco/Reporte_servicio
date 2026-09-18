@@ -1657,15 +1657,19 @@ function updateUnit(dateStr, shift, settings, unit) {
   if (settings && settings.operador && settings.operador.trim()) auditLog = settings.operador.trim() + ' / ' + auditLog;
 
   let unit_id = unit.unit_id || '';
-  if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('UID-') || unit_id.startsWith('DEF-') || !unit_id.includes(shift)) {
+  if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('UID-') || unit_id.startsWith('DEF-') || unit_id.startsWith('LEGACY-') || !unit_id.includes(shift)) {
     const cleanDate = dateStr.replace(/-/g, '');
     const cleanId = String(unit.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    const cleanSector = String(targetSector || '').trim().toUpperCase();
+    const cleanSector = String(targetSector || '').trim().toUpperCase().replace(/\s+/g, '_');
     if (cleanId) {
       unit_id = cleanDate + '_' + shift + '_' + cleanSector + '_' + cleanId;
-    } else if (!unit_id || unit_id === 'undefined') {
-      unit_id = 'UID-' + cleanDate + '-' + Utilities.getUuid().substring(0, 5).toUpperCase();
+    } else if (!unit_id || unit_id === 'undefined' || unit_id.startsWith('TEMP-') || unit_id.startsWith('LEGACY-') || !unit_id.includes(shift)) {
+      // Sin id movil: se genera un unit_id unico y escopado por fecha+turno+sector.
+      // Antes se conservaba un id generico (LEGACY-0, TEMP-...) que se repetia entre
+      // sectores/turnos y hacia que el backup descartara esos registros.
+      unit_id = 'UID-' + cleanDate + '_' + shift + '_' + cleanSector + '-' + Utilities.getUuid().substring(0, 8).toUpperCase();
     }
+    // Si ya venia un UID-/DEF- bien formado (con turno) se conserva para no duplicar.
   }
   unit_id = _sanitizeRtdbKey(unit_id);
 
@@ -1831,6 +1835,7 @@ function searchVehicles(searchTerm, marcaFilter, modeloFilter) {
         sector: colMap['sector'] !== undefined ? String(row[colMap['sector']] || '') : '',
         cuadrante: colMap['cuadrante'] !== undefined ? cellToStr(row[colMap['cuadrante']], ss.getSpreadsheetTimeZone()) : '',
         urlImg: (urlImgIdx === undefined || urlImgIdx === -1) ? '' : String(row[urlImgIdx] || ''),
+        propietario: colMap['propietario'] !== undefined ? String(row[colMap['propietario']] || '') : '',
       });
     }
   }
@@ -1963,24 +1968,25 @@ function saveVehicleRQ(data) {
   var colMap = {};
   headers.forEach(function(h, i) { colMap[String(h).toLowerCase().trim()] = i + 1; });
 
-  // Columna URL_IMG: exacta o variante (URL IMG, IMAGEN, FOTO...); se crea si no existe
-  if (colMap['url_img'] === undefined) {
+  // Columnas nuevas se crean solas si no existen (url_img, origen)
+  ['url_img', 'origen'].forEach(function(colName) {
+    if (colMap[colName] !== undefined) return;
     var foundUrlCol = -1;
     for (var hi = 0; hi < headers.length; hi++) {
       var hh = String(headers[hi]).toLowerCase().trim();
-      if ((hh.indexOf('url') !== -1 && hh.indexOf('img') !== -1) || hh === 'imagen' || hh === 'foto' || hh === 'fotografia') {
+      if (colName === 'url_img' && ((hh.indexOf('url') !== -1 && hh.indexOf('img') !== -1) || hh === 'imagen' || hh === 'foto' || hh === 'fotografia')) {
         foundUrlCol = hi + 1;
         break;
       }
     }
     if (foundUrlCol !== -1) {
-      colMap['url_img'] = foundUrlCol;
+      colMap[colName] = foundUrlCol;
     } else {
-      sheet.getRange(1, headers.length + 1).setValue('URL_IMG');
-      headers.push('URL_IMG');
-      colMap['url_img'] = headers.length;
+      sheet.getRange(1, headers.length + 1).setValue(colName === 'url_img' ? 'URL_IMG' : 'ORIGEN');
+      headers.push(colName === 'url_img' ? 'URL_IMG' : 'ORIGEN');
+      colMap[colName] = headers.length;
     }
-  }
+  });
 
   var row = [];
   for (var i = 0; i < headers.length; i++) {
@@ -2001,7 +2007,9 @@ function saveVehicleRQ(data) {
     subtipoDelito: 'subtipo_delito',
     sector: 'sector',
     cuadrante: 'cuadrante',
-    urlImg: 'url_img'
+    urlImg: 'url_img',
+    propietario: 'propietario',
+    origen: 'origen'
   };
 
   Object.keys(fieldMapping).forEach(function(key) {
@@ -2031,6 +2039,162 @@ function uploadVehicleImage(dataUrl, fileName) {
   var file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return file.getUrl();
+}
+
+var GEMINI_MODEL = 'gemini-3.6-flash';
+
+/**
+ * Extrae datos del vehículo desde una captura (p.ej. SUNARP) usando Gemini.
+ * La API key se configura en Propiedades del script: GEMINI_API_KEY.
+ * Devuelve {placa, placaVigente, marca, modelo, color, propietario, tipo}.
+ */
+function extractVehicleFromImage(dataUrl) {
+  var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!apiKey) throw new Error('Falta configurar GEMINI_API_KEY en las propiedades del script (Configuración del proyecto)');
+  var m = String(dataUrl || '').match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/i);
+  if (!m) throw new Error('La imagen debe ser JPG o PNG');
+  var prompt = 'Eres un extractor de datos. Analiza la imagen (captura de consulta vehicular SUNARP del Perú) y devuelve SOLO un objeto JSON válido, sin markdown ni texto extra, con exactamente estas claves: {"placa":"","placaVigente":"","marca":"","modelo":"","color":"","propietario":"","tipo":""}. ' +
+    'placa = N° PLACA. placaVigente = PLACA VIGENTE (si existe, si no ""). ' +
+    'marca, modelo, color, propietario (PROPIETARIO(S)) tal cual aparecen, en mayúsculas. ' +
+    'tipo = clasifica el vehículo según marca/modelo en exactamente uno de: AUTO, CAMIONETA, MOTOTAXI, MOTO. Si no estás seguro, deja "". ' +
+    'Si un dato no aparece o no es legible, deja "".';
+  var payload = {
+    contents: [{ parts: [
+      { text: prompt },
+      { inline_data: { mime_type: m[1].toLowerCase(), data: m[2] } }
+    ] }],
+    generationConfig: { temperature: 0, response_mime_type: 'application/json' }
+  };
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
+  var options = { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true };
+  // Reintentos con espera progresiva ante saturación (503/429: picos temporales)
+  var lastErr = '';
+  for (var attempt = 1; attempt <= 3; attempt++) {
+    var resp = UrlFetchApp.fetch(url, options);
+    var code = resp.getResponseCode();
+    if (code === 200) {
+      var json = JSON.parse(resp.getContentText());
+      var parts = json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts
+        ? json.candidates[0].content.parts : [];
+      var text = parts.map(function(p) { return p.text || ''; }).join('').replace(/```json|```/g, '').trim();
+      var parsed = JSON.parse(text);
+      var obj = Array.isArray(parsed) ? (parsed[0] || {}) : (parsed || {});
+      if (typeof obj !== 'object') obj = {};
+      // Normaliza nombres de clave (el modelo a veces varía: placa_vigente, propietarios...)
+      var normKey = function(k) {
+        return String(k).toLowerCase().replace(/[áàäâ]/g, 'a').replace(/[éèëê]/g, 'e')
+          .replace(/[íìïî]/g, 'i').replace(/[óòöô]/g, 'o').replace(/[úùüû]/g, 'u').replace(/ñ/g, 'n')
+          .replace(/[^a-z]/g, '');
+      };
+      var ALIASES = {
+        placa: ['placa', 'nplaca', 'numeroplaca', 'nrodeplaca', 'numplaca', 'matricula'],
+        placaVigente: ['placavigente', 'placaactual', 'vigente', 'placanueva'],
+        marca: ['marca', 'brand'],
+        modelo: ['modelo', 'model'],
+        color: ['color', 'colour', 'colores'],
+        propietario: ['propietario', 'propietarios', 'dueno', 'duenos', 'titular', 'titulares', 'owner', 'propietary'],
+        tipo: ['tipo', 'tipovehiculo', 'clase', 'clasevehiculo', 'categoria', 'type']
+      };
+      var out = { placa: '', placaVigente: '', marca: '', modelo: '', color: '', propietario: '', tipo: '' };
+      Object.keys(obj).forEach(function(k) {
+        var nk = normKey(k);
+        Object.keys(ALIASES).forEach(function(canon) {
+          if (!out[canon] && typeof obj[k] === 'string' && ALIASES[canon].indexOf(nk) !== -1) {
+            out[canon] = obj[k].trim();
+          }
+        });
+      });
+      out._raw = String(text).substring(0, 500);
+      return out;
+    }
+    lastErr = 'Error Gemini (' + code + '): ' + String(resp.getContentText()).substring(0, 200);
+    if ((code === 503 || code === 429) && attempt < 3) {
+      Utilities.sleep(attempt * 2000);
+    } else {
+      break;
+    }
+  }
+  if (lastErr.indexOf('(503)') !== -1 || lastErr.indexOf('(429)') !== -1) {
+    // Fallback automático: OCR de Drive (gratis, sin cuotas de modelo)
+    try {
+      return extractVehicleOCR(dataUrl);
+    } catch (ocrErr) {
+      throw new Error('Extracción saturada y OCR no disponible: ' + String((ocrErr && ocrErr.message) || ocrErr));
+    }
+  }
+  throw new Error(lastErr);
+}
+
+/**
+ * Fallback sin IA: OCR nativo de Drive + parseo por etiquetas del formato SUNARP.
+ * Requiere activar el Servicio Avanzado de Drive (Editor > Servicios > Drive API).
+ * Devuelve el mismo objeto que extractVehicleFromImage.
+ */
+function extractVehicleOCR(dataUrl) {
+  var m = String(dataUrl || '').match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/i);
+  if (!m) throw new Error('La imagen debe ser JPG o PNG');
+  if (typeof Drive === 'undefined' || !Drive.Files) {
+    throw new Error('Activa el servicio avanzado de Drive (Editor > Servicios > Drive API)');
+  }
+  var bytes = Utilities.base64Decode(m[2]);
+  var blob = Utilities.newBlob(bytes, 'image/jpeg', 'ocr-tmp.jpg');
+  var inserted = Drive.Files.insert({ title: 'ocr-tmp', mimeType: 'image/jpeg' }, blob, { ocr: true, ocrLanguage: 'es' });
+  try {
+    var text = DocumentApp.openById(inserted.id).getBody().getText();
+    return parseSunarpOCR(text);
+  } finally {
+    try { Drive.Files.remove(inserted.id); } catch (e) {}
+  }
+}
+
+var OCR_MOTO_KW = ['XTZ', 'XRE', 'XR150', 'XR190', 'CB125', 'CB190', 'CBR', 'NINJA', 'Z400', 'MT03', 'MT15', 'FZ', 'FAZER', 'YBR', 'GN125', 'DR150', 'PULSAR', 'DOMINAR', 'BOXER', 'DISCOVER', 'DT175', 'AX4', 'NMAX', 'XMAX', 'PCX', 'ELITE', 'NAVI', 'WAVE', 'CRYPTON', 'AGILITY', 'APACHE', 'GIXXER', 'HUNK', 'TORNADO', 'TWISTER', 'KLX', 'DUKE', 'RC200', 'TNT', 'TRK', 'SPLENDOR', 'HAYATE', 'INTRUDER'];
+var OCR_MOTOTAXI_KW = ['TORITO', 'BAJAJ RE', 'TVS KING', 'KING'];
+var OCR_CAMIONETA_KW = ['HILUX', 'RANGER', 'FRONTIER', 'NAVARA', 'DMAX', 'D-MAX', 'L200', 'AMAROK', 'NP300', 'T60', 'T8', 'POER', 'WINGLE', 'F-150', 'F150', 'RAM 1500', 'SILVERADO', 'COLORADO', 'S10', 'MONTANA', 'SAVEIRO', 'OROCH', 'TORO', 'STRADA', 'ACTYON', 'KYRON', 'REXTON'];
+var OCR_AUTO_MARCAS = ['TOYOTA', 'NISSAN', 'KIA', 'HYUNDAI', 'VOLKSWAGEN', 'CHEVROLET', 'MAZDA', 'MITSUBISHI', 'FORD', 'RENAULT', 'PEUGEOT', 'VOLVO', 'SUBARU', 'JEEP', 'DODGE', 'FIAT', 'SEAT', 'SKODA', 'MG', 'CHERY', 'GEELY', 'HAVAL', 'JAC', 'BYD', 'DONGFENG', 'GREAT WALL', 'CITROEN', 'OPEL', 'LEXUS', 'AUDI', 'BMW', 'MERCEDES'];
+
+function parseSunarpOCR(text) {
+  var lines = String(text || '').split(/\r?\n/).map(function(l) { return l.trim(); }).filter(function(l) { return l; });
+  var out = { placa: '', placaVigente: '', marca: '', modelo: '', color: '', propietario: '', tipo: '' };
+  // Corta restos de la marca de agua que el OCR mezcla en los valores
+  var cleanVal = function(s) {
+    return String(s || '').split(/sunarp|esta informaci|constituye|publicidad|registral|titularidad|cargando/gi)[0].trim();
+  };
+  var getLine = function(re) {
+    for (var i = 0; i < lines.length; i++) {
+      var mm = lines[i].match(re);
+      if (mm) {
+        var v = cleanVal(mm[1] || '');
+        if (!v && i + 1 < lines.length && lines[i + 1].indexOf(':') === -1) v = cleanVal(lines[i + 1]);
+        return v;
+      }
+    }
+    return '';
+  };
+  out.placaVigente = getLine(/^PLACA\s+VIGENTE\s*:?\s*([A-Z0-9][A-Z0-9\-\s]*)/i);
+  out.placa = getLine(/^N[o°º0]?\s*PLACA(?!\s*(VIGENTE|ANTERIOR))\s*:?\s*([A-Z0-9][A-Z0-9\-\s]*)/i);
+  // Si el grupo 1 trajo el N° por el prefijo opcional, usa el grupo 2
+  if (!out.placa) {
+    for (var j = 0; j < lines.length; j++) {
+      var m2 = lines[j].match(/^N[o°º0]?\s*PLACA(?!\s*(VIGENTE|ANTERIOR))\s*:?\s*(.+)$/i);
+      if (m2) { out.placa = cleanVal(m2[2] || m2[1] || ''); break; }
+    }
+  }
+  out.marca = getLine(/^MARCA\s*:?\s*(.+)$/i);
+  out.modelo = getLine(/^MODELO\s*:?\s*(.+)$/i);
+  out.color = getLine(/^COLOR\s*:?\s*(.+)$/i);
+  out.propietario = getLine(/^PROPIETARIO(?:\(S\))?\s*:?\s*(.*)$/i);
+  // Tipo por palabras clave de marca+modelo
+  var mm = (out.marca + ' ' + out.modelo).toUpperCase();
+  var hasAny = function(list) {
+    for (var k = 0; k < list.length; k++) { if (mm.indexOf(list[k]) !== -1) return true; }
+    return false;
+  };
+  if (hasAny(OCR_MOTOTAXI_KW)) out.tipo = 'MOTOTAXI';
+  else if (hasAny(OCR_MOTO_KW)) out.tipo = 'MOTO';
+  else if (hasAny(OCR_CAMIONETA_KW)) out.tipo = 'CAMIONETA';
+  else if (hasAny(OCR_AUTO_MARCAS)) out.tipo = 'AUTO';
+  out._raw = 'OCR:' + String(text || '').substring(0, 300);
+  return out;
 }
 
 /**
@@ -2584,6 +2748,25 @@ function getAutoTurno() {
 }
 
 /**
+ * Builds the duplicate-detection key for the backup.
+ * A unit is unique by date+shift+sector+id (that is exactly how it is stored in
+ * RTDB), NOT by unit_id alone. Using only unit_id globally made records without a
+ * mobile id skip each other whenever their generic unit_id repeated across
+ * sectors/turnos (LEGACY-0, TEMP-..., ids without fecha/turno, etc.).
+ */
+function _backupKey(dateVal, shiftVal, sectorVal, idVal, timeZone) {
+  var dateStr;
+  if (Object.prototype.toString.call(dateVal) === '[object Date]') {
+    dateStr = Utilities.formatDate(dateVal, timeZone, 'yyyy-MM-dd');
+  } else {
+    dateStr = String(dateVal || '').trim().substring(0, 10);
+  }
+  return dateStr + '|' + String(shiftVal || '').trim().toUpperCase() + '|' +
+    String(toDisplaySector(sectorVal || '') || '').trim().toUpperCase() + '|' +
+    String(idVal || '').trim();
+}
+
+/**
  * Incremental backup: appends only new records from RTDB to UNIT_DATA and SHIFT_SETTINGS.
  * It only processes the latest 3 turnos to keep network and quota usage low.
  */
@@ -2614,7 +2797,7 @@ function backupFirestoreToSheets() {
     const existingData = settingsSheet.getDataRange().getValues();
     for (let i = 1; i < existingData.length; i++) {
       const row = existingData[i];
-      if (row[0]) existingKeys.add(String(row[0]) + '|' + String(row[1]) + '|' + String(row[2]));
+      if (row[0]) existingKeys.add(_backupKey(row[0], row[1], row[2], '', timeZone));
     }
 
     const newRows = [];
@@ -2623,7 +2806,7 @@ function backupFirestoreToSheets() {
       const shifts = rtdbGet(shiftPath) || {};
       Object.keys(shifts).forEach(sectorKey => {
         const s = shifts[sectorKey] || {};
-        const key = (s.date || ref.date || '') + '|' + (s.shift || ref.shift || '') + '|' + toDisplaySector(s.sector || sectorKey || '');
+        const key = _backupKey(s.date || ref.date || '', s.shift || ref.shift || '', s.sector || sectorKey || '', '', timeZone);
         if (existingKeys.has(key)) return;
         existingKeys.add(key);
         newRows.push([
@@ -2663,10 +2846,12 @@ function backupFirestoreToSheets() {
   // --- Incremental UNIT_DATA ---
   const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
   if (dataSheet) {
-    const existingIds = new Set();
+    const existingKeys = new Set();
     const existingData = dataSheet.getDataRange().getValues();
     for (let i = 1; i < existingData.length; i++) {
-      if (existingData[i][23]) existingIds.add(String(existingData[i][23]));
+      const row = existingData[i];
+      if (!row[23]) continue;
+      existingKeys.add(_backupKey(row[0], row[1], row[2], row[23], timeZone));
     }
 
     const newRows = [];
@@ -2678,8 +2863,9 @@ function backupFirestoreToSheets() {
         Object.keys(sectorUnits).forEach(unitId => {
           const u = sectorUnits[unitId] || {};
           const uid = u.unit_id || unitId || '';
-          if (existingIds.has(uid)) return;
-          existingIds.add(uid);
+          const key = _backupKey(u.date || ref.date || '', u.shift || ref.shift || '', u.sector || sectorKey || '', uid, timeZone);
+          if (existingKeys.has(key)) return;
+          existingKeys.add(key);
           newRows.push([
             u.date || ref.date || '',
             u.shift || ref.shift || '',
