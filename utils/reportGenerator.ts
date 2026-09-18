@@ -637,6 +637,9 @@ export interface FleetReportOptions {
   filePrefix: string;
   // true = una sola tabla con todos los sectores (no separa FLOTA CAMIONETAS)
   singleTable?: boolean;
+  // true = la flota usa retén; en la tabla INOPERATIVOS la columna RETEN
+  // muestra 'NO APLICA' solo para esta flota (autos renting)
+  retenAplica?: boolean;
 }
 
 const generateFleetReport = (
@@ -890,7 +893,11 @@ const generateFleetReport = (
       u.id,
       (u.lugarEstado || 'NO APLICA').toString().toUpperCase(),
       (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase(),
-      retenByUnit.get(normalize(u.id)) || 'NO APLICA'
+      // 'NO APLICA' en RETEN solo para la flota de autos renting (retenAplica=false);
+      // en SIPCOP/Consolidado se muestra '--' si no tiene retén asignado
+      opts.retenAplica === false
+        ? (retenByUnit.get(normalize(u.id)) || 'NO APLICA')
+        : (retenByUnit.get(normalize(u.id)) || '--')
     ]);
 
   const sinPatrullarData = vehicleUnits
@@ -902,6 +909,7 @@ const generateFleetReport = (
         status !== 'PATRULLANDO' &&
         !inoperativeStatuses.includes(status) &&
         status !== 'SIN VEHICULO' &&
+        status !== 'FIN APOYO' &&
         !isTacticoPPFFStatus(u.status)
       );
     })
@@ -968,7 +976,8 @@ export const generateVehicleReport = (
   title: 'REPORTE NUMÉRICO DE VEHÍCULOS RENTING',
   tableHeader: 'FLOTA AUTOS',
   camionetaHeader: 'FLOTA CAMIONETAS',
-  filePrefix: 'REPORTE_VEHICULOS_RENTING'
+  filePrefix: 'REPORTE_VEHICULOS_RENTING',
+  retenAplica: true
 });
 
 export const generateSipcopReport = (
@@ -1251,6 +1260,146 @@ export const generatePersonnelAbsenceReport = (
         currentY = (doc as any).lastAutoTable.finalY + 8;
     });
   });
+
+  // --- TABLA CONSOLIDADA DE ASISTENCIA (EFECTIVO / FALTOS / DISPONIBLES por rol y sector) ---
+  // En una página nueva (o la actual si ningún motivo generó contenido)
+  if (!firstPage) {
+    doc.addPage();
+    currentY = 10;
+  }
+  firstPage = false;
+
+  // Encabezado principal
+  doc.setFillColor(38, 70, 83);
+  doc.rect(margin, currentY, contentWidth, 18, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text('SURCO', margin + 5, currentY + 11);
+  doc.setFontSize(11);
+  doc.text('CONSOLIDADO DE ASISTENCIA DEL PERSONAL', margin + 35, currentY + 11);
+  doc.setFontSize(8);
+  doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
+  doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+
+  currentY += 24;
+
+  // C4 y COVV se consolidan en una sola fila; GIR se muestra como G.I.R.
+  const sectorLabelFor = (raw: unknown) => {
+    const n = normalize(raw).replace(/^SECTOR\s+/, '');
+    if (n === 'C4' || n === 'COVV') return 'CCO y COVV';
+    if (n === 'GIR') return 'G.I.R.';
+    return n;
+  };
+  // CHOFERES = rol chofer, MOTORIZADOS = rol motorizado, SERENOS = el resto
+  // (incluye serenos, operadores C4/COVV, supervisores, permanencia, etc.)
+  const roleBucketFor = (rol: unknown) => {
+    const r = (rol || '').toString().toUpperCase();
+    if (r.includes('CHOFER')) return 'CHOFERES';
+    if (r.includes('MOTORIZADO')) return 'MOTORIZADOS';
+    return 'SERENOS';
+  };
+  const attendanceBuckets = ['CHOFERES', 'MOTORIZADOS', 'SERENOS'] as const;
+  type AttendanceCell = { efectivo: number; faltos: number };
+  const attendance = new Map<string, Record<string, AttendanceCell>>();
+  const ensureAttendanceRow = (label: string) => {
+    if (!attendance.has(label)) {
+      attendance.set(label, {
+        CHOFERES: { efectivo: 0, faltos: 0 },
+        MOTORIZADOS: { efectivo: 0, faltos: 0 },
+        SERENOS: { efectivo: 0, faltos: 0 }
+      });
+    }
+    return attendance.get(label)!;
+  };
+
+  // EFECTIVO: personal ACTIVO de la hoja Personal, por sector_id y rol
+  personnel.forEach(p => {
+    if ((p.estado || '').toString().trim().toUpperCase() !== 'ACTIVO') return;
+    const label = sectorLabelFor(p.sector_id);
+    if (!label) return;
+    ensureAttendanceRow(label)[roleBucketFor(p.rol_operativo)].efectivo++;
+  });
+
+  // FALTOS: ausentes detectados (ESTADO: FALTO), con sector del registro o de la ficha
+  absents.forEach(p => {
+    const nameNorm = normalize(p.apellidos_nombres);
+    const label = sectorLabelFor(nameToSector.get(nameNorm) || p.sector_id || '');
+    ensureAttendanceRow(label)[roleBucketFor(p.rol_operativo)].faltos++;
+  });
+
+  const attendanceSectorOrder = ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'G.I.R.', 'RETEN', 'OPERACIONES', 'CCO y COVV'];
+  const attendanceLabels = Array.from(attendance.keys()).sort((a, b) => {
+    const ia = attendanceSectorOrder.indexOf(a);
+    const ib = attendanceSectorOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.localeCompare(b);
+  });
+
+  const blankIfZero = (n: number) => (n ? String(n) : '');
+  const attendanceBody: any[][] = attendanceLabels.map(label => {
+    const row = attendance.get(label)!;
+    const cells: any[] = [label];
+    attendanceBuckets.forEach(b => {
+      const { efectivo, faltos } = row[b];
+      cells.push(blankIfZero(efectivo), blankIfZero(faltos), blankIfZero(efectivo - faltos));
+    });
+    return cells;
+  });
+
+  // Fila TOTALES
+  const totalsRow: any[] = ['TOTALES'];
+  attendanceBuckets.forEach(b => {
+    let efectivo = 0, faltos = 0;
+    attendance.forEach(row => { efectivo += row[b].efectivo; faltos += row[b].faltos; });
+    totalsRow.push(String(efectivo), blankIfZero(faltos), String(efectivo - faltos));
+  });
+  attendanceBody.push(totalsRow);
+
+  (doc as any).autoTable({
+    startY: currentY,
+    head: [[
+      { content: 'ASISTENCIA DEL PERSONAL', colSpan: 10, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 11 } }
+    ], [
+      { content: '', styles: { fillColor: [38, 70, 83] } },
+      { content: 'CHOFERES', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } },
+      { content: 'MOTORIZADOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } },
+      { content: 'SERENOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } }
+    ], [
+      { content: 'SECTORES', styles: { fillColor: [31, 78, 121], textColor: [255, 255, 255], fontSize: 7 } },
+      ...['EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES'].map((t, i) => ({
+        content: t,
+        styles: {
+          fillColor: i % 3 === 0 ? [67, 160, 71] : i % 3 === 1 ? [211, 47, 47] : [255, 235, 59],
+          textColor: i % 3 === 2 ? [0, 0, 0] : [255, 255, 255],
+          fontSize: 6.5
+        }
+      }))
+    ]],
+    body: attendanceBody,
+    theme: 'grid',
+    styles: { fontSize: 7.5, halign: 'center', cellPadding: 1.2, lineColor: [255, 255, 255], lineWidth: 0.3, textColor: [30, 41, 59] },
+    columnStyles: {
+      0: { cellWidth: 26, fontStyle: 'bold', fillColor: [31, 78, 121], textColor: [255, 255, 255] },
+      1: { cellWidth: 18 }, 2: { cellWidth: 18 }, 3: { cellWidth: 18 },
+      4: { cellWidth: 18 }, 5: { cellWidth: 18 }, 6: { cellWidth: 18 },
+      7: { cellWidth: 18 }, 8: { cellWidth: 18 }, 9: { cellWidth: 18 }
+    },
+    didParseCell: function (data: any) {
+      if (data.row.section === 'body') {
+        const isTotalRow = data.row.index === attendanceBody.length - 1;
+        if (isTotalRow) {
+          data.cell.styles.fillColor = [38, 70, 83];
+          data.cell.styles.textColor = [255, 255, 255];
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 8;
+        }
+      }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY;
 
   // --- FOOTER (pie de página en todas las páginas) ---
   stampReportFooter(doc, pageWidth, pageHeight, margin, resolveC4Supervisor(allSectorSettings), resolvedOperator, new Date().toLocaleString());

@@ -507,7 +507,7 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
               setMarcaFilter(e.target.value);
               handleSearch(undefined, e.target.value);
             }}
-            className="w-32 lg:w-44 shrink-0 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-48 lg:w-64 shrink-0 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           >
             <option value="">TODAS LAS MARCAS</option>
             {marcaOptions.map(m => (
@@ -583,6 +583,7 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                   <th className="text-left px-4 py-3">SECTOR</th>
                   <th className="text-left px-4 py-3">FECHA</th>
                   <th className="text-left px-4 py-3">SADE</th>
+                  <th className="text-left px-4 py-3">RELATO</th>
                   <th className="text-center px-4 py-3">IMAGEN</th>
                 </tr>
               </thead>
@@ -620,6 +621,7 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                     <td className="px-4 py-2.5 text-slate-700">{v.sector}</td>
                     <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{String(v.fecha ?? '').split('T')[0].split(' ')[0]}</td>
                     <td className="px-4 py-2.5 font-medium text-slate-700">{v.sade}</td>
+                    <td className="px-4 py-2.5 text-slate-600 max-w-[220px] truncate" title={v.relato}>{v.relato || '--'}</td>
                     <td className="px-4 py-2.5 text-center">
                       {v.urlImg ? (
                         <button
