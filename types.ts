@@ -49,6 +49,7 @@ export interface VehicleRQ {
   subtipoDelito: string;
   sector: string;
   cuadrante: string;
+  urlImg: string;
 }
 
 export interface PersonnelData {

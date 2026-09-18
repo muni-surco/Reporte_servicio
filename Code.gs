@@ -1773,7 +1773,7 @@ function updateUnit(dateStr, shift, settings, unit) {
 /**
  * Searches VEHICULOS_RQ sheet by plate (partial match).
  */
-function searchVehicles(searchTerm) {
+function searchVehicles(searchTerm, marcaFilter, modeloFilter) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.VEHICLE_RQ_SPREADSHEET_ID);
   const sheet = ss.getSheetByName('RQ');
   if (!sheet) return [];
@@ -1785,7 +1785,21 @@ function searchVehicles(searchTerm) {
   var colMap = {};
   headers.forEach(function(h, i) { colMap[h] = i; });
 
+  // Columna de imagen: 'url_img' exacto o variante (URL IMG, IMAGEN, FOTO...)
+  var urlImgIdx = colMap['url_img'];
+  if (urlImgIdx === undefined) {
+    for (var uhi = 0; uhi < headers.length; uhi++) {
+      var uhh = String(headers[uhi]).toLowerCase().trim();
+      if ((uhh.indexOf('url') !== -1 && uhh.indexOf('img') !== -1) || uhh === 'imagen' || uhh === 'foto' || uhh === 'fotografia') {
+        urlImgIdx = uhi;
+        break;
+      }
+    }
+  }
+
   var term = String(searchTerm || '').toLowerCase().trim();
+  var marcaF = String(marcaFilter || '').toLowerCase().trim();
+  var modeloF = String(modeloFilter || '').toLowerCase().trim();
   var results = [];
 
   for (var i = 1; i < data.length; i++) {
@@ -1793,8 +1807,15 @@ function searchVehicles(searchTerm) {
     var plate = colMap['placa'] !== undefined ? String(row[colMap['placa']] || '').toLowerCase().trim() : '';
     var marca = colMap['marca'] !== undefined ? String(row[colMap['marca']] || '').toLowerCase().trim() : '';
     var modelo = colMap['modelo'] !== undefined ? String(row[colMap['modelo']] || '').toLowerCase().trim() : '';
-    
-    if (!term || plate.indexOf(term) !== -1 || marca.indexOf(term) !== -1 || modelo.indexOf(term) !== -1) {
+
+    // Búsqueda solo por placa (se ignoran guiones/espacios: ABC123 = ABC-123)
+    // más filtros aparte de marca y modelo (vacíos = sin filtro)
+    var plateNorm = plate.replace(/[^a-z0-9]/g, '');
+    var termNorm = term.replace(/[^a-z0-9]/g, '');
+    var okPlate = !term || (termNorm && plateNorm.indexOf(termNorm) !== -1);
+    var okMarca = !marcaF || marca.indexOf(marcaF) !== -1;
+    var okModelo = !modeloF || modelo.indexOf(modeloF) !== -1;
+    if (okPlate && okMarca && okModelo) {
       results.push({
         sade: colMap['sade'] !== undefined ? cellToStr(row[colMap['sade']], ss.getSpreadsheetTimeZone()) : '',
         fecha: colMap['fecha'] !== undefined ? cellToStr(row[colMap['fecha']], ss.getSpreadsheetTimeZone()) : '',
@@ -1809,6 +1830,7 @@ function searchVehicles(searchTerm) {
         subtipoDelito: colMap['subtipo_delito'] !== undefined ? String(row[colMap['subtipo_delito']] || '') : '',
         sector: colMap['sector'] !== undefined ? String(row[colMap['sector']] || '') : '',
         cuadrante: colMap['cuadrante'] !== undefined ? cellToStr(row[colMap['cuadrante']], ss.getSpreadsheetTimeZone()) : '',
+        urlImg: (urlImgIdx === undefined || urlImgIdx === -1) ? '' : String(row[urlImgIdx] || ''),
       });
     }
   }
@@ -1841,6 +1863,64 @@ function getVehiclePlates() {
     }
   }
   return plates.sort();
+}
+
+/**
+ * Returns all unique marca values from VEHICULOS_RQ for the brand filter.
+ */
+function getVehicleMarcas() {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.VEHICLE_RQ_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('RQ');
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+
+  const headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
+  var marcaIdx = headers.indexOf('marca');
+  if (marcaIdx === -1) return [];
+
+  var marcas = [];
+  var seen = {};
+  for (var i = 1; i < data.length; i++) {
+    var marca = String(data[i][marcaIdx] || '').trim().toUpperCase();
+    if (marca && !seen[marca]) {
+      seen[marca] = true;
+      marcas.push(marca);
+    }
+  }
+  return marcas.sort();
+}
+
+/**
+ * Returns distinct tipo_delito values and subtipos grouped by tipo from VEHICULOS_RQ.
+ */
+function getVehicleDelitos() {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.VEHICLE_RQ_SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('RQ');
+  if (!sheet) return { tipos: [], porTipo: {} };
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { tipos: [], porTipo: {} };
+
+  const headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
+  var tipoIdx = headers.indexOf('tipo_delito');
+  var subIdx = headers.indexOf('subtipo_delito');
+
+  var tipoSeen = {};
+  var porTipo = {};
+  for (var i = 1; i < data.length; i++) {
+    var t = tipoIdx !== -1 ? String(data[i][tipoIdx] || '').trim().toUpperCase() : '';
+    var s = subIdx !== -1 ? String(data[i][subIdx] || '').trim().toUpperCase() : '';
+    if (t) tipoSeen[t] = true;
+    if (t && s) {
+      if (!porTipo[t]) porTipo[t] = [];
+      if (porTipo[t].indexOf(s) === -1) porTipo[t].push(s);
+    }
+  }
+  var tipos = Object.keys(tipoSeen).sort();
+  Object.keys(porTipo).forEach(function(k) { porTipo[k].sort(); });
+  return { tipos: tipos, porTipo: porTipo };
 }
 
 /**
@@ -1883,6 +1963,25 @@ function saveVehicleRQ(data) {
   var colMap = {};
   headers.forEach(function(h, i) { colMap[String(h).toLowerCase().trim()] = i + 1; });
 
+  // Columna URL_IMG: exacta o variante (URL IMG, IMAGEN, FOTO...); se crea si no existe
+  if (colMap['url_img'] === undefined) {
+    var foundUrlCol = -1;
+    for (var hi = 0; hi < headers.length; hi++) {
+      var hh = String(headers[hi]).toLowerCase().trim();
+      if ((hh.indexOf('url') !== -1 && hh.indexOf('img') !== -1) || hh === 'imagen' || hh === 'foto' || hh === 'fotografia') {
+        foundUrlCol = hi + 1;
+        break;
+      }
+    }
+    if (foundUrlCol !== -1) {
+      colMap['url_img'] = foundUrlCol;
+    } else {
+      sheet.getRange(1, headers.length + 1).setValue('URL_IMG');
+      headers.push('URL_IMG');
+      colMap['url_img'] = headers.length;
+    }
+  }
+
   var row = [];
   for (var i = 0; i < headers.length; i++) {
     row.push('');
@@ -1901,7 +2000,8 @@ function saveVehicleRQ(data) {
     tipoDelito: 'tipo_delito',
     subtipoDelito: 'subtipo_delito',
     sector: 'sector',
-    cuadrante: 'cuadrante'
+    cuadrante: 'cuadrante',
+    urlImg: 'url_img'
   };
 
   Object.keys(fieldMapping).forEach(function(key) {
@@ -1914,6 +2014,23 @@ function saveVehicleRQ(data) {
 
   sheet.appendRow(row);
   return { success: true };
+}
+
+/**
+ * Sube una imagen JPG (máx. 200KB) a Drive y devuelve su URL para el campo URL_IMG.
+ */
+function uploadVehicleImage(dataUrl, fileName) {
+  if (!dataUrl) throw new Error('Sin imagen para subir');
+  var matches = String(dataUrl).match(/^data:(image\/jpeg|image\/jpg);base64,(.+)$/);
+  if (!matches) throw new Error('La imagen debe estar en formato JPG');
+  var bytes = Utilities.base64Decode(matches[2]);
+  if (bytes.length > 200 * 1024) throw new Error('La imagen supera los 200KB');
+  var blob = Utilities.newBlob(bytes, 'image/jpeg', fileName || 'vehiculo.jpg');
+  // Carpeta fija de imágenes RQ (ID proporcionado por el usuario)
+  var folder = DriveApp.getFolderById('11p2y-Z95zzMp4vXq475Yoz_uYg40Yq34');
+  var file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return file.getUrl();
 }
 
 /**

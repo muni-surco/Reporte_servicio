@@ -1,11 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { VehicleRQ } from '../types';
-import { Search, XCircle, AlertCircle, Plus, X, ChevronDown } from 'lucide-react';
+import { Search, XCircle, AlertCircle, Plus, X, ChevronDown, Image } from 'lucide-react';
 
 declare const google: any;
 
 const VehicleSearchView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [marcaFilter, setMarcaFilter] = useState('');
+  const [modeloFilter, setModeloFilter] = useState('');
+  const [marcaOptions, setMarcaOptions] = useState<string[]>([]);
+  const [delitoTipos, setDelitoTipos] = useState<string[]>([]);
+  const [delitoSubPorTipo, setDelitoSubPorTipo] = useState<Record<string, string[]>>({});
   const [results, setResults] = useState<VehicleRQ[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -22,8 +27,19 @@ const VehicleSearchView: React.FC = () => {
   const quadrantRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<VehicleRQ>({
     sade: '', fecha: '', tipo: '', marca: '', modelo: '', color: '', placa: '',
-    estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: ''
+    estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '', urlImg: ''
   });
+  const [imgData, setImgData] = useState<string | null>(null);
+  const [imgName, setImgName] = useState('');
+  const [imgError, setImgError] = useState('');
+  const [viewImg, setViewImg] = useState<string | null>(null);
+
+  // Convierte URL de Drive (visor) a thumbnail directo visible en <img>
+  const driveThumbUrl = (url: string) => {
+    const m = String(url || '').match(/\/d\/([^/]+)/) || String(url || '').match(/[?&]id=([^&]+)/);
+    if (!m) return url;
+    return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000`;
+  };
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -38,6 +54,17 @@ const VehicleSearchView: React.FC = () => {
         .withSuccessHandler((data: string[]) => setQuadrantOptions(data || []))
         .withFailureHandler(() => {})
         .getQuadrantList();
+      google.script.run
+        .withSuccessHandler((data: string[]) => setMarcaOptions(data || []))
+        .withFailureHandler(() => {})
+        .getVehicleMarcas();
+      google.script.run
+        .withSuccessHandler((data: { tipos: string[], porTipo: Record<string, string[]> }) => {
+          setDelitoTipos(data?.tipos || []);
+          setDelitoSubPorTipo(data?.porTipo || {});
+        })
+        .withFailureHandler(() => {})
+        .getVehicleDelitos();
       loadAll();
     }
   }, []);
@@ -62,7 +89,7 @@ const VehicleSearchView: React.FC = () => {
           setResults([]);
           setLoading(false);
         })
-        .searchVehicles('');
+        .searchVehicles('', marcaFilter.trim(), modeloFilter.trim());
     } else {
       setResults([]);
       setLoading(false);
@@ -86,8 +113,29 @@ const VehicleSearchView: React.FC = () => {
     ? plates.filter(p => p.includes(searchTerm.toUpperCase())).slice(0, 50)
     : [];
 
-  const handleSearch = () => {
-    const term = searchTerm.trim();
+  // Ordenar por fecha de más reciente a más antiguo (soporta dd/MM/yyyy y yyyy-MM-dd)
+  const parseFecha = (v: unknown): number => {
+    const s = String(v ?? '').trim();
+    if (!s) return 0;
+    let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+    const t = new Date(s).getTime();
+    return isNaN(t) ? 0 : t;
+  };
+  const sortedResults = [...results].sort((a, b) => parseFecha(b.fecha) - parseFecha(a.fecha));
+
+  // Subtipos en cascada según el tipo de delito elegido (todos si no hay tipo)
+  const allSubtipos = Object.keys(delitoSubPorTipo).reduce<string[]>((acc, k) => acc.concat(delitoSubPorTipo[k]), []);
+  const subtipoOpts = formData.tipoDelito && delitoSubPorTipo[formData.tipoDelito]
+    ? delitoSubPorTipo[formData.tipoDelito]
+    : Array.from(new Set(allSubtipos)).sort();
+
+  const handleSearch = (plateOverride?: string, marcaOverride?: string, modeloOverride?: string) => {
+    const term = (plateOverride ?? searchTerm).trim();
+    const marca = (marcaOverride ?? marcaFilter).trim();
+    const modelo = (modeloOverride ?? modeloFilter).trim();
     setLoading(true);
     setSearched(true);
     setShowDropdown(false);
@@ -103,7 +151,7 @@ const VehicleSearchView: React.FC = () => {
           setResults([]);
           setLoading(false);
         })
-        .searchVehicles(term);
+        .searchVehicles(term, marca, modelo);
     } else {
       setResults([]);
       setLoading(false);
@@ -143,34 +191,102 @@ const VehicleSearchView: React.FC = () => {
     inputRef.current?.focus();
   };
 
+  const resetImg = () => {
+    setImgData(null);
+    setImgName('');
+    setImgError('');
+  };
+
+  const handleImgSelect = (file: File | undefined) => {
+    setImgError('');
+    if (!file) { resetImg(); return; }
+    const isJpg = file.type === 'image/jpeg' || /\.jpe?g$/i.test(file.name);
+    if (!isJpg) {
+      setImgError('Solo se permiten imágenes en formato JPG');
+      setImgData(null);
+      setImgName('');
+      return;
+    }
+    if (file.size > 200 * 1024) {
+      setImgError(`La imagen supera los 200KB (${Math.round(file.size / 1024)}KB)`);
+      setImgData(null);
+      setImgName('');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImgData(String(reader.result));
+      setImgName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveVehicle = () => {
-    const required = ['sade', 'fecha', 'tipo', 'placa', 'estado'];
+    const required = ['fecha', 'tipo', 'placa', 'estado'];
     const errors: Record<string, boolean> = {};
     required.forEach(key => { if (!(formData as any)[key]?.toString().trim()) errors[key] = true; });
     setFormErrors(errors);
     if (Object.keys(errors).length) return;
+    if (imgError) return;
     setSaving(true);
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler(() => {
-          setSaving(false);
-          setShowAddModal(false);
-          setFormData({ sade: '', fecha: '', tipo: '', marca: '', modelo: '', color: '', placa: '', estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '' });
+    const doSave = (urlImg: string) => {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(() => {
+            setSaving(false);
+            setShowAddModal(false);
+            setFormData({ sade: '', fecha: '', tipo: '', marca: '', modelo: '', color: '', placa: '', estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '', urlImg: '' });
+            resetImg();
+            // Refrescar la tabla para visualizar el último registrado
+            setSearchTerm('');
+            setShowDropdown(false);
+            setActiveIndex(-1);
+            loadAll();
           if (typeof google !== 'undefined' && google.script && google.script.run) {
             google.script.run
               .withSuccessHandler((data: string[]) => setPlates(data || []))
               .withFailureHandler(() => {})
               .getVehiclePlates();
+            google.script.run
+              .withSuccessHandler((data: string[]) => setMarcaOptions(data || []))
+              .withFailureHandler(() => {})
+              .getVehicleMarcas();
+            google.script.run
+              .withSuccessHandler((data: { tipos: string[], porTipo: Record<string, string[]> }) => {
+                setDelitoTipos(data?.tipos || []);
+                setDelitoSubPorTipo(data?.porTipo || {});
+              })
+              .withFailureHandler(() => {})
+              .getVehicleDelitos();
           }
         })
         .withFailureHandler((err: any) => {
           console.error('Save failed', err);
           setSaving(false);
         })
-        .saveVehicleRQ(formData);
+        .saveVehicleRQ({ ...formData, urlImg });
     } else {
       setSaving(false);
       setShowAddModal(false);
+    }
+    };
+
+    // Si hay imagen nueva, primero se sube a Drive y su URL va a URL_IMG
+    if (imgData) {
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler((url: string) => doSave(url || ''))
+          .withFailureHandler((err: any) => {
+            console.error('Upload failed', err);
+            setImgError(String((err && err.message) || err || 'No se pudo subir la imagen'));
+            setSaving(false);
+          })
+          .uploadVehicleImage(imgData, imgName || 'vehiculo.jpg');
+      } else {
+        doSave(formData.urlImg || '');
+      }
+    } else {
+      doSave(formData.urlImg || '');
     }
   };
 
@@ -181,7 +297,7 @@ const VehicleSearchView: React.FC = () => {
       {/* Search Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
         <div className="flex items-center gap-3">
-          <div className="relative flex-1" ref={containerRef}>
+          <div className="relative flex-1 min-w-0" ref={containerRef}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               ref={inputRef}
@@ -192,7 +308,7 @@ const VehicleSearchView: React.FC = () => {
                 setShowDropdown(true);
                 setActiveIndex(-1);
                 if (e.target.value.trim()) {
-                    handleSearch();
+                    handleSearch(e.target.value);
                 }
               }}
               onFocus={() => searchTerm.trim() && setShowDropdown(true)}
@@ -226,6 +342,30 @@ const VehicleSearchView: React.FC = () => {
               </button>
             )}
           </div>
+          <select
+            value={marcaFilter}
+            onChange={(e) => {
+              setMarcaFilter(e.target.value);
+              handleSearch(undefined, e.target.value);
+            }}
+            className="w-32 lg:w-44 shrink-0 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          >
+            <option value="">TODAS LAS MARCAS</option>
+            {marcaOptions.map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={modeloFilter}
+            onChange={(e) => {
+              setModeloFilter(e.target.value);
+              handleSearch(undefined, undefined, e.target.value);
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+            placeholder="Modelo..."
+            className="w-32 lg:w-44 shrink-0 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-[14px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          />
           <select 
             value={filterType} 
             onChange={(e) => setFilterType(e.target.value)}
@@ -285,20 +425,21 @@ const VehicleSearchView: React.FC = () => {
                   <th className="text-left px-4 py-3">RELATO</th>
                   <th className="text-left px-4 py-3">TIPO DELITO</th>
                   <th className="text-left px-4 py-3">SUBTIPO</th>
-                  <th className="text-left px-4 py-3">SECTOR</th>
-                  <th className="text-left px-4 py-3">CUADRANTE</th>
+                    <th className="text-left px-4 py-3">SECTOR</th>
+                    <th className="text-left px-4 py-3">CUADRANTE</th>
+                    <th className="text-center px-4 py-3">IMAGEN</th>
                 </tr>
               </thead>
               <tbody>
-                {results.filter(r => filterType === 'TODOS' || r.tipo === filterType).map((v, i) => (
+                {sortedResults.filter(r => filterType === 'TODOS' || r.tipo === filterType).map((v, i) => (
                   <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-2.5 font-medium text-slate-700">{v.sade}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{v.fecha}</td>
+                    <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{String(v.fecha ?? '').split('T')[0].split(' ')[0]}</td>
                     <td className="px-4 py-2.5">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">{v.tipo}</span>
                     </td>
                     <td className="px-4 py-2.5 text-slate-700">{v.marca}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{v.modelo}</td>
+                    <td className="px-4 py-2.5 text-slate-600 max-w-[110px] truncate" title={v.modelo}>{v.modelo}</td>
                     <td className="px-4 py-2.5">
                       <span className="px-2 py-0.5 rounded text-[10px] font-medium" style={{
                         backgroundColor: v.color?.toLowerCase() === 'negro' ? '#f1f5f9' :
@@ -321,11 +462,25 @@ const VehicleSearchView: React.FC = () => {
                     <td className="px-4 py-2.5">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${v.estado?.toUpperCase() === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{v.estado || '--'}</span>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-600 max-w-[250px] truncate" title={v.relato}>{v.relato}</td>
+                    <td className="px-4 py-2.5 text-slate-600 max-w-[400px] truncate" title={v.relato}>{v.relato}</td>
                     <td className="px-4 py-2.5 text-slate-700">{v.tipoDelito}</td>
                     <td className="px-4 py-2.5 text-slate-600">{v.subtipoDelito}</td>
                     <td className="px-4 py-2.5 text-slate-700">{v.sector}</td>
                     <td className="px-4 py-2.5 text-slate-600">{v.cuadrante}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      {v.urlImg ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewImg(v.urlImg || null)}
+                          title="Ver imagen"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all"
+                        >
+                          <Image className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <span className="text-slate-300">--</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -357,17 +512,17 @@ const VehicleSearchView: React.FC = () => {
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               {[
-                { key: 'sade', label: 'SADE', type: 'number', required: true },
+                { key: 'sade', label: 'SADE', type: 'number', required: false },
                 { key: 'fecha', label: 'FECHA', type: 'date', required: true },
                 { key: 'tipo', label: 'TIPO', type: 'select', options: ['AUTO', 'CAMIONETA', 'MOTOTAXI', 'MOTO'], required: true },
-                { key: 'marca', label: 'MARCA', type: 'text' },
+                { key: 'marca', label: 'MARCA', type: 'select', options: marcaOptions },
                 { key: 'modelo', label: 'MODELO', type: 'text' },
                 { key: 'color', label: 'COLOR', type: 'text' },
                 { key: 'placa', label: 'PLACA', type: 'text', required: true },
                 { key: 'estado', label: 'ESTADO', type: 'select', options: ['IMPLICADO', 'ROBADO', 'SOSPECHOSO', 'REQUISITORIADO'], required: true },
                 { key: 'relato', label: 'RELATO', type: 'text' },
-                { key: 'tipoDelito', label: 'TIPO DELITO', type: 'text' },
-                { key: 'subtipoDelito', label: 'SUBTIPO DELITO', type: 'text' },
+                { key: 'tipoDelito', label: 'TIPO DELITO', type: 'select', options: delitoTipos },
+                { key: 'subtipoDelito', label: 'SUBTIPO DELITO', type: 'select', options: subtipoOpts },
                 { key: 'sector', label: 'SECTOR', type: 'select', options: ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B'] },
                 { key: 'cuadrante', label: 'CUADRANTE', type: 'autocomplete' },
               ].map(({ key, label, type, options, required }) => (
@@ -380,7 +535,7 @@ const VehicleSearchView: React.FC = () => {
                     <div className="relative">
                       <select
                         value={(formData as any)[key]}
-                        onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
+                        onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value, ...(key === 'tipoDelito' ? { subtipoDelito: '' } : {}) }))}
                         className={`${inputModalStyle} cursor-pointer pr-8 appearance-none${formErrors[key] ? ' border-red-400' : ''}`}
                       >
                         <option value="">--</option>
@@ -449,10 +604,35 @@ const VehicleSearchView: React.FC = () => {
                   )}
                 </div>
               ))}
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
+                  Imagen JPG (máx. 200KB)
+                </label>
+                <input
+                  type="file"
+                  accept="image/jpeg,.jpg,.jpeg"
+                  onChange={(e) => handleImgSelect(e.target.files?.[0])}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[13px] text-slate-700 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:uppercase file:tracking-wider file:bg-primary file:text-white hover:file:bg-primary-dark file:cursor-pointer transition-all"
+                />
+                {imgError && <p className="text-[11px] text-red-500 font-medium mt-1">{imgError}</p>}
+                {!imgError && imgName && (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <img src={imgData || ''} alt="Vista previa" className="h-10 w-10 object-cover rounded-md border border-slate-200 shrink-0" />
+                    <span className="text-[11px] font-medium text-slate-600 truncate">{imgName}</span>
+                    <button
+                      type="button"
+                      onClick={resetImg}
+                      className="text-[11px] font-bold uppercase tracking-wider text-red-500 hover:text-red-700 shrink-0"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => { setShowAddModal(false); resetImg(); }}
                 disabled={saving}
                 className="px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-700 transition-colors"
               >
@@ -468,6 +648,25 @@ const VehicleSearchView: React.FC = () => {
                 ) : null}
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewImg && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setViewImg(null)}>
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3 flex items-center justify-between border-b border-slate-200 shrink-0">
+              <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-600">Imagen del vehículo</h3>
+              <button onClick={() => setViewImg(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-all">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-auto flex flex-col items-center justify-center bg-slate-100 gap-2">
+              <img src={viewImg ? driveThumbUrl(viewImg) : ''} alt="Vehículo" className="max-w-full max-h-[70vh] object-contain rounded-lg" />
+              <a href={viewImg || ''} target="_blank" rel="noopener noreferrer" className="text-[11px] font-bold uppercase tracking-wider text-blue-600 hover:text-blue-800">
+                Abrir original
+              </a>
             </div>
           </div>
         </div>
