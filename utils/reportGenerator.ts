@@ -11,6 +11,13 @@ const blankZero = (v: number | string): string => {
   return n ? String(v) : '';
 };
 
+// EFECTIVO debe ser la suma de INOPERATIVOS + PATRULLANDO + SIN PATRULLAR.
+// Si la suma no cuadra con la flota del sector, las celdas inconsistentes
+// se marcan como 'Pendiente' en lugar de mostrar un número que no cuadra.
+const PENDING = 'Pendiente';
+const efectivoOrPending = (efectivo: number, suma: number): string =>
+  suma === efectivo ? blankZero(efectivo) : PENDING;
+
 // Línea gruesa y negra de separación vertical entre los bloques
 // INOPERATIVOS | SIN PATRULLAR cuando se dibujan lado a lado.
 // boundaryColumn = índice de la primera columna del bloque SIN PATRULLAR.
@@ -41,6 +48,53 @@ const blockSeparatorHooks = (doc: any, boundaryColumn: number, width: number = 2
       doc.setLineWidth(0.15);
     }
   };
+};
+
+// --- HELPERS COMPARTIDOS (evitar duplicación entre generadores) ---
+
+// Fecha larga en español: "lunes, 5 de mayo de 2026"
+const formatLongDate = (dateStr: string): string => {
+  try {
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+// Fecha corta: "5-may-2026"
+const formatShortDate = (dateStr: string): string => {
+  try {
+    const d = new Date(dateStr + 'T12:00:00');
+    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+// Normaliza texto a mayúsculas (para sectores, IDs, estados)
+const normalizeText = (v: unknown) => String(v ?? '').trim().toUpperCase();
+
+// Normaliza nombres de personal para matching exacto (sin puntos, comas ni espacios dobles)
+const normalizeName = (val: any) => {
+  return (val || '').toString()
+    .trim()
+    .toUpperCase()
+    .replace(/\./g, '') // Remove dots (e.g., SOT. -> SOT)
+    .replace(/,/g, '')  // Remove commas
+    .replace(/\s+/g, ' '); // Normalize spaces
+};
+
+// Resuelve el operador del reporte: el pasado por parámetro o el del primer sector
+const resolveOperator = (settingsMap: Record<string, any> | undefined, operatorName?: string) => {
+  const first = ((settingsMap && Object.values(settingsMap)[0]) || { operador: '' }) as any;
+  return operatorName || first.operador || '--';
 };
 
 // Supervisor CCO desde los ajustes del sector C4 (misma regla en todos los reportes)
@@ -114,7 +168,7 @@ export const generateMotoReport = (
   };
 
   // Normalizador de texto (declarado antes de su primer uso)
-  const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
+  const normalize = normalizeText;
 
   // Sector por ID de mobileData (hoja DATA), con fallback a u.sector
   const sectorById = new Map<string, string>();
@@ -125,20 +179,6 @@ export const generateMotoReport = (
   const getSector = (u: UnitData) => {
     const fromData = sectorById.get(normalize(u.id));
     return fromData || normalize(u.sector);
-  };
-
-  const formatLongDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    } catch (e) {
-      return dateStr;
-    }
   };
 
   // --- HEADER ---
@@ -184,29 +224,33 @@ export const generateMotoReport = (
     const efectivo = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector)).length;
     const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
     const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status)).length;
-    const sinPatrullar = efectivo - inoperativos - patrullando;
+    // SIN PATRULLAR se calcula por conteo directo, no por resta, para detectar
+    // inconsistencias entre la flota (DATA) y los registros del turno.
+    const sinPatrullar = sectorUnits.filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+    const suma = inoperativos + patrullando + sinPatrullar;
 
     return [
       s,
-      blankZero(efectivo),
+      efectivoOrPending(efectivo, suma),
       blankZero(inoperativos),
       blankZero(patrullando),
       blankZero(sinPatrullar)
     ];
   });
 
-  // Calculate Totals
+  // Calculate Totals (los 'Pendiente' se acumulan como pendientes, no como cero)
   const totals = summaryRows.reduce((acc: number[], curr: any[]) => {
-    acc[0] += Number(curr[1]) || 0;
+    acc[0] += curr[1] === PENDING ? 0 : (Number(curr[1]) || 0);
     acc[1] += Number(curr[2]) || 0;
     acc[2] += Number(curr[3]) || 0;
     acc[3] += Number(curr[4]) || 0;
+    acc[4] += curr[1] === PENDING ? 1 : 0;
     return acc;
-  }, [0, 0, 0, 0]);
+  }, [0, 0, 0, 0, 0]);
 
   summaryRows.push([
     'TOTALES',
-    blankZero(totals[0]),
+    totals[4] > 0 ? PENDING : blankZero(totals[0]),
     blankZero(totals[1]),
     blankZero(totals[2]),
     blankZero(totals[3])
@@ -262,12 +306,9 @@ export const generateMotoReport = (
   let finalY = (doc as any).lastAutoTable.finalY + 2;
 
   // --- PERMANENCIA (sin cuadro OPERADOR CCO) ---
-  const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
   // Supervisor CCO debe provenir del sector C4 (requerimiento específico para reporte de motos)
-  const c4Key = Object.keys(settingsMap).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
-  const c4Settings = (c4Key ? (settingsMap as any)[c4Key] : null) || (settingsMap as any)['C4'] || (settingsMap as any)['SECTOR C4'] || null;
-  const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
-  const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
+  const c4Supervisor = resolveC4Supervisor(settingsMap) || (((Object.values(settingsMap)[0] || {}) as any).supervisor || '');
+  const resolvedOperator = resolveOperator(settingsMap, operatorName);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
@@ -348,7 +389,7 @@ export const generateConsolidatedMotoReport = (
   const margin = 10;
 
   // Normalizador de texto (declarado antes de su primer uso)
-  const normalize = (v: unknown) => String(v ?? '').trim().toUpperCase();
+  const normalize = normalizeText;
 
   // Sector por ID de mobileData (hoja DATA), con fallback a u.sector
   const sectorById = new Map<string, string>();
@@ -382,20 +423,6 @@ export const generateConsolidatedMotoReport = (
     const m = normModel(model);
     if (!m) return false;
     return allModelKeys.some(k => m.includes(k) || k.includes(m));
-  };
-
-  const formatLongDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    } catch (e) {
-      return dateStr;
-    }
   };
 
   // --- HEADER ---
@@ -440,29 +467,32 @@ export const generateConsolidatedMotoReport = (
       const efectivo = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector)).length;
       const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
       const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status)).length;
-      const sinPatrullar = efectivo - inoperativos - patrullando;
+      // SIN PATRULLAR por conteo directo para detectar inconsistencias
+      const sinPatrullar = sectorUnits.filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+      const suma = inoperativos + patrullando + sinPatrullar;
 
       return [
         sectorCode,
-        blankZero(efectivo),
+        efectivoOrPending(efectivo, suma),
         blankZero(inoperativos),
         blankZero(patrullando),
         blankZero(sinPatrullar)
       ];
     });
 
-    // Calculate Totals
+    // Calculate Totals (los 'Pendiente' se acumulan como pendientes, no como cero)
     const totals = summaryRows.reduce((acc: number[], curr: any[]) => {
-      acc[0] += Number(curr[1]) || 0;
+      acc[0] += curr[1] === PENDING ? 0 : (Number(curr[1]) || 0);
       acc[1] += Number(curr[2]) || 0;
       acc[2] += Number(curr[3]) || 0;
       acc[3] += Number(curr[4]) || 0;
+      acc[4] += curr[1] === PENDING ? 1 : 0;
       return acc;
-    }, [0, 0, 0, 0]);
+    }, [0, 0, 0, 0, 0]);
 
     summaryRows.push([
       'TOTALES',
-      blankZero(totals[0]),
+      totals[4] > 0 ? PENDING : blankZero(totals[0]),
       blankZero(totals[1]),
       blankZero(totals[2]),
       blankZero(totals[3])
@@ -530,12 +560,9 @@ export const generateConsolidatedMotoReport = (
   let finalY = renderMotoSummary(allMotoUnits, 'YAMAHA + HONDA', 48);
 
   // --- FOOTER DATA ---
-  const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
   // Supervisor CCO debe provenir del sector C4 (requerimiento específico para reporte de motos)
-  const c4Key = Object.keys(settingsMap).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
-  const c4Settings = (c4Key ? (settingsMap as any)[c4Key] : null) || (settingsMap as any)['C4'] || (settingsMap as any)['SECTOR C4'] || null;
-  const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
-  const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
+  const c4Supervisor = resolveC4Supervisor(settingsMap) || (((Object.values(settingsMap)[0] || {}) as any).supervisor || '');
+  const resolvedOperator = resolveOperator(settingsMap, operatorName);
 
   finalY += 2;
 
@@ -633,7 +660,7 @@ const generateFleetReport = (
   const margin = 10;
 
   // Filter for CHOFER units (Vehicles) belonging to the fleet (RENTING / SIPCOP)
-  const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
+  const normalize = normalizeText;
 
   // Vigencia del retén según hora actual: sigue vigente salvo que tenga salida
   // de taller registrada con fecha/hora ya pasada (el reemplazo ya terminó).
@@ -665,20 +692,6 @@ const generateFleetReport = (
       .map(m => normalize(m.id))
   );
   const vehicleUnits = units.filter(u => u.type === 'CHOFER' && fleetMobileIds.has(normalize(u.id)));
-
-  const formatLongDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    } catch (e) {
-      return dateStr;
-    }
-  };
 
   // --- HEADER ---
   doc.setFont('helvetica', 'bold');
@@ -745,10 +758,12 @@ const generateFleetReport = (
     ).length;
 
     const efectivo = baseFleet; // Usar flota base
+    // Validación: EFECTIVO debe ser la suma de INOPERATIVOS + PATRULLANDO + SIN PATRULLAR
+    const sumaEfectivo = countInoperativos + countPatrullando + countSinPatrullar;
 
     return [
       s,
-      blankZero(efectivo),
+      efectivoOrPending(efectivo, sumaEfectivo),
       blankZero(countInoperativos),
       blankZero(countPatrullando),
       blankZero(countSinPatrullar),
@@ -757,20 +772,21 @@ const generateFleetReport = (
     ];
   };
 
-  // Calculate Totals
+  // Calculate Totals (los 'Pendiente' se acumulan como pendientes, no como cero)
   const withTotals = (rows: any[][], retenNA: boolean) => {
     const totals = rows.reduce((acc: number[], curr: any[]) => {
-      acc[0] += Number(curr[1]) || 0;
+      acc[0] += curr[1] === PENDING ? 0 : (Number(curr[1]) || 0);
       acc[1] += Number(curr[2]) || 0;
       acc[2] += Number(curr[3]) || 0;
       acc[3] += Number(curr[4]) || 0;
       acc[4] += Number(curr[5]) || 0;
+      acc[5] += curr[1] === PENDING ? 1 : 0;
       return acc;
-    }, [0, 0, 0, 0, 0]);
+    }, [0, 0, 0, 0, 0, 0]);
 
     rows.push([
       'TOTALES',
-      blankZero(totals[0]),
+      totals[5] > 0 ? PENDING : blankZero(totals[0]),
       blankZero(totals[1]),
       blankZero(totals[2]),
       blankZero(totals[3]),
@@ -842,12 +858,9 @@ const generateFleetReport = (
   let finalY = (doc as any).lastAutoTable.finalY + 2;
 
   // --- PERMANENCIA + OPERADOR CCO ---
-  const firstSectorSettings = (Object.values(settingsMap)[0] || { permanencia: '', supervisor: '', operador: '' }) as any;
   // Supervisor CCO debe provenir del sector C4 (mismo criterio que reporte motos)
-  const c4Key = Object.keys(settingsMap).find(k => k.trim().toUpperCase().replace(/^SECTOR\s+/, '') === 'C4');
-  const c4Settings = (c4Key ? (settingsMap as any)[c4Key] : null) || (settingsMap as any)['C4'] || (settingsMap as any)['SECTOR C4'] || null;
-  const c4Supervisor = (c4Settings?.supervisor || '').trim() || firstSectorSettings.supervisor || '';
-  const resolvedOperator = operatorName || firstSectorSettings.operador || '--';
+  const c4Supervisor = resolveC4Supervisor(settingsMap) || (((Object.values(settingsMap)[0] || {}) as any).supervisor || '');
+  const resolvedOperator = resolveOperator(settingsMap, operatorName);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
@@ -1027,29 +1040,8 @@ export const generatePersonnelAbsenceReport = (
   const margin = 10;
   const contentWidth = pageWidth - (margin * 2);
 
-  const formatLongDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    } catch (e) {
-      return dateStr;
-    }
-  };
-
-  // Helper to normalize names for perfect matching
-  const normalize = (val: any) => {
-    return (val || '').toString()
-      .trim()
-      .toUpperCase()
-      .replace(/\./g, '') // Remove dots (e.g., SOT. -> SOT)
-      .replace(/,/g, '')  // Remove commas
-      .replace(/\s+/g, ' '); // Normalize spaces
-  };
+  // Normaliza nombres para matching exacto (helper compartido)
+  const normalize = normalizeName;
 
   // 1. Identify present vs explicitly absent personnel names
   const presentNames = new Set<string>();
@@ -1057,8 +1049,6 @@ export const generatePersonnelAbsenceReport = (
   // Map name -> { sector, motivo } for absent people from units
   const nameToSector = new Map<string, string>();
   const nameToUnitMotivo = new Map<string, string>();
-
-  console.log("DEBUG: Inicio de procesamiento. Unidades totales:", units.length);
 
   units.forEach(u => {
     // Solo considerar registros con PERSONAL_1 llenado
@@ -1076,7 +1066,6 @@ export const generatePersonnelAbsenceReport = (
       explicitAbsentInUnits.add(name);
       nameToSector.set(name, sector);
       nameToUnitMotivo.set(name, motivo || 'INASISTENCIA');
-      console.log(`DEBUG: Ausencia detectada para: '${name}' (Unidad ${u.id})`);
     }
   });
 
@@ -1100,18 +1089,8 @@ export const generatePersonnelAbsenceReport = (
     }
   });
 
-  console.log("DEBUG: Total ausencias únicas en Set:", explicitAbsentInUnits.size);
-  console.log("DEBUG: Contenido del Set de ausentes:", Array.from(explicitAbsentInUnits));
-
   // 2. Filter personnel list (solo personal de la hoja Personal)
-  const absents = personnel.filter(p => {
-    const name = normalize(p.apellidos_nombres);
-    const isExplicit = explicitAbsentInUnits.has(name);
-    if (isExplicit) {
-        console.log(`DEBUG: Personal encontrado en ausentes: '${name}'`);
-    }
-    return isExplicit; 
-  });
+  const absents = personnel.filter(p => explicitAbsentInUnits.has(normalize(p.apellidos_nombres)));
 
   // NOTA: no se agregan ausentes sin ficha en Personal (solo hoja Personal)
 
@@ -1210,8 +1189,6 @@ export const generatePersonnelAbsenceReport = (
     regimes.forEach(regimeKey => {
         const data = motifAbsents.filter(p => getRegime(p) === regimeKey);
         if (data.length === 0) return;
-        
-        console.log(`DEBUG: Agregando ${data.length} personas al grupo ${regimeKey} para el motivo ${motivo}`);
 
         // Check if we need a new page
         if (currentY > 250) {
@@ -1302,28 +1279,7 @@ export const generatePersonnelStatusReport = (
   const margin = 10;
   const contentWidth = pageWidth - (margin * 2);
 
-  const formatLongDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    } catch (e) {
-      return dateStr;
-    }
-  };
-
-  const normalize = (val: any) => {
-    return (val || '').toString()
-      .trim()
-      .toUpperCase()
-      .replace(/\./g, '')
-      .replace(/,/g, '')
-      .replace(/\s+/g, ' ');
-  };
+  const normalize = normalizeName;
 
   const statusToReport = ['PATRULLANDO', 'SIN VEHICULO', 'SIN DOCUMENTOS'];
   const explicitInUnits = new Set<string>();
@@ -1506,16 +1462,6 @@ export const generateAllRecordsReport = (
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 10;
-
-  const formatShortDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr + 'T12:00:00');
-      const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-      return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
-    } catch (e) {
-      return dateStr;
-    }
-  };
 
   const rows: any[] = [];
   units.forEach(u => {
@@ -1708,7 +1654,6 @@ export const generateAllRecordsReport = (
   });
 
   // --- FOOTER ---
-  const firstSectorSettings = (Object.values(settingsMap)[0] || { operador: '' }) as any;
   const pageHeight = doc.internal.pageSize.getHeight();
   const footerY = pageHeight - 15;
   doc.setFontSize(8);
@@ -1740,6 +1685,7 @@ export const generateRetenReport = (
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
 
   // Header
@@ -1843,16 +1789,6 @@ export const generateTaserReport = (
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 10;
-
-  const formatShortDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr + 'T12:00:00');
-      const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-      return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
-    } catch (e) {
-      return dateStr;
-    }
-  };
 
   const resolvedOperator = operatorName || '--';
 
