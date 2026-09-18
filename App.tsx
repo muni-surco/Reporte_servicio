@@ -1573,7 +1573,7 @@ hours: '--:-- - --:--',
               motivoTallerOptions={motivoTallerOptions}
             />
           ) : currentView === 'VEHICLE_SEARCH' ? (
-            <VehicleSearchView />
+            <VehicleSearchView operatorOptions={reportOperatorOptions} />
           ) : currentView === 'MAP' ? (
             <MapView allSectorsData={allSectorsData} settings={settings} />
           ) : currentView === 'WANTED' ? (

@@ -81,17 +81,20 @@ const WantedView: React.FC = () => {
   return (
     <div className="flex flex-col h-full gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200 shrink-0 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <span className="material-symbols-outlined text-slate-400">search</span>
+        <div className="relative flex-1 min-w-[240px]">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] pointer-events-none">search</span>
           <input
             type="text"
-            placeholder="Buscar por nombre o DNI"
+            placeholder="Buscar por nombre o DNI..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-transparent border-none text-[13px] font-medium text-slate-700 focus:outline-none placeholder:text-slate-300"
+            className="w-full h-9 pl-10 pr-9 rounded-lg text-[13px] font-medium text-slate-700 placeholder:text-slate-400 transition-all"
           />
           {searchTerm && (
-            <button onClick={() => setSearchTerm('')} className="text-slate-300 hover:text-slate-500">
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+            >
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
           )}

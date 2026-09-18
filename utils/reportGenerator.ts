@@ -11,13 +11,36 @@ const blankZero = (v: number | string): string => {
   return n ? String(v) : '';
 };
 
-// Línea gruesa de separación vertical entre los bloques INOPERATIVOS | SIN PATRULLAR
-// cuando se dibujan lado a lado. Se aplica al borde izquierdo de la primera columna
-// del bloque SIN PATRULLAR (boundaryColumn) en TODAS las filas (head + body).
-const applyBlockSeparator = (data: any, boundaryColumn: number, width: number = 1.5) => {
-  if (data.column.index !== boundaryColumn) return;
-  const w = typeof data.cell.styles.lineWidth === 'number' ? data.cell.styles.lineWidth : 0.15;
-  data.cell.styles.lineWidth = { top: w, right: w, bottom: w, left: width };
+// Línea gruesa y negra de separación vertical entre los bloques
+// INOPERATIVOS | SIN PATRULLAR cuando se dibujan lado a lado.
+// boundaryColumn = índice de la primera columna del bloque SIN PATRULLAR.
+// Se usa con los hooks willDrawPage/didDrawPage para cubrir la altura
+// dibujada en cada página (títulos + cabeceras + filas).
+const blockSeparatorHooks = (doc: any, boundaryColumn: number, width: number = 2.2) => {
+  const pageTops = new Map<number, number>();
+  const boundaryX = (data: any) => {
+    const m = data.settings.margin;
+    const left = typeof m === 'number' ? m : (m && m.left) || 10;
+    let x = left;
+    for (let i = 0; i < boundaryColumn && i < data.table.columns.length; i++) {
+      x += data.table.columns[i].width;
+    }
+    return x;
+  };
+  return {
+    willDrawPage: (data: any) => {
+      pageTops.set(data.pageNumber, data.cursor.y);
+    },
+    didDrawPage: (data: any) => {
+      const topY = pageTops.get(data.pageNumber);
+      if (topY == null) return;
+      const x = boundaryX(data);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(width);
+      doc.line(x, topY, x, data.cursor.y);
+      doc.setLineWidth(0.15);
+    }
+  };
 };
 
 // Supervisor CCO desde los ajustes del sector C4 (misma regla en todos los reportes)
@@ -562,9 +585,7 @@ export const generateConsolidatedMotoReport = (
       0: { cellWidth: 8 }, 1: { cellWidth: 15 }, 2: { cellWidth: 24 },
       4: { cellWidth: 8 }, 5: { cellWidth: 14 }, 6: { cellWidth: 24 }
     },
-    didParseCell: (data: any) => {
-      applyBlockSeparator(data, 4);
-    },
+    ...blockSeparatorHooks(doc, 4),
     margin: { left: margin, right: margin }
   });
 
@@ -902,9 +923,7 @@ const generateFleetReport = (
       0: { cellWidth: 8 }, 1: { cellWidth: 14 }, 2: { cellWidth: 22 }, 4: { cellWidth: 18 },
       5: { cellWidth: 8 }, 6: { cellWidth: 14 }, 7: { cellWidth: 28 }
     },
-    didParseCell: (data: any) => {
-      applyBlockSeparator(data, 5);
-    },
+    ...blockSeparatorHooks(doc, 5),
     margin: { left: margin, right: margin }
   });
 

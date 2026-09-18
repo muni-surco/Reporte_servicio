@@ -36,6 +36,7 @@ export type Sector =
 export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH' | 'MAP' | 'WANTED';
 
 export interface VehicleRQ {
+  operador: string;
   sade: string;
   fecha: string;
   tipo: string;

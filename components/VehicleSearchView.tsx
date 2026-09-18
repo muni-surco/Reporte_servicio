@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { VehicleRQ } from '../types';
+import AutocompleteInput from './AutocompleteInput';
 import { Search, XCircle, AlertCircle, Plus, X, ChevronDown, Image, ExternalLink, ScanText } from 'lucide-react';
 
 declare const google: any;
@@ -12,7 +13,11 @@ const todayStr = () => {
   return `${d.getFullYear()}-${mm}-${dd}`;
 };
 
-const VehicleSearchView: React.FC = () => {
+interface VehicleSearchViewProps {
+  operatorOptions?: string[];
+}
+
+const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [marcaFilter, setMarcaFilter] = useState('');
   const [modeloFilter, setModeloFilter] = useState('');
@@ -34,7 +39,7 @@ const VehicleSearchView: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
   const quadrantRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<VehicleRQ>({
-    sade: '', fecha: todayStr(), tipo: '', marca: '', modelo: '', color: '', placa: '',
+    operador: '', sade: '', fecha: '', tipo: '', marca: '', modelo: '', color: '', placa: '',
     estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '', urlImg: '', propietario: '', origen: ''
   });
   const [imgData, setImgData] = useState<string | null>(null);
@@ -389,7 +394,7 @@ const VehicleSearchView: React.FC = () => {
           .withSuccessHandler(() => {
             setSaving(false);
             setShowAddModal(false);
-            setFormData({ sade: '', fecha: todayStr(), tipo: '', marca: '', modelo: '', color: '', placa: '', estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '', urlImg: '', propietario: '', origen: '' });
+            setFormData({ operador: '', sade: '', fecha: todayStr(), tipo: '', marca: '', modelo: '', color: '', placa: '', estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '', urlImg: '', propietario: '', origen: '' });
             resetImg();
             // Refrescar la tabla para visualizar el último registrado
             setSearchTerm('');
@@ -444,7 +449,7 @@ const VehicleSearchView: React.FC = () => {
     }
   };
 
-  const inputModalStyle = "w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all";
+  const inputModalStyle = "w-full bg-[#F4F6FB] border-none rounded-lg px-3 py-2 text-[13px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all";
 
   return (
     <div className="space-y-4">
@@ -660,6 +665,7 @@ const VehicleSearchView: React.FC = () => {
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 overflow-y-auto">
               {[
+                { key: 'operador', label: 'OPERADOR', type: 'text' },
                 { key: 'placa', label: 'PLACA', type: 'text', required: true },
                 { key: 'tipo', label: 'TIPO', type: 'select', options: ['AUTO', 'CAMIONETA', 'MOTOTAXI', 'MOTO'], required: true },
                 { key: 'marca', label: 'MARCA', type: 'select', options: marcaOptions },
@@ -673,11 +679,11 @@ const VehicleSearchView: React.FC = () => {
                 { key: 'origen', label: 'ORIGEN', type: 'select', options: ['CENTRAL SIN FRONTERAS', 'SADE MSS', 'RADIO 105', 'REDES SOCIALES'] },
                 { key: 'sector', label: 'SECTOR', type: 'select', options: ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B'] },
                 { key: 'cuadrante', label: 'CUADRANTE', type: 'autocomplete' },
-                { key: 'fecha', label: 'FECHA', type: 'date', required: true },
-                { key: 'sade', label: 'SADE', type: 'number', required: false },
+                { key: 'fecha', label: 'FECHA DE HECHO', type: 'date', required: true },
+                { key: 'sade', label: 'CODIGO SADE', type: 'number', required: false },
               ].map(({ key, label, type, options, required }) => (
                 <React.Fragment key={key}>
-                  {key === 'placa' && (
+                  {key === 'operador' && (
                     <div className="md:col-span-3 border-b border-slate-200 pb-1">
                       <span className="text-[11px] font-bold uppercase tracking-widest text-[#005ea5]">Datos del vehículo</span>
                     </div>
@@ -697,7 +703,16 @@ const VehicleSearchView: React.FC = () => {
                     {label}
                     {required && <span className="text-red-500 ml-0.5">*</span>}
                   </label>
-                  {key === 'placa' ? (
+                  {key === 'operador' ? (
+                    <AutocompleteInput
+                      value={String((formData as any)[key] || '')}
+                      onChange={(v) => setFormData(prev => ({ ...prev, [key]: v }))}
+                      suggestions={operatorOptions}
+                      placeholder="Seleccione operador..."
+                      className={`${inputModalStyle}${formErrors[key] ? ' ring-1 ring-red-500' : ''}`}
+                      error={!!formErrors[key]}
+                    />
+                  ) : key === 'placa' ? (
                     <div>
                       <div className="flex items-center gap-2">
                         <input
@@ -707,7 +722,7 @@ const VehicleSearchView: React.FC = () => {
                             setFormData(prev => ({ ...prev, [key]: e.target.value.toUpperCase().replace(/-/g, '') }));
                             setPlacaError('');
                           }}
-                          className={`${inputModalStyle} uppercase font-mono${formErrors[key] ? ' border-red-400' : ''}`}
+                          className={`${inputModalStyle} uppercase font-mono${formErrors[key] ? ' ring-1 ring-red-500' : ''}`}
                           maxLength={6}
                           placeholder="ABC123"
                         />
@@ -754,7 +769,7 @@ const VehicleSearchView: React.FC = () => {
                       <select
                         value={(formData as any)[key]}
                         onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value, ...(key === 'tipoDelito' ? { subtipoDelito: '' } : {}) }))}
-                        className={`${inputModalStyle} cursor-pointer pr-8 appearance-none${formErrors[key] ? ' border-red-400' : ''}`}
+                        className={`${inputModalStyle} cursor-pointer pr-8 appearance-none${formErrors[key] ? ' ring-1 ring-red-500' : ''}`}
                       >
                         <option value="">--</option>
                         {options!.map(opt => (
@@ -783,7 +798,7 @@ const VehicleSearchView: React.FC = () => {
                           if (e.key === 'ArrowUp') { e.preventDefault(); setQuadrantActiveIndex(prev => (prev - 1 + filtered.length) % filtered.length); }
                           if (e.key === 'Enter' && quadrantActiveIndex >= 0) { e.preventDefault(); setFormData(prev => ({ ...prev, cuadrante: filtered[quadrantActiveIndex] })); setShowQuadrantDropdown(false); }
                         }}
-                        className={`${inputModalStyle}${formErrors[key] ? ' border-red-400' : ''}`}
+                        className={`${inputModalStyle}${formErrors[key] ? ' ring-1 ring-red-500' : ''}`}
                         placeholder="Escriba o seleccione..."
                       />
                       {showQuadrantDropdown && (() => {
@@ -809,7 +824,7 @@ const VehicleSearchView: React.FC = () => {
                       type="number"
                       value={(formData as any)[key]}
                       onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
-                      className={`${inputModalStyle}${formErrors[key] ? ' border-red-400' : ''}`}
+                      className={`${inputModalStyle}${formErrors[key] ? ' ring-1 ring-red-500' : ''}`}
                       min="0"
                     />
                   ) : type === 'textarea' ? (
@@ -817,14 +832,14 @@ const VehicleSearchView: React.FC = () => {
                       rows={3}
                       value={(formData as any)[key]}
                       onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
-                      className={`${inputModalStyle} resize-y min-h-[74px]${formErrors[key] ? ' border-red-400' : ''}`}
+                      className={`${inputModalStyle} resize-y min-h-[74px]${formErrors[key] ? ' ring-1 ring-red-500' : ''}`}
                     />
                   ) : (
                     <input
                       type={type}
                       value={(formData as any)[key]}
                       onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
-                      className={`${inputModalStyle}${formErrors[key] ? ' border-red-400' : ''}`}
+                      className={`${inputModalStyle}${formErrors[key] ? ' ring-1 ring-red-500' : ''}`}
                     />
                   )}
                   </div>
@@ -838,7 +853,7 @@ const VehicleSearchView: React.FC = () => {
                   type="file"
                   accept="image/jpeg,.jpg,.jpeg"
                   onChange={(e) => handleImgSelect(e.target.files?.[0])}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[13px] text-slate-700 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:uppercase file:tracking-wider file:bg-primary file:text-white hover:file:bg-primary-dark file:cursor-pointer transition-all"
+                  className="w-full bg-[#F4F6FB] border-none rounded-lg px-3 py-2 text-[13px] text-slate-700 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:uppercase file:tracking-wider file:bg-primary file:text-white hover:file:bg-primary-dark file:cursor-pointer transition-all"
                 />
                 {imgError && <p className="text-[11px] text-red-500 font-medium mt-1">{imgError}</p>}
                 {!imgError && imgName && (

@@ -153,3 +153,40 @@ button {
     opacity: 1;
     transform: translate(0, -50%) scale(1);
 }
+
+/* ==========================================================================
+   ESTILO VISUAL UNIFICADO DE INPUTS (igual al campo operador):
+   fondo #F4F6FB sin borde en todo el sistema.
+   Se excluyen deshabilitados y estados de error para no romperlos.
+   No aplica a checkbox, radio, file ni botones.
+   ========================================================================== */
+body input[type="text"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body input[type="number"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body input[type="date"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body input[type="search"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body input[type="password"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body input[type="email"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body input[type="tel"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body input[type="url"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body input:not([type]):not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body select:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]),
+body textarea:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]) {
+    background-color: #F4F6FB !important;
+    border: none !important;
+}
+
+body input[type="text"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body input[type="number"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body input[type="date"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body input[type="search"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body input[type="password"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body input[type="email"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body input[type="tel"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body input[type="url"]:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body input:not([type]):not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body select:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus,
+body textarea:not(:disabled):not([class*="border-red"]):not([class*="bg-red"]):focus {
+    outline: none !important;
+    border: none !important;
+    box-shadow: 0 0 0 2px #3b82f6 !important;
+}

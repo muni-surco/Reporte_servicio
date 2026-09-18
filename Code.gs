@@ -1821,6 +1821,7 @@ function searchVehicles(searchTerm, marcaFilter, modeloFilter) {
     var okModelo = !modeloF || modelo.indexOf(modeloF) !== -1;
     if (okPlate && okMarca && okModelo) {
       results.push({
+        operador: colMap['operador'] !== undefined ? String(row[colMap['operador']] || '') : '',
         sade: colMap['sade'] !== undefined ? cellToStr(row[colMap['sade']], ss.getSpreadsheetTimeZone()) : '',
         fecha: colMap['fecha'] !== undefined ? cellToStr(row[colMap['fecha']], ss.getSpreadsheetTimeZone()) : '',
         tipo: colMap['tipo'] !== undefined ? String(row[colMap['tipo']] || '') : '',
@@ -1994,6 +1995,7 @@ function saveVehicleRQ(data) {
   }
 
   var fieldMapping = {
+    operador: 'operador',
     sade: 'sade',
     fecha: 'fecha',
     tipo: 'tipo',
