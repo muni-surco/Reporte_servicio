@@ -311,35 +311,9 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
       }
     } catch (e) { /* fallback */ }
 
-    // Fallback: legacy sheet
-    if (!fromFirebase) {
-      const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-      if (dataSheet) {
-        const dLastRow = dataSheet.getLastRow();
-        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, Math.max(31, dataSheet.getLastColumn())).getValues() : [];
-        for (let i = 0; i < dataRows.length; i++) {
-          const r = dataRows[i];
-          if (!r[0]) continue;
-          try {
-            if (Utilities.formatDate(new Date(r[0]), timeZone, 'yyyy-MM-dd') === dateStr && String(r[1]) === shift) {
-              allUnits.push(_toUnitData({
-                id: r[3], unit_id: r[23], sector: r[2], type: r[4], model: r[5],
-                personnel1: r[6], personnel2: r[7], plate: r[8], indicative: r[9], radio: r[10],
-                status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
-                kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19], fuel2: r[32], expense2: r[33],
-                quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
-                lugarEstado: r[24], motivoEstado: r[25],
-                taser: r[27] || '', bodycam: r[28] || '', codigoBodycam: r[29] || '', obsBodycam: r[30] || ''
-              }));
-            }
-          } catch (e) { continue; }
-        }
-      }
-    }
-
     allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, null, timeZone);
     _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 60);
-    console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
+    console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'empty'));
     _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
   } catch (err) {
@@ -415,34 +389,9 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
       } catch (e) { /* fallback */ }
     }
 
-    if (!fromFirebase && !_isVirtualSector(targetSectorStorage)) {
-      const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-      if (dataSheet) {
-        const dLastRow = dataSheet.getLastRow();
-        const dataRows = dLastRow > 1 ? dataSheet.getRange(2, 1, dLastRow - 1, Math.max(31, dataSheet.getLastColumn())).getValues() : [];
-        for (let i = 0; i < dataRows.length; i++) {
-          const r = dataRows[i];
-          if (!r[0]) continue;
-          try {
-            if (Utilities.formatDate(new Date(r[0]), timeZone, 'yyyy-MM-dd') === dateStr && String(r[1]) === shift && toStorageSector(r[2]) === targetSectorStorage) {
-              allUnits.push(_toUnitData({
-                id: r[3], unit_id: r[23], sector: r[2], type: r[4], model: r[5],
-                personnel1: r[6], personnel2: r[7], plate: r[8], indicative: r[9], radio: r[10],
-                status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
-                kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19], fuel2: r[32], expense2: r[33],
-                quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
-                lugarEstado: r[24], motivoEstado: r[25],
-                taser: r[27] || '', bodycam: r[28] || '', codigoBodycam: r[29] || '', obsBodycam: r[30] || ''
-              }));
-            }
-          } catch (e) { continue; }
-        }
-      }
-    }
-
     allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, targetSectorStorage, timeZone);
     _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 60);
-    console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheet'));
+    console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'empty'));
     _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
   } catch (err) {
@@ -1030,7 +979,7 @@ function _normUnitId(id) {
 }
 
 /**
- * Reads the previous shift's units (optionally filtered by sector) from RTDB, falling back to the sheet.
+ * Reads the previous shift's units (optionally filtered by sector) from RTDB.
  */
 function _readPrevShiftUnits(prevDateStr, prevShift, sectorStorage, timeZone) {
   var out = [];
@@ -1056,34 +1005,7 @@ function _readPrevShiftUnits(prevDateStr, prevShift, sectorStorage, timeZone) {
     if (out.length) return out;
   } catch (e) { /* fallback */ }
 
-  // Virtual sectors never existed in the legacy sheet; skip the full-sheet fallback.
-  if (_isVirtualSector(sectorStorage)) return [];
-
-  var ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
-  var dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
-  if (dataSheet) {
-    var lastRow = dataSheet.getLastRow();
-    var rows = lastRow > 1 ? dataSheet.getRange(2, 1, lastRow - 1, Math.max(31, dataSheet.getLastColumn())).getValues() : [];
-    for (var i = 0; i < rows.length; i++) {
-      var r = rows[i];
-      if (!r[0]) continue;
-      try {
-        var rd = Utilities.formatDate(new Date(r[0]), timeZone, 'yyyy-MM-dd');
-        if (rd === prevDateStr && String(r[1]) === prevShift && (!sectorStorage || toStorageSector(r[2]) === sectorStorage)) {
-          out.push(_toUnitData({
-            id: r[3], unit_id: r[23], sector: r[2], type: r[4], model: r[5],
-            personnel1: r[6], personnel2: r[7], plate: r[8], indicative: r[9], radio: r[10],
-            status: r[11], reason: r[12], kmStart: r[13], kmEnd: r[14], totalKm: r[15],
-            kmRecarga: r[16], hours: r[17], fuel: r[18], expense: r[19], fuel2: r[32], expense2: r[33],
-            quadrant: cellToStr(r[21], timeZone), mechanics: r[22],
-            lugarEstado: r[24], motivoEstado: r[25],
-            taser: r[27] || '', bodycam: r[28] || '', codigoBodycam: r[29] || '', obsBodycam: r[30] || ''
-          }));
-        }
-      } catch (e) { continue; }
-    }
-  }
-  return out;
+  return [];
 }
 
 function _buildLockedInheritedUnit(prevU, unitId) {
