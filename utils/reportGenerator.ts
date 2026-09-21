@@ -11,12 +11,12 @@ const blankZero = (v: number | string): string => {
   return n ? String(v) : '';
 };
 
-// EFECTIVO debe ser la suma de INOPERATIVOS + PATRULLANDO + SIN PATRULLAR.
-// Si la suma no cuadra con la flota del sector, las celdas inconsistentes
-// se marcan como 'Pendiente' en lugar de mostrar un número que no cuadra.
+// EFECTIVO debe ser igual o mayor que la suma de INOPERATIVOS + PATRULLANDO + SIN PATRULLAR.
+// Solo cuando la suma es inferior a la flota del sector la celda se marca como
+// 'Pendiente'; si es igual o mayor se muestra el número de efectivo.
 const PENDING = 'Pendiente';
 const efectivoOrPending = (efectivo: number, suma: number): string =>
-  suma === efectivo ? blankZero(efectivo) : PENDING;
+  suma >= efectivo ? blankZero(efectivo) : PENDING;
 
 // Línea gruesa y negra de separación vertical entre los bloques
 // INOPERATIVOS | SIN PATRULLAR cuando se dibujan lado a lado.
@@ -80,6 +80,45 @@ const formatShortDate = (dateStr: string): string => {
 
 // Normaliza texto a mayúsculas (para sectores, IDs, estados)
 const normalizeText = (v: unknown) => String(v ?? '').trim().toUpperCase();
+
+// Los reportes de motos reciben las unidades de getShiftData, que lee TODOS los
+// buckets de sector. Al cambiar de sector, una unidad puede quedar almacenada en
+// dos buckets a la vez y, como el sector se reasigna por el ID de la hoja DATA
+// (mobileData), se contaría dos veces. Se conserva una sola copia por unidad,
+// priorizando la que está guardada en el sector que manda la hoja DATA.
+const dedupeUnitsByDataId = (units: UnitData[], mobileData: MobileReference[]): UnitData[] => {
+  const dataSectorById = new Map<string, string>();
+  mobileData.forEach(m => {
+    const id = normalizeText(m.id);
+    if (id && m.sector) dataSectorById.set(id, normalizeText(m.sector));
+  });
+
+  const keyOf = (u: UnitData): string => {
+    const id = normalizeText(u.id);
+    const type = normalizeText(u.type);
+    if (id) return 'ID|' + id + '|' + type;
+    const uid = String(u.unit_id || '').trim();
+    if (uid) return 'UID|' + uid;
+    return 'P1|' + normalizeText(u.personnel1) + '|' + type;
+  };
+
+  const best = new Map<string, UnitData>();
+  units.forEach(u => {
+    const key = keyOf(u);
+    const current = best.get(key);
+    if (!current) {
+      best.set(key, u);
+      return;
+    }
+    const dataSector = dataSectorById.get(normalizeText(u.id));
+    if (!dataSector) return;
+    const isPreferred = normalizeText(u.sector) === dataSector;
+    const currentPreferred = normalizeText(current.sector) === dataSector;
+    if (isPreferred && !currentPreferred) best.set(key, u);
+  });
+
+  return Array.from(best.values());
+};
 
 // Normaliza nombres de personal para matching exacto (sin puntos, comas ni espacios dobles)
 const normalizeName = (val: any) => {
@@ -154,7 +193,7 @@ export const generateMotoReport = (
   // and uses the short model key, since DATA may store 'XTZ 150' instead of 'YAMAHA XTZ150')
   const normModel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/[\s.\-_]+/g, '');
   const filterKeys = [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
-  const motoUnits = units.filter(u => {
+  const motoUnits = dedupeUnitsByDataId(units, mobileData).filter(u => {
     if (u.type !== 'MOTO') return false;
     const m = normModel(u.model);
     if (!m) return false;
@@ -406,9 +445,10 @@ export const generateConsolidatedMotoReport = (
   const normModel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/[\s.\-_]+/g, '');
   const modelKeysFor = (modelFilter: string, titleSuffix: string) =>
     [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
+  const uniqueUnits = dedupeUnitsByDataId(units, mobileData);
   const motoUnitsFor = (modelFilter: string, titleSuffix: string) => {
     const filterKeys = modelKeysFor(modelFilter, titleSuffix);
-    return units.filter(u => {
+    return uniqueUnits.filter(u => {
       if (u.type !== 'MOTO') return false;
       const m = normModel(u.model);
       if (!m) return false;
@@ -694,7 +734,9 @@ const generateFleetReport = (
       .filter(m => opts.fleetPredicate(m))
       .map(m => normalize(m.id))
   );
-  const vehicleUnits = units.filter(u => u.type === 'CHOFER' && fleetMobileIds.has(normalize(u.id)));
+  // Evita contar dos veces una unidad que quedó guardada en más de un sector
+  const uniqueUnits = dedupeUnitsByDataId(units, mobileData);
+  const vehicleUnits = uniqueUnits.filter(u => u.type === 'CHOFER' && fleetMobileIds.has(normalize(u.id)));
 
   // --- HEADER ---
   doc.setFont('helvetica', 'bold');
@@ -735,7 +777,7 @@ const generateFleetReport = (
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12).
     // AR units are counted even when their DATA row lacks the fleet mark
     // (e.g. SIPCOP), since a registered replacement always belongs to the sector.
-    const sectorChoferUnits = units.filter(u =>
+    const sectorChoferUnits = uniqueUnits.filter(u =>
       u.type === 'CHOFER' &&
       (isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s))
     );

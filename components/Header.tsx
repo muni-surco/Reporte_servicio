@@ -188,7 +188,7 @@ interface HeaderProps {
                       <select
                         value={currentSector}
                         onChange={(e) => onSectorChange(e.target.value as Sector)}
-                        className="appearance-none bg-transparent text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none pr-8 focus:outline-none cursor-pointer hover:text-primary transition-colors truncate"
+                        className="appearance-none !bg-white text-[24px] font-medium text-[#002d5a] tracking-tighter uppercase leading-none pr-8 focus:outline-none cursor-pointer hover:text-primary transition-colors truncate"
                       >
                         {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
