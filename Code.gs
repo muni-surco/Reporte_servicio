@@ -1196,9 +1196,16 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
       timeZone = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone();
     } catch (err) {}
 
-    // Read directly from the previous shift's unit data (1 specific read, no scan)
+    // El turno previo puede tener más de un registro para la misma unidad (p.ej.
+    // una copia antigua con unit_id genérico y el registro real). Se recorre el
+    // bucket del sector buscando por id móvil y se prioriza el registro más
+    // reciente (updatedAt) que tenga un kmStart válido.
     const prevShiftInfo = getPreviousShift(currentDateStr, currentShift, timeZone);
     const targetSector = toStorageSector(sector || '');
+    const kmPrev = _pickPrevKm(prevShiftInfo.date, prevShiftInfo.shift, targetSector, searchId);
+    if (kmPrev !== null) return kmPrev;
+
+    // Fallback: read directly by the canonical unit_id path (1 specific read).
     const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + searchId;
     const found = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId);
     if (found && found.kmStart) {
@@ -1214,6 +1221,39 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
     console.error('Error in getPreviousKmEnd:', e);
   }
   return '0';
+}
+
+/**
+ * Busca en el bucket del turno previo el kmStart de la unidad por id móvil.
+ * Si hay varias copias del mismo móvil, devuelve la del registro más reciente
+ * (updatedAt); sin timestamps, se queda con el kmStart mayor (registro vigente).
+ * Devuelve null si no encuentra ningún kmStart válido.
+ */
+function _pickPrevKm(prevDateStr, prevShift, targetSector, searchId) {
+  try {
+    const bucket = rtdbGet('units/' + prevDateStr + '_' + prevShift + '/' + targetSector);
+    if (!bucket || typeof bucket !== 'object') return null;
+
+    let best = null; // { km, ts }
+    Object.values(bucket).forEach(function(u) {
+      if (!u || typeof u !== 'object') return;
+      const uId = String(u.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      if (uId !== searchId) return;
+      const km = String(u.kmStart || '').trim();
+      if (!km || km === '0') return;
+      const ts = String(u.updatedAt || '').trim();
+      if (!best) { best = { km: km, ts: ts }; return; }
+      if (ts && (!best.ts || ts > best.ts)) {
+        best = { km: km, ts: ts };
+      } else if (!best.ts && !ts) {
+        if (parseFloat(km) > parseFloat(best.km)) best = { km: km, ts: ts };
+      }
+    });
+    return best ? best.km : null;
+  } catch (e) {
+    console.error('[_pickPrevKm] ERROR', e);
+    return null;
+  }
 }
 
 /**

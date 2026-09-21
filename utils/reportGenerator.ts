@@ -243,10 +243,11 @@ export const generateMotoReport = (
     '9A', '9B', 'GIR', 'OTRAS AREAS'
   ];
 
-  const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
+  // MANTENIMIENTO se considera PATRULLANDO (no inoperativo) en motos.
+  const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
   const isPatrullandoStatus = (status: unknown) => {
     const s = String(status || '').trim().toUpperCase();
-    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO');
+    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO') || s === 'MANTENIMIENTO';
   };
 
   const summaryRows = sectors.map(s => {
@@ -488,10 +489,11 @@ export const generateConsolidatedMotoReport = (
     '9A', '9B', 'GIR', 'OTRAS AREAS'
   ];
 
-  const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
+  // MANTENIMIENTO se considera PATRULLANDO (no inoperativo) en motos.
+  const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
   const isPatrullandoStatus = (status: unknown) => {
     const s = String(status || '').trim().toUpperCase();
-    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO');
+    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO') || s === 'MANTENIMIENTO';
   };
 
   const renderMotoSummary = (motoUnits: UnitData[], label: string, startY: number) => {
@@ -762,7 +764,8 @@ const generateFleetReport = (
   ];
   const camionetaSectors = ['GIR', 'RESCATE', 'OTRAS AREAS'];
 
-  const inoperativeStatuses = ['MANTENIMIENTO', 'DESPERFECTOS', 'SINIESTRO'];
+  // MANTENIMIENTO se considera PATRULLANDO (no inoperativo) en vehículos.
+  const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
 
   const buildFleetRow = (s: string, retenNA = false) => {
     const isOtrasAreas = normalize(s) === 'OTRAS AREAS';
@@ -791,12 +794,15 @@ const generateFleetReport = (
     const regularUnits = sectorUnits.filter(u => !normalize(u.id).startsWith('AR-'));
 
     const countInoperativos = regularUnits.filter(u => inoperativeStatuses.includes(normalize(u.status))).length;
-    // TACTICO PP.FF. se considera como PATRULLANDO
+    // TACTICO PP.FF. y MANTENIMIENTO se consideran como PATRULLANDO
     const countPatrullando = regularUnits.filter(u =>
-      normalize(u.status) === 'PATRULLANDO' || isTacticoPPFFStatus(u.status)
+      normalize(u.status) === 'PATRULLANDO' ||
+      normalize(u.status) === 'MANTENIMIENTO' ||
+      isTacticoPPFFStatus(u.status)
     ).length;
     const countSinPatrullar = regularUnits.filter(u =>
       normalize(u.status) !== 'PATRULLANDO' &&
+      normalize(u.status) !== 'MANTENIMIENTO' &&
       !inoperativeStatuses.includes(normalize(u.status)) &&
       normalize(u.status) !== 'SIN VEHICULO' &&
       !isTacticoPPFFStatus(u.status)
@@ -935,11 +941,14 @@ const generateFleetReport = (
       u.id,
       (u.lugarEstado || 'NO APLICA').toString().toUpperCase(),
       (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase(),
-      // 'NO APLICA' en RETEN solo para la flota de autos renting (retenAplica=false);
+      // 'NO APLICA' en RETEN para los sectores sin retén (GIR, RESCATE, OTRAS AREAS);
+      // 'NO APLICA' por defecto para la flota de autos renting (retenAplica=false);
       // en SIPCOP/Consolidado se muestra '--' si no tiene retén asignado
-      opts.retenAplica === false
-        ? (retenByUnit.get(normalize(u.id)) || 'NO APLICA')
-        : (retenByUnit.get(normalize(u.id)) || '--')
+      camionetaSectors.includes(normalize(u.sector))
+        ? 'NO APLICA'
+        : (opts.retenAplica === false
+            ? (retenByUnit.get(normalize(u.id)) || 'NO APLICA')
+            : (retenByUnit.get(normalize(u.id)) || '--'))
     ]);
 
   const sinPatrullarData = vehicleUnits
@@ -949,6 +958,7 @@ const generateFleetReport = (
       return (
         !id.startsWith('AR-') &&
         status !== 'PATRULLANDO' &&
+        status !== 'MANTENIMIENTO' &&
         !inoperativeStatuses.includes(status) &&
         status !== 'SIN VEHICULO' &&
         status !== 'FIN APOYO' &&
