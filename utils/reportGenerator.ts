@@ -365,36 +365,38 @@ export const generateMotoReport = (
     .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '', (u.motivoEstado || u.mechanics || '').toString().toUpperCase()]);
 
-  // Cuatro columnas para detalles: n° / unidad / estado / motivo
+  // Una sola tabla de 8 columnas (dos bloques lado a lado) para que
+  // INOPERATIVOS y SIN PATRULLAR siempre queden alineados,
+  // incluso si el contenido fluye a más páginas
+  const detailRows: any[][] = [];
+  const maxDetailRows = Math.max(inopData.length, sinPatrullarData.length);
+  for (let i = 0; i < maxDetailRows; i++) {
+    detailRows.push([
+      ...(inopData[i] || ['', '', '', '']),
+      ...(sinPatrullarData[i] || ['', '', '', ''])
+    ]);
+  }
+
+  // Bloques INOPERATIVOS | SIN PATRULLAR lado a lado con correlativo a la izquierda
   (doc as any).autoTable({
     startY: finalY,
     head: [[
-      { content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } }
+      { content: 'INOPERATIVOS', colSpan: 4, styles: { halign: 'center', fillColor: [220, 53, 69] } },
+      { content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
     ], [
+      'N°', 'UNIDAD', 'ESTADO', 'MOTIVO',
       'N°', 'UNIDAD', 'ESTADO', 'MOTIVO'
     ]],
-    body: inopData,
+    body: detailRows,
     theme: 'grid',
     styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
     headStyles: { textColor: [255, 255, 255] },
-    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 15 }, 2: { cellWidth: 28 }, 3: { cellWidth: 25 } },
-    margin: { left: margin },
-    tableWidth: (pageWidth / 2) - margin - 5
-  });
-
-  (doc as any).autoTable({
-    startY: finalY,
-    head: [[
-      { content: 'SIN PATRULLAR', colSpan: 4, styles: { halign: 'center', fillColor: [255, 193, 7], textColor: [0, 0, 0] } }
-    ], [
-      'N°', 'UNIDAD', 'ESTADO', 'MOTIVO'
-    ]],
-    body: sinPatrullarData,
-    theme: 'grid',
-    styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
-    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 15 }, 2: { cellWidth: 28 }, 3: { cellWidth: 25 } },
-    margin: { left: pageWidth / 2 + 5 },
-    tableWidth: (pageWidth / 2) - margin - 5
+    columnStyles: {
+      0: { cellWidth: 8 }, 1: { cellWidth: 15 }, 2: { cellWidth: 24 },
+      4: { cellWidth: 8 }, 5: { cellWidth: 14 }, 6: { cellWidth: 24 }
+    },
+    ...blockSeparatorHooks(doc, 4),
+    margin: { left: margin, right: margin }
   });
 
   // --- FOOTER (mismo estilo que reporte renting) ---
@@ -1082,6 +1084,236 @@ export const generateConsolidatedMobileReport = (
   });
 };
 
+// Tabla "ASISTENCIA DEL PERSONAL" (consolidado + totales) usada por
+// generatePersonnelAbsenceReport y replicada al final de
+// generatePersonnelStatusReport. Devuelve la nueva posición Y.
+const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: PersonnelData[], allSectorSettings: Record<string, AppSettings>, currentY: number, margin: number, contentWidth: number): number => {
+  const normalize = normalizeName;
+
+  // C4 y COVV se consolidan en una sola fila; GIR se muestra como G.I.R.
+  const sectorLabelFor = (raw: unknown) => {
+    const n = normalize(raw).replace(/^SECTOR\s+/, '');
+    if (n === 'C4' || n === 'COVV') return 'CCO y COVV';
+    if (n === 'GIR') return 'G.I.R.';
+    return n;
+  };
+
+  const attendanceBuckets = ['CHOFERES', 'MOTORIZADOS', 'SERENOS'] as const;
+  type AttendanceCell = { efectivo: number; faltos: number; disponibles: number };
+  const attendance = new Map<string, Record<string, AttendanceCell>>();
+  const ensureAttendanceRow = (label: string) => {
+    if (!attendance.has(label)) {
+      attendance.set(label, {
+        CHOFERES: { efectivo: 0, faltos: 0, disponibles: 0 },
+        MOTORIZADOS: { efectivo: 0, faltos: 0, disponibles: 0 },
+        SERENOS: { efectivo: 0, faltos: 0, disponibles: 0 }
+      });
+    }
+    return attendance.get(label)!;
+  };
+
+  // CONSOLIDADO según las condiciones solicitadas:
+  //   1. Solo personal registrado en personal_1 (hoja Personal)
+  //   2. DISPONIBLES = solo estados PATRULLANDO y SIN VEHICULO (no Apoyo ni otros)
+  //   3. FALTOS = solo estado FALTO
+  //   EFECTIVO = FALTOS + DISPONIBLES
+  // Matching insensible a tildes (MÁRQUEZ = MARQUEZ): normalizeName no las elimina.
+  const normMatch = (v: unknown) => normalize(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // Mapa: nombre normalizado (hoja Personal) -> rol de origen
+  const personnelRolByName = new Map<string, string>();
+  personnel.forEach(p => {
+    const name = normMatch(p.apellidos_nombres);
+    if (!name) return;
+    if (p.rol_operativo) personnelRolByName.set(name, String(p.rol_operativo));
+  });
+
+  const bucketFor = (u: UnitData) => {
+    const t = (u.type || '').toString().toUpperCase();
+    if (t === 'MOTO') return 'MOTORIZADOS' as const;
+    if (t === 'CHOFER') return 'CHOFERES' as const;
+    // Sin tipo registrado se infiere por el ID (misma regla que getUnitType en DATA):
+    // los prefijos H- / A-G- corresponden a motos.
+    if (!t) {
+      const rawId = String(u.id || '').trim().toUpperCase();
+      if (rawId.startsWith('H') || rawId.startsWith('A-G')) return 'MOTORIZADOS' as const;
+    }
+    // Fallback: rol de origen en la hoja Personal (cubre registros SIN VEHICULO
+    // sin ID ni tipo, que no pueden inferirse de la unidad).
+    const rol = (personnelRolByName.get(normMatch(u.personnel1)) || '').toString().toUpperCase();
+    if (rol.includes('CHOFER')) return 'CHOFERES' as const;
+    if (rol.includes('MOTORIZADO')) return 'MOTORIZADOS' as const;
+    return 'SERENOS' as const;
+  };
+
+  // Clave canónica de sector (C4/COVV se unifican; GIR -> G.I.R.)
+  const canonSector = (raw: unknown) => {
+    const n = normalize(raw).replace(/^SECTOR\s+/, '');
+    if (n === 'C4' || n === 'COVV') return 'CCO Y COVV';
+    if (n === 'GIR') return 'G.I.R.';
+    return n;
+  };
+
+  // Mapa: nombre normalizado (hoja Personal) -> sector de origen
+  const originSectorByName = new Map<string, string>();
+  personnel.forEach(p => {
+    const name = normMatch(p.apellidos_nombres);
+    if (!name) return;
+    const origin = canonSector(p.sector_id);
+    if (origin) originSectorByName.set(name, origin);
+  });
+
+  // El registro cuenta en la fila de SU SECTOR DE ORIGEN (sector_id de la hoja
+  // Personal), no en el sector donde quedó guardada la ficha.
+  //   - Condición 1: personal_1 debe existir en la hoja Personal.
+  //   - Condición 2: DISPONIBLES = solo PATRULLANDO y SIN VEHICULO.
+  //   - Condición 3: FALTOS = solo FALTO.
+  units.forEach(u => {
+    const name = normMatch(u.personnel1);
+    const origin = originSectorByName.get(name);
+    const rowKey = origin ? (origin === 'CCO Y COVV' ? 'CCO y COVV' : origin) : sectorLabelFor(u.sector);
+    const bucket = bucketFor(u);
+    const status = (u.status || '').toString().trim().toUpperCase();
+
+    let accion: 'faltos' | 'disponibles' | null = null;
+    if (!name || !origin) {
+      // Sin personal_1 o fuera de la hoja Personal -> no cuenta
+    } else if (status === 'FALTO') accion = 'faltos';
+    else if (status === 'PATRULLANDO' || status === 'SIN VEHICULO') accion = 'disponibles';
+
+    if (accion && rowKey) ensureAttendanceRow(rowKey)[bucket][accion]++;
+  });
+
+  // Supervisores y jefes de área (permanencia) por sector, en columna SERENOS.
+  // Mismas reglas de estado: FALTO -> FALTOS; PATRULLANDO / SIN VEHICULO -> DISPONIBLES.
+  Object.keys(allSectorSettings).forEach(sectorDisplay => {
+    const s = allSectorSettings[sectorDisplay];
+    const rowKey = sectorLabelFor(sectorDisplay);
+    if (!rowKey) return;
+    const addSup = (nameVal: unknown, estado: unknown) => {
+      if (!String(nameVal || '').trim()) return;
+      const st = String(estado || '').trim().toUpperCase();
+      if (st === 'FALTO') ensureAttendanceRow(rowKey).SERENOS.faltos++;
+      else if (st === 'PATRULLANDO' || st === 'SIN VEHICULO') ensureAttendanceRow(rowKey).SERENOS.disponibles++;
+    };
+    addSup(s.supervisor, s.supervisorEstado);
+    addSup(s.permanencia, s.permanenciaEstado);
+  });
+
+  // EFECTIVO = FALTOS + DISPONIBLES
+  attendance.forEach(row => {
+    attendanceBuckets.forEach(b => {
+      row[b].efectivo = row[b].faltos + row[b].disponibles;
+    });
+  });
+
+  const attendanceSectorOrder = ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'G.I.R.', 'RETEN', 'OPERACIONES', 'CCO y COVV'];
+  const attendanceLabels = Array.from(attendance.keys()).sort((a, b) => {
+    const ia = attendanceSectorOrder.indexOf(a);
+    const ib = attendanceSectorOrder.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.localeCompare(b);
+  });
+
+  const blankIfZero = (n: number) => (n ? String(n) : '');
+  const attendanceBody: any[][] = attendanceLabels.map(label => {
+    const row = attendance.get(label)!;
+    const cells: any[] = [label];
+    attendanceBuckets.forEach(b => {
+      const { efectivo, faltos, disponibles } = row[b];
+      cells.push(blankIfZero(efectivo), blankIfZero(faltos), blankIfZero(disponibles));
+    });
+    return cells;
+  });
+
+  // Fila TOTALES
+  const totalsRow: any[] = ['TOTALES'];
+  attendanceBuckets.forEach(b => {
+    let efectivo = 0, faltos = 0, disponibles = 0;
+    attendance.forEach(row => {
+      efectivo += row[b].efectivo;
+      faltos += row[b].faltos;
+      disponibles += row[b].disponibles;
+    });
+    totalsRow.push(String(efectivo), blankIfZero(faltos), blankIfZero(disponibles));
+  });
+  attendanceBody.push(totalsRow);
+
+  (doc as any).autoTable({
+    startY: currentY,
+    head: [[
+      { content: 'ASISTENCIA DEL PERSONAL', colSpan: 10, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 11 } }
+    ], [
+      { content: '', styles: { fillColor: [38, 70, 83] } },
+      { content: 'CHOFERES', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } },
+      { content: 'MOTORIZADOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } },
+      { content: 'SERENOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } }
+    ], [
+      { content: 'SECTORES', styles: { fillColor: [31, 78, 121], textColor: [255, 255, 255], fontSize: 7 } },
+      ...['EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES'].map((t, i) => ({
+        content: t,
+        styles: {
+          fillColor: i % 3 === 0 ? [67, 160, 71] : i % 3 === 1 ? [211, 47, 47] : [255, 235, 59],
+          textColor: i % 3 === 2 ? [0, 0, 0] : [255, 255, 255],
+          fontSize: 6.5
+        }
+      }))
+    ]],
+    body: attendanceBody,
+    theme: 'grid',
+    styles: { fontSize: 7.5, halign: 'center', cellPadding: 1.2, lineColor: [255, 255, 255], lineWidth: 0.3, textColor: [30, 41, 59] },
+    columnStyles: {
+      0: { cellWidth: 26, fontStyle: 'bold', fillColor: [31, 78, 121], textColor: [255, 255, 255] },
+      1: { cellWidth: 18 }, 2: { cellWidth: 18 }, 3: { cellWidth: 18 },
+      4: { cellWidth: 18 }, 5: { cellWidth: 18 }, 6: { cellWidth: 18 },
+      7: { cellWidth: 18 }, 8: { cellWidth: 18 }, 9: { cellWidth: 18 }
+    },
+    didParseCell: function (data: any) {
+      if (data.row.section === 'body') {
+        const isTotalRow = data.row.index === attendanceBody.length - 1;
+        if (isTotalRow) {
+          data.cell.styles.fillColor = [38, 70, 83];
+          data.cell.styles.textColor = [255, 255, 255];
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontSize = 8;
+        }
+      }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  let y = (doc as any).lastAutoTable.finalY;
+
+  // --- TABLA SIMPLE DE TOTALES GENERALES (EFECTIVO / FALTOS / DISPONIBLES) ---
+  const grandTotals = { efectivo: 0, faltos: 0, disponibles: 0 };
+  attendance.forEach(row => {
+    attendanceBuckets.forEach(b => {
+      grandTotals.efectivo += row[b].efectivo;
+      grandTotals.faltos += row[b].faltos;
+      grandTotals.disponibles += row[b].disponibles;
+    });
+  });
+
+  (doc as any).autoTable({
+    startY: y + 4,
+    head: [[
+      { content: 'EFECTIVO', styles: { halign: 'center', fillColor: [67, 160, 71], textColor: [255, 255, 255], fontSize: 9 } },
+      { content: 'FALTOS', styles: { halign: 'center', fillColor: [211, 47, 47], textColor: [255, 255, 255], fontSize: 9 } },
+      { content: 'DISPONIBLES', styles: { halign: 'center', fillColor: [255, 235, 59], textColor: [0, 0, 0], fontSize: 9 } }
+    ]],
+    body: [[String(grandTotals.efectivo), String(grandTotals.faltos), String(grandTotals.disponibles)]],
+    theme: 'grid',
+    styles: { halign: 'center', fontSize: 11, fontStyle: 'bold', cellPadding: 3, textColor: [30, 41, 59] },
+    columnStyles: {
+      0: { cellWidth: contentWidth / 3 },
+      1: { cellWidth: contentWidth / 3 },
+      2: { cellWidth: contentWidth / 3 }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  return (doc as any).lastAutoTable.finalY;
+};
+
 export const generatePersonnelAbsenceReport = (
   units: UnitData[],
   personnel: PersonnelData[],
@@ -1337,121 +1569,7 @@ export const generatePersonnelAbsenceReport = (
 
   currentY += 24;
 
-  // C4 y COVV se consolidan en una sola fila; GIR se muestra como G.I.R.
-  const sectorLabelFor = (raw: unknown) => {
-    const n = normalize(raw).replace(/^SECTOR\s+/, '');
-    if (n === 'C4' || n === 'COVV') return 'CCO y COVV';
-    if (n === 'GIR') return 'G.I.R.';
-    return n;
-  };
-  // CHOFERES = rol chofer, MOTORIZADOS = rol motorizado, SERENOS = el resto
-  // (incluye serenos, operadores C4/COVV, supervisores, permanencia, etc.)
-  const roleBucketFor = (rol: unknown) => {
-    const r = (rol || '').toString().toUpperCase();
-    if (r.includes('CHOFER')) return 'CHOFERES';
-    if (r.includes('MOTORIZADO')) return 'MOTORIZADOS';
-    return 'SERENOS';
-  };
-  const attendanceBuckets = ['CHOFERES', 'MOTORIZADOS', 'SERENOS'] as const;
-  type AttendanceCell = { efectivo: number; faltos: number };
-  const attendance = new Map<string, Record<string, AttendanceCell>>();
-  const ensureAttendanceRow = (label: string) => {
-    if (!attendance.has(label)) {
-      attendance.set(label, {
-        CHOFERES: { efectivo: 0, faltos: 0 },
-        MOTORIZADOS: { efectivo: 0, faltos: 0 },
-        SERENOS: { efectivo: 0, faltos: 0 }
-      });
-    }
-    return attendance.get(label)!;
-  };
-
-  // EFECTIVO: personal ACTIVO de la hoja Personal, por sector_id y rol
-  personnel.forEach(p => {
-    if ((p.estado || '').toString().trim().toUpperCase() !== 'ACTIVO') return;
-    const label = sectorLabelFor(p.sector_id);
-    if (!label) return;
-    ensureAttendanceRow(label)[roleBucketFor(p.rol_operativo)].efectivo++;
-  });
-
-  // FALTOS: ausentes detectados (ESTADO: FALTO), con sector del registro o de la ficha
-  absents.forEach(p => {
-    const nameNorm = normalize(p.apellidos_nombres);
-    const label = sectorLabelFor(nameToSector.get(nameNorm) || p.sector_id || '');
-    ensureAttendanceRow(label)[roleBucketFor(p.rol_operativo)].faltos++;
-  });
-
-  const attendanceSectorOrder = ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B', 'G.I.R.', 'RETEN', 'OPERACIONES', 'CCO y COVV'];
-  const attendanceLabels = Array.from(attendance.keys()).sort((a, b) => {
-    const ia = attendanceSectorOrder.indexOf(a);
-    const ib = attendanceSectorOrder.indexOf(b);
-    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.localeCompare(b);
-  });
-
-  const blankIfZero = (n: number) => (n ? String(n) : '');
-  const attendanceBody: any[][] = attendanceLabels.map(label => {
-    const row = attendance.get(label)!;
-    const cells: any[] = [label];
-    attendanceBuckets.forEach(b => {
-      const { efectivo, faltos } = row[b];
-      cells.push(blankIfZero(efectivo), blankIfZero(faltos), blankIfZero(efectivo - faltos));
-    });
-    return cells;
-  });
-
-  // Fila TOTALES
-  const totalsRow: any[] = ['TOTALES'];
-  attendanceBuckets.forEach(b => {
-    let efectivo = 0, faltos = 0;
-    attendance.forEach(row => { efectivo += row[b].efectivo; faltos += row[b].faltos; });
-    totalsRow.push(String(efectivo), blankIfZero(faltos), String(efectivo - faltos));
-  });
-  attendanceBody.push(totalsRow);
-
-  (doc as any).autoTable({
-    startY: currentY,
-    head: [[
-      { content: 'ASISTENCIA DEL PERSONAL', colSpan: 10, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 11 } }
-    ], [
-      { content: '', styles: { fillColor: [38, 70, 83] } },
-      { content: 'CHOFERES', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } },
-      { content: 'MOTORIZADOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } },
-      { content: 'SERENOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } }
-    ], [
-      { content: 'SECTORES', styles: { fillColor: [31, 78, 121], textColor: [255, 255, 255], fontSize: 7 } },
-      ...['EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES'].map((t, i) => ({
-        content: t,
-        styles: {
-          fillColor: i % 3 === 0 ? [67, 160, 71] : i % 3 === 1 ? [211, 47, 47] : [255, 235, 59],
-          textColor: i % 3 === 2 ? [0, 0, 0] : [255, 255, 255],
-          fontSize: 6.5
-        }
-      }))
-    ]],
-    body: attendanceBody,
-    theme: 'grid',
-    styles: { fontSize: 7.5, halign: 'center', cellPadding: 1.2, lineColor: [255, 255, 255], lineWidth: 0.3, textColor: [30, 41, 59] },
-    columnStyles: {
-      0: { cellWidth: 26, fontStyle: 'bold', fillColor: [31, 78, 121], textColor: [255, 255, 255] },
-      1: { cellWidth: 18 }, 2: { cellWidth: 18 }, 3: { cellWidth: 18 },
-      4: { cellWidth: 18 }, 5: { cellWidth: 18 }, 6: { cellWidth: 18 },
-      7: { cellWidth: 18 }, 8: { cellWidth: 18 }, 9: { cellWidth: 18 }
-    },
-    didParseCell: function (data: any) {
-      if (data.row.section === 'body') {
-        const isTotalRow = data.row.index === attendanceBody.length - 1;
-        if (isTotalRow) {
-          data.cell.styles.fillColor = [38, 70, 83];
-          data.cell.styles.textColor = [255, 255, 255];
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize = 8;
-        }
-      }
-    },
-    margin: { left: margin, right: margin }
-  });
-
-  currentY = (doc as any).lastAutoTable.finalY;
+  currentY = renderAttendanceConsolidated(doc, units, personnel, allSectorSettings, currentY, margin, contentWidth);
 
   // --- FOOTER (pie de página en todas las páginas) ---
   stampReportFooter(doc, pageWidth, pageHeight, margin, resolveC4Supervisor(allSectorSettings), resolvedOperator, new Date().toLocaleString());
@@ -1634,6 +1752,9 @@ export const generatePersonnelStatusReport = (
 
       currentY = (doc as any).lastAutoTable.finalY + 8;
   });
+
+  // Replica de la tabla consolidada (ASISTENCIA DEL PERSONAL) + totales al final
+  currentY = renderAttendanceConsolidated(doc, units, personnel, allSectorSettings, currentY, margin, contentWidth);
 
   const footerY = pageHeight - 15;
 
