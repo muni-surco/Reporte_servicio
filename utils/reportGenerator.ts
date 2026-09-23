@@ -2262,7 +2262,8 @@ export const generateOperatividadReport = (
   };
 
   // Clasificación de estados operativos
-  const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO', 'MANTENIMIENTO'];
+  const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
+  const isMantenimiento = (u: UnitData) => normalize(u.status) === 'MANTENIMIENTO';
   const isPatrullando = (u: UnitData) => {
     const s = normalize(u.status);
     return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO') || isTacticoPPFFStatus(u.status);
@@ -2308,135 +2309,110 @@ export const generateOperatividadReport = (
   doc.setTextColor(71, 85, 105);
   doc.text(formatLongDate(date).toUpperCase(), pageWidth / 2, 35, { align: 'center' });
 
-  // Sectores canónicos de la Municipalidad de Santiago de Surco
-  const sectors = [
-    '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B',
-    'RESCATE', 'GIR', 'C4', 'COVV', 'OTRAS AREAS'
-  ];
+  // Agrupación compacta de la flota vehicular: PATRULLEROS · GIR · RESCATE · FISCALIZACION · MOTOS.
+  // PATRULLEROS cuenta solo automóviles (tipo AUTOMOVIL); GIR, RESCATE y FISCALIZACION solo
+  // camionetas (tipo CAMIONETA) en su sector; SERENO (a pie) queda excluido.
+  const classGroupOf = (t: string, sec: string, rawTipo: string = ''): string | null => {
+    if (t === 'MOTO') return 'MOTOS';
+    if (t !== 'CHOFER') return null;
+    if (sec === 'RETEN') return null;
+    if (sec === 'GIR') return !rawTipo || rawTipo.includes('CAMIONETA') ? 'GIR' : null;
+    if (sec === 'RESCATE') return !rawTipo || rawTipo.includes('CAMIONETA') ? 'RESCATE' : null;
+    if (sec === 'FISCA') return !rawTipo || rawTipo.includes('CAMIONETA') ? 'FISCALIZACION' : null;
+    return !rawTipo || rawTipo.includes('AUTOMOVIL') ? 'PATRULLEROS' : null;
+  };
+  const dataGroupOf = (m: MobileReference) => classGroupOf(normalize(m.type), normalize(m.sector), normalize(m.tipo));
 
-  // Cálculo por sector
-  const sectorRows: any[][] = [];
+  // Las unidades registradas en el turno se clasifican con los MISMOS filtros que DATA:
+  // se busca su tipo crudo por ID en la hoja DATA. Si no está en DATA, no aplica restricción.
+  const tipoByUnitId = new Map<string, string>();
+  mobileData.forEach(m => tipoByUnitId.set(normalize(m.id), normalize(m.tipo)));
+  const unitGroupOf = (u: UnitData) => classGroupOf(normalize(u.type), getSector(u), tipoByUnitId.get(normalize(u.id)) || '');
+
+  const groups = ['PATRULLEROS', 'GIR', 'RESCATE', 'FISCALIZACION', 'MOTOS'];
+  const groupRows: any[][] = [];
   let totalFlotaAcum = 0;
-  let totalOperativasAcum = 0;
-  let totalInoperativasAcum = 0;
   let totalSinPatrullarAcum = 0;
+  let totalPatrullandoAcum = 0;
+  let totalInoperativasAcum = 0;
   let totalRetenAcum = 0;
 
-  sectors.forEach(s => {
-    const secNorm = normalize(s);
-    const allowed = secNorm === 'OTRAS AREAS' ? sourceSectorsFor(s).map(x => normalize(x)) : [secNorm];
-    const inSec = (val: unknown) => allowed.includes(normalize(val));
-
+  groups.forEach(g => {
     // Flota de referencia DATA o unidades registradas en el turno
-    const dataFleet = mobileData.filter(m => inSec(m.sector));
-    const secUnits = cleanUnits.filter(u => inSec(getSector(u)));
+    const dataFleet = mobileData.filter(m => dataGroupOf(m) === g);
+    const secUnits = cleanUnits.filter(u => unitGroupOf(u) === g);
 
     const efectivos = dataFleet.length > 0 ? dataFleet.length : secUnits.length;
-    const operativas = secUnits.filter(u => isPatrullando(u)).length;
-    const inoperativas = secUnits.filter(u => isInoperative(u)).length;
-    const sinPatrullar = secUnits.filter(u => !isPatrullando(u) && !isInoperative(u)).length;
+    const inoperativos = secUnits.filter(u => isInoperative(u)).length;
+    // PATRULLEROS: solo SIN CONDUCTOR (tipo AUTOMOVIL y sector ≠ RETEN ya los filtra unitGroupOf);
+    // resto de filas: residuo de no patrullar ni ser inoperativo.
+    const sinPatrullar = g === 'PATRULLEROS'
+      ? secUnits.filter(u => normalize(u.status) === 'SIN CONDUCTOR').length
+      : secUnits.filter(u => !isPatrullando(u) && !isMantenimiento(u) && !isInoperative(u)).length;
+    // PATRULLANDO = EFECTIVO - (SIN PATRULLAR + INOPERATIVOS)
+    const patrullando = Math.max(0, efectivos - (sinPatrullar + inoperativos));
     const retens = secUnits.filter(u => retenByUnit.has(normalize(u.id))).length;
 
-    const pctOperatividad = efectivos > 0 ? Math.min(100, Math.round((operativas / efectivos) * 100)) : 0;
-
     totalFlotaAcum += efectivos;
-    totalOperativasAcum += operativas;
-    totalInoperativasAcum += inoperativas;
     totalSinPatrullarAcum += sinPatrullar;
+    totalPatrullandoAcum += patrullando;
+    totalInoperativasAcum += inoperativos;
     totalRetenAcum += retens;
 
-    sectorRows.push([
-      s,
+    groupRows.push([
+      g,
       efectivos || '--',
-      operativas || '--',
-      inoperativas || '--',
       sinPatrullar || '--',
-      retens || '--',
-      efectivos > 0 ? `${pctOperatividad}%` : '0%'
+      patrullando || '--',
+      inoperativos || '--',
+      retens || '--'
     ]);
   });
 
-  const pctGlobal = totalFlotaAcum > 0 ? Math.min(100, Math.round((totalOperativasAcum / totalFlotaAcum) * 100)) : 0;
-
   // Fila de totales
-  sectorRows.push([
+  groupRows.push([
     'TOTALES',
     totalFlotaAcum,
-    totalOperativasAcum,
-    totalInoperativasAcum,
     totalSinPatrullarAcum,
-    totalRetenAcum,
-    `${pctGlobal}%`
+    totalPatrullandoAcum,
+    totalInoperativasAcum,
+    totalRetenAcum
   ]);
 
-  // Strip de Tarjetas KPI Ejecutivas
+  // Tabla 1: RESUMEN COMPACTO DE OPERATIVIDAD
   (doc as any).autoTable({
-    startY: 38,
+    startY: 37,
     head: [[
-      { content: `FLOTA TOTAL\n${totalFlotaAcum}`, styles: { halign: 'center', fillColor: [0, 45, 90], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', cellPadding: 1.8 } },
-      { content: `OPERATIVOS\n${totalOperativasAcum}`, styles: { halign: 'center', fillColor: [40, 167, 69], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', cellPadding: 1.8 } },
-      { content: `INOPERATIVOS\n${totalInoperativasAcum}`, styles: { halign: 'center', fillColor: [220, 53, 69], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', cellPadding: 1.8 } },
-      { content: `SIN PATRULLAR\n${totalSinPatrullarAcum}`, styles: { halign: 'center', fillColor: [245, 158, 11], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', cellPadding: 1.8 } },
-      { content: `TASA OPERATIVIDAD\n${pctGlobal}%`, styles: { halign: 'center', fillColor: [13, 148, 136], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', cellPadding: 1.8 } }
-    ]],
-    body: [],
-    theme: 'grid',
-    margin: { left: margin, right: margin }
-  });
-
-  const kpiFinalY = (doc as any).lastAutoTable.finalY + 2.5;
-
-  // Tabla 1: RESUMEN DE OPERATIVIDAD POR SECTOR
-  (doc as any).autoTable({
-    startY: kpiFinalY,
-    head: [[
-      { content: 'OPERATIVIDAD CONSOLIDADA POR SECTOR', colSpan: 7, styles: { halign: 'center', fillColor: [0, 45, 90], textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' } }
+      { content: 'OPERATIVIDAD CONSOLIDADA DE LA FLOTA', colSpan: 6, styles: { halign: 'center', fillColor: [0, 45, 90], textColor: [255, 255, 255], fontSize: 8.5, fontStyle: 'bold' } }
     ], [
-      'SECTORES', 'FLOTA EFECTIVA', 'OPERATIVAS', 'INOPERATIVAS', 'SIN PATRULLAR', 'RETÉN', '% OPERAT.'
+      { content: 'FLOTA / RECURSO', rowSpan: 2, styles: { valign: 'middle' } },
+      { content: 'EFECTIVO', rowSpan: 2, styles: { valign: 'middle' } },
+      { content: 'OPERATIVOS', colSpan: 2, styles: { halign: 'center' } },
+      { content: 'INOPERATIVOS', rowSpan: 2, styles: { valign: 'middle' } },
+      { content: 'RETEN', rowSpan: 2, styles: { valign: 'middle' } }
+    ], [
+      'SIN PATRULLAR', 'PATRULLANDO'
     ]],
-    body: sectorRows,
+    body: groupRows,
     theme: 'grid',
-    styles: { fontSize: 6.8, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1, cellPadding: 0.8 },
-    headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 7 },
+    styles: { fontSize: 8.5, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.15, cellPadding: 1.2 },
+    headStyles: { textColor: [0, 0, 0], fontSize: 8.5 },
     columnStyles: {
-      0: { cellWidth: 32, fillColor: [241, 245, 249], fontStyle: 'bold' },
-      1: { cellWidth: 26 },
-      2: { cellWidth: 26 },
-      3: { cellWidth: 26 },
-      4: { cellWidth: 26 },
-      5: { cellWidth: 24 },
-      6: { cellWidth: 30 }
+      0: { cellWidth: 46, halign: 'left', fillColor: [241, 245, 249], fontStyle: 'bold' },
+      1: { cellWidth: 26, fillColor: [240, 248, 255] },
+      2: { cellWidth: 26, fillColor: [255, 250, 205] },
+      3: { cellWidth: 26, fillColor: [220, 255, 220] },
+      4: { cellWidth: 26, fillColor: [255, 220, 220] },
+      5: { cellWidth: 26, fillColor: [245, 240, 255] }
     },
     didParseCell: function (data: any) {
-      if (data.row.section === 'body') {
-        const isTotalRow = data.row.index === sectorRows.length - 1;
-        if (!isTotalRow) {
-          if (data.column.index === 1) data.cell.styles.fillColor = [240, 248, 255];
-          if (data.column.index === 2) data.cell.styles.fillColor = [220, 255, 220];
-          if (data.column.index === 3) data.cell.styles.fillColor = [255, 220, 220];
-          if (data.column.index === 4) data.cell.styles.fillColor = [255, 250, 205];
-          if (data.column.index === 5) data.cell.styles.fillColor = [245, 240, 255];
-          if (data.column.index === 6) {
-            const rawVal = parseInt(data.cell.raw) || 0;
-            if (rawVal >= 75) {
-              data.cell.styles.fillColor = [209, 250, 229];
-              data.cell.styles.textColor = [6, 95, 70];
-            } else if (rawVal >= 50) {
-              data.cell.styles.fillColor = [254, 243, 199];
-              data.cell.styles.textColor = [146, 64, 14];
-            } else {
-              data.cell.styles.fillColor = [254, 226, 226];
-              data.cell.styles.textColor = [153, 27, 27];
-            }
-          }
-        } else {
-          data.cell.styles.fillColor = [0, 45, 90];
-          data.cell.styles.textColor = [255, 255, 255];
-          if (data.column.index === 2) data.cell.styles.fillColor = [40, 167, 69];
-          if (data.column.index === 3) data.cell.styles.fillColor = [220, 53, 69];
-          if (data.column.index === 4) data.cell.styles.fillColor = [230, 140, 0];
-          if (data.column.index === 6) data.cell.styles.fillColor = [13, 148, 136];
-        }
+      if (data.row.section === 'body' && data.row.index === groupRows.length - 1) {
+        data.cell.styles.fillColor = [0, 45, 90];
+        data.cell.styles.textColor = [255, 255, 255];
+        if (data.column.index === 2) data.cell.styles.fillColor = [230, 140, 0];
+        if (data.column.index === 3) data.cell.styles.fillColor = [40, 167, 69];
+        if (data.column.index === 4) data.cell.styles.fillColor = [220, 53, 69];
+        if (data.column.index === 5) data.cell.styles.fillColor = [13, 148, 136];
       }
     },
     margin: { left: margin, right: margin }
@@ -2444,145 +2420,85 @@ export const generateOperatividadReport = (
 
   let currentY = (doc as any).lastAutoTable.finalY + 2.5;
 
-  // Tabla 2: OPERATIVIDAD POR CATEGORÍA DE FLOTA
+  // Detalle de inoperativos separado por flota: Renting · Yamaha · Honda
+  const propertyByUnitId = new Map<string, string>();
+  mobileData.forEach(m => propertyByUnitId.set(normalize(m.id), normalize(m.propiedad)));
+  const isRenting = (u: UnitData) => normalize(u.type) === 'CHOFER' && (propertyByUnitId.get(normalize(u.id)) || '').includes('RENTING');
   const normModel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/[\s.\-_]+/g, '');
   const isYamaha = (m: unknown) => normModel(m).includes('XTZ') || normModel(m).includes('YAMAHA');
   const isHonda = (m: unknown) => normModel(m).includes('SAHARA') || normModel(m).includes('HONDA') || normModel(m).includes('XRE');
+  const motivoInop = (u: UnitData) => (u.motivoEstado || u.mechanics || u.reason || 'NO APLICA').toString().toUpperCase();
 
-  const fleetCategories = [
-    {
-      name: 'CAMIONETAS Y AUTOS (MÓVILES)',
-      predicate: (u: UnitData) => u.type === 'CHOFER'
-    },
-    {
-      name: 'MOTOS YAMAHA XTZ150',
-      predicate: (u: UnitData) => u.type === 'MOTO' && isYamaha(u.model)
-    },
-    {
-      name: 'MOTOS HONDA SAHARA XRE 300',
-      predicate: (u: UnitData) => u.type === 'MOTO' && isHonda(u.model)
-    },
-    {
-      name: 'SERENOS / PUESTOS FIJOS (A PIE)',
-      predicate: (u: UnitData) => u.type === 'SERENO'
-    }
-  ];
+  const inopUnits = cleanUnits.filter(u => isInoperative(u));
+  const rentingInop = inopUnits.filter(isRenting);
+  const yamahaInop = inopUnits.filter(u => normalize(u.type) === 'MOTO' && isYamaha(u.model));
+  const hondaInop = inopUnits.filter(u => normalize(u.type) === 'MOTO' && isHonda(u.model));
 
-  const categoryRows = fleetCategories.map(cat => {
-    const catUnits = cleanUnits.filter(cat.predicate);
-    const catTotal = catUnits.length;
-    const catOperativos = catUnits.filter(isPatrullando).length;
-    const catInoperativos = catUnits.filter(isInoperative).length;
-    const catSinPatrullar = catUnits.filter(u => !isPatrullando(u) && !isInoperative(u)).length;
-    const catPct = catTotal > 0 ? Math.min(100, Math.round((catOperativos / catTotal) * 100)) : 0;
-    return [
-      cat.name,
-      catTotal || '--',
-      catOperativos || '--',
-      catInoperativos || '--',
-      catSinPatrullar || '--',
-      catTotal > 0 ? `${catPct}%` : '0%'
-    ];
-  });
-
-  (doc as any).autoTable({
-    startY: currentY,
-    head: [[
-      { content: 'DESGLOSE DE OPERATIVIDAD POR CATEGORÍA DE FLOTA', colSpan: 6, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 7.5, fontStyle: 'bold' } }
-    ], [
-      'CATEGORÍA DE FLOTA / RECURSO', 'TOTAL', 'OPERATIVOS', 'INOPERATIVOS', 'SIN PATRULLAR', '% OPERATIVIDAD'
-    ]],
-    body: categoryRows,
-    theme: 'grid',
-    styles: { fontSize: 6.8, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1, cellPadding: 0.9 },
-    headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 7 },
-    columnStyles: {
-      0: { cellWidth: 65, halign: 'left', fillColor: [248, 250, 252] },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 25, fillColor: [220, 255, 220] },
-      3: { cellWidth: 25, fillColor: [255, 220, 220] },
-      4: { cellWidth: 25, fillColor: [255, 250, 205] },
-      5: { cellWidth: 25, fillColor: [209, 250, 229] }
-    },
-    margin: { left: margin, right: margin }
-  });
-
-  currentY = (doc as any).lastAutoTable.finalY + 2.5;
-
-  // Tabla 3: DETALLE DE UNIDADES INOPERATIVAS Y SIN PATRULLAR
-  const inopData = cleanUnits
-    .filter(u => isInoperative(u))
-    .map((u, idx) => [
-      String(idx + 1),
-      u.id || '--',
-      u.type || '--',
-      getSector(u) || '--',
-      (u.lugarEstado || 'TALLER').toString().toUpperCase(),
-      (u.motivoEstado || u.mechanics || u.reason || 'NO APLICA').toString().toUpperCase(),
-      retenByUnit.get(normalize(u.id)) || '--'
-    ]);
-
-  const sinPatrullarData = cleanUnits
-    .filter(u => !isPatrullando(u) && !isInoperative(u))
-    .map((u, idx) => [
-      String(idx + 1),
-      u.id || '--',
-      u.type || '--',
-      getSector(u) || '--',
-      normalize(u.status) || 'SIN PATRULLAR',
-      (u.motivoEstado || u.reason || u.mechanics || '--').toString().toUpperCase()
-    ]);
-
-  // Si hay inoperativos, renderizar tabla de inoperativos
-  if (inopData.length > 0) {
+  // Tabla 3a: VEHÍCULOS RENTING INOPERATIVOS
+  if (rentingInop.length > 0) {
     (doc as any).autoTable({
       startY: currentY,
       head: [[
-        { content: `DETALLE DE UNIDADES INOPERATIVAS (${inopData.length})`, colSpan: 7, styles: { halign: 'center', fillColor: [220, 53, 69], textColor: [255, 255, 255], fontSize: 7.2, fontStyle: 'bold' } }
+        { content: `VEHÍCULOS RENTING INOPERATIVOS (${rentingInop.length})`, colSpan: 3, styles: { halign: 'center', fillColor: [220, 53, 69], textColor: [255, 255, 255], fontSize: 7.2, fontStyle: 'bold' } }
       ], [
-        'N°', 'UNIDAD', 'TIPO', 'SECTOR', 'LUGAR', 'MOTIVO / FALLA TÉCNICA', 'RETÉN'
+        'ID', 'PLACA', 'MOTIVO / FALLA TÉCNICA'
       ]],
-      body: inopData,
+      body: rentingInop.map(u => [u.id || '--', u.plate || '--', motivoInop(u)]),
       theme: 'grid',
-      styles: { fontSize: 6.3, halign: 'center', cellPadding: 0.7 },
+      styles: { fontSize: 6.5, halign: 'center', cellPadding: 0.8 },
       headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontSize: 6.5 },
       columnStyles: {
-        0: { cellWidth: 8 },
-        1: { cellWidth: 16, fontStyle: 'bold' },
-        2: { cellWidth: 16 },
-        3: { cellWidth: 18 },
-        4: { cellWidth: 24 },
-        5: { cellWidth: 'auto', halign: 'left' },
-        6: { cellWidth: 20 }
+        0: { cellWidth: 22, fontStyle: 'bold' },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 'auto', halign: 'left' }
       },
       margin: { left: margin, right: margin }
     });
     currentY = (doc as any).lastAutoTable.finalY + 2.5;
   }
 
-  // Si hay sin patrullar, renderizar tabla de sin patrullar
-  if (sinPatrullarData.length > 0) {
+  // Tabla 3b: MOTOS YAMAHA INOPERATIVAS
+  if (yamahaInop.length > 0) {
     (doc as any).autoTable({
       startY: currentY,
       head: [[
-        { content: `DETALLE DE UNIDADES SIN PATRULLAR (${sinPatrullarData.length})`, colSpan: 6, styles: { halign: 'center', fillColor: [217, 119, 6], textColor: [255, 255, 255], fontSize: 7.2, fontStyle: 'bold' } }
+        { content: `MOTOS YAMAHA INOPERATIVAS (${yamahaInop.length})`, colSpan: 2, styles: { halign: 'center', fillColor: [220, 53, 69], textColor: [255, 255, 255], fontSize: 7.2, fontStyle: 'bold' } }
       ], [
-        'N°', 'UNIDAD', 'TIPO', 'SECTOR', 'ESTADO', 'MOTIVO / OBSERVACIONES'
+        'PLACA', 'MOTIVO / FALLA TÉCNICA'
       ]],
-      body: sinPatrullarData,
+      body: yamahaInop.map(u => [u.plate || '--', motivoInop(u)]),
       theme: 'grid',
-      styles: { fontSize: 6.3, halign: 'center', cellPadding: 0.7 },
-      headStyles: { fillColor: [180, 83, 9], textColor: [255, 255, 255], fontSize: 6.5 },
+      styles: { fontSize: 6.5, halign: 'center', cellPadding: 0.8 },
+      headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontSize: 6.5 },
       columnStyles: {
-        0: { cellWidth: 8 },
-        1: { cellWidth: 16, fontStyle: 'bold' },
-        2: { cellWidth: 16 },
-        3: { cellWidth: 18 },
-        4: { cellWidth: 26, fontStyle: 'bold' },
-        5: { cellWidth: 'auto', halign: 'left' }
+        0: { cellWidth: 24 },
+        1: { cellWidth: 'auto', halign: 'left' }
       },
       margin: { left: margin, right: margin }
     });
+    currentY = (doc as any).lastAutoTable.finalY + 2.5;
+  }
+
+  // Tabla 3c: MOTOS HONDA INOPERATIVAS
+  if (hondaInop.length > 0) {
+    (doc as any).autoTable({
+      startY: currentY,
+      head: [[
+        { content: `MOTOS HONDA INOPERATIVAS (${hondaInop.length})`, colSpan: 2, styles: { halign: 'center', fillColor: [220, 53, 69], textColor: [255, 255, 255], fontSize: 7.2, fontStyle: 'bold' } }
+      ], [
+        'PLACA', 'MOTIVO / FALLA TÉCNICA'
+      ]],
+      body: hondaInop.map(u => [u.plate || '--', motivoInop(u)]),
+      theme: 'grid',
+      styles: { fontSize: 6.5, halign: 'center', cellPadding: 0.8 },
+      headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontSize: 6.5 },
+      columnStyles: {
+        0: { cellWidth: 24 },
+        1: { cellWidth: 'auto', halign: 'left' }
+      },
+      margin: { left: margin, right: margin }
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 2.5;
   }
 
   // Pie de página en todas las páginas

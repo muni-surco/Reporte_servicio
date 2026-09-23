@@ -30,10 +30,10 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       subtitle: 'CONSOLIDADO DE OPERATIVIDAD',
       description: 'Estado integral de operatividad de la flota vehicular y recursos por sector, porcentajes de cobertura y novedades.',
       icon: <Activity className="w-8 h-8" />,
-      color: 'teal',
-      themeClass: 'border-teal-200 hover:border-teal-400 ring-1 ring-teal-100',
-      iconClass: 'bg-teal-50 text-teal-600',
-      btnClass: 'bg-teal-600 hover:bg-teal-700'
+      color: 'orange',
+      themeClass: 'border-orange-200 hover:border-orange-400 ring-1 ring-orange-100',
+      iconClass: 'bg-orange-50 text-orange-600',
+      btnClass: 'bg-orange-600 hover:bg-orange-700'
     },
     {
       id: 'general',

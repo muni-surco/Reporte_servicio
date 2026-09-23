@@ -685,6 +685,42 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                 { key: 'sade', label: 'CODIGO SADE', type: 'number', required: false },
               ].map(({ key, label, type, options, required }) => (
                 <React.Fragment key={key}>
+                  {key === 'marca' && (
+                    <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4">
+                      {(['marca', 'modelo', 'color', 'propietario'] as const).map((ck) => {
+                        const ckLabel = ({ marca: 'MARCA', modelo: 'MODELO', color: 'COLOR', propietario: 'PROPIETARIO' } as Record<string, string>)[ck];
+                        return (
+                          <div key={ck}>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">{ckLabel}</label>
+                            {ck === 'marca' ? (
+                              <div className="relative">
+                                <select
+                                  value={String((formData as any)[ck] || '')}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, [ck]: e.target.value }))}
+                                  className={`${inputModalStyle} cursor-pointer pr-8 appearance-none${formErrors[ck] ? ' ring-1 ring-red-500' : ''}`}
+                                >
+                                  <option value="">--</option>
+                                  {marcaOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </select>
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                                  <ChevronDown className="w-4 h-4" />
+                                </span>
+                              </div>
+                            ) : (
+                              <input
+                                type="text"
+                                value={String((formData as any)[ck] || '')}
+                                onChange={(e) => setFormData(prev => ({ ...prev, [ck]: e.target.value }))}
+                                className={`${inputModalStyle}${formErrors[ck] ? ' ring-1 ring-red-500' : ''}`}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {['marca', 'modelo', 'color', 'propietario'].includes(key) ? null : (
+                    <React.Fragment>
                   {key === 'operador' && (
                     <div className="md:col-span-3 border-b border-slate-200 pb-1">
                       <span className="text-[11px] font-bold uppercase tracking-widest text-[#005ea5]">Datos del vehículo</span>
@@ -845,6 +881,8 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                     />
                   )}
                   </div>
+                    </React.Fragment>
+                  )}
                 </React.Fragment>
               ))}
               <div className="min-w-0">
