@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { UnitData, AppSettings, UnitStatus } from '@/types';
 
+declare const google: any;
+
 interface MapViewProps {
   allSectorsData: Record<string, { units: UnitData[]; settings: AppSettings }>;
   settings: AppSettings;
@@ -586,6 +588,35 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     return countedUnits.size;
   }, [allSectorsData, showChoferes, showMotos, showSerenos, sectorQuadrants, sectorFilter]);
 
+  const layerCounts = useMemo(() => {
+    const counts = { choferes: 0, motos: 0, serenos: 0 };
+    const seen = { choferes: new Set<string>(), motos: new Set<string>(), serenos: new Set<string>() };
+    Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
+      if (sectorName === 'C4' || sectorName === 'COVV') return;
+      if (sectorFilter.length > 0 && !sectorFilter.includes(sectorName.toUpperCase())) return;
+      sd.units.forEach(u => {
+        if (u.type === 'CHOFER' && !showChoferes) return;
+        if (u.type === 'MOTO' && !showMotos) return;
+        if (u.type === 'SERENO' && !showSerenos) return;
+        const quadrants = parseQuadrants(u.quadrant || '');
+        if (quadrants.length === 0) return;
+        const isTT = quadrants.some(q => q === 'TT');
+        const expandedQuadrants = isTT
+          ? (sectorQuadrants.get(sectorName.toUpperCase()) || [])
+          : quadrants;
+        if (expandedQuadrants.length === 0) return;
+        const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO || u.status === UnitStatus.SIN_OPERADOR;
+        if (!isActive) return;
+        if (showTaserOnly && u.taser !== 'SI') return;
+        const key = u.type === 'CHOFER' ? 'choferes' as const : u.type === 'MOTO' ? 'motos' as const : u.type === 'SERENO' ? 'serenos' as const : null;
+        if (!key) return;
+        if (!u.id) { counts[key]++; return; }
+        if (!seen[key].has(u.id)) { seen[key].add(u.id); counts[key]++; }
+      });
+    });
+    return counts;
+  }, [allSectorsData, showChoferes, showMotos, showSerenos, showTaserOnly, sectorQuadrants, sectorFilter]);
+
   return (
     <div className="h-full w-full flex flex-col bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-200">
       <div className="relative z-0 flex-1" style={{ minHeight: '750px', width: '100%' }}>
@@ -762,6 +793,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
             >
               <span className="material-symbols-outlined text-[16px]">directions_car</span>
               Autos
+              <span className={`ml-auto px-1.5 py-0.5 rounded-md text-[10px] font-bold ${showChoferes ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>{layerCounts.choferes}</span>
             </button>
             <button 
               onClick={() => setShowMotos(!showMotos)}
@@ -769,6 +801,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
             >
               <span className="material-symbols-outlined text-[16px]">moped</span>
               Motos
+              <span className={`ml-auto px-1.5 py-0.5 rounded-md text-[10px] font-bold ${showMotos ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-400'}`}>{layerCounts.motos}</span>
             </button>
             <button 
               onClick={() => setShowSerenos(!showSerenos)}
@@ -776,6 +809,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
             >
               <span className="material-symbols-outlined text-[16px]">hail</span>
               Serenos
+              <span className={`ml-auto px-1.5 py-0.5 rounded-md text-[10px] font-bold ${showSerenos ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-400'}`}>{layerCounts.serenos}</span>
             </button>
             <div className="h-px bg-slate-100 my-1"></div>
             <button 
