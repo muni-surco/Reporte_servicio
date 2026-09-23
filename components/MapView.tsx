@@ -31,6 +31,10 @@ function getFillOpacity(total: number | undefined): number {
   return Math.min(0.85, 0.2 + (total * 0.15));
 }
 
+// Estados que se consideran en el mapa de cuadrantes (unidad visible/asignada)
+const ACTIVE_MAP_STATUSES: UnitStatus[] = [UnitStatus.PATRULLANDO, UnitStatus.SIN_VEHICULO, UnitStatus.SIN_OPERADOR];
+const isMapActive = (u: UnitData) => ACTIVE_MAP_STATUSES.includes(u.status);
+
 const TYPE_ICONS: Record<string, string> = {
   CHOFER: 'directions_car',
   MOTO: 'motorcycle',
@@ -145,12 +149,15 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
   const [quadrantSearchQuery, setQuadrantSearchQuery] = useState('');
   const [showQuadrantResults, setShowQuadrantResults] = useState(false);
   const [mapDark, setMapDark] = useState(false);
+  const [showUnitMarkers, setShowUnitMarkers] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string[]>([]);
   const [showSectorDropdown, setShowSectorDropdown] = useState(false);
   const sectorDropdownRef = useRef<HTMLDivElement>(null);
   const lightLayerRef = useRef<any>(null);
   const darkLayerRef = useRef<any>(null);
   const quadrantLayersRef = useRef<Map<string, any>>(new Map());
+  const markerLayerRef = useRef<any>(null);
 
   const allQuadrantNames = useMemo(() => {
     if (!geoJsonData?.features) return [];
@@ -191,12 +198,17 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     return { ...geoJsonData, features: filtered };
   }, [geoJsonData, sectorFilter]);
 
-  const quadrantDetailMap = useMemo(() => {
+  const quadrantData = useMemo(() => {
     const map = new Map<string, QuadrantDetail>();
+    const taserIds = new Set<string>();
+    let taserCount = 0;
+    const layerCounts = { choferes: 0, motos: 0, serenos: 0 };
+    const layerSeen = { choferes: new Set<string>(), motos: new Set<string>(), serenos: new Set<string>() };
 
     Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
       // Excluir sectores técnicos/administrativos que no patrullan cuadrantes
       if (sectorName === 'C4' || sectorName === 'COVV') return;
+      const inSectorFilter = sectorFilter.length === 0 || sectorFilter.includes(sectorName.toUpperCase());
 
       sd.units.forEach(u => {
         if (u.type === 'CHOFER' && !showChoferes) return;
@@ -213,38 +225,51 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
           : quadrants;
 
         if (expandedQuadrants.length === 0) return;
+        if (!isMapActive(u)) return;
 
-        const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO || u.status === UnitStatus.SIN_OPERADOR;
-        if (!isActive) return;
+        // Detalle por cuadrante (respeta capas + filtro taser; sin filtro de sector)
+        if (!showTaserOnly || u.taser === 'SI') {
+          const entry = {
+            id: u.id || '',
+            personnel1: u.personnel1 || '',
+            type: u.type,
+            plate: u.plate || '',
+            radio: u.radio || '',
+            indicative: u.indicative || '',
+            taser: u.taser || ''
+          };
+          expandedQuadrants.forEach(q => {
+            if (!map.has(q)) {
+              map.set(q, { total: 0, choferes: 0, motos: 0, serenos: 0, units: [], sectorName });
+            }
+            const d = map.get(q)!;
+            d.total++;
+            if (u.type === 'CHOFER') d.choferes++;
+            else if (u.type === 'MOTO') d.motos++;
+            else if (u.type === 'SERENO') d.serenos++;
+            d.units.push(entry);
+          });
+        }
 
-        if (showTaserOnly && u.taser !== 'SI') return;
+        // Conteo Taser (siempre unidades con taser SI; respeta filtro de sector)
+        if (inSectorFilter && u.taser === 'SI') {
+          if (u.id) taserIds.add(u.id);
+        }
 
-        const entry = {
-          id: u.id || '',
-          personnel1: u.personnel1 || '',
-          type: u.type,
-          plate: u.plate || '',
-          radio: u.radio || '',
-          indicative: u.indicative || '',
-          taser: u.taser || ''
-        };
-
-        expandedQuadrants.forEach(q => {
-          if (!map.has(q)) {
-            map.set(q, { total: 0, choferes: 0, motos: 0, serenos: 0, units: [], sectorName });
-          }
-          const d = map.get(q)!;
-          d.total++;
-          if (u.type === 'CHOFER') d.choferes++;
-          else if (u.type === 'MOTO') d.motos++;
-          else if (u.type === 'SERENO') d.serenos++;
-          d.units.push(entry);
-        });
+        // Conteo por capa (respeta capas + filtro taser + filtro de sector), deduplicado por ID
+        if (inSectorFilter && (!showTaserOnly || u.taser === 'SI')) {
+          const key = u.type === 'CHOFER' ? 'choferes' as const : u.type === 'MOTO' ? 'motos' as const : u.type === 'SERENO' ? 'serenos' as const : null;
+          if (!key) return;
+          if (!u.id) { layerCounts[key]++; return; }
+          if (!layerSeen[key].has(u.id)) { layerSeen[key].add(u.id); layerCounts[key]++; }
+        }
       });
     });
 
-    return map;
-  }, [allSectorsData, showChoferes, showMotos, showSerenos, showTaserOnly, sectorQuadrants]);
+    return { map, taserCount: taserCount + taserIds.size, layerCounts };
+  }, [allSectorsData, showChoferes, showMotos, showSerenos, showTaserOnly, sectorQuadrants, sectorFilter]);
+
+  const { map: quadrantDetailMap, taserCount, layerCounts } = quadrantData;
 
   const quadrantDetailMapRef = useRef(quadrantDetailMap);
   useEffect(() => {
@@ -349,7 +374,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     return () => clearInterval(checkL);
   }, []);
 
-  useEffect(() => {
+  const loadQuadrantData = () => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       setLoadingData(true);
       google.script.run
@@ -361,6 +386,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
             }
             const data = JSON.parse(dataStr);
             setGeoJsonData(data);
+            setLastUpdated(new Date());
           } catch (e) {
             console.error('MAP: Parse error:', e);
           } finally {
@@ -373,11 +399,16 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
         })
         .getQuadrantsData();
     }
+  };
+
+  useEffect(() => {
+    loadQuadrantData();
   }, []);
 
   useEffect(() => {
     if (!lReady || !containerRef.current || mapRef.current) return;
 
+    let resizeObserver: ResizeObserver | null = null;
     try {
       const L = (window as any).L;
       const map = L.map(containerRef.current).setView([-12.128, -76.995], 14);
@@ -397,7 +428,14 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
         className: 'dark-tiles'
       });
 
-      setTimeout(() => map.invalidateSize(), 500);
+      if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          if (mapRef.current) mapRef.current.invalidateSize();
+        });
+        resizeObserver.observe(containerRef.current);
+      } else {
+        setTimeout(() => map.invalidateSize(), 500);
+      }
 
       // Suprimir el outline negro de focus en polígonos de Leaflet y aplicar fuente del webapp + filtro oscuro
       const styleTag = document.createElement('style');
@@ -408,6 +446,7 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     }
 
     return () => {
+      resizeObserver?.disconnect();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -535,6 +574,50 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     });
   }, [quadrantDetailMap]);
 
+  // Capa de marcadores por unidad (Ver Unidades)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (markerLayerRef.current) {
+      map.removeLayer(markerLayerRef.current);
+      markerLayerRef.current = null;
+    }
+    if (!showUnitMarkers) return;
+    const L = (window as any).L;
+    const markers = L.layerGroup();
+    const seen = new Set<string>();
+    quadrantDetailMap.forEach((detail, name) => {
+      const qLayer = quadrantLayersRef.current.get(name);
+      if (!qLayer) return;
+      const pos = qLayer.getBounds().getCenter();
+      detail.units.forEach((entry: any) => {
+        if (entry.id && seen.has(entry.id)) return;
+        if (entry.id) seen.add(entry.id);
+        const color = entry.type === 'CHOFER' ? '#2563eb' : entry.type === 'MOTO' ? '#7c3aed' : '#0d9488';
+        const marker = L.marker(pos, {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="width:24px;height:24px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.45);border:2px solid #fff;cursor:pointer"><span class="material-symbols-outlined" style="font-size:12px">${TYPE_ICONS[entry.type] || 'radio'}</span></div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          }),
+          title: entry.id || ''
+        });
+        marker.bindPopup(buildPopupContent(name, detail));
+        marker.on('click', () => {
+          const ql = quadrantLayersRef.current.get(name);
+          if (ql && map) {
+            map.flyToBounds(ql.getBounds(), { maxZoom: 16, duration: 1 });
+            setTimeout(() => ql.openPopup(), 700);
+          }
+        });
+        markers.addLayer(marker);
+      });
+    });
+    markers.addTo(map);
+    markerLayerRef.current = markers;
+  }, [showUnitMarkers, quadrantDetailMap, filteredGeoJsonData]);
+
   const totalQuadrants = filteredGeoJsonData?.features?.length || 0;
   const occupiedCount = filteredGeoJsonData?.features
     ? filteredGeoJsonData.features.filter((f: any) => {
@@ -546,11 +629,16 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
   const totalAssignedResources = useMemo(() => {
     if (!filteredGeoJsonData?.features) return 0;
     const visibleSet = new Set(filteredGeoJsonData.features.map((f: any) => normalizeQuadrant(f.properties?.name || '')));
-    let sum = 0;
+    const seen = new Set<string>();
+    let count = 0;
     quadrantDetailMap.forEach((detail, qName) => {
-      if (visibleSet.has(qName)) sum += detail.total;
+      if (!visibleSet.has(qName)) return;
+      detail.units.forEach(entry => {
+        if (!entry.id) { count++; return; }
+        if (!seen.has(entry.id)) { seen.add(entry.id); count++; }
+      });
     });
-    return sum;
+    return count;
   }, [filteredGeoJsonData, quadrantDetailMap]);
 
   useEffect(() => {
@@ -562,60 +650,6 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  const taserCount = useMemo(() => {
-    const countedUnits = new Set<string>();
-    Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
-      if (sectorName === 'C4' || sectorName === 'COVV') return;
-      if (sectorFilter.length > 0 && !sectorFilter.includes(sectorName.toUpperCase())) return;
-      sd.units.forEach(u => {
-        if (u.type === 'CHOFER' && !showChoferes) return;
-        if (u.type === 'MOTO' && !showMotos) return;
-        if (u.type === 'SERENO' && !showSerenos) return;
-        const quadrants = parseQuadrants(u.quadrant || '');
-        if (quadrants.length === 0) return;
-        const isTT = quadrants.some(q => q === 'TT');
-        const expandedQuadrants = isTT
-          ? (sectorQuadrants.get(sectorName.toUpperCase()) || [])
-          : quadrants;
-        if (expandedQuadrants.length === 0) return;
-        const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO || u.status === UnitStatus.SIN_OPERADOR;
-        if (!isActive) return;
-        if (u.taser !== 'SI') return;
-        if (u.id) countedUnits.add(u.id);
-      });
-    });
-    return countedUnits.size;
-  }, [allSectorsData, showChoferes, showMotos, showSerenos, sectorQuadrants, sectorFilter]);
-
-  const layerCounts = useMemo(() => {
-    const counts = { choferes: 0, motos: 0, serenos: 0 };
-    const seen = { choferes: new Set<string>(), motos: new Set<string>(), serenos: new Set<string>() };
-    Object.entries(allSectorsData).forEach(([sectorName, sd]) => {
-      if (sectorName === 'C4' || sectorName === 'COVV') return;
-      if (sectorFilter.length > 0 && !sectorFilter.includes(sectorName.toUpperCase())) return;
-      sd.units.forEach(u => {
-        if (u.type === 'CHOFER' && !showChoferes) return;
-        if (u.type === 'MOTO' && !showMotos) return;
-        if (u.type === 'SERENO' && !showSerenos) return;
-        const quadrants = parseQuadrants(u.quadrant || '');
-        if (quadrants.length === 0) return;
-        const isTT = quadrants.some(q => q === 'TT');
-        const expandedQuadrants = isTT
-          ? (sectorQuadrants.get(sectorName.toUpperCase()) || [])
-          : quadrants;
-        if (expandedQuadrants.length === 0) return;
-        const isActive = u.status === UnitStatus.PATRULLANDO || u.status === UnitStatus.SIN_VEHICULO || u.status === UnitStatus.SIN_OPERADOR;
-        if (!isActive) return;
-        if (showTaserOnly && u.taser !== 'SI') return;
-        const key = u.type === 'CHOFER' ? 'choferes' as const : u.type === 'MOTO' ? 'motos' as const : u.type === 'SERENO' ? 'serenos' as const : null;
-        if (!key) return;
-        if (!u.id) { counts[key]++; return; }
-        if (!seen[key].has(u.id)) { seen[key].add(u.id); counts[key]++; }
-      });
-    });
-    return counts;
-  }, [allSectorsData, showChoferes, showMotos, showSerenos, showTaserOnly, sectorQuadrants, sectorFilter]);
 
   return (
     <div className="h-full w-full flex flex-col bg-white rounded-2xl overflow-hidden shadow-xl border border-slate-200">
@@ -821,6 +855,14 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
             </button>
             <div className="h-px bg-slate-100 my-1"></div>
             <button 
+              onClick={() => setShowUnitMarkers(!showUnitMarkers)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showUnitMarkers ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-500 border-slate-100'} border`}
+            >
+              <span className="material-symbols-outlined text-[16px]">push_pin</span>
+              Ver Unidades
+            </button>
+            <div className="h-px bg-slate-100 my-1"></div>
+            <button 
               onClick={() => setMapDark(!mapDark)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100"
             >
@@ -867,6 +909,20 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                 <span className="font-medium text-slate-500 uppercase tracking-wider">Total Cuadrantes</span>
                 <span className="font-bold text-[#002d5a]">{totalQuadrants}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs gap-2">
+                <span className="flex items-center gap-1 font-medium text-slate-500 uppercase tracking-wider">
+                  <span className="material-symbols-outlined text-[13px]">schedule</span>
+                  Actualizado
+                </span>
+                <button
+                  onClick={loadQuadrantData}
+                  title="Recargar datos del mapa"
+                  className="flex items-center gap-1 font-bold text-slate-900 bg-slate-100 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors"
+                >
+                  <span className={`material-symbols-outlined text-[13px] ${loadingData ? 'animate-spin' : ''}`}>refresh</span>
+                  <span>{lastUpdated ? lastUpdated.toLocaleTimeString('es-PE') : '--:--:--'}</span>
+                </button>
               </div>
             </div>
           </div>
