@@ -464,6 +464,7 @@ El módulo **Centro de Reportes** permite generar documentos PDF con los datos d
 
 | Reporte | Descripción |
 |---|---|---|
+| **Reporte de Operatividad** | Reporte ejecutivo y consolidado de operatividad de toda la flota por sector, tasas porcentuales de cobertura, desglose por tipo de vehículo y detalle de novedades |
 | **Observaciones** | Reporte de observaciones y novedades del puesto de comando y cambios de turno |
 | **Motos Yamaha XTZ150** | Reporte numérico de la flota de motos Yamaha |
 | **Motos Honda SAHARA XRE300** | Reporte numérico de la flota de motos Honda |

@@ -1274,10 +1274,15 @@ hours: '--:-- - --:--',
       // previous-shift read), instead of one getSectorData call per sector.
       // The backend script cache (60s) makes repeated generations nearly instant.
       const res: any = await new Promise((resolve, reject) => {
-        google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .getShiftData(date, shift, currentSector);
+        if (typeof google !== 'undefined' && google?.script?.run) {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getShiftData(date, shift, currentSector);
+        } else {
+          // Dev fallback
+          resolve({ units, allSectorSettings: sectorSettingsMap });
+        }
       });
 
       let dataToUse: { units: UnitData[], allSectorSettings: Record<string, AppSettings> };
@@ -1293,7 +1298,19 @@ hours: '--:-- - --:--',
         throw new Error('No se pudo cargar la información del turno.');
       }
 
-      if (type === 'motos') {
+      if (type === 'operatividad') {
+        const retenData: RetenReplacement[] = await new Promise((resolve) => {
+          if (typeof google !== 'undefined' && google?.script?.run) {
+            google.script.run
+              .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
+              .withFailureHandler(() => resolve([]))
+              .getRetenData(date, shift);
+          } else {
+            resolve([]);
+          }
+        });
+        reportGenerators.generateOperatividadReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
+      } else if (type === 'motos') {
         reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName, mobileData);
       } else if (type === 'motos_honda') {
         reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName, mobileData);
@@ -1301,18 +1318,26 @@ hours: '--:-- - --:--',
         reportGenerators.generateConsolidatedMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData);
        } else if (type === 'consolidado') {
          const retenData: RetenReplacement[] = await new Promise((resolve) => {
-           google.script.run
-             .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
-             .withFailureHandler(() => resolve([]))
-             .getRetenData(date, shift);
+           if (typeof google !== 'undefined' && google?.script?.run) {
+             google.script.run
+               .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
+               .withFailureHandler(() => resolve([]))
+               .getRetenData(date, shift);
+           } else {
+             resolve([]);
+           }
          });
          reportGenerators.generateConsolidatedMobileReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
        } else if (type === 'moviles' || type === 'sipcop') {
         const retenData: RetenReplacement[] = await new Promise((resolve) => {
-          google.script.run
-            .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
-            .withFailureHandler(() => resolve([]))
-            .getRetenData(date, shift);
+          if (typeof google !== 'undefined' && google?.script?.run) {
+            google.script.run
+              .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
+              .withFailureHandler(() => resolve([]))
+              .getRetenData(date, shift);
+          } else {
+            resolve([]);
+          }
         });
         if (type === 'sipcop') {
           reportGenerators.generateSipcopReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
@@ -1324,7 +1349,11 @@ hours: '--:-- - --:--',
             reportGenerators.generatePersonnelAbsenceReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         } else {
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
-                google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+                if (typeof google !== 'undefined' && google?.script?.run) {
+                  google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+                } else {
+                  resolve([]);
+                }
             });
             setPersonnelList(loadedPersonnel);
             reportGenerators.generatePersonnelAbsenceReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
@@ -1334,7 +1363,11 @@ hours: '--:-- - --:--',
             reportGenerators.generatePersonnelStatusReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
         } else {
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
-                google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+                if (typeof google !== 'undefined' && google?.script?.run) {
+                  google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+                } else {
+                  resolve([]);
+                }
             });
             setPersonnelList(loadedPersonnel);
             reportGenerators.generatePersonnelStatusReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);

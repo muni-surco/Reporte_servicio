@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound, ShieldCheck } from 'lucide-react';
+import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound, ShieldCheck, Activity } from 'lucide-react';
 import AutocompleteInput from './AutocompleteInput';
 
 interface ReportGeneratorViewProps {
@@ -24,6 +24,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   const [operatorError, setOperatorError] = useState<string | null>(null);
 
   const reportTypes = [
+    {
+      id: 'operatividad',
+      title: 'Reporte de Operatividad',
+      subtitle: 'CONSOLIDADO DE OPERATIVIDAD',
+      description: 'Estado integral de operatividad de la flota vehicular y recursos por sector, porcentajes de cobertura y novedades.',
+      icon: <Activity className="w-8 h-8" />,
+      color: 'teal',
+      themeClass: 'border-teal-200 hover:border-teal-400 ring-1 ring-teal-100',
+      iconClass: 'bg-teal-50 text-teal-600',
+      btnClass: 'bg-teal-600 hover:bg-teal-700'
+    },
     {
       id: 'general',
       title: 'Reporte General',
