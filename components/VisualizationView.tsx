@@ -1,20 +1,42 @@
 
 import React from 'react';
-import { UnitData, AppSettings } from '../types';
+import { UnitData, AppSettings, UnitStatus, SECTORS, isTacticoPPFFStatus, isOtrasAreasSector } from '../types';
 
 interface VisualizationViewProps {
-  allSectorsData: Record<string, {units: UnitData[], settings: AppSettings}>;
+  allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }>;
   settings: AppSettings;
+  mobileData: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[];
+  highlightMissingHeader?: boolean;
 }
 
-const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings }) => {
+const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings, mobileData, highlightMissingHeader }) => {
+  const redStatusPatterns = [
+    UnitStatus.MANTENIMIENTO,
+    UnitStatus.DESPERFECTOS,
+    UnitStatus.SINIESTRO,
+    UnitStatus.FALTO,
+  ];
+
+  const amberStatusPatterns = [
+    UnitStatus.SIN_DOCUMENTOS,
+    UnitStatus.SIN_CONDUCTOR,
+    UnitStatus.SIN_VEHICULO,
+    UnitStatus.SIN_OPERADOR,
+  ];
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ACTIVO': return "bg-green-500 ring-2 ring-green-100";
-      case 'FUERA': return "bg-red-600 ring-2 ring-red-100";
-      default: return "bg-blue-500 ring-2 ring-blue-100";
-    }
+    if (status === UnitStatus.PATRULLANDO) return "bg-green-500 ring-2 ring-green-200";
+    if (status === UnitStatus.APOYO_OTRA_AREA) return "bg-blue-500 ring-2 ring-blue-200";
+    if (isTacticoPPFFStatus(status)) return "bg-blue-500 ring-2 ring-blue-200";
+    if (redStatusPatterns.includes(status)) return "bg-red-500 ring-2 ring-red-200";
+    if (amberStatusPatterns.includes(status)) return "bg-amber-500 ring-2 ring-amber-200";
+    return "bg-slate-300 ring-2 ring-slate-100";
   };
+
+  const ALLOWED_STATUSES = [
+    UnitStatus.PATRULLANDO,
+    UnitStatus.SIN_VEHICULO,
+  ];
 
   const renderCompactUnit = (u: UnitData, type: string) => {
     const idTextColor = {
@@ -23,154 +45,272 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
       SERENO: 'text-teal-700'
     }[type];
 
+    const refInfo = mobileData?.find(m => m.id === u.id);
+    const displayRadio = u.radio || '--';
+    const displayQuadrant = u.quadrant || refInfo?.quadrant || '--';
+
     return (
-      <div key={u.id} className="flex items-center gap-4 py-2.5 px-4 hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors group">
-        {/* Indicador de Estado - Maximizado */}
-        <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${getStatusColor(u.status)} shadow-sm border-2 border-white transition-transform group-hover:scale-125`} title={u.status}></div>
-        
-        {/* ID de Unidad - Sin Badge/Fondo */}
-        <span className={`text-[12px] font-black min-w-[50px] text-center ${idTextColor} uppercase tracking-tighter`}>
+      <div key={u.id} className="flex items-center gap-4 py-3 px-4 hover:bg-blue-50/50 border-b border-slate-100 last:border-0 transition-colors group odd:bg-white even:bg-slate-50/50">
+        {/* Indicador de Estado */}
+        <div className={`w-4 h-4 rounded-full shrink-0 ${getStatusColor(u.status)} shadow-sm border border-white transition-transform group-hover:scale-125`} title={u.status}></div>
+
+        {/* ID de Unidad */}
+        <span className={`text-[13px] font-medium min-w-[45px] text-center ${idTextColor} uppercase tracking-tighter`}>
           {u.id}
         </span>
 
-        {/* Contenedor de Información en una sola línea */}
+        {/* Contenedor de información */}
         <div className="flex-1 flex items-center justify-between min-w-0 gap-6">
-          <p className="text-[13px] font-black text-slate-800 truncate uppercase tracking-tight flex-1">
-            {u.personnel1}
-          </p>
-          
+          <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex items-center gap-2">
+                {u.personnel1 || (isTacticoPPFFStatus(u.status) && u.personnel2)}
+                {u.taser === 'SI' && (
+                  <span className="inline-flex items-center px-1.5 py-[1px] rounded text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-[#005ea5] border border-blue-200 leading-none shrink-0">
+                    TASER
+                  </span>
+                )}
+              </p>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                {u.lugarEstado && (
+                  <span className="text-[9px] font-bold bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded uppercase leading-none border border-yellow-200">
+                    {u.lugarEstado}
+                  </span>
+                )}
+                {u.motivoEstado && (
+                  <span className="text-[9px] font-medium bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded uppercase leading-none border border-orange-200">
+                    {u.motivoEstado}
+                  </span>
+                )}
+                {u.mechanics && (
+                  <span className="text-[9px] font-medium bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded uppercase leading-none border border-slate-200">
+                    {u.mechanics}
+                  </span>
+                )}
+              </div>
+            {u.type === 'CHOFER' && (u.indicative || u.personnel2) && (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {u.indicative && (
+                  <span className="inline-flex items-center px-1.5 py-[1px] rounded text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200 leading-none shrink-0">
+                    {u.indicative}
+                  </span>
+                )}
+                {u.personnel2 && (
+                  <span className="text-[10px] text-slate-500 truncate uppercase leading-none">
+                    {u.personnel2}
+                  </span>
+                )}
+              </div>
+            )}
+            </div>
+
           <div className="flex items-center gap-6 shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-black text-slate-400 tracking-tighter uppercase">RADIO:</span> 
-              <span className="text-[11px] font-bold text-slate-700 font-mono">{u.radio || '--'}</span>
+            <div className="flex flex-col items-end min-w-[60px]">
+              <span className="text-[11px] font-medium text-slate-400 tracking-tighter uppercase leading-none mb-1">RADIO</span>
+              <span className="text-[13px] font-medium text-slate-700 font-mono leading-none">{displayRadio}</span>
             </div>
-            <div className="flex items-center gap-2 border-l border-slate-200 pl-6">
-              <span className="text-[9px] font-black text-slate-400 tracking-tighter uppercase">CUADRANTE:</span> 
-              <span className="text-[12px] font-black text-slate-900">{u.quadrant || '--'}</span>
-            </div>
+            {u.sector !== 'RESCATE' && (
+              <div className="flex flex-col items-end min-w-[70px] border-l border-slate-200 pl-6">
+                <span className="text-[11px] font-medium text-slate-400 tracking-tighter uppercase leading-none mb-1">CUADRANTE</span>
+                <span className="text-[13px] font-medium text-slate-900 leading-none">{displayQuadrant}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
     );
   };
 
-  const sectorEntries = Object.entries(allSectorsData) as [string, {units: UnitData[], settings: AppSettings}][];
-
-  const infoLabelStyle = "text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5 block";
-  const infoValueStyle = "text-[12px] font-black text-slate-800 uppercase truncate leading-none";
+  const infoLabelStyle = "text-[11px] font-medium text-[#004b93] uppercase tracking-wider mb-0.5 block";
+  const infoValueStyle = "text-[13px] font-medium text-slate-800 uppercase truncate leading-none bg-transparent border-none p-0 cursor-default";
 
   return (
-    <div className="bg-[#f1f5f9] min-h-full pb-10">
-      <div className="p-4 flex flex-col gap-6 max-w-[1600px] mx-auto">
-        {sectorEntries.map(([sectorName, data]) => {
-          const choferes = data.units.filter(u => u.type === 'CHOFER');
-          const motos = data.units.filter(u => u.type === 'MOTO');
-          const serenos = data.units.filter(u => u.type === 'SERENO');
-          const isRescate = sectorName === 'RESCATE';
+    <div className="flex flex-col gap-6 mx-auto">
+      {SECTORS.map((sectorName) => {
+        const data = allSectorsData[sectorName];
+        if (!data) return null;
+        const safeSettings = data.settings || {
+          nombrePuesto: sectorName,
+          operador: '',
+          supervisor: '',
+          supervisorRol: 'SUPERVISOR',
+          supervisorEstado: '',
+          supervisorEncargado: '',
+          supervisorTaser: '',
+          permanencia: '',
+          permanenciaTaser: '',
+          permanenciaEstado: '',
+          permanenciaEncargado: '',
+          turno: settings.turno,
+          ipServidor: '',
+          version: ''
+        };
 
-          return (
-            <div 
-              key={sectorName} 
-              id={`sector-${sectorName.replace(/\s+/g, '-')}`}
-              className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col transition-all scroll-mt-24 hover:shadow-xl hover:border-blue-200"
-            >
-              {/* Cabecera de Sector Unificada */}
-              <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 px-6 py-4 shrink-0">
-                <div className="flex items-center gap-8">
-                  {/* SECTOR */}
-                  <div className="flex items-center gap-3 shrink-0 min-w-[140px]">
-                    <div className="w-2 h-8 bg-[#004b93] rounded-full shadow-sm shadow-blue-200"></div>
-                    <h2 className="text-[20px] font-black tracking-tighter uppercase text-[#002d5a] leading-none">{sectorName}</h2>
+        const activeUnits = data.units.filter(u =>
+          ALLOWED_STATUSES.includes(u.status) ||
+          (u.status === UnitStatus.SIN_DOCUMENTOS && u.type === 'CHOFER') ||
+          isTacticoPPFFStatus(u.status)
+        );
+        const choferes = activeUnits.filter(u => u.type === 'CHOFER');
+        const motos = activeUnits.filter(u => u.type === 'MOTO');
+        const serenos = activeUnits.filter(u => u.type === 'SERENO');
+        const isRescate = sectorName === 'RESCATE';
+        const isTechnical = sectorName === 'C4' || sectorName === 'COVV';
+        const isOtrasAreas = isOtrasAreasSector(sectorName);
+        const missingHeaderClass = highlightMissingHeader
+          ? 'border-red-200 bg-red-50/60 text-red-700'
+          : 'border-slate-100 bg-white text-slate-700';
+
+        return (
+          <div
+            key={sectorName}
+            id={`sector-${sectorName.replace(/\s+/g, '-')}`}
+            className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col transition-all scroll-mt-24 hover:shadow-xl hover:border-blue-200"
+          >
+            {/* Cabecera de Sector Unificada */}
+            <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 px-6 py-4 shrink-0">
+              <div className="flex items-center gap-8">
+                {/* SECTOR */}
+                <div className="flex items-center gap-3 shrink-0 min-w-[140px]">
+                  <div className="w-2 h-8 bg-[#004b93] rounded-full shadow-sm shadow-blue-200"></div>
+                  <h2 className="text-[24px] font-medium tracking-tighter uppercase text-[#002d5a] leading-none">
+                    {sectorName === 'GIR' || sectorName === 'RESCATE' || sectorName === 'C4' || sectorName === 'COVV' || isOtrasAreasSector(sectorName) ? sectorName : `SECTOR ${sectorName}`}
+                  </h2>
+                </div>
+
+                <div className="h-8 w-px bg-slate-200 shrink-0"></div>
+
+                {/* INFO PERSONAL */}
+                <div className="flex gap-12 flex-1 min-w-0">
+                  <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
+                    <span className={infoLabelStyle}>OPERADOR EN TURNO</span>
+                    <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.operador ? 'text-red-600' : ''}`}>{safeSettings.operador || 'NO ASIGNADO'}</span>
                   </div>
 
-                  <div className="h-8 w-px bg-slate-200 shrink-0"></div>
-
-                  {/* INFO PERSONAL */}
-                  <div className="flex gap-12 flex-1 min-w-0">
-                    <div className="flex flex-col min-w-[180px]">
-                      <span className={infoLabelStyle}>OPERADOR EN TURNO</span>
-                      <span className={infoValueStyle}>{data.settings.operador || 'NO ASIGNADO'}</span>
-                    </div>
-
-                    <div className="flex flex-col min-w-[180px]">
-                      <span className={infoLabelStyle}>SUPERVISOR SECTOR</span>
-                      <span className={infoValueStyle}>{data.settings.supervisor || 'NO ASIGNADO'}</span>
-                    </div>
-                  </div>
-
-                  <div className="h-8 w-px bg-slate-200 shrink-0"></div>
-
-                  {/* ESTADÍSTICAS RÁPIDAS - Sin Partes */}
-                  <div className="flex items-center gap-6">
-                    <div className="flex flex-col items-center">
-                      <span className={infoLabelStyle}>UNIDADES TOTALES</span>
-                      <span className="text-[20px] font-black text-[#004b93] leading-none">{data.units.length}</span>
-                    </div>
-                    <div className="flex flex-col items-center border-l border-slate-100 pl-6">
-                      <span className={infoLabelStyle}>OPERATIVIDAD</span>
-                      <span className="text-[20px] font-black text-green-600 leading-none">
-                        {Math.round((data.units.filter(u => u.status === 'ACTIVO').length / (data.units.length || 1)) * 100)}%
+                  <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
+                    <span className={infoLabelStyle}>
+                      {(safeSettings.supervisorEstado === 'Falto' || safeSettings.supervisorEstado === 'Sin Supervision') && safeSettings.supervisorEncargado
+                        ? 'ENCARGADO SECTOR'
+                        : safeSettings.supervisorRol === 'DESPACHADOR'
+                          ? 'DESPACHADOR SECTOR'
+                          : 'SUPERVISOR SECTOR'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.supervisor && safeSettings.supervisorEstado !== 'Sin Supervision' ? 'text-red-600' : ''}`}>
+                        {(safeSettings.supervisorEstado === 'Falto' || safeSettings.supervisorEstado === 'Sin Supervision') && safeSettings.supervisorEncargado ? safeSettings.supervisorEncargado : (safeSettings.supervisor || 'NO ASIGNADO')}
                       </span>
+                      {safeSettings.supervisorTaser === 'SI' && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">taser</span>}
+                    </div>
+                  </div>
+
+                  <div className={`flex flex-col min-w-[180px] rounded-xl border px-3 py-2 transition-colors ${missingHeaderClass}`}>
+                    <span className={infoLabelStyle}>
+                      {(safeSettings.permanenciaEstado === 'Falto' || safeSettings.permanenciaEstado === 'Sin Supervision') && safeSettings.permanenciaEncargado
+                        ? 'ENCARGADO'
+                        : settings.turno === 'NOCHE' ? 'PERMANENCIA' : 'JEFE DE ÁREA'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`${infoValueStyle} ${highlightMissingHeader && !safeSettings.permanencia && safeSettings.permanenciaEstado !== 'Sin Supervision' ? 'text-red-600' : ''}`}>
+                        {(safeSettings.permanenciaEstado === 'Falto' || safeSettings.permanenciaEstado === 'Sin Supervision') && safeSettings.permanenciaEncargado ? safeSettings.permanenciaEncargado : (safeSettings.permanencia || '--')}
+                      </span>
+                      {safeSettings.permanenciaTaser === 'SI' && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">taser</span>}
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Grid de Secciones */}
-              <div className={`p-4 grid gap-4 ${isRescate ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'}`}>
-                {/* Columna Choferes */}
+                <div className="h-8 w-px bg-slate-200 shrink-0"></div>
+
+                {/* ESTADÍSTICAS RÁPIDAS */}
+                <div className="flex items-center gap-6">
+                  <div className="flex flex-col items-center">
+                    <span className={infoLabelStyle}>UNIDADES TOTALES</span>
+                    <span className="text-[20px] font-medium text-[#004b93] leading-none">{data.units.length}</span>
+                  </div>
+                  <div className="flex flex-col items-center border-l border-slate-100 pl-6">
+                    <span className={infoLabelStyle}>OPERATIVIDAD</span>
+                    <span className="text-[20px] font-medium text-green-600 leading-none">
+                      {Math.round((data.units.filter(u => u.status === UnitStatus.PATRULLANDO).length / (data.units.length || 1)) * 100)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Grid de Secciones */}
+            <div className={`p-4 grid gap-4 ${(isRescate || isTechnical) ? 'grid-cols-1' : (isOtrasAreas ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-3')}`}>
+              {/* Columna Choferes - Solo se muestra si NO es técnico (C4/COVV) */}
+              {!isTechnical && (
                 <div className={`flex flex-col rounded-xl border border-blue-50 overflow-hidden ${isRescate ? 'w-full' : ''}`}>
-                  <div className="text-[11px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-blue-100 font-black">
+                  <div className="text-[16px] text-blue-700 bg-blue-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-blue-100 font-medium">
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[18px]">minor_crash</span> 
+                      <span className="material-symbols-outlined text-[18px]">minor_crash</span>
                       CHOFERES
                     </div>
-                    <span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{choferes.length}</span>
+                    <span className="bg-blue-600 text-white px-2 rounded-full text-[12px] shadow-sm">{choferes.length}</span>
                   </div>
                   <div className="flex flex-col divide-y divide-slate-100 bg-white">
                     {choferes.map(u => renderCompactUnit(u, 'CHOFER'))}
-                    {choferes.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
+                    {choferes.length === 0 && <p className="text-[12px] italic text-slate-300 py-10 text-center bg-white font-medium uppercase tracking-widest">Sin registros</p>}
                   </div>
                 </div>
+              )}
 
-                {!isRescate && (
-                  <>
-                    {/* Columna Motorizados */}
-                    <div className="flex flex-col rounded-xl border border-violet-50 overflow-hidden">
-                      <div className="text-[11px] text-violet-700 bg-violet-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-violet-100 font-black">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[18px]">moped</span> 
-                          MOTORIZADOS
-                        </div>
-                        <span className="bg-violet-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{motos.length}</span>
+              {/* Secciones adicionales para sectores NO especializados */}
+              {!isRescate && !isTechnical && (
+                <>
+                  {/* Columna Motorizados */}
+                  <div className="flex flex-col rounded-xl border border-violet-50 overflow-hidden">
+                    <div className="text-[16px] text-violet-700 bg-violet-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-violet-100 font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px]">moped</span>
+                        MOTORIZADOS
                       </div>
-                      <div className="flex flex-col divide-y divide-slate-100 bg-white">
-                        {motos.map(u => renderCompactUnit(u, 'MOTO'))}
-                        {motos.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
-                      </div>
+                      <span className="bg-violet-600 text-white px-2 rounded-full text-[12px] shadow-sm">{motos.length}</span>
                     </div>
+                    <div className="flex flex-col divide-y divide-slate-100 bg-white">
+                      {motos.map(u => renderCompactUnit(u, 'MOTO'))}
+                      {motos.length === 0 && <p className="text-[12px] italic text-slate-300 py-10 text-center bg-white font-medium uppercase tracking-widest">Sin registros</p>}
+                    </div>
+                  </div>
 
-                    {/* Columna Serenos */}
-                    <div className="flex flex-col rounded-xl border border-teal-50 overflow-hidden">
-                      <div className="text-[11px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-widest border-b border-teal-100 font-black">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[18px]">hail</span> 
-                          SERENOS
-                        </div>
-                        <span className="bg-teal-600 text-white px-2 py-0.5 rounded-full text-[10px] shadow-sm">{serenos.length}</span>
+                  {/* Columna Serenos (oculta en OTRAS AREAS) */}
+                  {!isOtrasAreas && (
+                  <div className="flex flex-col rounded-xl border border-teal-50 overflow-hidden">
+                    <div className="text-[16px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-teal-100 font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px]">hail</span>
+                        SERENOS
                       </div>
-                      <div className="flex flex-col divide-y divide-slate-100 bg-white">
-                        {serenos.map(u => renderCompactUnit(u, 'SERENO'))}
-                        {serenos.length === 0 && <p className="text-[10px] italic text-slate-300 py-10 text-center bg-white font-black uppercase tracking-widest">Sin registros</p>}
-                      </div>
+                      <span className="bg-teal-600 text-white px-2 rounded-full text-[12px] shadow-sm">{serenos.length}</span>
                     </div>
-                  </>
-                )}
-              </div>
+                    <div className="flex flex-col divide-y divide-slate-100 bg-white">
+                      {serenos.map(u => renderCompactUnit(u, 'SERENO'))}
+                      {serenos.length === 0 && <p className="text-[12px] italic text-slate-300 py-10 text-center bg-white font-medium uppercase tracking-widest">Sin registros</p>}
+                    </div>
+                  </div>
+                  )}
+                </>
+              )}
+
+              {/* Columna Única para C4 y COVV (OPERADORES) */}
+              {isTechnical && (
+                <div className="flex flex-col rounded-xl border border-teal-50 overflow-hidden w-full">
+                  <div className="text-[16px] text-teal-700 bg-teal-50/70 px-4 py-2.5 flex items-center justify-between uppercase tracking-tighter border-b border-teal-100 font-medium">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">hail</span>
+                      OPERADORES
+                    </div>
+                    <span className="bg-teal-600 text-white px-2 rounded-full text-[12px] shadow-sm">{serenos.length}</span>
+                  </div>
+                  <div className="flex flex-col divide-y divide-slate-100 bg-white">
+                    {serenos.map(u => renderCompactUnit(u, 'SERENO'))}
+                    {serenos.length === 0 && <p className="text-[12px] italic text-slate-300 py-10 text-center bg-white font-medium uppercase tracking-widest">Sin registros</p>}
+                  </div>
+                </div>
+              )}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

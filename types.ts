@@ -1,26 +1,86 @@
 
 export enum UnitStatus {
-  ACTIVE = 'ACTIVO',
-  OFF = 'FUERA',
-  CHECKIN = 'CHECK-IN'
+  PATRULLANDO = 'PATRULLANDO',
+  FALTO = 'FALTO',
+  APOYO_OTRA_AREA = 'APOYO',
+  MANTENIMIENTO = 'MANTENIMIENTO',
+  DESPERFECTOS = 'DESPERFECTOS',
+  SINIESTRO = 'SINIESTRO',
+  SIN_CONDUCTOR = 'SIN CONDUCTOR',
+  SIN_DOCUMENTOS = 'SIN DOCUMENTOS',
+  SIN_VEHICULO = 'SIN VEHICULO',
+  SIN_OPERADOR = 'SIN OPERADOR',
+  FIN_APOYO = 'FIN APOYO',
+  TACTICO_PPFF = 'TACTICO PP.FF.'
 }
 
-export type Sector = 
-  | 'SECTOR 1A' | 'SECTOR 1B' 
-  | 'SECTOR 2A' | 'SECTOR 2B' 
-  | 'SECTOR 3' | 'SECTOR 4' 
-  | 'SECTOR 5' | 'SECTOR 6' 
-  | 'SECTOR 7' | 'SECTOR 8' 
-  | 'SECTOR 9A' | 'SECTOR 9B' 
-  | 'RESCATE' 
+export const isTacticoPPFFStatus = (value: unknown) => {
+  const norm = String(value ?? '').trim().toUpperCase().replace(/[.\s]/g, '');
+  return norm === 'TACTICOPPFF';
+};
+
+export type Sector =
+  | '1A' | '1B'
+  | '2A' | '2B'
+  | '3' | '4'
+  | '5' | '6'
+  | '7' | '8'
+  | '9A' | '9B'
+  | 'RESCATE'
   | 'GIR'
+  | 'C4'
+  | 'COVV'
+  | 'OTRAS AREAS'
   | string;
 
-export type ViewMode = 'DASHBOARD' | 'VISUALIZATION';
+export type ViewMode = 'DASHBOARD' | 'VISUALIZATION' | 'PERSONNEL' | 'STATISTICS' | 'REPORTS' | 'RETEN' | 'VEHICLE_SEARCH' | 'MAP' | 'WANTED';
+
+export interface VehicleRQ {
+  operador: string;
+  sade: string;
+  fecha: string;
+  tipo: string;
+  marca: string;
+  modelo: string;
+  color: string;
+  placa: string;
+  estado: string;
+  relato: string;
+  tipoDelito: string;
+  subtipoDelito: string;
+  sector: string;
+  cuadrante: string;
+  urlImg: string;
+  propietario: string;
+  origen: string;
+}
+
+export interface PersonnelData {
+  n: string;
+  dni: string;
+  apellidos_nombres: string;
+  regimen_laboral: string;
+  codigo_interno: string;
+  sector_id: string;
+  rol_operativo: string;
+  estado: string;
+  correo: string;
+  telefono: string;
+  rol_sistema: string;
+  persona_id: string;
+  pin_operativo: string;
+  fecha_alta: string;
+  fecha_baja: string;
+  foto_url: string;
+}
 
 export interface UnitData {
   id: string;
+  unit_id?: string;
+  tempId?: string;
+  sector?: Sector;
   type: 'CHOFER' | 'MOTO' | 'SERENO';
+  model?: string;
   personnel1: string;
   personnel2?: string;
   plate: string;
@@ -29,25 +89,146 @@ export interface UnitData {
   status: UnitStatus;
   reason: string;
   km: string;
+  kmStart: string;
+  kmEnd: string;
+  totalKm: string;
+  kmRecarga: string;
   hours: string;
   fuel: string;
   expense: string;
-  parts: string;
+  fuel2?: string;
+  expense2?: string;
+  fuel2Type?: string;
+  fuel2Qty?: string;
+  combustible2?: string;
+  gasto2?: string;
   quadrant: string;
   mechanics: string;
+  lugarEstado?: string;
+  motivoEstado?: string;
+  taser: string;
+  bodycam: string;
+  codigoTaser: string;
+  codigoBodycam: string;
+  obsBodycam: string;
 }
 
 export interface AppSettings {
   nombrePuesto: string;
   operador: string;
   supervisor: string;
+  supervisorRol: string;
   permanencia: string;
   turno: string;
   ipServidor: string;
   version: string;
+  supervisorTaser: string;
+  supervisorBodycam: string;
+  supervisorCodigoTaser: string;
+  supervisorCodigoBodycam: string;
+  supervisorEstado: string;
+  supervisorRadio: string;
+  supervisorEncargado: string;
+  permanenciaTaser: string;
+  permanenciaBodycam: string;
+  permanenciaCodigoTaser: string;
+  permanenciaCodigoBodycam: string;
+  permanenciaEstado: string;
+  permanenciaRadio: string;
+  permanenciaEncargado: string;
+  supervisorMotivo: string;
+  permanenciaMotivo: string;
 }
 
 export interface AppData {
   units: UnitData[];
   settings: AppSettings;
 }
+
+export interface MobileReference {
+  id: string;
+  plate: string;
+  model?: string;
+  radio?: string;
+  quadrant?: string;
+  sector?: string;
+  status?: string;
+  type?: string;
+  tipo?: string;
+  propiedad?: string;
+  sipcop?: string;
+}
+
+export interface RetenReplacement {
+  fecha: string;
+  turno: string;
+  retenUnit: string;
+  placaReten: string;
+  replacedUnit: string;
+  placa: string;
+  motivo: string;
+  hora: string;
+  fechaIngresoTaller?: string;
+  horaIngresoTaller?: string;
+  fechaSalidaTaller?: string;
+  horaSalidaTaller?: string;
+}
+
+export interface WantedPerson {
+  buscado_por: string;
+  edad: string;
+  nombre: string;
+  dnice: string;
+  sexo: string;
+  fecha_hecho: string;
+  hora_hecho: string;
+  lugar_intervencion: string;
+  habilitacion_urbana: string;
+  nacionalidad: string;
+  recompensa: string;
+  fuente: string;
+  estado: string;
+  sade: string;
+  dependencia_policial: string;
+  caracteristicas: string;
+  vestimenta: string;
+  circunstancias: string;
+  cumple_analitica: string;
+  video: string;
+  caso: string;
+  reincidente: string;
+  photoFileId?: string;
+  photoUrl?: string;
+}
+
+// Configuration Constants
+export const SECTORS: Sector[] = [
+  '1A', '1B',
+  '2A', '2B',
+  '3', '4',
+  '5', '6',
+  '7', '8',
+  '9A', '9B',
+  'RESCATE',
+  'GIR',
+  'C4',
+  'COVV',
+  'OTRAS AREAS'
+];
+
+// OTRAS AREAS agrupa unidades de la hoja DATA con estos sectores
+export const OTRAS_AREAS_SOURCE_SECTORS = ['FISCA', 'ADM', 'TRANSITO'];
+
+export const isOtrasAreasSector = (value: unknown) =>
+  String(value ?? '').trim().toUpperCase() === 'OTRAS AREAS';
+
+export const sourceSectorsFor = (sector: unknown): string[] => {
+  const norm = String(sector ?? '').trim().toUpperCase();
+  return isOtrasAreasSector(norm) ? OTRAS_AREAS_SOURCE_SECTORS : [norm];
+};
+
+export const FUEL_TYPES = ['GLP', 'GASOLINA', 'PETROLEO'];
+export const RADIOS: string[] = [];
+export const PERSONNEL_NAMES: string[] = [];
+export const INITIAL_UNITS: UnitData[] = [];
+export const SECTOR_DATA: Record<Sector, UnitData[]> = {} as any;

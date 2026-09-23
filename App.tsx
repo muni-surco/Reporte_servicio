@@ -1,13 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+// Eliminados imports de jspdf y autotable para usar CDN
+
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import Footer from './components/Footer';
 import UnitSection from './components/UnitSection';
 import VisualizationView from './components/VisualizationView';
-import { UnitData, AppSettings, UnitStatus, Sector, ViewMode } from './types';
-import { SECTORS, SECTOR_DATA } from './constants';
+import ReportGeneratorView from './components/ReportGeneratorView';
+import PersonnelView from './components/PersonnelView';
+import StatisticsView from './components/StatisticsView';
+import RetenManagementView from './components/RetenManagementView';
+import VehicleSearchView from './components/VehicleSearchView';
+import MapView from './components/MapView';
+import WantedView from './components/WantedView';
+import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS, RetenReplacement, sourceSectorsFor, isOtrasAreasSector } from './types';
+import { Users, LayoutDashboard, FileText, TriangleAlert } from 'lucide-react';
+import ConfirmModal from './components/ConfirmModal';
+
+declare const google: any;
+
+type ReportGenerators = typeof import('./utils/reportGenerator');
+declare global {
+  interface Window {
+    reportGenerators?: ReportGenerators;
+  }
+}
 
 const getAutoTurno = () => {
   const now = new Date();
@@ -20,288 +36,1585 @@ const getAutoTurno = () => {
   return 'NOCHE';
 };
 
+const generateUnitId = (type: string, id: string, sector: string, date: string, shift: string) => {
+  const cleanId = String(id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  const cleanSector = String(sector || '').replace(/^SECTOR\s+/, '').replace(/\s+/g, '').trim().toUpperCase();
+  const cleanDate = date.replace(/-/g, '');
+  const cleanShift = shift.toUpperCase();
+  const cleanType = String(type || 'UNIT').trim().toUpperCase();
+
+  if (!cleanId) {
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `NEW_${cleanType}_${cleanSector}_${cleanDate}_${cleanShift}_${ts}${rand}`;
+  }
+
+  return `${cleanType}_${cleanId}_${cleanSector}_${cleanDate}_${cleanShift}`;
+};
+
+// Strips characters not allowed in a Firebase RTDB path token (., #, $, [, ], /
+// and whitespace) from the id portion of a unit key.
+const cleanUnitIdPart = (id: string) => String(id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+
+const selectMobileDefaults = (mobile: MobileReference[], sectorName: string) => {
+  const sources = sourceSectorsFor(sectorName);
+  return mobile.filter(m => sources.includes((m.sector || '').trim().toUpperCase()));
+};
+
+
 const App: React.FC = () => {
-  const [units, setUnits] = useState<UnitData[]>(SECTOR_DATA['SECTOR 1A']);
-  const [currentSector, setCurrentSector] = useState<Sector>('SECTOR 1A');
+  const [units, setUnits] = useState<UnitData[]>([]);
+  const [currentSector, setCurrentSector] = useState<Sector>('1A');
   const [currentView, setCurrentView] = useState<ViewMode>('DASHBOARD');
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toLocaleDateString('en-CA'));
   const [settings, setSettings] = useState<AppSettings>({
-    nombrePuesto: 'SECTOR 1A',
-    operador: 'Villanueva Villafani, Joe',
-    supervisor: 'Insp. Mendoza, Ricardo',
-    permanencia: 'SOT. Garcia, Juan',
+    nombrePuesto: '1A',
+    operador: '',
+    supervisor: '',
+    supervisorRol: 'SUPERVISOR',
+    permanencia: '',
     turno: getAutoTurno(),
     ipServidor: '10.20.0.1',
     version: 'v2.5.0-PRO'
   });
-  const [loading, setLoading] = useState(false);
+  const [mobileData, setMobileData] = useState<MobileReference[]>([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [headerSaveStatus, setHeaderSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingViewChange, setPendingViewChange] = useState<ViewMode | null>(null);
+  const [visualizationSectorsData, setVisualizationSectorsData] = useState<Record<string, { units: UnitData[], settings: AppSettings }>>({});
+  const lastSavedRef = useRef<string>('');
+  const loadingIdRef = useRef(0);
+
+  const [sectorSettingsMap, setSectorSettingsMap] = useState<Record<string, AppSettings>>({});
+  const lastFetchedAtMap = useRef<Record<string, string>>({});
+
+  const [indicativeOptions, setIndicativeOptions] = useState<string[]>([]);
+  const [statusOptions, setStatusOptions] = useState<string[]>([]);
+  const [personnelOptions, setPersonnelOptions] = useState<string[]>([]);
+  const [operatorOptions, setOperatorOptions] = useState<string[]>([]);
+const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([]);
+  const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
+  const [motivoTallerOptions, setMotivoTallerOptions] = useState<string[]>([]);
+  const [codigoBodycamOptions, setcodigoBodycamOptions] = useState<string[]>([]);
+  const [codigoTaserOptions, setCodigoTaserOptions] = useState<string[]>([]);
+  const [radioOptions, setRadioOptions] = useState<string[]>([]);
+  const [lugarOptions, setLugarOptions] = useState<string[]>([]);
+  const [motivoFaltoOptions, setMotivoFaltoOptions] = useState<string[]>([]);
+  const [motivoDesperfectosOptions, setMotivoDesperfectosOptions] = useState<string[]>([]);
+  const [motivoMantenimientoOptions, setMotivoMantenimientoOptions] = useState<string[]>([]);
+  const [motivoSiniestroOptions, setMotivoSiniestroOptions] = useState<string[]>([]);
+  const [motivoSinDocumentosOptions, setMotivoSinDocumentosOptions] = useState<string[]>([]);
+  const [motivoSinVehiculoOptions, setMotivoSinVehiculoOptions] = useState<string[]>([]);
+  const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
+  const [loadingPersonnel, setLoadingPersonnel] = useState(false);
+  const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
+
+  // KM reminder toast
+  const [kmToastList, setKmToastList] = useState<{ id: string, name: string }[]>([]);
+  const [kmToastVisible, setKmToastVisible] = useState(false);
+  const [kmToastClosing, setKmToastClosing] = useState(false);
+  const kmToastVisibleRef = useRef(false);
+  const kmToastClosingRef = useRef(false);
+  const kmToastDismissedAt = useRef(0);
+  const kmToastIntervalRef = useRef<number | null>(null);
+  useEffect(() => { kmToastVisibleRef.current = kmToastVisible; }, [kmToastVisible]);
+  useEffect(() => { kmToastClosingRef.current = kmToastClosing; }, [kmToastClosing]);
+
+  const isReadOnly = (() => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const now = new Date();
+    const totalMinutes = now.getHours() * 60 + now.getMinutes();
+    const currentShift = getAutoTurno();
+
+    let activeShiftDate = today;
+    if (currentShift === 'NOCHE' && totalMinutes < 390) {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      activeShiftDate = d.toLocaleDateString('en-CA');
+    }
+
+    if (selectedDate !== activeShiftDate) return true;
+    return settings.turno !== currentShift;
+  })();
+
+  useEffect(() => {
+    if (mobileData.length === 0) return;
+    const timer = setTimeout(() => {
+      loadData(selectedDate, settings.turno, currentView);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [selectedDate, settings.turno, currentSector, mobileData.length, currentView]);
+
+  const loadPersonnel = () => {
+    setLoadingPersonnel(true);
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((personnel: PersonnelData[]) => {
+          setPersonnelList(personnel || []);
+          setLoadingPersonnel(false);
+        })
+        .withFailureHandler((err: any) => {
+          console.error('Failed to load personnel', err);
+          setPersonnelList([]);
+          setLoadingPersonnel(false);
+        })
+        .getPersonnelList();
+    } else {
+      setPersonnelList([]);
+      setLoadingPersonnel(false);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[],         codigoBodycamOptions?: string[], codigoTaserOptions?: string[] }) => {
+          setMobileData(data.mobiles);
+          setIndicativeOptions(data.indicatives);
+          setStatusOptions(data.statuses);
+           if (data.personnel) setPersonnelOptions(data.personnel);
+           if (data.operators) setOperatorOptions(data.operators);
+           if (data.reportOperators) setReportOperatorOptions(data.reportOperators);
+           if (data.quadrants) setQuadrantOptions(data.quadrants);
+          if (data.motivoTallerOptions) setMotivoTallerOptions(data.motivoTallerOptions);
+          if (data.radios) setRadioOptions(data.radios);
+          if (data.lugarOptions) setLugarOptions(data.lugarOptions);
+          if (data.motivoFaltoOptions) setMotivoFaltoOptions(data.motivoFaltoOptions);
+          if (data.motivoDesperfectosOptions) setMotivoDesperfectosOptions(data.motivoDesperfectosOptions);
+          if (data.motivoMantenimientoOptions) setMotivoMantenimientoOptions(data.motivoMantenimientoOptions);
+          if (data.motivoSiniestroOptions) setMotivoSiniestroOptions(data.motivoSiniestroOptions);
+          if (data.motivoSinDocumentosOptions) setMotivoSinDocumentosOptions(data.motivoSinDocumentosOptions);
+          if (data.motivoSinVehiculoOptions) setMotivoSinVehiculoOptions(data.motivoSinVehiculoOptions);
+          if (data.codigoBodycamOptions) setcodigoBodycamOptions(data.codigoBodycamOptions);
+          if (data.codigoTaserOptions) setCodigoTaserOptions(data.codigoTaserOptions);
+          // Cargar lista de personal para regimen laboral
+          google.script.run
+            .withSuccessHandler((personnel: PersonnelData[]) => {
+              setPersonnelList(personnel);
+            })
+            .withFailureHandler(() => {})
+            .getPersonnelList();
+        })
+        .withFailureHandler((err: any) => {
+          console.error('Failed to get mobile data', err);
+          setMobileData([]);
+          loadData(selectedDate, settings.turno, currentView);
+        })
+        .getMobileData();
+    } else {
+      console.log('MOCK: No GAS environment, setting empty mobile data');
+      setMobileData([]);
+      setStatusOptions(Object.values(UnitStatus));
+      loadData(selectedDate, settings.turno, currentView);
+    }
+  }, []);
+
+  // Poll removed: triggered on demand now
+  const loadDataRef = useRef<typeof loadData>(null as any);
+  
+  const loadData = (dateStr: string, shift: string, view?: string, silent?: boolean, force?: boolean) => {
+    const loadId = ++loadingIdRef.current;
+    if (!silent) setLoading(true);
+    if (force) lastFetchedAtMap.current = {};
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      if (view === 'VISUALIZATION') {
+        let completed = 0;
+        const sectorResults: any[] = [];
+        const currentLoadId = loadId;
+
+        SECTORS.forEach((s, index) => {
+          google.script.run
+            .withSuccessHandler((data) => {
+              if (currentLoadId !== loadingIdRef.current) return;
+              
+              if (data && data.noChanges) {
+                // Keep existing data for this sector
+                sectorResults[index] = { 
+                  units: visualizationSectorsData[s]?.units || [], 
+                  settings: sectorSettingsMap[s] || buildSafeSettings(undefined, s, shift)
+                };
+              } else {
+                sectorResults[index] = data;
+                if (data && data.updatedAt) lastFetchedAtMap.current[s] = data.updatedAt;
+              }
+
+              completed++;
+              if (completed === SECTORS.length) {
+                try {
+                  // Aggregate and update state
+                  const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
+                  let finalSettings = settings;
+                  const allSectorSettings: Record<string, AppSettings> = {};
+
+                  sectorResults.forEach((res, sIndex) => {
+                    const sName = SECTORS[sIndex];
+                    if (res && res.units) {
+                      const safeSettings = buildSafeSettings(res.settings, sName, shift);
+                      visData[sName] = { units: res.units, settings: safeSettings };
+                      allSectorSettings[sName] = safeSettings;
+                      if (sIndex === 0) finalSettings = { ...settings, ...safeSettings, turno: shift };
+                    }
+                  });
+
+                  setVisualizationSectorsData(visData);
+                  setSectorSettingsMap(allSectorSettings);
+                  setSettings(finalSettings);
+                } catch (e) {
+                  console.error('Error aggregating sector data:', e);
+                } finally {
+                  setLoading(false);
+                }
+              }
+            })
+            .withFailureHandler((err) => {
+              if (currentLoadId !== loadingIdRef.current) return;
+              console.error('Failed to get sector data for', s, err);
+              completed++; // Treat as completed to allow others to show
+              if (completed === SECTORS.length) setLoading(false);
+            })
+            .getSectorData(dateStr, shift, s, lastFetchedAtMap.current[s]);
+        });
+        
+        // Safety timeout: force stop loading after 15 seconds to prevent hanging
+        setTimeout(() => {
+          if (loadingIdRef.current === currentLoadId) {
+            console.warn('Loading sector data timed out.');
+            setLoading(false);
+          }
+        }, 15000);
+        
+        return;
+      }
+
+      if (view === 'STATISTICS' || view === 'MAP') {
+        let completed = 0;
+        const sectorResults: any[] = [];
+        const currentLoadId = loadId;
+
+        SECTORS.forEach((s, index) => {
+          google.script.run
+            .withSuccessHandler((data) => {
+              if (currentLoadId !== loadingIdRef.current) return;
+              sectorResults[index] = data;
+              completed++;
+              if (completed === SECTORS.length) {
+                try {
+                  const aggregatedUnits: UnitData[] = [];
+                  const aggregatedSettings: Record<string, AppSettings> = {};
+
+                  sectorResults.forEach((res, sIndex) => {
+                    const sName = SECTORS[sIndex];
+                    if (res && res.units) {
+                      aggregatedUnits.push(...res.units);
+                      aggregatedSettings[sName] = buildSafeSettings(res.settings, sName, shift);
+                    }
+                  });
+
+                  setUnits(aggregatedUnits);
+                  setSectorSettingsMap(aggregatedSettings);
+                } catch (e) {
+                  console.error('Error aggregating statistics data:', e);
+                } finally {
+                  setLoading(false);
+                }
+              }
+            })
+            .withFailureHandler((err) => {
+              if (currentLoadId !== loadingIdRef.current) return;
+              console.error('Failed to get sector data for statistics', err);
+              completed++;
+              if (completed === SECTORS.length) setLoading(false);
+            })
+            .getSectorData(dateStr, shift, s);
+        });
+
+        // Safety timeout: force stop loading after 15 seconds to prevent hanging
+        setTimeout(() => {
+          if (loadingIdRef.current === currentLoadId) {
+            console.warn('Loading statistics/map data timed out.');
+            setLoading(false);
+          }
+        }, 15000);
+
+        return;
+      }
+
+      if (view === 'RETEN') {
+        const currentLoadId = loadId;
+        google.script.run
+          .withSuccessHandler((data) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            if (data && data.settings) {
+              setSettings(prev => buildSafeSettings({ ...prev, ...data.settings }, currentSector, shift));
+            }
+            setLoading(false);
+          })
+          .withFailureHandler((err) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            console.error('Failed to get reten sector data', err);
+            setLoading(false);
+          })
+          .getSectorData(dateStr, shift, currentSector, lastFetchedAtMap.current[currentSector]);
+        return;
+      }
+
+      const successHandler = (data: { settings: AppSettings, allSectorSettings?: Record<string, AppSettings>, units: UnitData[] } | null) => {
+          if (loadId !== loadingIdRef.current) return;
+          // Guard: GAS may return null if the payload is too large or an error occurs server-side
+          if (!data) {
+            console.warn('getShiftData/getSectorData returned null — no data for this date/shift or a server error occurred.');
+            if (view !== 'VISUALIZATION') setUnits([]);
+            setLoading(false);
+            return;
+          }
+          // 1. Map and clean incoming units
+          const rawIncomingUnits: UnitData[] = (data.units || []).map((u, idx) => ({
+            ...u,
+            id: String(u.id || '').trim(),
+            unit_id: u.unit_id || `LEGACY-${idx}`, // Fallback for old records
+            sector: (u.sector || '').trim().toUpperCase() === '' ? currentSector : u.sector,
+            type: u.type as any,
+            personnel1: String(u.personnel1 || ''),
+            personnel2: String(u.personnel2 || ''),
+            plate: String(u.plate || ''),
+            indicative: String(u.indicative || ''),
+            radio: String(u.radio || ''),
+            status: (u.status || '') as any,
+            reason: String(u.reason || ''),
+            km: `${String(u.kmStart || '0')} / ${String(u.kmEnd || '0')} / ${String(u.totalKm || '0')} / ${String(u.kmRecarga || '0')}`,
+            kmStart: String(u.kmStart || '0'),
+            kmEnd: String(u.kmEnd || '0'),
+            totalKm: String(u.totalKm || '0'),
+            kmRecarga: String(u.kmRecarga || '0'),
+            hours: String(u.hours || ''),
+            fuel: String(u.fuel || '-- / --'),
+            expense: String(u.expense || 'S/ 0.00'),
+            fuel2: String(u.fuel2 || ''),
+            expense2: String(u.expense2 || ''),
+            quadrant: String(u.quadrant || ''),
+            mechanics: String(u.mechanics || ''),
+            model: String(u.model || ''),
+            lugarEstado: String(u.lugarEstado || ''),
+            motivoEstado: String(u.motivoEstado || ''),
+            taser: String(u.taser || ''),
+            bodycam: String(u.bodycam || ''),
+            codigoBodycam: String(u.codigoBodycam || ''),
+            obsBodycam: String(u.obsBodycam || ''),
+            codigoTaser: String(u.codigoTaser || '')
+          }));
+
+          // 2. Deduplicate by unit_id (keep last)
+          const deduplicatedMap = new Map<string, UnitData>();
+          rawIncomingUnits.forEach(u => {
+            if (u.unit_id) deduplicatedMap.set(u.unit_id, u);
+          });
+          const incomingUnits = Array.from(deduplicatedMap.values());
+
+          // 3. Granular Deduplication for ALL units (by display ID to hide past duplicates within same sector)
+          const finalUnitsMap = new Map<string, UnitData>();
+          const existingSectorIds = new Set<string>(); // Track sector+id combos for defaults injection
+          incomingUnits.forEach(u => {
+            const displayId = (u.id || '').toUpperCase();
+            const sectorKey = (u.sector || '').trim().toUpperCase();
+            const personnelKey = (u.personnel1 || '').trim().toUpperCase();
+            const uniqueKey = `${sectorKey}_${displayId}_${personnelKey}`; // Include personnel1 so distinct serenos sharing the same id are NOT collapsed
+            
+            if (displayId && !displayId.startsWith('NEW-')) {
+               existingSectorIds.add(`${sectorKey}_${displayId}`);
+               // If multiple rows exist for the same unit, prefer the one with more data or the last one
+               const existing = finalUnitsMap.get(uniqueKey);
+               if (!existing || (u.personnel1 && !existing.personnel1)) {
+                 finalUnitsMap.set(uniqueKey, u);
+               }
+            } else {
+              // Units without ID or new units are kept by their unit_id
+              finalUnitsMap.set(u.unit_id || `TEMP-${Math.random()}`, u);
+            }
+          });
+
+          // 4. Inject Missing Defaults (Only for current sector to keep dashboard populated)
+          const currentSectorNormalized = currentSector.trim().toUpperCase();
+          const defaults = selectMobileDefaults(mobileData, currentSector);
+          defaults.forEach(d => {
+            const displayId = d.id.toUpperCase();
+            const uniqueKey = `${currentSectorNormalized}_${displayId}`;
+            if (!existingSectorIds.has(uniqueKey)) {
+              finalUnitsMap.set(uniqueKey + '_', {
+                id: d.id,
+                unit_id: `DEF-${currentSectorNormalized.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${dateStr.replace(/-/g, '')}-${shift}`,
+                type: d.type as any,
+                sector: currentSector,
+                plate: d.plate,
+                quadrant: d.quadrant,
+                status: '',
+                kmStart: '0',
+                kmEnd: '0',
+                totalKm: '0',
+                kmRecarga: '0',
+                fuel: '-- / --',
+                expense: 'S/ 0.00',
+                fuel2: '',
+                expense2: '',
+                personnel1: '',
+                personnel2: '',
+                indicative: '',
+                radio: d.radio || '',
+                reason: '',
+                mechanics: '',
+                hours: '--:-- - --:--',
+                model: d.model || '',
+                lugarEstado: '',
+                motivoEstado: '',
+                taser: '',
+                bodycam: '',
+                codigoBodycam: '',
+                obsBodycam: '',
+                codigoTaser: ''
+              });
+            }
+          });
+
+          const allUnitsToUse = Array.from(finalUnitsMap.values());
+
+          if (view === 'VISUALIZATION') {
+            // Build visualization data without touching units state (preserves pending queue saves)
+            const updatedSettings = data.allSectorSettings || sectorSettingsMap;
+            const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
+
+            SECTORS.forEach(s => {
+              const sectorSpecificSettings = updatedSettings[s] || {
+                ...settings,
+                nombrePuesto: s,
+                operador: '',
+                supervisor: '',
+                supervisorRol: 'SUPERVISOR',
+                permanencia: ''
+              };
+              let sectorUnits = allUnitsToUse.filter(u => u.sector === s);
+              const defaults = selectMobileDefaults(mobileData, s);
+
+              if (sectorUnits.length === 0) {
+                sectorUnits = defaults.map(d => ({
+id: d.id,
+                        unit_id: `DEF-${s.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${dateStr.replace(/-/g, '')}-${shift}`,
+                        type: d.type as any,
+                  sector: s,
+                  plate: d.plate,
+                  quadrant: d.quadrant,
+                  status: '',
+                  kmStart: '0', kmEnd: '0', totalKm: '0', kmRecarga: '0',
+                  fuel: '-- / --', expense: 'S/ 0.00',
+                  fuel2: '', expense2: '',
+                  personnel1: '', personnel2: '', indicative: '',
+                  radio: d.radio || '', reason: '', mechanics: '',
+                  hours: '--:-- - --:--'
+                }));
+              } else {
+                const isTechnicalSector = s === 'C4' || s === 'COVV';
+                const isRescate = s === 'RESCATE';
+                
+                const typesToLoad = isTechnicalSector 
+                  ? ['SERENO'] as const 
+                  : (isRescate ? ['CHOFER'] as const : ['CHOFER', 'MOTO', 'SERENO'] as const);
+
+                typesToLoad.forEach(type => {
+                  // OTRAS AREAS no usa la sección Serenos
+                  if (isOtrasAreasSector(s) && type === 'SERENO') return;
+                  if (!sectorUnits.some(u => u.type === type)) {
+                    const typeDefaults = defaults
+                      .filter(d => d.type === type)
+                      .map(d => ({
+                        id: d.id,
+                        unit_id: `DEF-${s.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${dateStr.replace(/-/g, '')}-${shift}`,
+                        type: d.type as any,
+                        sector: s,
+                        plate: d.plate,
+                        quadrant: d.quadrant,
+                        status: '',
+                        kmStart: '0', kmEnd: '0', totalKm: '0', kmRecarga: '0',
+                        fuel: '-- / --', expense: 'S/ 0.00',
+                        personnel1: '', personnel2: '', indicative: '',
+                        radio: d.radio || '', reason: '', mechanics: '',
+                        hours: '--:-- - --:--'
+                      }));
+                    sectorUnits = [...sectorUnits, ...typeDefaults];
+                  }
+                });
+              }
+            visData[s] = { units: sectorUnits, settings: buildSafeSettings(sectorSpecificSettings, s, shift) };
+          });
+            console.log('[DEBUG VISUALIZATION] visData sectors:', Object.keys(visData));
+
+            setVisualizationSectorsData(visData);
+            if (data.allSectorSettings) setSectorSettingsMap(data.allSectorSettings);
+            setSettings(buildSafeSettings({ ...settings, ...data.settings }, currentSector, shift));
+            setLoading(false);
+            return;
+          }
+
+          setUnits(allUnitsToUse);
+
+          if (data.allSectorSettings) {
+            setSectorSettingsMap(data.allSectorSettings);
+          }
+
+          const finalSettings = buildSafeSettings({ ...settings, ...data.settings }, currentSector, shift);
+          setSettings(finalSettings);
+          setLoading(false);
+
+          // Initialize lastSavedRef with the same structure used in persistData to prevent immediate redundant save
+          const normalizedUnits = allUnitsToUse.filter(u => {
+            if (u.unit_id && u.unit_id.trim() !== '') return true;
+            if (u.id && !String(u.id).startsWith('NEW-')) return true;
+            if (u.tempId && u.tempId.startsWith('NEW-')) {
+              return (u.personnel1 && u.personnel1.trim() !== '') || (u.id && u.id.trim() !== '');
+            }
+            return true;
+          });
+          
+          lastSavedRef.current = JSON.stringify({ 
+            settings: finalSettings, 
+            units: normalizedUnits 
+          });
+        };
+
+        const runner = google.script.run.withSuccessHandler(successHandler).withFailureHandler((err: any) => {
+          if (loadId !== loadingIdRef.current) return;
+          console.error('Failed to get data', err);
+          if (view !== 'VISUALIZATION') setUnits([]);
+          setLoading(false);
+        });
+
+        runner.getSectorData(dateStr, shift, currentSector);
+    } else {
+      setTimeout(() => {
+        if (loadId !== loadingIdRef.current) return;
+        if (view !== 'VISUALIZATION') setUnits([]);
+        setLoading(false);
+      }, 500);
+    }
+  };
+  loadDataRef.current = loadData;
 
   const handleSectorChange = (sector: Sector) => {
-    setLoading(true);
     setCurrentSector(sector);
-    setSettings(prev => ({ ...prev, nombrePuesto: sector }));
-    // Load sector-specific data
-    setUnits(SECTOR_DATA[sector]);
-    setTimeout(() => setLoading(false), 500);
+    const specificSettings = sectorSettingsMap[sector];
+    if (specificSettings) {
+      setSettings(prev => ({ ...specificSettings, turno: prev.turno }));
+    } else {
+      setSettings(prev => ({ ...prev, nombrePuesto: sector, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', permanencia: '' }));
+    }
   };
+
+  // KM reminder toast: check every 30s
+  useEffect(() => {
+    const check = () => {
+      const now = new Date();
+      const totalMinutes = now.getHours() * 60 + now.getMinutes();
+      const shift = settings.turno;
+
+      let threshold: number;
+      if (shift === 'MAÑANA') threshold = 690;
+      else if (shift === 'TARDE') threshold = 1170;
+      else threshold = 210;
+
+      if (totalMinutes < threshold) {
+        setKmToastVisible(false);
+        setKmToastClosing(false);
+        kmToastDismissedAt.current = 0;
+        setKmToastList([]);
+        return;
+      }
+
+      const pending = units.filter(u =>
+        u.type !== 'SERENO' &&
+        u.status !== 'FALTO' &&
+        u.status !== 'SIN VEHICULO' &&
+        u.status !== 'DESPERFECTOS' &&
+        u.status !== 'APOYO' &&
+        u.status !== 'SINIESTRO' &&
+        u.status !== 'SIN CONDUCTOR' &&
+        u.status !== 'FIN APOYO' &&
+        u.status !== '' &&
+        u.status !== '--' &&
+        (u.kmStart === '' || u.kmStart === '0' || u.kmStart === '0.0')
+      );
+
+      if (pending.length === 0) {
+        setKmToastVisible(false);
+        setKmToastClosing(false);
+        kmToastDismissedAt.current = 0;
+        setKmToastList([]);
+        return;
+      }
+
+      const extractId = (u: UnitData): string => {
+        if (u.id) return u.id;
+        const uid = u.unit_id || '';
+        const parts = uid.split('_');
+        // Try last segment (GAS format: date_shift_sector_id)
+        if (parts.length >= 4) {
+          const last = parts[parts.length - 1];
+          if (last && !/^\d{8}$/.test(last) && !['MAÑANA', 'TARDE', 'NOCHE'].includes(last)) return last;
+          // Try second segment (frontend format: type_id_sector_date_shift)
+          const second = parts[1];
+          if (second && !['MAÑANA', 'TARDE', 'NOCHE', 'CHOFER', 'MOTO', 'SERENO'].includes(second)) return second;
+        }
+        return uid || '(sin ID)';
+      };
+      const list = pending.map(u => ({ id: extractId(u), name: u.personnel1 || '(sin personal)' }));
+      setKmToastList(list);
+
+      if (!kmToastVisibleRef.current && !kmToastClosingRef.current) {
+        if (kmToastDismissedAt.current === 0) {
+          setKmToastClosing(false);
+          setKmToastVisible(true);
+        } else if (Date.now() - kmToastDismissedAt.current >= 300000) {
+          setKmToastClosing(false);
+          setKmToastVisible(true);
+        }
+      }
+    };
+
+    check();
+    kmToastIntervalRef.current = window.setInterval(check, 30000);
+    return () => { if (kmToastIntervalRef.current !== null) window.clearInterval(kmToastIntervalRef.current); };
+  }, [units, settings.turno]);
+
+  // Save queue (non-blocking, sequential)
+  const saveQueueRef = useRef<Array<{ unit: UnitData }>>([]);
+  const isSavingRef = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
+
+  const processQueue = () => {
+    if (isSavingRef.current || saveQueueRef.current.length === 0) return;
+    isSavingRef.current = true;
+
+    const item = saveQueueRef.current.shift()!;
+    const unitKey = item.unit.unit_id || item.unit.tempId || item.unit.id || 'unknown';
+    const unitPayload = JSON.parse(JSON.stringify({
+      ...item.unit,
+      fuel2: String(item.unit.fuel2 || ''),
+      expense2: String(item.unit.expense2 || '')
+    }));
+    console.info('[App] payload enviado a updateUnit', {
+      unitId: unitKey,
+      fuel: unitPayload.fuel,
+      expense: unitPayload.expense,
+      fuel2: unitPayload.fuel2,
+      expense2: unitPayload.expense2
+    });
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res: { success: boolean, unit_id?: string, fuel2?: string, expense2?: string, error?: string }) => {
+          console.info('[App] respuesta de updateUnit', {
+            success: res.success,
+            unitId: res.unit_id || unitKey,
+            fuel2: res.fuel2,
+            expense2: res.expense2,
+            error: res.error
+          });
+          if (res.success) {
+            const newId = res.unit_id;
+            if (newId && newId !== item.unit.unit_id) {
+              setUnits(prev => prev.map(u => {
+                const matchKey = u.unit_id || u.tempId || u.id;
+                const itemKey = item.unit.unit_id || item.unit.tempId || item.unit.id;
+                if (matchKey === itemKey) return { ...u, unit_id: newId };
+                return u;
+              }));
+              
+              // Also update status for the new ID so it shows the checkmark
+              setSaveStatus(prev => ({ 
+                ...prev, 
+                [unitKey]: 'saved',
+                [newId]: 'saved' 
+              }));
+
+              // Clean up both keys after timeout
+              setTimeout(() => setSaveStatus(prev => {
+                const next = { ...prev };
+                delete next[unitKey];
+                delete next[newId];
+                return next;
+              }), 2500);
+            } else {
+              setSaveStatus(prev => ({ ...prev, [unitKey]: 'saved' }));
+              setTimeout(() => setSaveStatus(prev => {
+                const next = { ...prev };
+                delete next[unitKey];
+                return next;
+              }), 2500);
+            }
+            // Sync kmStart into local state so the toast reflects it immediately
+            const savedKmStart = item.unit.kmStart || '';
+            const savedFuel2 = res.fuel2 !== undefined ? res.fuel2 : item.unit.fuel2;
+            const savedExpense2 = res.expense2 !== undefined ? res.expense2 : item.unit.expense2;
+            setUnits(prev => prev.map(u => {
+              const matchKey = u.unit_id || u.tempId || u.id;
+              const itemKey = item.unit.unit_id || item.unit.tempId || item.unit.id;
+              const savedKey = newId || itemKey;
+              if (matchKey === itemKey || matchKey === savedKey) {
+                return {
+                  ...u,
+                  ...item.unit,
+                  unit_id: newId || u.unit_id,
+                  kmStart: savedKmStart,
+                  fuel2: savedFuel2 || '',
+                  expense2: savedExpense2 || ''
+                };
+              }
+              return u;
+            }));
+          } else {
+            setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
+            if (res.error && String(res.error).includes('DUPLICATE_PERSONNEL')) {
+              alert(res.error.replace('DUPLICATE_PERSONNEL: ', ''));
+            }
+          }
+          isSavingRef.current = false;
+          processQueue();
+        })
+        .withFailureHandler((err: any) => {
+          console.error('[updateUnit] Error al guardar unidad', err);
+          setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
+          isSavingRef.current = false;
+          processQueue();
+        })
+        .updateUnit(selectedDate, settings.turno, settings, unitPayload);
+    } else {
+      isSavingRef.current = false;
+      processQueue();
+    }
+  };
+
+  const enqueueSave = (unit: UnitData) => {
+    const unitKey = unit.unit_id || unit.tempId || unit.id || 'unknown';
+    // Remove any pending saves for the same unit
+    saveQueueRef.current = saveQueueRef.current.filter(q => {
+      const qKey = q.unit.unit_id || q.unit.tempId || q.unit.id;
+      return qKey !== unitKey;
+    });
+    saveQueueRef.current.push({ unit });
+    setSaveStatus(prev => ({ ...prev, [unitKey]: 'saving' }));
+    if (!isSavingRef.current) processQueue();
+  };
+
+  const hasPendingChanges = editingId !== null || Object.keys(saveStatus).length > 0;
+
+  const hasNewRecordInCurrentSector = useMemo(() => {
+    const sectorKey = currentSector.trim().toUpperCase();
+    return units.some(u => {
+      const unitSector = (u.sector || '').trim().toUpperCase();
+      const isNewRecord = !!u.tempId?.startsWith('NEW-');
+      return unitSector === sectorKey && isNewRecord;
+    });
+  }, [units, currentSector]);
+
+  const hasModifiedDefaultUnitInCurrentSector = useMemo(() => {
+    const sectorKey = currentSector.trim().toUpperCase();
+    const normalize = (value: unknown) => String(value ?? '').trim().toUpperCase();
+
+    return units.some(u => {
+      const unitSector = normalize(u.sector);
+      const isDefaultLoaded = String(u.unit_id || '').startsWith('DEF-');
+      if (unitSector !== sectorKey || !isDefaultLoaded) return false;
+
+      const source = mobileData.find(m =>
+        sourceSectorsFor(sectorKey).includes(normalize(m.sector)) &&
+        normalize(m.id) === normalize(u.id) &&
+        normalize(m.plate) === normalize(u.plate)
+      );
+
+      const baseline = {
+        personnel1: '',
+        personnel2: '',
+        indicative: '',
+        radio: source?.radio || '',
+        status: '' as string,
+        reason: '',
+        km: '0 / 0 / 0',
+        kmStart: '0',
+        kmEnd: '0',
+        totalKm: '0',
+        kmRecarga: '0',
+        hours: '',
+        fuel: '-- / --',
+        expense: 'S/ 0.00',
+        fuel2: '',
+        expense2: '',
+        quadrant: source?.quadrant || '',
+        mechanics: '',
+        lugarEstado: '',
+        motivoEstado: '',
+        taser: '',
+        bodycam: '',
+        codigoBodycam: '',
+        obsBodycam: '',
+        codigoTaser: '',
+        obsTaser: ''
+      };
+
+      return (
+        normalize(u.personnel1) !== normalize(baseline.personnel1) ||
+        normalize(u.personnel2) !== normalize(baseline.personnel2) ||
+        normalize(u.indicative) !== normalize(baseline.indicative) ||
+        normalize(u.radio) !== normalize(baseline.radio) ||
+        normalize(u.status) !== normalize(baseline.status) ||
+        normalize(u.reason) !== normalize(baseline.reason) ||
+        normalize(u.km) !== normalize(baseline.km) ||
+        normalize(u.kmStart) !== normalize(baseline.kmStart) ||
+        normalize(u.kmEnd) !== normalize(baseline.kmEnd) ||
+        normalize(u.totalKm) !== normalize(baseline.totalKm) ||
+        normalize(u.kmRecarga) !== normalize(baseline.kmRecarga) ||
+        normalize(u.hours) !== normalize(baseline.hours) ||
+        normalize(u.fuel) !== normalize(baseline.fuel) ||
+        normalize(u.expense) !== normalize(baseline.expense) ||
+        normalize(u.quadrant) !== normalize(baseline.quadrant) ||
+        normalize(u.mechanics) !== normalize(baseline.mechanics) ||
+        normalize(u.lugarEstado) !== normalize(baseline.lugarEstado) ||
+        normalize(u.motivoEstado) !== normalize(baseline.motivoEstado)
+      );
+    });
+  }, [units, currentSector, mobileData]);
+
+  const headerFieldsComplete = (appSettings?: Partial<AppSettings> | null) => {
+    return !!String(appSettings?.operador || '').trim() &&
+      !!String(appSettings?.supervisor || '').trim() &&
+      !!String(appSettings?.permanencia || '').trim();
+  };
+
+  const handleViewChange = (newView: ViewMode) => {
+    if (newView === currentView) return;
+    if (hasPendingChanges) {
+      setPendingViewChange(newView);
+    } else {
+      setCurrentView(newView);
+    }
+  };
+
+  const pendingViewMessage = pendingViewChange
+    ? (editingId
+        ? 'Tiene cambios sin guardar en una unidad. Si sale sin guardar, los cambios se perderán.'
+        : 'Hay una operación de guardado en proceso. ¿Está seguro de cambiar de vista?')
+    : '';
+
+  const confirmViewChange = () => {
+    if (pendingViewChange) {
+      setCurrentView(pendingViewChange);
+      setPendingViewChange(null);
+    }
+  };
+
+  const buildSafeSettings = (base: Partial<AppSettings> | undefined | null, sector: string, turno: string): AppSettings => ({
+    nombrePuesto: sector,
+    operador: String(base?.operador || ''),
+    supervisor: String(base?.supervisor || ''),
+    supervisorRol: String(base?.supervisorRol || 'SUPERVISOR'),
+    permanencia: String(base?.permanencia || ''),
+    turno,
+    ipServidor: String(base?.ipServidor || settings.ipServidor || ''),
+    version: String(base?.version || settings.version || ''),
+    supervisorTaser: String(base?.supervisorTaser || ''),
+    supervisorBodycam: String(base?.supervisorBodycam || ''),
+    supervisorCodigoTaser: String(base?.supervisorCodigoTaser || ''),
+    supervisorCodigoBodycam: String(base?.supervisorCodigoBodycam || ''),
+    supervisorEstado: String(base?.supervisorEstado || ''),
+    supervisorRadio: String(base?.supervisorRadio || ''),
+    supervisorEncargado: String(base?.supervisorEncargado || ''),
+    permanenciaTaser: String(base?.permanenciaTaser || ''),
+    permanenciaBodycam: String(base?.permanenciaBodycam || ''),
+    permanenciaCodigoTaser: String(base?.permanenciaCodigoTaser || ''),
+    permanenciaCodigoBodycam: String(base?.permanenciaCodigoBodycam || ''),
+    permanenciaEstado: String(base?.permanenciaEstado || ''),
+    permanenciaRadio: String(base?.permanenciaRadio || ''),
+    permanenciaEncargado: String(base?.permanenciaEncargado || ''),
+    supervisorMotivo: String(base?.supervisorMotivo || ''),
+    permanenciaMotivo: String(base?.permanenciaMotivo || '')
+  });
+
+  const cancelViewChange = () => {
+    setPendingViewChange(null);
+  };
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasPendingChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    if (hasPendingChanges) {
+      window.addEventListener('beforeunload', handler);
+    }
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasPendingChanges]);
 
   const handleSave = (updatedUnit: UnitData) => {
-    setSaving(true);
-    // Simular persistencia local
-    setTimeout(() => {
-      setUnits(prev => {
-        // If the unit has an empty original ID, it's a new unit - find and replace it
-        const index = prev.findIndex(u => u.id === '');
-        if (index !== -1) {
-          const newUnits = [...prev];
-          newUnits[index] = updatedUnit;
-          return newUnits;
+    if (isReadOnly) return;
+    const unitWithSector = { ...updatedUnit, id: String(updatedUnit.id || '').trim(), sector: updatedUnit.sector || currentSector };
+    // Identificar la unidad que se estaba editando
+    let newUnits = units.map(u => {
+      if ((u.unit_id && u.unit_id === editingId) || (u.tempId && u.tempId === editingId) || (u.id && u.id === editingId)) {
+        const savedUnit = { ...unitWithSector };
+        if (!savedUnit.id || String(savedUnit.id).trim() === '') {
+          savedUnit.tempId = u.tempId || `TEMP-${Date.now()}`;
         }
-        // Otherwise, update existing unit by ID
-        return prev.map(u => u.id === updatedUnit.id ? updatedUnit : u);
-      });
-      setEditingId(null);
-      setSaving(false);
-    }, 300);
+        return savedUnit;
+      }
+      return u;
+    });
+    setUnits(newUnits);
+    setEditingId(null);
+    // Non-blocking save via queue (does NOT freeze the UI)
+    enqueueSave(unitWithSector);
   };
 
-  const handleGlobalSave = () => {
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      alert("¡Datos guardados localmente!");
-    }, 800);
+  const currentSectorUnits = units
+    .filter(u => {
+      const uSector = (u.sector || '').trim().toUpperCase();
+      const currSector = currentSector.trim().toUpperCase();
+      return uSector === currSector;
+    })
+    .sort((a, b) => {
+      const specialStatuses = [
+        UnitStatus.MANTENIMIENTO,
+        UnitStatus.DESPERFECTOS,
+        UnitStatus.SIN_CONDUCTOR,
+        UnitStatus.SIN_VEHICULO,
+        UnitStatus.SINIESTRO
+      ];
+
+      // 1. Prioritize units being NEWLY created (unsaved and currently editing)
+      const isNewA = !!(a.tempId?.startsWith('NEW-') && editingId === a.tempId);
+      const isNewB = !!(b.tempId?.startsWith('NEW-') && editingId === b.tempId);
+      if (isNewA && !isNewB) return -1;
+      if (!isNewA && isNewB) return 1;
+
+      // 2. Special statuses go to the very bottom
+      const isASpecial = specialStatuses.includes(a.status?.toUpperCase());
+      const isBSpecial = specialStatuses.includes(b.status?.toUpperCase());
+      if (isASpecial && !isBSpecial) return 1;
+      if (!isASpecial && isBSpecial) return -1;
+
+      // 3. For the rest, sort by ID to keep them organized
+      const idA = String(a.id || '').trim();
+      const idB = String(b.id || '').trim();
+      
+      if (!idA && idB) return 1;
+      if (idA && !idB) return -1;
+      
+      return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+  const allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
+  SECTORS.forEach(s => {
+    const sectorSpecificSettings = sectorSettingsMap[s] || {
+      ...settings,
+      nombrePuesto: s,
+      operador: '',
+      supervisor: '',
+      supervisorRol: 'SUPERVISOR',
+      permanencia: ''
+    };
+    let sectorUnits = units.filter(u => u.sector === s);
+    const defaults = selectMobileDefaults(mobileData, s);
+    
+    if (sectorUnits.length === 0) {
+      sectorUnits = defaults.map(d => ({
+        id: d.id,
+        type: d.type as any,
+        sector: s,
+        plate: d.plate,
+        quadrant: d.quadrant,
+        status: '',
+        kmStart: '0',
+        kmEnd: '0',
+        totalKm: '0',
+        kmRecarga: '0',
+        fuel: '-- / --',
+        expense: 'S/ 0.00',
+        fuel2: '',
+        expense2: '',
+        personnel1: '',
+        personnel2: '',
+        indicative: '',
+        radio: d.radio || '',
+        reason: '',
+        mechanics: '',
+hours: '--:-- - --:--',
+              unit_id: `DEF-${s.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
+            }));
+    } else {
+      const isTechnicalSector = s === 'C4' || s === 'COVV';
+      const isRescate = s === 'RESCATE';
+      
+      const typesToLoad = isTechnicalSector 
+        ? ['SERENO'] as const 
+        : (isRescate ? ['CHOFER'] as const : ['CHOFER', 'MOTO', 'SERENO'] as const);
+
+      typesToLoad.forEach(type => {
+        // OTRAS AREAS no usa la sección Serenos
+        if (isOtrasAreasSector(s) && type === 'SERENO') return;
+        const hasType = sectorUnits.some(u => u.type === type);
+        if (!hasType) {
+          const typeDefaults = defaults
+            .filter(d => d.type === type)
+            .map(d => ({
+              id: d.id,
+              type: d.type as any,
+              sector: s,
+              plate: d.plate,
+              quadrant: d.quadrant,
+              status: '',
+              kmStart: '0',
+              kmEnd: '0',
+              totalKm: '0',
+              kmRecarga: '0',
+              fuel: '-- / --',
+              expense: 'S/ 0.00',
+              personnel1: '',
+              personnel2: '',
+              indicative: '',
+              radio: d.radio || '',
+              reason: '',
+              mechanics: '',
+              hours: '--:-- - --:--',
+              unit_id: `DEF-${s.replace(/\s+/g, '')}-${cleanUnitIdPart(d.id)}-${selectedDate.replace(/-/g, '')}-${settings.turno}`
+            }));
+          sectorUnits = [...sectorUnits, ...typeDefaults];
+        }
+      });
+    }
+    allSectorsData[s] = {
+      units: sectorUnits,
+      settings: sectorSpecificSettings
+    };
+  });
+
+  const allOperatorNames = useMemo(() => {
+    const names = new Set<string>();
+    Object.values(allSectorsData).forEach(sd => {
+      sd.units.forEach(u => {
+        if (u.personnel1 && u.personnel1.trim() !== '') names.add(u.personnel1.trim());
+      });
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [allSectorsData]);
+
+  const handleSaveSettings = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    // Removed immediate persistData(newSettings, units) to avoid multiple server calls on focus loss
+    // Persistence now happens on Global Save or Sector Change
   };
+
+  const handleGlobalSave = (currentSettings?: AppSettings) => {
+    if (isReadOnly) return;
+    const settingsToSave = currentSettings || settings;
+    if (!settingsToSave.operador.trim() || !settingsToSave.supervisor.trim() || !settingsToSave.permanencia.trim()) {
+      return;
+    }
+    persistSettingsOnly(settingsToSave);
+  };
+
+  const persistSettingsOnly = (newSettings: AppSettings) => {
+    setSaving(true);
+    setHeaderSaveStatus('saving');
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler((res: { success: boolean, error?: string }) => {
+          setSaving(false);
+          if (res.success) {
+            setSettings(newSettings);
+            setSectorSettingsMap(prev => ({
+              ...prev,
+              [newSettings.nombrePuesto || '1A']: newSettings
+            }));
+            setVisualizationSectorsData(prev => {
+              const sectorName = newSettings.nombrePuesto || '1A';
+              const existing = prev[sectorName];
+              if (!existing) return prev;
+              return { ...prev, [sectorName]: { ...existing, settings: newSettings } };
+            });
+            setHeaderSaveStatus('saved');
+            setTimeout(() => setHeaderSaveStatus('idle'), 2000);
+          } else {
+            setHeaderSaveStatus('error');
+            console.error('GAS Save Settings Error:', res.error);
+            alert('Error al guardar configuración: ' + res.error);
+          }
+        })
+        .saveShiftSettings(selectedDate, newSettings.turno, newSettings);
+    } else {
+      setTimeout(() => setSaving(false), 300);
+    }
+  };
+
+  const handleHeaderSave = (currentSettings?: AppSettings) => {
+    if (isReadOnly) return;
+    persistSettingsOnly(currentSettings || settings);
+  };
+
+  const motivoStatusOptions = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    if (motivoFaltoOptions.length) map['FALTO'] = motivoFaltoOptions;
+    if (motivoDesperfectosOptions.length) map['DESPERFECTOS'] = motivoDesperfectosOptions;
+    if (motivoMantenimientoOptions.length) map['MANTENIMIENTO'] = motivoMantenimientoOptions;
+    if (motivoSiniestroOptions.length) map['SINIESTRO'] = motivoSiniestroOptions;
+    if (motivoSinDocumentosOptions.length) map['SIN DOCUMENTOS'] = motivoSinDocumentosOptions;
+    if (motivoSinVehiculoOptions.length) map['SIN VEHICULO'] = motivoSinVehiculoOptions;
+    return map;
+  }, [motivoFaltoOptions, motivoDesperfectosOptions, motivoMantenimientoOptions, motivoSiniestroOptions, motivoSinDocumentosOptions, motivoSinVehiculoOptions]);
+
+  const usedTaserCodes = useMemo(() => {
+    const codes = new Set<string>();
+    if (settings.supervisorCodigoTaser) codes.add(settings.supervisorCodigoTaser);
+    if (settings.permanenciaCodigoTaser) codes.add(settings.permanenciaCodigoTaser);
+    units.forEach(u => { if (u.codigoTaser) codes.add(u.codigoTaser); });
+    return codes;
+  }, [settings.supervisorCodigoTaser, settings.permanenciaCodigoTaser, units]);
+
+  const usedBodycamCodes = useMemo(() => {
+    const codes = new Set<string>();
+    if (settings.supervisorCodigoBodycam) codes.add(settings.supervisorCodigoBodycam);
+    if (settings.permanenciaCodigoBodycam) codes.add(settings.permanenciaCodigoBodycam);
+    units.forEach(u => { if (u.codigoBodycam) codes.add(u.codigoBodycam); });
+    return codes;
+  }, [settings.supervisorCodigoBodycam, settings.permanenciaCodigoBodycam, units]);
+
+  const availableTaserOptions = useMemo(() =>
+    codigoTaserOptions.filter(c => !usedTaserCodes.has(c)),
+  [codigoTaserOptions, usedTaserCodes]);
+
+  const availableBodycamOptions = useMemo(() =>
+    codigoBodycamOptions.filter(c => !usedBodycamCodes.has(c)),
+  [codigoBodycamOptions, usedBodycamCodes]);
 
   const handleAddUnit = (type: 'CHOFER' | 'MOTO' | 'SERENO') => {
-    const tempId = `N-${Date.now()}`;
+    if (isReadOnly) return;
+    // Guard: si ya existe una card en blanco (NEW-) del mismo tipo sin ID ni personal, no crear otra
+    const existingBlank = units.find(u =>
+      u.type === type &&
+      u.tempId?.startsWith('NEW-') &&
+      (!u.id || String(u.id).trim() === '') &&
+      (!u.personnel1 || String(u.personnel1).trim() === '')
+    );
+    if (existingBlank) {
+      // Solo activar edición sobre la card en blanco ya existente
+      setEditingId(existingBlank.tempId || existingBlank.unit_id || existingBlank.id);
+      return;
+    }
+
+    const tempId = `NEW-${Date.now()}`;
     const newUnit: UnitData = {
       id: '',
+      tempId: tempId,
+      sector: currentSector,
       type,
       personnel1: '',
       personnel2: '',
       plate: '',
       indicative: '',
       radio: '',
-      status: UnitStatus.CHECKIN,
+      status: '' as any,
       reason: '',
       km: '0 / 0 / 0',
-      hours: '--:-- - --:--',
+      kmStart: '0',
+      kmEnd: '0',
+      totalKm: '0',
+      kmRecarga: '0',
+      hours: '',
       fuel: '-- / --',
       expense: 'S/ 0.00',
-      parts: '0',
-      quadrant: '0',
-      mechanics: 'Operativo',
+      quadrant: '',
+      mechanics: '',
+      lugarEstado: '',
+      motivoEstado: '',
+      taser: '',
+      bodycam: '',
+      codigoBodycam: '',
+      obsBodycam: '',
+      codigoTaser: '',
+      unit_id: generateUnitId(type, '', currentSector, selectedDate, settings.turno)
     };
-
+    // Prepend the new unit to the list so it appears at the top of its section
     setUnits(prev => [newUnit, ...prev]);
     setEditingId(tempId);
   };
 
-  const handleDeleteUnit = (id: string) => {
-    setUnits(prev => prev.filter(u => u.id !== id));
+  const handleEdit = (id: string) => {
+    if (isReadOnly) return;
+    setEditingId(id);
   };
 
   const handleCancel = () => {
-    // If editing a new unit (empty ID), remove it from the list
-    if (editingId && editingId.startsWith('N-')) {
-      setUnits(prev => prev.filter(u => u.id !== ''));
+    if (editingId && String(editingId).startsWith('NEW-')) {
+      // Eliminar la unidad temporal si se cancela la creación
+      setUnits(prev => prev.filter(u => u.tempId !== editingId));
     }
     setEditingId(null);
   };
 
-  const sumPartes = (unitsArr: UnitData[]) => {
-    return unitsArr.reduce((acc, curr) => {
-      const p = parseInt(curr.parts.toString().match(/\d+/)?.[0] || '0');
-      return acc + p;
-    }, 0);
-  };
+  const lastShiftTimestampRef = useRef<string | null>(null);
+  
+  const handleGenerateReport = async (type: string, date: string, shift: string, operatorName?: string) => {
+    setIsGeneratingStructuredReport(true);
 
-  const handleGeneratePDF = () => {
-    const doc = new jsPDF({ orientation: 'landscape' });
+    try {
+      const reportGenerators = window.reportGenerators;
+      if (!reportGenerators) {
+        throw new Error('El módulo de reportes no se ha cargado. Recarga la aplicación e inténtalo nuevamente.');
+      }
 
-    // HEADER
-    doc.setFillColor(0, 75, 147); // surco-blue
-    doc.rect(0, 0, 297, 24, 'F');
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('REPORTE INTEGRADO MSS', 14, 16);
-
-    doc.setFontSize(10);
-    doc.text(`FECHA: ${new Date().toLocaleDateString('es-ES')}`, 230, 10);
-    doc.text(`TURNO: ${settings.turno}`, 230, 15);
-
-    // SUB-HEADER INFO
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(9);
-    doc.text(`OPERADOR: ${settings.operador}`, 14, 32);
-    doc.text(`SUPERVISOR: ${settings.supervisor}`, 14, 37);
-    doc.text(`PERMANENCIA: ${settings.permanencia}`, 14, 42);
-
-    // TABLE GENERATOR HELPER
-    let finalY = 55;
-
-    const generateTable = (title: string, data: UnitData[], startY: number, type: 'CHOFER' | 'MOTO' | 'SERENO') => {
-      if (data.length === 0) return startY;
-
-      doc.setFontSize(12);
-      doc.setTextColor(0, 75, 147);
-      doc.text(title, 14, startY);
-
-      // Different columns for SERENOS vs CHOFER/MOTO
-      const isSereno = type === 'SERENO';
-
-      const headers = isSereno
-        ? [['PUESTO', 'PERSONAL', 'RADIO', 'ESTADO', 'PARTES', 'CUADRANTE', 'MOTIVO', 'OBS.']]
-        : [['MÓVIL/PLACA', 'PERSONAL', 'INDICATIVO COP.', 'RADIO', 'ESTADO', 'HORARIO', 'KM (I/F/R)', 'COMBUSTIBLE', 'GASTO', 'PARTES', 'CUADRANTE', 'MOTIVO', 'OBS.']];
-
-      const bodyData = data.map(u => {
-        const baseData = [
-          `${u.id} / ${u.plate}`,
-          `${u.personnel1}${u.personnel2 ? ` / ${u.personnel2}` : ''}`,
-        ];
-
-        if (isSereno) {
-          return [
-            ...baseData,
-            u.radio,
-            u.status,
-            u.parts,
-            u.quadrant,
-            u.mechanics,
-            u.reason || '-'
-          ];
+      // 1. Load full-shift data in a SINGLE backend call. getShiftData reads all
+      // sectors at once (one spreadsheet open + one flat RTDB read + one
+      // previous-shift read), instead of one getSectorData call per sector.
+      // The backend script cache (60s) makes repeated generations nearly instant.
+      const res: any = await new Promise((resolve, reject) => {
+        if (typeof google !== 'undefined' && google?.script?.run) {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .getShiftData(date, shift, currentSector);
         } else {
-          return [
-            ...baseData,
-            u.indicative,
-            u.radio,
-            u.status,
-            u.hours,
-            u.km,
-            u.fuel,
-            u.expense,
-            u.parts,
-            u.quadrant,
-            u.mechanics,
-            u.reason || '-'
-          ];
+          // Dev fallback
+          resolve({ units, allSectorSettings: sectorSettingsMap });
         }
       });
 
-      autoTable(doc, {
-        startY: startY + 2,
-        head: headers,
-        body: bodyData,
-        styles: { fontSize: 6, cellPadding: 1.5, overflow: 'linebreak', halign: 'center' },
-        headStyles: { fillColor: [0, 75, 147], textColor: 255, fontStyle: 'bold', fontSize: 6, halign: 'center' },
-        alternateRowStyles: { fillColor: [241, 245, 249] },
-        margin: { left: 10, right: 10 },
-        tableWidth: 'auto'
-      });
+      let dataToUse: { units: UnitData[], allSectorSettings: Record<string, AppSettings> };
 
-      return (doc as any).lastAutoTable.finalY + 10;
-    };
+      if (res && res.units) {
+        dataToUse = { units: res.units, allSectorSettings: res.allSectorSettings || {} };
 
-    // GENERATE ALL SECTORS
-    SECTORS.forEach((sector, index) => {
-      if (index > 0) {
-        doc.addPage();
-        finalY = 30;
+        // Update local state and timestamp
+        setUnits(res.units);
+        if (res.allSectorSettings) setSectorSettingsMap(res.allSectorSettings);
+        if (res.updatedAt) lastShiftTimestampRef.current = res.updatedAt;
       } else {
-        finalY = 55;
+        throw new Error('No se pudo cargar la información del turno.');
       }
 
-      // Sector header on each page
-      doc.setFontSize(16);
-      doc.setTextColor(0, 75, 147);
-      doc.text(sector, 14, finalY);
-      finalY += 10;
-
-      const sectorUnits = SECTOR_DATA[sector];
-      finalY = generateTable('CHOFERES', sectorUnits.filter(u => u.type === 'CHOFER'), finalY, 'CHOFER');
-      finalY = generateTable('MOTORIZADOS', sectorUnits.filter(u => u.type === 'MOTO'), finalY, 'MOTO');
-      finalY = generateTable('SERENOS', sectorUnits.filter(u => u.type === 'SERENO'), finalY, 'SERENO');
-    });
-
-    doc.save(`reporte_integrado_MSS_${settings.turno}_${new Date().toISOString().split('T')[0]}.pdf`);
+      if (type === 'operatividad') {
+        const retenData: RetenReplacement[] = await new Promise((resolve) => {
+          if (typeof google !== 'undefined' && google?.script?.run) {
+            google.script.run
+              .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
+              .withFailureHandler(() => resolve([]))
+              .getRetenData(date, shift);
+          } else {
+            resolve([]);
+          }
+        });
+        reportGenerators.generateOperatividadReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
+      } else if (type === 'motos') {
+        reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'YAMAHA XTZ150', 'YAMAHA XTZ150', operatorName, mobileData);
+      } else if (type === 'motos_honda') {
+        reportGenerators.generateMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, 'HONDA SAHARA XRE 300', 'HONDA SAHARA XRE 300', operatorName, mobileData);
+      } else if (type === 'motos_consolidado') {
+        reportGenerators.generateConsolidatedMotoReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData);
+       } else if (type === 'consolidado') {
+         const retenData: RetenReplacement[] = await new Promise((resolve) => {
+           if (typeof google !== 'undefined' && google?.script?.run) {
+             google.script.run
+               .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
+               .withFailureHandler(() => resolve([]))
+               .getRetenData(date, shift);
+           } else {
+             resolve([]);
+           }
+         });
+         reportGenerators.generateConsolidatedMobileReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
+       } else if (type === 'moviles' || type === 'sipcop') {
+        const retenData: RetenReplacement[] = await new Promise((resolve) => {
+          if (typeof google !== 'undefined' && google?.script?.run) {
+            google.script.run
+              .withSuccessHandler((d: RetenReplacement[]) => resolve(d || []))
+              .withFailureHandler(() => resolve([]))
+              .getRetenData(date, shift);
+          } else {
+            resolve([]);
+          }
+        });
+        if (type === 'sipcop') {
+          reportGenerators.generateSipcopReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
+        } else {
+          reportGenerators.generateVehicleReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, retenData);
+        }
+      } else if (type === 'asistencia_regimen') {
+        if (personnelList.length > 0) {
+            reportGenerators.generatePersonnelAbsenceReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+        } else {
+            const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
+                if (typeof google !== 'undefined' && google?.script?.run) {
+                  google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+                } else {
+                  resolve([]);
+                }
+            });
+            setPersonnelList(loadedPersonnel);
+            reportGenerators.generatePersonnelAbsenceReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+        }
+      } else if (type === 'asistencia_estado') {
+        if (personnelList.length > 0) {
+            reportGenerators.generatePersonnelStatusReport(dataToUse.units, personnelList, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+        } else {
+            const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
+                if (typeof google !== 'undefined' && google?.script?.run) {
+                  google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+                } else {
+                  resolve([]);
+                }
+            });
+            setPersonnelList(loadedPersonnel);
+            reportGenerators.generatePersonnelStatusReport(dataToUse.units, loadedPersonnel, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+        }
+      } else if (type === 'general') {
+        reportGenerators.generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+      } else if (type === 'taser') {
+        reportGenerators.generateTaserReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+      } else {
+        alert(`El reporte de "${type}" se encuentra en desarrollo.`);
+      }
+    } catch (err) {
+      console.error('Error al generar el reporte:', err);
+      alert('Error al generar el reporte: ' + err);
+    } finally {
+      setIsGeneratingStructuredReport(false);
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#002d5a] text-white">
-        <div className="w-12 h-12 border-4 border-[#00a19b] border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-[10px] font-black tracking-[0.2em] animate-pulse uppercase">Cargando Sector...</p>
-      </div>
-    );
-  }
+  const personnelStats = useMemo(() => {
+    return {
+      total: personnelList.length,
+      activos: personnelList.filter(p => p.estado.toUpperCase() === 'ACTIVO').length,
+      inactivos: personnelList.filter(p => ['CESADO', 'INACTIVO'].includes(p.estado.toUpperCase())).length,
+    };
+  }, [personnelList]);
+
+  const personnelRegimenMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    personnelList.forEach(p => {
+      const key = p.apellidos_nombres.trim().toUpperCase();
+      if (key && p.regimen_laboral) map[key] = p.regimen_laboral;
+    });
+    return map;
+  }, [personnelList]);
 
   return (
-    <div className="flex h-screen bg-[#f8fafc]">
-      <Sidebar currentView={currentView} onViewChange={setCurrentView} />
-      <main className="flex-1 flex flex-col min-w-0">
+    <div className="h-screen bg-[#f8fafc] relative">
+      {loading && (
+        <div className="absolute inset-0 z-[1050] flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm transition-opacity">
+          <div className="w-12 h-12 border-4 border-secondary border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-[14px] font-medium tracking-[0.2em] animate-pulse uppercase text-slate-600">Cargando Datos...</p>
+        </div>
+      )}
+      {pendingViewChange && (
+        <ConfirmModal
+          message={pendingViewMessage}
+          onConfirm={confirmViewChange}
+          onCancel={cancelViewChange}
+        />
+      )}
+
+      <style>{`
+        @keyframes km-fade-slide-in {
+          from { transform: translateY(-24px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes km-fade-slide-out {
+          from { transform: translateY(0); opacity: 1; }
+          to { transform: translateY(-24px); opacity: 0; }
+        }
+        .km-anim-in { animation: km-fade-slide-in 0.3s ease-out forwards; }
+        .km-anim-out { animation: km-fade-slide-out 0.25s ease-in forwards; }
+      `}</style>
+      {(kmToastVisible || kmToastClosing) && kmToastList.length > 0 && (
+        <div key={kmToastVisible ? 'in' : 'out'} className={`fixed top-4 right-4 z-[9999] ${kmToastClosing ? 'km-anim-out' : 'km-anim-in'}`}
+          onAnimationEnd={() => { if (kmToastClosing) { setKmToastVisible(false); setKmToastClosing(false); } }}>
+          <div className="flex items-start gap-3 bg-red-50 rounded-xl p-4 pr-10 shadow-lg border border-red-300 min-w-[300px] max-w-[420px] relative">
+            <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-100">
+              <TriangleAlert className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-[#1e3a5f]">KM INICIO PENDIENTE</p>
+              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 max-h-[180px] overflow-y-auto">
+                {kmToastList.map((item, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 text-[11px]">
+                    <span className="bg-red-50 text-red-700 font-medium px-1.5 py-0.5 rounded-md border border-red-200">{item.id}</span>
+                    <span className="text-slate-500">{item.name}</span>
+                  </span>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">{kmToastList.length} unidad(es) sin kilometraje inicial</p>
+            </div>
+            <button className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 w-5 h-5 flex items-center justify-center rounded" onClick={() => { setKmToastClosing(true); kmToastDismissedAt.current = Date.now(); }}>×</button>
+          </div>
+        </div>
+      )}
+
+      <Sidebar currentView={currentView} onViewChange={handleViewChange} />
+      <main className="ml-[76px] flex flex-col h-screen">
         <Header
           settings={settings}
-          totalPartes={sumPartes(units)}
-          onSaveSettings={(s) => setSettings(s)}
+          onSaveSettings={handleSaveSettings}
           onGlobalSave={handleGlobalSave}
-          onGeneratePDF={handleGeneratePDF}
-          onRefresh={() => handleSectorChange(currentSector)}
+          onHeaderSave={handleHeaderSave}
+          onGeneratePDF={() => handleViewChange('REPORTS')}
+          onRefresh={currentView === 'PERSONNEL' ? loadPersonnel : () => loadData(selectedDate, settings.turno, currentView, false, true)}
           isSaving={saving}
+          headerSaveStatus={headerSaveStatus}
           currentSector={currentSector}
           onSectorChange={handleSectorChange}
           currentView={currentView}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+          personnelOptions={personnelOptions}
+          operatorOptions={operatorOptions}
+          personnelStats={personnelStats}
+          readOnly={isReadOnly}
+          radioOptions={radioOptions}
+          codigoTaserOptions={codigoTaserOptions}
+          codigoBodycamOptions={codigoBodycamOptions}
+          codigoTaserSuggestions={availableTaserOptions}
+          codigoBodycamSuggestions={availableBodycamOptions}
+          motivoFaltoOptions={motivoFaltoOptions}
+          hasPendingChanges={hasPendingChanges}
+          forceHeaderError={currentView === 'DASHBOARD' && (hasNewRecordInCurrentSector || hasModifiedDefaultUnitInCurrentSector) && !headerFieldsComplete(settings)}
         />
-        <div className="flex-1 overflow-y-auto scroll-smooth p-4 lg:p-6" id="report-content">
+
+        <div className="flex-1 overflow-y-auto scroll-smooth p-4" id="report-content">
           {currentView === 'DASHBOARD' ? (
             <>
-              <UnitSection
-                title="CHOFERES" type="CHOFER" icon="minor_crash"
-                badge={units.filter(u => u.type === 'CHOFER').length.toString()}
-                partesTotal={sumPartes(units.filter(u => u.type === 'CHOFER'))}
-                units={units.filter(u => u.type === 'CHOFER')}
-                allUnits={units}
-                editingId={editingId}
-                onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
-              />
-              <UnitSection
-                title="MOTORIZADOS" type="MOTO" icon="moped"
-                badge={units.filter(u => u.type === 'MOTO').length.toString()}
-                partesTotal={sumPartes(units.filter(u => u.type === 'MOTO'))}
-                units={units.filter(u => u.type === 'MOTO')}
-                allUnits={units}
-                editingId={editingId}
-                onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
-              />
-              <UnitSection
-                title="SERENOS" type="SERENO" icon="hail"
-                badge={units.filter(u => u.type === 'SERENO').length.toString()}
-                partesTotal={sumPartes(units.filter(u => u.type === 'SERENO'))}
-                units={units.filter(u => u.type === 'SERENO')}
-                allUnits={units}
-                editingId={editingId}
-                onEdit={setEditingId} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit} onDelete={handleDeleteUnit}
-              />
-            </>
-          ) : (
-            <VisualizationView
-              allSectorsData={Object.fromEntries(
-                SECTORS.map(sector => [
-                  sector,
-                  {
-                    units: SECTOR_DATA[sector],
-                    settings: { ...settings, nombrePuesto: sector }
-                  }
-                ])
+              {currentSector !== 'C4' && currentSector !== 'COVV' && (
+                <UnitSection
+                  title="CHOFERES" type="CHOFER" icon="minor_crash"
+                  badge={currentSectorUnits.filter(u => u.type === 'CHOFER').length.toString()}
+                  units={currentSectorUnits.filter(u => u.type === 'CHOFER')}
+                  allUnits={units}
+                  editingId={editingId}
+                  onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                  showAdd={!isOtrasAreasSector(currentSector)}
+                  mobileData={mobileData}
+                  statusOptions={statusOptions}
+                  indicativeOptions={indicativeOptions}
+                  personnelOptions={personnelOptions}
+                  quadrantOptions={quadrantOptions}
+                  radioOptions={radioOptions}
+                  lugarOptions={lugarOptions}
+                  motivoStatusOptions={motivoStatusOptions}
+                  currentDate={selectedDate}
+                  currentShift={settings.turno}
+                  isSaving={saving}
+                  saveStatus={saveStatus}
+                  readOnly={isReadOnly}
+                  personnelRegimenMap={personnelRegimenMap}
+                  codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamSuggestions={availableBodycamOptions}
+                  codigoTaserSuggestions={availableTaserOptions}
+                />
               )}
+              {currentSector !== 'RESCATE' && currentSector !== 'C4' && currentSector !== 'COVV' && (
+                <UnitSection
+                  title="MOTORIZADOS" type="MOTO" icon="moped"
+                  badge={currentSectorUnits.filter(u => u.type === 'MOTO').length.toString()}
+                  units={currentSectorUnits.filter(u => u.type === 'MOTO')}
+                  allUnits={units}
+                  editingId={editingId}
+                  onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                  showAdd={!isOtrasAreasSector(currentSector)}
+                  mobileData={mobileData}
+                  statusOptions={statusOptions}
+                  indicativeOptions={indicativeOptions}
+                  personnelOptions={personnelOptions}
+                  quadrantOptions={quadrantOptions}
+                  radioOptions={radioOptions}
+                  lugarOptions={lugarOptions}
+                  motivoStatusOptions={motivoStatusOptions}
+                  currentDate={selectedDate}
+                  currentShift={settings.turno}
+                  isSaving={saving}
+                  saveStatus={saveStatus}
+                  readOnly={isReadOnly}
+                  personnelRegimenMap={personnelRegimenMap}
+                  codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamSuggestions={availableBodycamOptions}
+                  codigoTaserSuggestions={availableTaserOptions}
+                />
+              )}
+              {currentSector !== 'RESCATE' && !isOtrasAreasSector(currentSector) && (
+                <UnitSection
+                  title={(currentSector === 'C4' || currentSector === 'COVV') ? 'OPERADORES' : 'SERENOS'} 
+                  type="SERENO" icon="hail"
+                  badge={currentSectorUnits.filter(u => u.type === 'SERENO').length.toString()}
+                  units={currentSectorUnits.filter(u => u.type === 'SERENO')}
+                  allUnits={units}
+                  editingId={editingId}
+                  onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
+                  mobileData={mobileData}
+                  statusOptions={statusOptions}
+                  indicativeOptions={indicativeOptions}
+                  personnelOptions={personnelOptions}
+                  quadrantOptions={quadrantOptions}
+                  radioOptions={radioOptions}
+                  lugarOptions={lugarOptions}
+                  motivoStatusOptions={motivoStatusOptions}
+                  currentDate={selectedDate}
+                  currentShift={settings.turno}
+                  isSaving={saving}
+                  saveStatus={saveStatus}
+                  readOnly={isReadOnly}
+                  personnelRegimenMap={personnelRegimenMap}
+                  codigoBodycamOptions={codigoBodycamOptions}
+                  codigoTaserOptions={codigoTaserOptions}
+                  codigoBodycamSuggestions={availableBodycamOptions}
+                  codigoTaserSuggestions={availableTaserOptions}
+                />
+              )}
+            </>
+          ) : currentView === 'VISUALIZATION' ? (
+           <VisualizationView
+              allSectorsData={Object.keys(visualizationSectorsData).length > 0 ? visualizationSectorsData : allSectorsData}
               settings={settings}
+              mobileData={mobileData}
+              highlightMissingHeader={!headerFieldsComplete(settings)}
             />
+           ) : currentView === 'REPORTS' ? (
+             <ReportGeneratorView
+               selectedDate={selectedDate}
+               selectedShift={settings.turno}
+               onGenerateReport={handleGenerateReport}
+               isGenerating={isGeneratingStructuredReport}
+               operatorOptions={reportOperatorOptions}
+             />
+           ) : currentView === 'PERSONNEL' ? (
+            <PersonnelView
+              data={personnelList}
+              isLoading={loadingPersonnel}
+              onRefresh={loadPersonnel}
+            />
+          ) : currentView === 'RETEN' ? (
+            <RetenManagementView
+              settings={settings}
+              selectedDate={selectedDate}
+              mobileData={mobileData}
+              motivoTallerOptions={motivoTallerOptions}
+            />
+          ) : currentView === 'VEHICLE_SEARCH' ? (
+            <VehicleSearchView operatorOptions={reportOperatorOptions} />
+          ) : currentView === 'MAP' ? (
+            <MapView allSectorsData={allSectorsData} settings={settings} />
+          ) : currentView === 'WANTED' ? (
+            <WantedView />
+          ) : (
+            <StatisticsView units={units} selectedDate={selectedDate} selectedShift={settings.turno} />
           )}
         </div>
-        <Footer settings={settings} activeCount={units.filter(u => u.status === 'ACTIVO').length} personnelCount={units.length} />
       </main>
     </div>
   );

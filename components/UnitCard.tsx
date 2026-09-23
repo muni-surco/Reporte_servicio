@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { UnitData, UnitStatus } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Save, Pencil, Plus, X, Fuel } from 'lucide-react';
+import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS, isTacticoPPFFStatus, isOtrasAreasSector } from '../types';
 import AutocompleteInput from './AutocompleteInput';
-import { PERSONNEL_NAMES, VEHICLES, RADIOS, FUEL_TYPES, SECTORS, INDICATIVES } from '../constants';
+import MultiSelectAutocomplete from './MultiSelectAutocomplete';
 
 interface UnitCardProps {
   unit: UnitData;
@@ -10,46 +11,101 @@ interface UnitCardProps {
   onEdit: () => void;
   onSave: (updated: UnitData) => void;
   onCancel: () => void;
-  onDelete: (id: string) => void;
+  mobileData?: MobileReference[];
+  statusOptions?: string[];
+  indicativeOptions?: string[];
+  personnelOptions?: string[];
+  quadrantOptions?: string[];
+  radioOptions?: string[];
+  lugarOptions?: string[];
+  motivoStatusOptions?: Record<string, string[]>;
+  currentDate: string;
+  currentShift: string;
+  isSaving?: boolean;
+  saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
+  readOnly?: boolean;
+  personnelRegimenMap?: Record<string, string>;
+  codigoBodycamOptions?: string[];
+  codigoTaserOptions?: string[];
+  codigoBodycamSuggestions?: string[];
+  codigoTaserSuggestions?: string[];
 }
 
-const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, onSave, onCancel, onDelete }) => {
+const UnitCard: React.FC<UnitCardProps> = ({
+  unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
+  statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions, lugarOptions, motivoStatusOptions,
+  currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap,   codigoBodycamOptions,
+  codigoTaserOptions, codigoBodycamSuggestions, codigoTaserSuggestions
+}) => {
   const [formData, setFormData] = useState<UnitData>(unit);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
 
   const [kmStart, setKmStart] = useState('');
   const [kmEnd, setKmEnd] = useState('');
   const [kmDiff, setKmDiff] = useState('0');
   const [kmRecarga, setKmRecarga] = useState('');
-
-  const [hourStart, setHourStart] = useState('');
-  const [hourEnd, setHourEnd] = useState('');
+  const [prevKmStart, setPrevKmStart] = useState<string>('');
+  const [kmFetching, setKmFetching] = useState(false);
+  const [kmStartError, setKmStartError] = useState<string | null>(null);
 
   const [fuelType, setFuelType] = useState('');
   const [fuelQty, setFuelQty] = useState('');
+  const [fuel2Type, setFuel2Type] = useState('');
+  const [fuel2Qty, setFuel2Qty] = useState('');
+  const [showSecondFuel, setShowSecondFuel] = useState(false);
+  const fuel2TypeRef = useRef('');
+  const fuel2QtyRef = useRef('');
+  const expense2Ref = useRef('');
+
+  // Use provided status options or fallback to constants
+  const activeStatusOptions = statusOptions && statusOptions.length > 0 ? statusOptions : Object.values(UnitStatus);
+  const activeIndicativeOptions = indicativeOptions || [];
+  const activePersonnelOptions = personnelOptions && personnelOptions.length > 0 ? personnelOptions : PERSONNEL_NAMES;
+  const activeQuadrantOptions = quadrantOptions && quadrantOptions.length > 0 ? quadrantOptions : (mobileData ? Array.from(new Set(mobileData.map(d => d.quadrant).filter(q => q))) as string[] : []);
+
+  const formatKmStartForEdit = (value: string | undefined) => {
+    const trimmed = String(value ?? '').trim();
+    return trimmed !== '' && trimmed !== '0' ? trimmed : '';
+  };
 
   useEffect(() => {
     if (isEditing) {
-      const kmParts = unit.km.split('/').map(p => p.trim());
-      setKmStart(kmParts[0] || '0');
-      setKmEnd(kmParts[1] || '0');
-      setKmRecarga(kmParts[3] || '0');
+      setKmStart(formatKmStartForEdit(unit.kmStart));
+      setKmEnd(String(unit.kmEnd || '0'));
+      // KM recarga sin valor por defecto: en blanco si es '0' o vacio.
+      const recargaRaw = String(unit.kmRecarga ?? '').trim();
+      setKmRecarga(recargaRaw && recargaRaw !== '0' ? recargaRaw : '');
 
-      const hourParts = unit.hours.split('-').map(p => p.trim());
-      setHourStart(hourParts[0] || '');
-      setHourEnd(hourParts[1] || '');
-
-      const fuelParts = unit.fuel.split('/').map(p => p.trim());
+      const fuelParts = String(unit.fuel || '').split('/').map(p => p.trim());
       setFuelType(fuelParts[0] || '');
       setFuelQty(fuelParts[1] || '0');
+      const fuel2Parts = String(unit.fuel2 || '').split('/').map(p => p.trim());
+      const initialFuel2Type = fuel2Parts[0] && fuel2Parts[0] !== '--' ? fuel2Parts[0] : '';
+      const initialFuel2Qty = fuel2Parts[1] && fuel2Parts[1] !== '0' ? fuel2Parts[1] : '';
+      setFuel2Type(initialFuel2Type);
+      setFuel2Qty(initialFuel2Qty);
+      fuel2TypeRef.current = initialFuel2Type;
+      fuel2QtyRef.current = initialFuel2Qty;
+      expense2Ref.current = String(unit.expense2 || '');
+      setShowSecondFuel(Boolean(fuel2Parts[0] && fuel2Parts[0] !== '--'));
 
+      // Normalizar valor legacy "--" a vacío para que el input sea editable
+      // (con "--" el filtro de solo-dígitos bloqueaba cualquier edición incremental)
+      const normalizedUnit = {
+        ...unit,
+        radio: unit.radio === '--' ? '' : unit.radio,
+      };
       // Always set formData to unit, ID field will be empty for new units
-      setFormData(unit);
+      setFormData(normalizedUnit);
+      setFormData(prev => ({
+        ...prev,
+        fuel2Type: initialFuel2Type,
+        fuel2Qty: initialFuel2Qty
+      }));
 
       setErrors({});
     }
-  }, [isEditing, unit.id, unit.km, unit.hours, unit.fuel]);
+  }, [isEditing, unit.id, unit.kmStart, unit.kmEnd, unit.kmRecarga, unit.fuel, unit.fuel2]);
 
   useEffect(() => {
     const start = parseFloat(kmStart) || 0;
@@ -60,19 +116,85 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
     setFormData(prev => ({
       ...prev,
       km: `${kmStart || '0'} / ${kmEnd || '0'} / ${diff} / ${kmRecarga || '0'}`,
-      hours: `${hourStart || '--:--'} - ${hourEnd || '--:--'}`,
-      fuel: `${fuelType || '--'} / ${fuelQty || '0'}`
+      kmStart: kmStart || '0',
+      kmEnd: kmEnd || '0',
+      totalKm: diff,
+      kmRecarga: kmRecarga || '0',
+      fuel: `${fuelType || '--'} / ${fuelQty || '0'}`,
+      fuel2: fuel2Type ? `${fuel2Type} / ${fuel2Qty || '0'}` : '',
+      fuel2Type,
+      fuel2Qty,
     }));
-  }, [kmStart, kmEnd, kmRecarga, hourStart, hourEnd, fuelType, fuelQty]);
+  }, [kmStart, kmEnd, kmRecarga, fuelType, fuelQty, fuel2Type, fuel2Qty]);
+
+  const lastKmFetchedIdRef = useRef<string>('');
+
+  useEffect(() => {
+    if (isEditing && formData.id && formData.id !== lastKmFetchedIdRef.current) {
+      const unitId = String(formData.id).trim().toUpperCase();
+      if (unitId === '' || unitId.startsWith('AR-')) {
+        setPrevKmStart('');
+        setKmFetching(false);
+        return;
+      }
+
+      lastKmFetchedIdRef.current = formData.id;
+      setKmFetching(true);
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler((km: string) => {
+            setKmFetching(false);
+            const kmNum = parseFloat(km);
+            if (km && km !== '0' && km !== 'undefined' && String(km).trim() !== '' && !isNaN(kmNum) && kmNum >= 0 && kmNum < 1000000) {
+              setPrevKmStart(String(km));
+            } else {
+              setPrevKmStart('');
+            }
+          })
+          .getPreviousKmEnd(currentDate, currentShift, formData.id, unit.sector || '');
+      }
+    }
+  }, [formData.id, isEditing, unit.sector, currentDate, currentShift]);
 
   useEffect(() => {
     if (isEditing && (unit.type === 'CHOFER' || unit.type === 'MOTO' || unit.type === 'SERENO')) {
-      const found = VEHICLES.find(v => v.id === formData.id);
+      const dataSource = mobileData || [];
+      const unitId = (formData.id || '').toString().toUpperCase();
+
+      // Skip auto-population for 'RETEN' units (AR-)
+      if (unitId.startsWith('AR-')) return;
+
+      const found = dataSource.find(v => v.id === formData.id);
+
       if (found) {
-        setFormData(prev => ({ ...prev, plate: found.plate }));
+        setFormData(prev => {
+          const isIdChanged = formData.id !== unit.id;
+
+          return {
+            ...prev,
+            plate: found.plate || (isIdChanged ? '' : prev.plate),
+            model: found.model || (isIdChanged ? '' : prev.model),
+            quadrant: isIdChanged ? (found.quadrant || '') : (prev.quadrant || found.quadrant || '')
+          };
+        });
       }
     }
-  }, [formData.id, isEditing, unit.type]);
+  }, [formData.id, isEditing, unit.type, mobileData, unit.id]);
+
+  useEffect(() => {
+if (isEditing && isTacticoPPFFStatus(formData.status)) {
+      if (!formData.lugarEstado || String(formData.lugarEstado).trim() === '') {
+        setFormData(prev => ({ ...prev, lugarEstado: 'PP.FF.' }));
+      }
+    }
+  }, [formData.status, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      lastKmFetchedIdRef.current = '';
+    }
+  }, [isEditing]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -82,249 +204,664 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
     }
   };
 
+  const normalizePersonnelName = (val: any) => String(val || '').trim().toUpperCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ').trim();
+
   const handleValidateAndSave = () => {
-    const isIdDuplicate = allUnits.some(u => u.id === formData.id && u.id !== unit.id);
+    const isIdDuplicate = formData.id && allUnits.some(u => u.id === formData.id && u.id !== unit.id);
+
+    const specialStatuses = [
+      UnitStatus.SIN_VEHICULO,
+      UnitStatus.FALTO,
+      UnitStatus.APOYO_OTRA_AREA,
+      UnitStatus.MANTENIMIENTO,
+      UnitStatus.DESPERFECTOS,
+      UnitStatus.SIN_CONDUCTOR,
+      UnitStatus.SIN_DOCUMENTOS,
+      UnitStatus.SINIESTRO,
+      UnitStatus.FIN_APOYO,
+      UnitStatus.SIN_OPERADOR
+    ];
+    const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
+    const isNoPersonnelStatus = [
+      UnitStatus.SIN_CONDUCTOR,
+      UnitStatus.MANTENIMIENTO,
+      UnitStatus.DESPERFECTOS,
+      UnitStatus.SIN_DOCUMENTOS,
+      UnitStatus.SINIESTRO,
+      UnitStatus.FIN_APOYO,
+      UnitStatus.SIN_OPERADOR
+    ].includes(formData.status?.toUpperCase()) || isTacticoPPFFStatus(formData.status);
+
+    const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.DESPERFECTOS;
+
+    // OTRAS AREAS: chofer y radio son opcionales (unidades de administración/finanzas/transporte)
+    const isOtrasAreasCard = isOtrasAreasSector(formData.sector || unit.sector);
+
+    const isValidMobileId = !formData.id || String(formData.id).trim() === '' ||
+      isSereno ||
+      isFreeIdCase ||
+      (mobileData && mobileData.some(m => m.id === formData.id));
+
+    const statusKey = formData.status?.toUpperCase();
+    const hasMotivoOptions = !!(motivoStatusOptions && statusKey && motivoStatusOptions[statusKey]?.length);
+
+    // --- Validación anti-duplicado: mismo sector + misma sección (CHOFER/MOTO/SERENO) no permite mismo nombre ---
+    let isPersonnel1Duplicate = false;
+    let isPersonnel2Duplicate = false;
+    const newNameNorm = normalizePersonnelName(formData.personnel1);
+    const newName2Norm = normalizePersonnelName(formData.personnel2);
+    if (!isNoPersonnelStatus && newNameNorm) {
+      const targetSectorNorm = String(formData.sector || unit.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+      const targetTypeNorm = String(formData.type || unit.type || '').trim().toUpperCase();
+      const selfKey = unit.unit_id || unit.tempId || unit.id || '';
+      isPersonnel1Duplicate = allUnits.some(u => {
+        const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+        if (selfKey && otherKey && selfKey === otherKey) return false;
+        if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
+        const sectorNorm = String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+        if (sectorNorm !== targetSectorNorm) return false;
+        const typeNorm = String(u.type || '').trim().toUpperCase();
+        if (typeNorm !== targetTypeNorm) return false;
+        const existingNameNorm = normalizePersonnelName((u as any).personnel1);
+        if (!existingNameNorm) return false;
+        if (existingNameNorm === newNameNorm) return true;
+        // Para CHOFER, también considerar copiloto existente
+        if (targetTypeNorm === 'CHOFER') {
+          const existingP2Norm = normalizePersonnelName((u as any).personnel2);
+          if (existingP2Norm && existingP2Norm === newNameNorm) return true;
+        }
+        return false;
+      });
+      // Validar personnel2 (copiloto) también contra registros existentes en CHOFER
+      if (isChofer && newName2Norm) {
+        isPersonnel2Duplicate = allUnits.some(u => {
+          const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+          if (selfKey && otherKey && selfKey === otherKey) return false;
+          if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
+          const sectorNorm = String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+          if (sectorNorm !== targetSectorNorm) return false;
+          const typeNorm = String(u.type || '').trim().toUpperCase();
+          if (typeNorm !== 'CHOFER') return false;
+          const existingP1Norm = normalizePersonnelName((u as any).personnel1);
+          const existingP2Norm = normalizePersonnelName((u as any).personnel2);
+          return existingP1Norm === newName2Norm || existingP2Norm === newName2Norm;
+        });
+        // También evitar que personnel1 y personnel2 sean el mismo nombre dentro del mismo formulario
+        if (newName2Norm === newNameNorm) {
+          isPersonnel2Duplicate = true;
+        }
+      }
+    }
 
     const newErrors: Record<string, boolean> = {
-      id: !formData.id || formData.id.trim() === '' || isIdDuplicate,
-      personnel1: !formData.personnel1 || formData.personnel1.trim() === '',
-      radio: !formData.radio || formData.radio.trim() === '',
-      quadrant: !formData.quadrant || formData.quadrant.trim() === '' || isNaN(Number(formData.quadrant)),
+      status: !formData.status || String(formData.status).trim() === '',
+      id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
+        ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
+      personnel1: (!isNoPersonnelStatus && !isOtrasAreasCard && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
+      personnel2: isPersonnel2Duplicate,
+      radio: !isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'),
+      quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
+      lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
+      motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
+      kmStart: false,
+      codigoTaser: formData.taser === 'SI' && (!formData.codigoTaser || String(formData.codigoTaser).trim() === '' || (codigoTaserOptions && !codigoTaserOptions.includes(formData.codigoTaser))),
+      codigoBodycam: formData.bodycam === 'SI' && (!formData.codigoBodycam || String(formData.codigoBodycam).trim() === '' || (codigoBodycamOptions && !codigoBodycamOptions.includes(formData.codigoBodycam))),
     };
+
+    // If ID is provided even in special status, still check for duplicates
+    if (isSpecialStatus && formData.id && isIdDuplicate) {
+      newErrors.id = true;
+    }
+
+    // Validate kmStart >= previous reference km
+    setKmStartError(null);
+    if (kmFetching) {
+      setKmStartError('Consultando kilometraje previo, espere un momento...');
+      return;
+    }
+    const kmStartNum = parseFloat(kmStart);
+    if (!isSereno && !isNaN(kmStartNum)) {
+      const prevKmStartNum = parseFloat(prevKmStart);
+      if (prevKmStart && !isNaN(prevKmStartNum) && kmStartNum < prevKmStartNum) {
+        setErrors(prev => ({ ...prev, kmStart: true }));
+        setKmStartError('El km no puede ser menor al anterior.');
+        return;
+      }
+      if (prevKmStart && prevKmStart !== '0' && !isNaN(prevKmStartNum) && kmStartNum - prevKmStartNum > 150) {
+        setErrors(prev => ({ ...prev, kmStart: true }));
+        setKmStartError('La diferencia supera los 150 km respecto al turno anterior.');
+        return;
+      }
+    }
+
+    // Validate kmRecarga >= kmStart
+    if (kmRecarga && kmRecarga.trim() !== '' && kmRecarga !== '0') {
+      const kmRecargaNum = parseFloat(kmRecarga);
+      if (!isNaN(kmRecargaNum) && !isNaN(kmStartNum) && kmRecargaNum < kmStartNum) {
+        newErrors.kmRecarga = true;
+      }
+    }
 
     setErrors(newErrors);
 
+    // FIX: si hay error de kmRecarga el popover está cerrado el usuario no ve el mensaje.
+    // Reabrir automáticamente el popover para que la validación sea visible.
+    if (newErrors.kmRecarga) {
+      setShowSecondFuel(true);
+    }
+
     if (Object.values(newErrors).some(v => v)) {
-      if (isIdDuplicate) {
+      if (isIdDuplicate && (formData.id || !isSpecialStatus)) {
         alert(`El ID "${formData.id}" ya existe en la vista actual. No se permiten IDs duplicados.`);
+      } else if (newErrors.id && (isChofer || isMoto) && formData.id && !isValidMobileId) {
+        alert(`El ID "${formData.id}" no es válido. Para Choferes/Motos debe seleccionar una unidad de la lista.`);
+      } else if (isPersonnel1Duplicate) {
+        alert(`El nombre "${formData.personnel1}" ya está registrado en el sector ${String(formData.sector || unit.sector || '').toUpperCase().replace(/^SECTOR\s+/, '')} - sección ${String(formData.type || unit.type || '').toUpperCase()}. No se permite duplicar personal en el mismo sector y sección.`);
+      } else if (isPersonnel2Duplicate) {
+        alert(`El nombre "${formData.personnel2}" ya está registrado en el sector ${String(formData.sector || unit.sector || '').toUpperCase().replace(/^SECTOR\s+/, '')} - sección CHOFER. No se permite duplicar personal en el mismo sector y sección.`);
       }
       return;
     }
-    onSave(formData);
+    const formFuel2Parts = String(formData.fuel2 || '').split('/').map(part => part.trim());
+    const savedFuel2Type = String(fuel2TypeRef.current || formData.fuel2Type || fuel2Type || formFuel2Parts[0] || '').trim();
+    const savedFuel2Qty = String(fuel2QtyRef.current || formData.fuel2Qty || fuel2Qty || formFuel2Parts[1] || '').trim();
+    const dataToSave: UnitData = {
+      ...formData,
+      // Nunca persistir el placeholder "--" como valor real de radio
+      radio: String(formData.radio ?? '').trim() === '--' ? '' : formData.radio,
+      fuel: `${fuelType || '--'} / ${fuelQty || '0'}`,
+      fuel2: savedFuel2Type ? `${savedFuel2Type} / ${savedFuel2Qty || '0'}` : '',
+      fuel2Type: savedFuel2Type,
+      fuel2Qty: savedFuel2Qty,
+      expense2: savedFuel2Type ? (expense2Ref.current || formData.expense2 || '') : ''
+    };
+    console.info('[UnitCard] payload antes de onSave', {
+      unitId: dataToSave.unit_id || dataToSave.tempId || dataToSave.id,
+      fuel: dataToSave.fuel,
+      expense: dataToSave.expense,
+      fuel2: dataToSave.fuel2,
+      expense2: dataToSave.expense2
+    });
+    onSave(dataToSave);
   };
 
-  const labelStyle = "text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
-  const errorInputStyle = "border-red-500 ring-1 ring-red-500 bg-red-50";
-  const inputStyle = (fieldName: string) => `w-full border ${errors[fieldName] ? errorInputStyle : 'border-slate-300 bg-white'} rounded px-2 py-1 text-[12px] font-medium h-[28px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
-  const infoValueStyle = "text-[11px] font-bold text-slate-800 truncate leading-tight uppercase";
+  const labelStyle = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+  const errorInputStyle = "ring-1 ring-red-500 bg-red-50";
+  const inputStyle = (fieldName: string) => `w-full ${errors[fieldName] ? 'ring-1 ring-red-500 bg-red-50' : 'border-none bg-[#F4F6FB]'} rounded px-2 py-1 text-[11px]  h-[32px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all shadow-sm`;
+  const labelStyleEdit = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+  const errorMsgStyle = "text-[10px]  text-red-600 uppercase leading-tight mt-0.5";
+  const infoValueStyle = "text-[12px] font-medium text-slate-800 truncate leading-tight uppercase";
 
-  const badgeColors = {
-    [UnitStatus.ACTIVE]: "bg-green-100 text-green-700 border-green-200",
-    [UnitStatus.OFF]: "bg-red-100 text-red-700 border-red-200",
-    [UnitStatus.CHECKIN]: "bg-blue-100 text-blue-700 border-blue-200"
+  const badgeColors: Record<string, string> = {
+    [UnitStatus.PATRULLANDO]: "bg-green-100 text-green-700 border-green-200",
+    [UnitStatus.APOYO_OTRA_AREA]: "bg-blue-100 text-blue-700 border-blue-200",
+    [UnitStatus.SIN_DOCUMENTOS]: "bg-amber-100 text-amber-700 border-amber-200",
+    [UnitStatus.SIN_VEHICULO]: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    [UnitStatus.SIN_CONDUCTOR]: "bg-amber-100 text-amber-700 border-amber-200",
+    [UnitStatus.SIN_OPERADOR]: "bg-slate-100 text-slate-700 border-slate-200",
   };
 
+  const redStatusPatterns = [
+    UnitStatus.MANTENIMIENTO,
+    UnitStatus.DESPERFECTOS,
+    UnitStatus.SINIESTRO,
+    UnitStatus.FALTO,
+  ];
+
+  const grayStatusPatterns = [
+    UnitStatus.FIN_APOYO,
+  ];
+
+  const getBadgeClass = (status: string) => {
+    const s = String(status || '').toUpperCase();
+    if (badgeColors[status]) return badgeColors[status];
+    if (redStatusPatterns.includes(s)) return "bg-red-100 text-red-700 border-red-200";
+    if (grayStatusPatterns.includes(s)) return "bg-slate-100 text-slate-700 border-slate-200";
+    return "bg-slate-100 text-slate-700 border-slate-200";
+  };
+
+  const isRescate = unit.sector === 'RESCATE';
   const isChofer = unit.type === 'CHOFER';
   const isMoto = unit.type === 'MOTO';
   const isSereno = unit.type === 'SERENO';
+  // Escenario especial: estado PATRULLANDO + lugar estado UU.MM. → ID libre (no restringido a la flota)
+  const isFreeIdCase =
+    String(formData.status || '').trim().toUpperCase() === UnitStatus.PATRULLANDO &&
+    String(formData.lugarEstado || '').trim().toUpperCase().replace(/[\s.]/g, '') === 'UUMM';
   const hasPersonnel2 = isChofer;
-  const hasPlate = true;
+  const hasPlate = !isSereno;
   const hasIndicative = isChofer;
-  const hasKmRecarga = isChofer || isMoto;
+
+  const renderToggle = (field: 'taser' | 'bodycam', label: string) => {
+    const isOn = formData[field] === 'SI';
+    return (
+      <div>
+        <label className={labelStyleEdit}>{label}</label>
+        <div className="flex items-center h-[32px]">
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={isOn} onChange={() => setFormData(prev => ({ ...prev, [field]: prev[field] === 'SI' ? '' : 'SI' }))} />
+            <div className="w-9 h-5 bg-[#D0D5E8] rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#005ea5]"></div>
+          </label>
+          <span className={`ml-1.5 text-[10px] font-medium ${isOn ? 'text-[#005ea5]' : 'text-[#8888AA]'}`}>{isOn ? 'SI' : 'NO'}</span>
+        </div>
+      </div>
+    );
+  };
+  const hasKmRecarga = (isChofer || isMoto) && !isRescate;
 
   // Configuración de estilo según tipo (Actualizado MOTO a Violeta)
   const typeConfig = {
     CHOFER: {
-      borderLeft: 'border-l-blue-500',
+      lineBg: 'bg-blue-500',
       idBadge: 'bg-blue-100 text-blue-700 border-blue-200'
     },
     MOTO: {
-      borderLeft: 'border-l-violet-500',
+      lineBg: 'bg-violet-500',
       idBadge: 'bg-violet-100 text-violet-700 border-violet-200'
     },
     SERENO: {
-      borderLeft: 'border-l-teal-500',
+      lineBg: 'bg-teal-500',
       idBadge: 'bg-teal-100 text-teal-700 border-teal-200'
     }
-  }[unit.type];
+  }[unit.type] || { lineBg: 'bg-slate-500', idBadge: 'bg-slate-100 text-slate-700 border-slate-200' };
 
-  const DeleteConfirmationModal = () => (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)}></div>
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
-        <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-            <span className="material-symbols-outlined text-red-600 text-4xl">warning</span>
+  const isC4orCOVV = unit.sector === 'C4' || unit.sector === 'COVV';
+  const showTaserFields = !isC4orCOVV && !isRescate;
+  const serenoLabel = isC4orCOVV ? 'Operador' : 'Sereno';
+  const personalLabel = isC4orCOVV ? 'Operador' : 'Personal';
+
+  if (isEditing) {
+    const idStr = String(formData.id);
+    const isNew = idStr === '';
+    const labelStyleEdit = "text-[11px] font-medium text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
+    return (
+      <div className={`relative z-50 border-2 border-blue-500 bg-white rounded-xl p-4 mb-4 shadow-lg flex items-center gap-4`}>
+        {/* Línea vertical distintiva estilo moderno */}
+        <div className={`w-1.5 min-h-[180px] self-stretch ${typeConfig.lineBg} rounded-full shrink-0 shadow-sm`}></div>
+
+        <div className="flex-1 min-w-0">
+          {/* Línea 1: Identificación, Logística y Estado (Exactamente 12 cols) */}
+          <div className="mt-1 text-[12px] font-semibold uppercase tracking-tight text-slate-500 pb-2 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-[#005ea5]">badge</span>
+            Identificación y ubicación operativa
+            <span className="h-px flex-1 bg-slate-200"></span>
           </div>
-          <h3 className="text-lg font-medium text-slate-900 mb-2">¿Confirmar eliminación?</h3>
-          <p className="text-slate-500 text-sm mb-6">
-            Está a punto de eliminar la unidad <span className="font-medium text-slate-800">{unit.id}</span>.
-            Esta acción no se puede deshacer.
-          </p>
-          <div className="flex w-full gap-3">
-            <button
-              onClick={() => setShowDeleteModal(false)}
-              className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-medium text-xs hover:bg-slate-200 transition-colors"
-            >
+          <div className="grid grid-cols-12 gap-1.5 pb-2">
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>ID</label>
+              <AutocompleteInput
+                value={String(formData.id)}
+                onChange={(val) => {
+                  setFormData(prev => {
+                    const newData = { ...prev, id: val };
+                    if ((isChofer || isMoto) && mobileData) {
+                      const matched = mobileData.find(m => m.id === val);
+                      if (matched && matched.plate) {
+                        newData.plate = matched.plate;
+                      }
+                    }
+                    return newData;
+                  });
+                  setErrors(prev => ({ ...prev, id: false }));
+                }}
+                suggestions={isSereno ? [] : (mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
+                placeholder="M-01"
+                error={errors.id}
+                strict={(isChofer || isMoto) && !isFreeIdCase}
+              />
+              {errors.id && <span className={errorMsgStyle}>Requerido</span>}
+            </div>
+                  {!isSereno && (
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>Placa</label>
+                  <input name="plate" value={formData.plate} onChange={handleChange} readOnly={isChofer || isMoto} className={`${inputStyle('plate')} ${isChofer || isMoto ? 'text-slate-500' : ''}`} />
+                </div>
+                  )}
+
+            {!isSereno && (
+              <div className="col-span-1">
+                <label className={labelStyleEdit}>Cuadrante</label>
+                <MultiSelectAutocomplete
+                  value={formData.quadrant || ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
+                  suggestions={activeQuadrantOptions}
+                  placeholder="Selec..."
+                  error={errors.quadrant}
+                  strict={true}
+                />
+                {errors.quadrant && <span className={errorMsgStyle}>Requerido</span>}
+              </div>
+            )}
+            {isSereno && (
+              <div className="col-span-1">
+                <label className={labelStyleEdit}>Cuadrante</label>
+                <MultiSelectAutocomplete
+                  value={formData.quadrant || ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, quadrant: val }))}
+                  suggestions={activeQuadrantOptions}
+                  placeholder="Selec..."
+                  strict={true}
+                />
+              </div>
+            )}
+
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Estado <span className="text-red-500">*</span></label>
+              <select name="status" value={formData.status} onChange={(e) => {
+const v = e.target.value;
+                handleChange(e);
+                if (isTacticoPPFFStatus(v)) {
+                  setFormData(prev => ({ ...prev, lugarEstado: 'PP.FF.' }));
+                }
+                setErrors(prev => ({ ...prev, status: false, lugarEstado: false }));
+              }} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('status')} py-0 text-[11px] font-medium`}>
+                <option value="">--</option>
+                {formData.status && !activeStatusOptions.includes(formData.status) && <option value={formData.status}>{formData.status}</option>}
+                {activeStatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {errors.status && <span className={errorMsgStyle}>Requerido</span>}
+            </div>
+
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Lugar Estado</label>
+              {lugarOptions && lugarOptions.length > 0 ? (
+                <select name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('lugarEstado')} py-0 text-[11px]`}>
+                  <option value="">--</option>
+                  {formData.lugarEstado && !lugarOptions.includes(formData.lugarEstado) && <option value={formData.lugarEstado}>{formData.lugarEstado}</option>}
+                  {lugarOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : (
+                <input name="lugarEstado" value={formData.lugarEstado || ''} onChange={handleChange} className={inputStyle('lugarEstado')} placeholder="Lugar..." />
+              )}
+              {errors.lugarEstado && <span className={errorMsgStyle}>Requerido</span>}
+            </div>
+
+            <div className="col-span-2">
+              <label className={labelStyleEdit}>Motivo Estado</label>
+              {(() => {
+                const statusKey = formData.status?.toUpperCase();
+                const motivoList = motivoStatusOptions && statusKey ? motivoStatusOptions[statusKey] : undefined;
+                if (motivoList && motivoList.length > 0) {
+                  return (
+                    <select name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} onMouseDown={(e) => e.stopPropagation()} className={`${inputStyle('motivoEstado')} py-0 text-[11px]`}>
+                      <option value="">--</option>
+                      {motivoList.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  );
+                }
+                return <input name="motivoEstado" value={formData.motivoEstado || ''} onChange={handleChange} className={inputStyle('motivoEstado')} placeholder="Motivo..." />;
+              })()}
+              {errors.motivoEstado && <span className={errorMsgStyle}>Requerido</span>}
+            </div>
+
+            {isSereno && (
+              <div className="col-span-3">
+                <label className={labelStyleEdit}>Observaciones</label>
+                <input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
+              </div>
+            )}
+                  {!isSereno && (
+                <div className="col-span-3">
+                  <label className={labelStyleEdit}>Observaciones</label><input name="mechanics" value={formData.mechanics || ''} onChange={handleChange} className={inputStyle('mechanics')} placeholder="Motivo | Fecha | Hora" />
+                </div>
+                  )}
+                  {!isSereno && (
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>KM INICIO</label>
+                  <input type="number" name="kmStart" value={kmStart} min={0} max={999999} step="0.1" placeholder="Km" onChange={(e) => { const v = e.target.value; if (v === '' || parseFloat(v) <= 999999) { setKmStart(v); } setKmStartError(null); setErrors(prev => ({ ...prev, kmStart: false, kmRecarga: false })); }} className={inputStyle('kmStart')} />
+                  {kmFetching ? (
+                    <div className="text-[10px] text-slate-400 mt-0.5 animate-pulse">Cargando prev...</div>
+                  ) : (
+                    <div className="text-[10px] text-[#005ea5] mt-0.5 font-medium">Previo: {prevKmStart || '0'} km</div>
+                  )}
+                  {kmStartError ? (
+                    <span className="flex items-center gap-1 text-[10px] text-red-500 mt-0.5">
+                      <span className="material-symbols-outlined text-[12px]">error</span>
+                      {kmStartError}
+                    </span>
+                  ) : null}
+                </div>
+                  )}
+                  {!isSereno && (
+                <div className="col-span-1 relative order-last">
+                  <label className={labelStyleEdit}>COMBUSTIBLES</label>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSecondFuel(prev => !prev); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }}
+                    className={`h-[32px] w-full rounded-lg px-2 text-[12px] uppercase tracking-tight flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all ${errors.kmRecarga && !showSecondFuel ? 'bg-red-600 text-white ring-2 ring-red-200 hover:bg-red-700' : showSecondFuel ? 'bg-primary-dark text-white ring-2 ring-primary/20' : 'bg-primary text-white hover:bg-primary-dark hover:shadow-md'}`}
+                    title={errors.kmRecarga ? 'KM RECARGA inválido - click para corregir' : undefined}
+                  >
+                    {showSecondFuel ? <X className="w-3.5 h-3.5" /> : errors.kmRecarga ? <span className="material-symbols-outlined text-[14px]">warning</span> : <Fuel className="w-3.5 h-3.5" />}
+                    {showSecondFuel ? 'CERRAR' : errors.kmRecarga ? 'CORREGIR KM' : (fuel2Type ? '2 REGISTRADOS' : 'RECARGA')}
+                  </button>
+                  {errors.kmRecarga && !showSecondFuel && <span className="absolute -bottom-1 left-0 text-[9px] text-red-600 font-medium whitespace-nowrap">KM recarga inválido</span>}
+                  {showSecondFuel && (
+                    <div className="absolute z-[70] top-[54px] right-0 w-72 rounded-lg border border-blue-200 bg-white p-3 shadow-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-semibold uppercase text-blue-700">Combustibles</span>
+                        <button type="button" onClick={() => { setFuel2Type(''); setFuel2Qty(''); setFormData(prev => ({ ...prev, fuel2: '', expense2: '' })); setShowSecondFuel(false); }} className="text-slate-400 hover:text-red-500" title="Quitar segundo combustible">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-2">
+                          <label className={labelStyleEdit}>KM RECARGA</label>
+                          <input type="number" min="0" value={kmRecarga} onChange={(e) => { setKmRecarga(e.target.value); if (errors.kmRecarga) setErrors(prev => ({ ...prev, kmRecarga: false })); }} className={`${inputStyle('kmRecarga')} bg-white ${errors.kmRecarga ? 'ring-1 ring-red-200 bg-red-50' : ''}`} />
+                          {errors.kmRecarga && <span className={errorMsgStyle}>Debe ser mayor o igual al KM INICIO ({kmStart || '0'})</span>}
+                        </div>
+                        <div className="rounded-md border border-slate-200 p-2">
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">1° combustible</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className={labelStyleEdit}>TIPO</label>
+                              <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0 text-[11px] font-medium`}>
+                                <option value="">--</option>
+                                {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelStyleEdit}>CANTIDAD</label>
+                              <input type="number" min="0" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} />
+                            </div>
+                            <div className="col-span-2">
+                              <label className={labelStyleEdit}>GASTO</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.expense || '').replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: e.target.value ? `S/ ${e.target.value}` : '' }))} className={inputStyle('expense')} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="rounded-md border border-slate-200 p-2">
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase text-slate-500">2° combustible (opcional)</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className={labelStyleEdit}>TIPO</label>
+                              <select value={String(formData.fuel2Type || fuel2Type)} onChange={(e) => { const value = e.target.value; fuel2TypeRef.current = value; console.info('[UnitCard] segundo combustible seleccionado', value); setFuel2Type(value); setFormData(prev => ({ ...prev, fuel2Type: value, fuel2: value ? `${value} / ${prev.fuel2Qty || fuel2QtyRef.current || '0'}` : '' })); }} className={`${inputStyle('fuel2Type')} py-0 text-[11px]`}>
+                                <option value="">--</option>
+                                {FUEL_TYPES.filter(f => f !== fuelType).map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelStyleEdit}>CANTIDAD</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.fuel2Qty || fuel2Qty)} onChange={(e) => { const value = e.target.value; fuel2QtyRef.current = value; console.info('[UnitCard] cantidad segundo combustible', value); setFuel2Qty(value); setFormData(prev => ({ ...prev, fuel2Qty: value, fuel2: (prev.fuel2Type || fuel2TypeRef.current) ? `${prev.fuel2Type || fuel2TypeRef.current} / ${value || '0'}` : '' })); }} className={inputStyle('fuel2Qty')} />
+                            </div>
+                            <div className="col-span-2">
+                              <label className={labelStyleEdit}>GASTO</label>
+                              <input type="number" min="0" step="0.01" value={String(formData.expense2 || '').replace('S/ ', '')} onChange={(e) => { const value = e.target.value ? `S/ ${e.target.value}` : ''; expense2Ref.current = value; console.info('[UnitCard] gasto segundo combustible', value); setFormData(prev => ({ ...prev, expense2: value })); }} className={inputStyle('expense2')} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                  )}
+            {isSereno ? <div className="col-span-3"></div> : null}
+          </div>
+
+          {/* Línea 2: Operatividad Detallada + TASER (Exactamente 12 cols) */}
+          <div className="mt-1 text-[11px] font-semibold uppercase tracking-tight text-slate-500 pb-1 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-[#005ea5]">security</span>
+            Dotación y equipamiento
+            <span className="h-px flex-1 bg-slate-200"></span>
+          </div>
+          <div className="grid grid-cols-12 gap-1.5 pt-0.5">
+            <div className="col-span-2">
+              <label className={labelStyleEdit}>{isSereno ? personalLabel : isMoto ? 'Motorizado' : 'Chofer'}</label>
+              <AutocompleteInput
+                value={formData.personnel1}
+                onChange={(val) => { setFormData(prev => ({ ...prev, personnel1: val })); setErrors(prev => ({ ...prev, personnel1: false })); }}
+                suggestions={activePersonnelOptions.filter(n => {
+                  const norm = normalizePersonnelName(n);
+                  const targetSectorNorm = String(formData.sector || unit.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+                  const targetTypeNorm = String(formData.type || unit.type || '').trim().toUpperCase();
+                  const selfKey = unit.unit_id || unit.tempId || unit.id || '';
+                  return !allUnits.some(u => {
+                    const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+                    if (selfKey && otherKey && selfKey === otherKey) return false;
+                    if (String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '') !== targetSectorNorm) return false;
+                    if (String(u.type || '').trim().toUpperCase() !== targetTypeNorm) return false;
+                    return normalizePersonnelName((u as any).personnel1) === norm || (targetTypeNorm === 'CHOFER' && normalizePersonnelName((u as any).personnel2) === norm);
+                  });
+                })}
+                placeholder="Nombre..."
+                error={errors.personnel1}
+              />
+              {errors.personnel1 && <span className={errorMsgStyle}>{(() => {
+                const norm = normalizePersonnelName(formData.personnel1);
+                const targetSectorNorm = String(formData.sector || unit.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
+                const targetTypeNorm = String(formData.type || unit.type || '').trim().toUpperCase();
+                const selfKey = unit.unit_id || unit.tempId || unit.id || '';
+                const isDup = norm && allUnits.some(u => {
+                  const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+                  if (selfKey && otherKey && selfKey === otherKey) return false;
+                  if (String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '') !== targetSectorNorm) return false;
+                  if (String(u.type || '').trim().toUpperCase() !== targetTypeNorm) return false;
+                  return normalizePersonnelName((u as any).personnel1) === norm || (targetTypeNorm === 'CHOFER' && normalizePersonnelName((u as any).personnel2) === norm);
+                });
+                return isDup ? 'Duplicado en sector/sección' : 'Requerido';
+              })()}</span>}
+            </div>
+
+            <div className="col-span-1">
+              <label className={labelStyleEdit}>Radio</label>
+              <AutocompleteInput
+                value={formData.radio}
+                onChange={(val) => {
+                  // Sanitizar en lugar de bloquear: extraer solo dígitos.
+                  // El bloqueo anterior (`if (!/^\d+$/.test(val)) return`) dejaba el
+                  // input congelado cuando el valor era "--" (borrar un "-" daba "-",
+                  // agregar un dígito daba "--2", ambos rechazados).
+                  const cleaned = String(val ?? '').replace(/[^\d]/g, '');
+                  setFormData(prev => ({ ...prev, radio: cleaned }));
+                  setErrors(prev => ({ ...prev, radio: false }));
+                }}
+                suggestions={Array.from(new Set([
+                  ...RADIOS,
+                  ...(radioOptions || []),
+                  ...(mobileData ? mobileData.map(d => d.radio).filter(r => r && r !== '--') : [])
+                ].filter(r => r && r !== '--'))) as string[]}
+                placeholder="20xxx"
+                error={errors.radio}
+              />
+              {errors.radio && <span className={errorMsgStyle}>Requerido</span>}
+            </div>
+
+            {isChofer && (
+              <div className="col-span-2">
+                <label className={labelStyleEdit}>Copiloto</label>
+                <input
+                  name="personnel2"
+                  value={formData.personnel2 || ''}
+                  onChange={(e) => {
+                    const cleaned = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.]/g, '');
+                    setFormData(prev => ({ ...prev, personnel2: cleaned }));
+                    if (errors.personnel2) setErrors(prev => ({ ...prev, personnel2: false }));
+                  }}
+                  className={inputStyle('personnel2')}
+                  placeholder="Nombre..."
+                />
+                {errors.personnel2 && <span className={errorMsgStyle}>Duplicado en sector/sección</span>}
+              </div>
+            )}
+
+            {isChofer && (
+              <div className="col-span-1">
+                <label className={labelStyleEdit}>Indicativo Copiloto</label>
+                <select name="indicative" value={formData.indicative || ''} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[12px]`}>
+                  <option value="">--</option>
+                  {formData.indicative && !activeIndicativeOptions.includes(formData.indicative) && <option value={formData.indicative}>{formData.indicative}</option>}
+                  {activeIndicativeOptions.map(i => <option key={i} value={i}>{i}</option>)}
+                </select>
+              </div>
+            )}
+            {!isSereno ? (
+              <>
+                {showTaserFields && (
+                  <>
+                    <div className="col-span-1">
+                      {renderToggle('taser', 'TIENE TASER')}
+                    </div>
+                    <div className="col-span-1">
+                      <label className={labelStyleEdit}>CÓDIGO TASER</label>
+                      <AutocompleteInput disabled={formData.taser !== 'SI'} value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserSuggestions || []} placeholder="Código..." error={errors.codigoTaser} />
+                      {errors.codigoTaser && <span className={errorMsgStyle}>Requerido</span>}
+                    </div>
+                    <div className="col-span-1">
+                      {renderToggle('bodycam', 'TIENE BODYCAM')}
+                    </div>
+                    <div className="col-span-1">
+                      <label className={labelStyleEdit}>CÓDIGO BODYCAM</label>
+                      <AutocompleteInput disabled={formData.bodycam !== 'SI'} value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamSuggestions || []} placeholder="Código..." error={errors.codigoBodycam} />
+                      {errors.codigoBodycam && <span className={errorMsgStyle}>Requerido</span>}
+                    </div>
+                    <div className="col-span-2">
+                      <label className={labelStyleEdit}>OBS. BODYCAM/TASER</label>
+                      <input value={formData.obsBodycam || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsBodycam: e.target.value }))} className={inputStyle('obsBodycam')} placeholder="Observaciones..." />
+                    </div>
+                  </>
+                )}
+                {!isChofer && (<div className="col-span-3"></div>)}
+              </>
+            ) : showTaserFields ? (
+              <>
+                <div className="col-span-1">
+                  {renderToggle('taser', 'TIENE TASER')}
+                </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>CÓDIGO TASER</label>
+                  <AutocompleteInput disabled={formData.taser !== 'SI'} value={formData.codigoTaser} onChange={(val) => setFormData(prev => ({ ...prev, codigoTaser: val }))} suggestions={codigoTaserSuggestions || []} placeholder="Código..." error={errors.codigoTaser} />
+                  {errors.codigoTaser && <span className={errorMsgStyle}>Requerido</span>}
+                </div>
+                <div className="col-span-1">
+                  {renderToggle('bodycam', 'TIENE BODYCAM')}
+                </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>CÓDIGO BODYCAM</label>
+                  <AutocompleteInput disabled={formData.bodycam !== 'SI'} value={formData.codigoBodycam} onChange={(val) => setFormData(prev => ({ ...prev, codigoBodycam: val }))} suggestions={codigoBodycamSuggestions || []} placeholder="Código..." error={errors.codigoBodycam} />
+                  {errors.codigoBodycam && <span className={errorMsgStyle}>Requerido</span>}
+                </div>
+                <div className="col-span-1">
+                  <label className={labelStyleEdit}>OBS. BODYCAM/TASER</label>
+                  <input value={formData.obsBodycam || ''} onChange={(e) => setFormData(prev => ({ ...prev, obsBodycam: e.target.value }))} className={inputStyle('obsBodycam')} placeholder="Observaciones..." />
+                </div>
+                <div className="col-span-4"></div>
+              </>
+            ) : (
+              <></>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3">
+            <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[12px] font-medium py-2 px-5 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1">
               CANCELAR
             </button>
             <button
-              onClick={() => { onDelete(unit.id); setShowDeleteModal(false); }}
-              className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium text-xs hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95"
-            >
-              SÍ, ELIMINAR
+              onClick={handleValidateAndSave}
+              disabled={isSaving}
+              className={`bg-[#005cbb] text-white text-[12px] font-medium py-2 px-5 rounded-lg hover:bg-[#004a96] transition-all flex items-center gap-2 group ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <Save className="w-4 h-4" />
+              {isSaving ? 'GUARDANDO...' : (isNew ? 'GUARDAR' : 'GUARDAR')}
             </button>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (isEditing) {
-    const isNew = unit.id === '';
-    const labelStyleEdit = "text-[10px] font-black text-slate-400 uppercase tracking-tighter block mb-0.5 leading-none";
-    return (
-      <div className={`border-2 border-blue-500 bg-blue-50/50 rounded-xl p-4 mb-4 shadow-lg ${typeConfig.borderLeft} border-l-4`}>
-        <div className={`grid grid-cols-12 gap-3 ${!isSereno ? 'pb-3 mb-3 border-b border-blue-100' : ''}`}>
-          <div className="col-span-1">
-            <label className={labelStyleEdit}>ID {errors.id && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput
-              value={formData.id}
-              onChange={(val) => {
-                setFormData(prev => ({ ...prev, id: val }));
-                setErrors(prev => ({ ...prev, id: false }));
-              }}
-              suggestions={VEHICLES.map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
-              placeholder="M-00"
-              className={errors.id ? errorInputStyle : ''}
-            />
-          </div>
-
-          <div className={isSereno || isMoto ? 'col-span-3' : 'col-span-2'}>
-            <label className={labelStyleEdit}>{isSereno ? 'Sereno' : isMoto ? 'Motorizado' : 'Chofer'} {errors.personnel1 && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput
-              value={formData.personnel1}
-              onChange={(val) => {
-                setFormData(prev => ({ ...prev, personnel1: val }));
-                setErrors(prev => ({ ...prev, personnel1: false }));
-              }}
-              suggestions={PERSONNEL_NAMES}
-              placeholder="Nombre..."
-              className={errors.personnel1 ? errorInputStyle : ''}
-            />
-          </div>
-
-          {hasPersonnel2 && (
-            <div className="col-span-2">
-              <label className={labelStyleEdit}>Copiloto</label>
-              <AutocompleteInput
-                value={formData.personnel2 || ''}
-                onChange={(val) => setFormData(prev => ({ ...prev, personnel2: val }))}
-                suggestions={PERSONNEL_NAMES}
-                placeholder="Nombre..."
-              />
-            </div>
-          )}
-
-          {hasIndicative && (
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Indic.</label>
-              <select name="indicative" value={formData.indicative} onChange={handleChange} className={`${inputStyle('indicative')} py-0 text-[11px]`}>
-                <option value="">--</option>
-                {INDICATIVES.map(i => <option key={i} value={i}>{i}</option>)}
-              </select>
-            </div>
-          )}
-
-          {hasPlate && (
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Placa</label>
-              <input
-                name="plate"
-                value={formData.plate}
-                onChange={handleChange}
-                readOnly={isChofer || isMoto}
-                className={`${inputStyle('plate')} ${isChofer || isMoto ? 'bg-slate-100 text-slate-500' : ''}`}
-              />
-            </div>
-          )}
-
-          <div className="col-span-1">
-            <label className={labelStyleEdit}>Radio {errors.radio && <span className="text-red-600 font-bold ml-1">*</span>}</label>
-            <AutocompleteInput
-              value={formData.radio}
-              onChange={(val) => {
-                setFormData(prev => ({ ...prev, radio: val }));
-                setErrors(prev => ({ ...prev, radio: false }));
-              }}
-              suggestions={RADIOS}
-              placeholder="T-00000"
-              className={errors.radio ? errorInputStyle : ''}
-            />
-          </div>
-
-          <div className="col-span-1">
-            <label className={labelStyleEdit}>Cuad.</label>
-            <input
-              type="number"
-              name="quadrant"
-              value={formData.quadrant}
-              onChange={handleChange}
-              className={inputStyle('quadrant')}
-            />
-          </div>
-
-          <div className={isSereno ? 'col-span-2' : 'col-span-1'}>
-            <label className={labelStyleEdit}>Motivo</label>
-            <input name="reason" value={formData.reason} onChange={handleChange} className={inputStyle('reason')} />
-          </div>
-
-          {isSereno && (
-            <>
-              <div className="col-span-1">
-                <label className={labelStyleEdit}>Estado</label>
-                <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0`}>
-                  {Object.values(UnitStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="col-span-1">
-                <label className={labelStyleEdit}>Partes</label>
-                <input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} />
-              </div>
-            </>
-          )}
-        </div>
-
-        {!isSereno && (
-          <div className="grid grid-cols-12 gap-3 pb-3">
-            <div className="col-span-1">
-              <label className={labelStyleEdit}>Estado</label>
-              <select name="status" value={formData.status} onChange={handleChange} className={`${inputStyle('status')} py-0`}>
-                {Object.values(UnitStatus).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="col-span-3 grid grid-cols-3 gap-1">
-              <div><label className={labelStyleEdit}>KM INICIO</label><input type="number" value={kmStart} onChange={(e) => setKmStart(e.target.value)} className={inputStyle('kmStart')} /></div>
-              <div><label className={labelStyleEdit}>KM FIN</label><input type="number" value={kmEnd} onChange={(e) => setKmEnd(e.target.value)} className={inputStyle('kmEnd')} /></div>
-              <div><label className={labelStyleEdit}>TOTAL</label><div className="bg-blue-100 border border-blue-200 rounded px-2 py-1 text-[11px] font-medium text-blue-700 h-[28px] flex items-center justify-center">{kmDiff}</div></div>
-            </div>
-            <div className="col-span-2 grid grid-cols-2 gap-1">
-              <div><label className={labelStyleEdit}>INICIO H.</label><input type="time" value={hourStart} onChange={(e) => setHourStart(e.target.value)} className={inputStyle('hourStart')} /></div>
-              <div><label className={labelStyleEdit}>FIN H.</label><input type="time" value={hourEnd} onChange={(e) => setHourEnd(e.target.value)} className={inputStyle('hourEnd')} /></div>
-            </div>
-            <div className={`col-span-${hasKmRecarga ? '4' : '3'} grid grid-cols-${hasKmRecarga ? '4' : '3'} gap-1`}>
-              {hasKmRecarga && (
-                <div><label className={labelStyleEdit}>RECARGA</label><input type="number" value={kmRecarga} onChange={(e) => setKmRecarga(e.target.value)} className={`${inputStyle('kmRecarga')} bg-amber-50`} /></div>
-              )}
-              <div><label className={labelStyleEdit}>TIPO COMB.</label>
-                <select value={fuelType} onChange={(e) => setFuelType(e.target.value)} className={`${inputStyle('fuelType')} py-0`}>
-                  <option value="">--</option>
-                  {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-              </div>
-              <div><label className={labelStyleEdit}>CANT.</label><input type="number" step="0.01" value={fuelQty} onChange={(e) => setFuelQty(e.target.value)} className={inputStyle('fuelQty')} /></div>
-              <div><label className={labelStyleEdit}>GASTO (S/)</label><input type="number" step="0.01" value={formData.expense.replace('S/ ', '')} onChange={(e) => setFormData(prev => ({ ...prev, expense: `S/ ${e.target.value}` }))} className={inputStyle('expense')} /></div>
-            </div>
-            <div className="col-span-2">
-              <label className={labelStyleEdit}>PARTES/INTERV.</label>
-              <input type="number" name="parts" value={formData.parts} onChange={handleChange} className={inputStyle('parts')} />
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3 pt-3 border-t border-blue-200/50">
-          <button onClick={onCancel} className="bg-white border border-slate-300 text-slate-600 text-[10px] font-black py-2 px-5 rounded-lg hover:bg-slate-50 transition-all">CANCELAR</button>
-          <button onClick={handleValidateAndSave} className="bg-blue-600 text-white text-[10px] font-black py-2 px-5 rounded-lg hover:bg-blue-700 transition-all">{isNew ? 'CREAR UNIDAD' : 'GUARDAR'}</button>
         </div>
       </div>
     );
@@ -332,118 +869,146 @@ const UnitCard: React.FC<UnitCardProps> = ({ unit, allUnits, isEditing, onEdit, 
 
   return (
     <>
-      {showDeleteModal && <DeleteConfirmationModal />}
+      <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden flex items-center`}>
+        {/* Línea vertical distintiva estilo moderno */}
+        <div className={`w-1.5 h-9 ${typeConfig.lineBg} rounded-full ml-1 mr-3 shrink-0 shadow-sm`}></div>
 
-      <div className={`border border-slate-200 bg-white rounded-xl p-2.5 mb-2 hover:shadow-md transition-all group overflow-hidden border-l-[5px] ${typeConfig.borderLeft}`}>
         {/* Grid principal optimizado para lectura de ancho completo */}
-        <div className={`grid items-center gap-4 ${isSereno ? 'grid-cols-[48px_2fr_1fr_80px_80px_60px_1.5fr_64px]' : 'grid-cols-[48px_1.8fr_1.8fr_80px_80px_1.2fr_1fr_1.2fr_60px_1.5fr_64px]'}`}>
+        <div className={`grid items-center gap-2 flex-1 ${isSereno ? 'grid-cols-[140px_1.5fr_2fr_auto_60px_90px]' : 'grid-cols-[48px_1fr_2fr_auto_auto_0.7fr_0.7fr_1.1fr_75px] max-[1399px]:grid-cols-[48px_1fr_2fr_auto_0.7fr_1.1fr_75px]'}`}>
 
           {/* Columna ID (Ligeros) */}
           <div className="text-center">
-            <div className={`${typeConfig.idBadge} h-7 flex items-center justify-center rounded-lg font-black text-[11px] shadow-sm`}>
+            <div className={`${typeConfig.idBadge} h-9 flex items-center justify-center rounded-lg font-medium text-[11px] shadow-sm`}>
               {unit.id}
             </div>
           </div>
 
           {/* Columna Personal Principal y Copiloto */}
           <div className="border-r border-slate-100 pr-2 min-w-0">
-            <label className={labelStyle}>{isSereno ? 'Sereno' : isMoto ? 'Motorizado' : 'Chofer'}</label>
+            <label className={labelStyle}>{isSereno ? serenoLabel : isMoto ? 'Motorizado' : 'Chofer'}</label>
             <div className={infoValueStyle}>{unit.personnel1 || '--'}</div>
-            {hasPersonnel2 && unit.personnel2 && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Cop.</label>
-                <div className="text-[10px] font-bold text-slate-500 truncate uppercase leading-none">{unit.personnel2}</div>
+            {unit.personnel1 && personnelRegimenMap?.[unit.personnel1.trim().toUpperCase()] && (
+              <div className="text-[9px] text-slate-400 uppercase tracking-tight leading-tight mt-0.5">
+                {personnelRegimenMap[unit.personnel1.trim().toUpperCase()]}
               </div>
             )}
           </div>
 
           {/* Columna Logística Radio/Indicativo/Cuadrante */}
           <div className="flex gap-4 border-r border-slate-100 px-2 min-w-0">
-            <div className="flex flex-col flex-1 text-center">
+            <div className="flex flex-col flex-1 min-w-[50px]">
               <label className={labelStyle}>Radio</label>
-              <div className={`${infoValueStyle} text-slate-800`}>{unit.radio || '--'}</div>
+              <div className={`${infoValueStyle} text-slate-800`}>
+                {unit.radio || '--'}
+              </div>
             </div>
-            {!isSereno && (
-              <div className="flex flex-col flex-1 text-center">
-                <label className={labelStyle}>Indicativo</label>
+            {isChofer && (
+              <div className="flex flex-col flex-1 min-w-[130px] max-[1399px]:hidden">
+                <label className={labelStyle}>Copiloto</label>
+                <div className={infoValueStyle}>{unit.personnel2 || '--'}</div>
+              </div>
+            )}
+            {hasIndicative && (
+              <div className="flex flex-col flex-1 min-w-[110px]">
+                <label className={labelStyle}>Indicativo Copiloto</label>
                 <div className={infoValueStyle}>{unit.indicative || '--'}</div>
               </div>
             )}
-            <div className="flex flex-col flex-1 text-center">
-              <label className={labelStyle}>Cuadrante</label>
-              <div className={infoValueStyle}>{unit.quadrant || '--'}</div>
-            </div>
+            {!isRescate && (
+              <div className="flex flex-col flex-1 min-w-[80px]">
+                <label className={labelStyle}>Cuadrante</label>
+                <div className={infoValueStyle}>
+                  {unit.quadrant || mobileData?.find(m => m.id === unit.id)?.quadrant || '--'}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Columna Placa */}
-          <div className="border-r border-slate-100 px-2 text-center">
-            <label className={labelStyle}>Placa</label>
-            <div className="text-[10px] font-black text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">{unit.plate || '--'}</div>
-          </div>
+          {hasPlate && (
+            <div className="border-r border-slate-100 px-2 whitespace-nowrap max-[1399px]:hidden">
+              <label className={labelStyle}>Placa</label>
+              <div className="text-[10px] font-medium text-slate-800 bg-slate-50 px-1 rounded inline-block uppercase border border-slate-100">
+                {mobileData?.find(m => m.id === unit.id)?.plate || ''}
+              </div>
+            </div>
+          )}
 
           {/* Columna Estado */}
-          <div className="border-r border-slate-100 px-2 text-center">
+          <div className="border-r border-slate-100 px-2 w-32 shrink-0">
             <label className={labelStyle}>Estado</label>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-black border uppercase inline-block ${badgeColors[unit.status]}`}>
+            <span className={`px-1.5 rounded text-[11px] font-medium border uppercase inline-block ${getBadgeClass(unit.status)}`} style={{ whiteSpace: 'normal', lineHeight: '1.2' }}>
               {unit.status}
             </span>
+            {unit.lugarEstado && <div className="text-[9px] text-slate-500 mt-0.5 leading-tight">Lugar: {unit.lugarEstado}</div>}
+            {unit.motivoEstado && <div className="text-[9px] text-slate-500 leading-tight">Motivo: {unit.motivoEstado}</div>}
           </div>
 
           {!isSereno && (
             <>
               {/* Columna KM Centrada */}
-              <div className="border-r border-slate-100 px-2 text-center">
+              <div className="border-r border-slate-100 px-2">
                 <label className={labelStyle}>KM (Inicio/Fin/Recorrido)</label>
-                <div className="flex items-center justify-center gap-1 text-[10px] font-bold">
-                  <span className="text-slate-400">{unit.km.split('/')[0] || '0'}</span>
+                <div className="flex items-center gap-1 text-[11px] font-medium">
+                  <span className="text-slate-400">{String(unit.km || '').split('/')[0] || '0'}</span>
                   <span className="text-slate-200">/</span>
-                  <span className="text-slate-400">{unit.km.split('/')[1] || '0'}</span>
+                  <span className="text-slate-400">{String(unit.km || '').split('/')[1] || '0'}</span>
                   <span className="text-slate-200">/</span>
-                  <span className="text-slate-900 font-black">{unit.km.split('/')[2] || '0'}</span>
+                  <span className="text-slate-900 font-medium">{String(unit.km || '').split('/')[2] || '0'}</span>
                 </div>
               </div>
 
-              {/* Columna Horario */}
-              <div className="border-r border-slate-100 px-2 text-center">
-                <label className={labelStyle}>Horario</label>
-                <div className="text-[10px] font-bold text-slate-600">{unit.hours || '--:--'}</div>
+              {/* Columna Combustible Centrada con Recarga integrada */}
+              <div className="border-r border-slate-100 px-2 max-[1399px]:hidden">
+                <label className={labelStyle}>Combustible</label>
+                <div className="flex flex-col gap-0.5 text-[11px] font-medium">
+                  <div className="flex items-center gap-1 text-slate-500">
+                    <span>{String(unit.fuel || '').split('/')[0] || '--'}</span>
+                    {(() => {
+                      const gal = String(unit.fuel || '').split('/')[1]?.trim();
+                      return gal && gal !== '0' ? <span className="text-amber-600" title="Galones">({gal} GL)</span> : null;
+                    })()}
+                    <span className="text-slate-200">|</span>
+                    <span className={`${unit.expense !== 'S/ 0.00' ? 'text-green-600' : 'text-slate-400'}`}>{unit.expense}</span>
+                  </div>
+                  {unit.fuel2 && String(unit.fuel2).split('/')[0] !== '--' && (
+                    <div className="flex items-center gap-1 text-slate-500">
+                      <span>{String(unit.fuel2).split('/')[0]}</span>
+                      <span className="text-amber-600">({String(unit.fuel2).split('/')[1]?.trim() || '0'} GL)</span>
+                      <span className="text-slate-200">|</span>
+                      <span className={`${unit.expense2 ? 'text-green-600' : 'text-slate-400'}`}>{unit.expense2 || 'S/ 0.00'}</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Columna Combustible Centrada con Recarga integrada */}
-              <div className="border-r border-slate-100 px-2 text-center">
-                <label className={labelStyle}>Combustible</label>
-                <div className="flex items-center justify-center gap-1 text-[10px] font-bold">
-                  <div className="flex items-center gap-1 text-slate-500">
-                    <span>{unit.fuel.split('/')[0] || '--'}</span>
-                    {hasKmRecarga && unit.km.split('/')[3] && unit.km.split('/')[3].trim() !== '0' && (
-                      <span className="text-amber-600 text-[10px] font-black" title="Recarga">(R:{unit.km.split('/')[3].trim()})</span>
-                    )}
-                  </div>
-                  <span className="text-slate-200">|</span>
-                  <span className={`${unit.expense !== 'S/ 0.00' ? 'text-green-600' : 'text-slate-400'}`}>{unit.expense}</span>
+              {/* Columna Observaciones */}
+              <div className="border-r border-slate-100 px-2">
+                <label className={labelStyle}>Observaciones</label>
+                <div className="text-[11px] text-slate-600 leading-tight">
+                  {unit.mechanics || '--'}
                 </div>
               </div>
             </>
           )}
 
-          {/* Columna Partes con Color Ámbar Suave */}
-          <div className="border-r border-slate-100 px-2 text-center">
-            <label className={labelStyle}>Partes</label>
-            <div className="w-5 h-5 mx-auto flex items-center justify-center bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-black shadow-sm">
-              {unit.parts}
-            </div>
-          </div>
-
-          {/* Columna Motivo */}
-          <div className="px-2 min-w-0">
-            <label className={labelStyle}>Motivo</label>
-            <div className="text-[10px] font-black text-slate-500 truncate uppercase">{unit.reason || '--'}</div>
-          </div>
-
           {/* Columna Acciones */}
-          <div className="text-right flex justify-end gap-1">
-            <button onClick={onEdit} title="Editar" className="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-1.5 rounded-lg transition-all"><span className="material-symbols-outlined text-[16px]">edit</span></button>
-            <button onClick={() => setShowDeleteModal(true)} title="Eliminar" className="text-slate-400 hover:text-red-600 bg-slate-50 hover:bg-red-50 p-1.5 rounded-lg transition-all"><span className="material-symbols-outlined text-[16px]">delete</span></button>
+          <div className="text-right flex justify-end gap-2 items-center">
+            {(() => {
+              const key = unit.unit_id || unit.tempId || unit.id || '';
+              const status = saveStatus?.[key];
+              if (!status) return null;
+              return status === 'saving'
+                ? <span className="material-symbols-outlined text-amber-500 text-[18px] animate-spin">progress_activity</span>
+                : status === 'saved'
+                ? <span className="material-symbols-outlined text-green-500 text-[18px]">check_circle</span>
+                : <span className="material-symbols-outlined text-red-500 text-[18px]" title="Error al guardar">cancel</span>;
+            })()}
+            {!readOnly && (
+              <button onClick={onEdit} title="Editar" className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 px-2.5 py-1 rounded-lg transition-all flex items-center group shadow-sm hover:shadow-md active:scale-95">
+                <Pencil className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       </div>

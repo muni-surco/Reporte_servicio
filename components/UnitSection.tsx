@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 import UnitCard from './UnitCard';
 import { UnitData } from '../types';
 
@@ -7,15 +8,33 @@ interface UnitSectionProps {
   type: 'CHOFER' | 'MOTO' | 'SERENO';
   icon: string;
   badge: string;
-  partesTotal: number;
   units: UnitData[];
   allUnits: UnitData[];
   onEdit: (id: string) => void;
   onSave: (unit: UnitData) => void;
-  onCancel: (id: string) => void;
+  onCancel: () => void;
   onAdd: (type: 'CHOFER' | 'MOTO' | 'SERENO') => void;
-  onDelete: (id: string) => void;
   editingId: string | null;
+  mobileData?: { id: string; plate: string; }[];
+  statusOptions?: string[];
+  indicativeOptions?: string[];
+  personnelOptions?: string[];
+  quadrantOptions?: string[];
+  radioOptions?: string[];
+  lugarOptions?: string[];
+  motivoStatusOptions?: Record<string, string[]>;
+  currentDate: string;
+  currentShift: string;
+  isSaving?: boolean;
+  saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
+  readOnly?: boolean;
+  // Cuando es false, oculta el botón "NUEVO REGISTRO" (pero permite editar)
+  showAdd?: boolean;
+  personnelRegimenMap?: Record<string, string>;
+  codigoBodycamOptions?: string[];
+  codigoTaserOptions?: string[];
+  codigoBodycamSuggestions?: string[];
+  codigoTaserSuggestions?: string[];
 }
 
 const UnitSection: React.FC<UnitSectionProps> = ({
@@ -23,17 +42,34 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   type,
   icon,
   badge,
-  partesTotal,
   units,
   allUnits,
   onEdit,
   onSave,
   onCancel,
   onAdd,
-  onDelete,
-  editingId
+  editingId,
+  mobileData,
+  statusOptions,
+  indicativeOptions,
+  personnelOptions,
+  quadrantOptions,
+  radioOptions,
+  lugarOptions,
+  motivoStatusOptions,
+  currentDate,
+  currentShift,
+  isSaving,
+  saveStatus,
+  readOnly,
+  showAdd = true,
+  personnelRegimenMap,
+  codigoBodycamOptions,
+  codigoTaserOptions,
+  codigoBodycamSuggestions,
+  codigoTaserSuggestions
 }) => {
-  // Configuración de colores claros según el tipo (Actualizado MOTO a Violeta)
+  // Configuración de colores claros según el tipo
   const colorConfig = {
     CHOFER: {
       bgHeader: 'bg-blue-50/80',
@@ -56,43 +92,63 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   }[type];
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-5">
-      <div className={`${colorConfig.bgHeader} px-4 py-2.5 border-b ${colorConfig.borderHeader} flex items-center justify-between sticky top-0 z-10 backdrop-blur-sm`}>
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-5">
+      <div className={`${colorConfig.bgHeader} px-4 py-2.5 border-b ${colorConfig.borderHeader} flex items-center justify-between rounded-t-xl`}>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className={`material-symbols-outlined ${colorConfig.textAccent} text-[20px]`}>{icon}</span>
-            <h2 className="text-[12px] font-black text-slate-800 uppercase tracking-tighter">
-              {title} <span className={`${colorConfig.badgeBg} text-white px-1.5 py-0.5 rounded text-[10px] ml-1 shadow-sm`}>{badge}</span>
+            <h2 className={`text-[16px] font-medium ${colorConfig.textAccent} uppercase tracking-tighter`}>
+              {title} <span className={`${colorConfig.badgeBg} text-white px-1.5 rounded text-[12px] ml-1 shadow-sm`}>{badge}</span>
             </h2>
           </div>
-          <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">
-            Acumulado Partes: {partesTotal}
-          </span>
         </div>
-        <button
-          onClick={() => onAdd(type)}
-          className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-black hover:opacity-70 group transition-all`}
-        >
-          <span className="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform">add_circle</span> REGISTRAR
-        </button>
+        {!readOnly && showAdd && (
+          <button
+            onClick={() => onAdd(type)}
+            className={`${colorConfig.textAccent} flex items-center gap-1 text-[12px] font-medium hover:opacity-70 group transition-all`}
+          >
+            <Plus className="w-5 h-5" />
+            NUEVO REGISTRO
+          </button>
+        )}
       </div>
 
       <div className="p-3 bg-slate-50/30">
         {units.length === 0 ? (
-          <div className="text-center py-8 text-slate-300 text-[10px] italic font-black uppercase tracking-widest">No hay registros en esta sección</div>
+          <div className="text-center py-8 text-slate-300 text-[12px] italic font-medium uppercase tracking-widest">No hay registros en esta sección</div>
         ) : (
-          units.map((unit, index) => (
-            <UnitCard
-              key={unit.id || `new-${index}`}
-              unit={unit}
-              allUnits={allUnits}
-              isEditing={editingId !== null && (editingId === unit.id || (unit.id === '' && editingId.startsWith('N-')))}
-              onEdit={() => onEdit(unit.id)}
-              onSave={onSave}
-              onCancel={() => onCancel(unit.id)}
-              onDelete={() => onDelete(unit.id)}
-            />
-          ))
+          units.map((unit, index) => {
+            const unitIdentifier = unit.unit_id || unit.id || unit.tempId || `idx-${index}`;
+            return (
+              <UnitCard
+                key={unitIdentifier}
+                unit={unit}
+                allUnits={allUnits}
+                isEditing={editingId !== null && (editingId === unit.unit_id || editingId === unit.id || editingId === unit.tempId)}
+                onEdit={() => onEdit(unitIdentifier)}
+                onSave={onSave}
+                onCancel={() => onCancel()}
+                mobileData={mobileData}
+                statusOptions={statusOptions}
+                indicativeOptions={indicativeOptions}
+                personnelOptions={personnelOptions}
+                quadrantOptions={quadrantOptions}
+                radioOptions={radioOptions}
+                lugarOptions={lugarOptions}
+                motivoStatusOptions={motivoStatusOptions}
+                currentDate={currentDate}
+                currentShift={currentShift}
+                isSaving={isSaving}
+                saveStatus={saveStatus}
+                readOnly={readOnly}
+                personnelRegimenMap={personnelRegimenMap}
+                codigoBodycamOptions={codigoBodycamOptions}
+                codigoTaserOptions={codigoTaserOptions}
+                codigoBodycamSuggestions={codigoBodycamSuggestions}
+                codigoTaserSuggestions={codigoTaserSuggestions}
+              />
+            );
+          })
         )}
       </div>
     </div>
