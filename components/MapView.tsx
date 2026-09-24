@@ -149,7 +149,6 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
   const [quadrantSearchQuery, setQuadrantSearchQuery] = useState('');
   const [showQuadrantResults, setShowQuadrantResults] = useState(false);
   const [mapDark, setMapDark] = useState(false);
-  const [showUnitMarkers, setShowUnitMarkers] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string[]>([]);
   const [showSectorDropdown, setShowSectorDropdown] = useState(false);
@@ -157,7 +156,6 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
   const lightLayerRef = useRef<any>(null);
   const darkLayerRef = useRef<any>(null);
   const quadrantLayersRef = useRef<Map<string, any>>(new Map());
-  const markerLayerRef = useRef<any>(null);
 
   const allQuadrantNames = useMemo(() => {
     if (!geoJsonData?.features) return [];
@@ -574,50 +572,6 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
     });
   }, [quadrantDetailMap]);
 
-  // Capa de marcadores por unidad (Ver Unidades)
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (markerLayerRef.current) {
-      map.removeLayer(markerLayerRef.current);
-      markerLayerRef.current = null;
-    }
-    if (!showUnitMarkers) return;
-    const L = (window as any).L;
-    const markers = L.layerGroup();
-    const seen = new Set<string>();
-    quadrantDetailMap.forEach((detail, name) => {
-      const qLayer = quadrantLayersRef.current.get(name);
-      if (!qLayer) return;
-      const pos = qLayer.getBounds().getCenter();
-      detail.units.forEach((entry: any) => {
-        if (entry.id && seen.has(entry.id)) return;
-        if (entry.id) seen.add(entry.id);
-        const color = entry.type === 'CHOFER' ? '#2563eb' : entry.type === 'MOTO' ? '#7c3aed' : '#0d9488';
-        const marker = L.marker(pos, {
-          icon: L.divIcon({
-            className: '',
-            html: `<div style="width:24px;height:24px;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.45);border:2px solid #fff;cursor:pointer"><span class="material-symbols-outlined" style="font-size:12px">${TYPE_ICONS[entry.type] || 'radio'}</span></div>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-          }),
-          title: entry.id || ''
-        });
-        marker.bindPopup(buildPopupContent(name, detail));
-        marker.on('click', () => {
-          const ql = quadrantLayersRef.current.get(name);
-          if (ql && map) {
-            map.flyToBounds(ql.getBounds(), { maxZoom: 16, duration: 1 });
-            setTimeout(() => ql.openPopup(), 700);
-          }
-        });
-        markers.addLayer(marker);
-      });
-    });
-    markers.addTo(map);
-    markerLayerRef.current = markers;
-  }, [showUnitMarkers, quadrantDetailMap, filteredGeoJsonData]);
-
   const totalQuadrants = filteredGeoJsonData?.features?.length || 0;
   const occupiedCount = filteredGeoJsonData?.features
     ? filteredGeoJsonData.features.filter((f: any) => {
@@ -852,14 +806,6 @@ const MapView: React.FC<MapViewProps> = ({ allSectorsData, settings }) => {
             >
               <span className="material-symbols-outlined text-[16px]">offline_bolt</span>
               {showTaserOnly ? `Taser: Activo (${taserCount})` : `Taser (${taserCount})`}
-            </button>
-            <div className="h-px bg-slate-100 my-1"></div>
-            <button 
-              onClick={() => setShowUnitMarkers(!showUnitMarkers)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${showUnitMarkers ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-500 border-slate-100'} border`}
-            >
-              <span className="material-symbols-outlined text-[16px]">push_pin</span>
-              Ver Unidades
             </button>
             <div className="h-px bg-slate-100 my-1"></div>
             <button 
