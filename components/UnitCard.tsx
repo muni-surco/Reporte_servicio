@@ -4,6 +4,8 @@ import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TY
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
 
+declare const google: any;
+
 interface UnitCardProps {
   unit: UnitData;
   allUnits: UnitData[];
@@ -221,7 +223,7 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
       UnitStatus.FIN_APOYO,
       UnitStatus.SIN_OPERADOR
     ];
-    const isSpecialStatus = specialStatuses.includes(formData.status?.toUpperCase());
+    const isSpecialStatus = specialStatuses.includes((formData.status?.toUpperCase() || '') as UnitStatus);
     const isNoPersonnelStatus = [
       UnitStatus.SIN_CONDUCTOR,
       UnitStatus.MANTENIMIENTO,
@@ -230,7 +232,7 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
       UnitStatus.SINIESTRO,
       UnitStatus.FIN_APOYO,
       UnitStatus.SIN_OPERADOR
-    ].includes(formData.status?.toUpperCase()) || isTacticoPPFFStatus(formData.status);
+    ].includes((formData.status?.toUpperCase() || '') as UnitStatus) || isTacticoPPFFStatus(formData.status);
 
     const isDesperfectos = formData.status?.toUpperCase() === UnitStatus.DESPERFECTOS;
 
@@ -415,8 +417,8 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
   const getBadgeClass = (status: string) => {
     const s = String(status || '').toUpperCase();
     if (badgeColors[status]) return badgeColors[status];
-    if (redStatusPatterns.includes(s)) return "bg-red-100 text-red-700 border-red-200";
-    if (grayStatusPatterns.includes(s)) return "bg-slate-100 text-slate-700 border-slate-200";
+    if (redStatusPatterns.includes(s as UnitStatus)) return "bg-red-100 text-red-700 border-red-200";
+    if (grayStatusPatterns.includes(s as UnitStatus)) return "bg-slate-100 text-slate-700 border-slate-200";
     return "bg-slate-100 text-slate-700 border-slate-200";
   };
 
@@ -439,7 +441,15 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
         <label className={labelStyleEdit}>{label}</label>
         <div className="flex items-center h-[32px]">
           <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" checked={isOn} onChange={() => setFormData(prev => ({ ...prev, [field]: prev[field] === 'SI' ? '' : 'SI' }))} />
+            <input type="checkbox" className="sr-only peer" checked={isOn} onChange={() => setFormData(prev => {
+              const next = prev[field] === 'SI' ? '' : 'SI';
+              return {
+                ...prev,
+                [field]: next,
+                ...(field === 'taser' && next !== 'SI' ? { codigoTaser: '' } : {}),
+                ...(field === 'bodycam' && next !== 'SI' ? { codigoBodycam: '' } : {})
+              };
+            })} />
             <div className="w-9 h-5 bg-[#D0D5E8] rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#005ea5]"></div>
           </label>
           <span className={`ml-1.5 text-[10px] font-medium ${isOn ? 'text-[#005ea5]' : 'text-[#8888AA]'}`}>{isOn ? 'SI' : 'NO'}</span>
