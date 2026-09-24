@@ -2276,9 +2276,12 @@ export const generateOperatividadReport = (
   // Deduplicar registros de unidades
   const cleanUnits = dedupeUnitsByDataId(units, mobileData);
 
-  // Mapeo de retenes activos
+  // Mapeo de retenes activos: si el reemplazo ya tiene salida registrada
+  // (fechaSalidaTaller/horaSalidaTaller), el retén terminó y no debe
+  // considerarse en el reporte.
   const retenByUnit = new Map<string, string>();
   (retenData || []).forEach(r => {
+    if ((r.fechaSalidaTaller || '').toString().trim()) return;
     const key = normalize(r.replacedUnit);
     if (key && !retenByUnit.has(key)) retenByUnit.set(key, String(r.retenUnit || '').trim());
   });
@@ -2361,11 +2364,11 @@ export const generateOperatividadReport = (
 
     groupRows.push([
       g,
-      efectivos || '--',
-      sinPatrullar || '--',
-      patrullando || '--',
-      inoperativos || '--',
-      retens || '--'
+      efectivos || '',
+      sinPatrullar || '',
+      patrullando || '',
+      inoperativos || '',
+      retens ? retens : 'No aplica'
     ]);
   });
 
@@ -2443,7 +2446,7 @@ export const generateOperatividadReport = (
       ], [
         'ID', 'PLACA', 'MOTIVO / FALLA TÉCNICA'
       ]],
-      body: rentingInop.map(u => [u.id || '--', u.plate || '--', motivoInop(u)]),
+      body: rentingInop.map(u => [u.id || '', u.plate || '', motivoInop(u)]),
       theme: 'grid',
       styles: { fontSize: 6.5, halign: 'center', cellPadding: 0.8 },
       headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontSize: 6.5 },
@@ -2466,7 +2469,7 @@ export const generateOperatividadReport = (
       ], [
         'PLACA', 'MOTIVO / FALLA TÉCNICA'
       ]],
-      body: yamahaInop.map(u => [u.plate || '--', motivoInop(u)]),
+      body: yamahaInop.map(u => [u.plate || '', motivoInop(u)]),
       theme: 'grid',
       styles: { fontSize: 6.5, halign: 'center', cellPadding: 0.8 },
       headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontSize: 6.5 },
@@ -2488,7 +2491,7 @@ export const generateOperatividadReport = (
       ], [
         'PLACA', 'MOTIVO / FALLA TÉCNICA'
       ]],
-      body: hondaInop.map(u => [u.plate || '--', motivoInop(u)]),
+      body: hondaInop.map(u => [u.plate || '', motivoInop(u)]),
       theme: 'grid',
       styles: { fontSize: 6.5, halign: 'center', cellPadding: 0.8 },
       headStyles: { fillColor: [185, 28, 28], textColor: [255, 255, 255], fontSize: 6.5 },
