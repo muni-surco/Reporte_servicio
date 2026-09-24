@@ -5,12 +5,15 @@ const distPath = path.join(process.cwd(), 'dist');
 const assetsPath = path.join(distPath, 'assets');
 const reportsAssetsPath = path.join(distPath, 'reports-assets');
 
-// 1. Copy Code.gs to dist
-const sourceGs = path.join(process.cwd(), 'Code.gs');
-const destGs = path.join(distPath, 'Code.gs');
-if (fs.existsSync(sourceGs)) {
-    fs.copyFileSync(sourceGs, destGs);
-    console.log('Copied Code.gs to dist/');
+// 1. Copy backend .gs files to dist (Code.gs, Firebase.gs, QuadrantsData.gs)
+const gasFiles = ['Code.gs', 'Firebase.gs', 'QuadrantsData.gs'];
+for (const file of gasFiles) {
+    const sourceGs = path.join(process.cwd(), file);
+    const destGs = path.join(distPath, file);
+    if (fs.existsSync(sourceGs)) {
+        fs.copyFileSync(sourceGs, destGs);
+        console.log(`Copied ${file} to dist/`);
+    }
 }
 
 // 2. Process JS and CSS into .html files

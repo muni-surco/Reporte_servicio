@@ -2515,3 +2515,342 @@ export const generateOperatividadReport = (
   const fileName = `REPORTE_OPERATIVIDAD_${shift.toUpperCase()}_${date}.pdf`;
   doc.save(fileName);
 };
+
+// ---------------------------------------------------------------------------
+// CALENDARIO DE PATRULLAJE MENSUAL
+// ---------------------------------------------------------------------------
+
+export interface MonthlyPatrolData {
+  yearMonth: string;
+  daysInMonth: number;
+  fleet: { id: string; type: string; tipo?: string; sector?: string }[];
+  refs: { date: string; shift: string; units: { id: string; type: string; status: string; sector?: string }[] }[];
+}
+
+/**
+ * Calendario mensual de patrullaje por unidad móvil: una columna por día
+ * (1..N) y cada día dividido en los 3 turnos (M/T/N). Verde = patrulló,
+ * rojo = no patrulló (incluye turnos sin registro).
+ */
+export const generateMonthlyPatrolReport = (
+  monthData: MonthlyPatrolData,
+  operatorName?: string
+) => {
+  const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();   // 297
+  const pageH = doc.internal.pageSize.getHeight();  // 210
+  const M = 7;
+  const normalize = normalizeText;
+  // Siempre 31 columnas (mes calendario completo) tal como se solicitó; los
+  // días inexistentes de meses cortos (p. ej. 29-31 en febrero) quedan en rojo.
+  const days = 31;
+
+  // Mismo criterio que el reporte de operatividad: PATRULLANDO, APOYO*,
+  // TÁCTICO PP.FF. y MANTENIMIENTO cuentan como patrullando.
+  const isPatrolled = (status: string) => {
+    const s = normalize(status);
+    return s === 'PATRULLANDO' || s === 'MANTENIMIENTO' || s.includes('APOYO') || isTacticoPPFFStatus(status);
+  };
+
+  // Universo de unidades: SOLO VEHÍCULOS TIPO AUTOMÓVIL (regla estricta).
+  // La columna TIPO de la hoja DATA debe contener 'AUTOMOVIL' explícitamente
+  // (un tipo vacío NO cuenta — fue la fuga que dejaba pasar serenos/camionetas),
+  // y el type de la unidad no puede ser MOTO ni SERENO. Las unidades de los
+  // turnos que no están en DATA solo se muestran si su type es CHOFER.
+  const tipoByUnitId = new Map<string, string>();
+  (monthData?.fleet || []).forEach(f => {
+    const id = normalize(f.id);
+    if (id) tipoByUnitId.set(id, normalize(f.tipo || ''));
+  });
+  const esAutomovilPorTipo = (rawTipo: string): boolean => {
+    const t = normalize(rawTipo);
+    return !!t && t.includes('AUTOMOVIL');
+  };
+  const seen = new Map<string, string>(); // id normalizado → id visible
+  (monthData?.fleet || []).forEach(f => {
+    const id = normalize(f.id);
+    if (!id) return;
+    const t = normalize(f.type);
+    if (t === 'MOTO' || t === 'SERENO') return; // nunca motos ni serenos
+    if (!esAutomovilPorTipo(f.tipo)) return;    // solo AUTOMOVIL explícito en DATA
+    seen.set(id, id);
+  });
+  (monthData?.refs || []).forEach(ref => {
+    (ref.units || []).forEach(u => {
+      const id = normalize(u.id);
+      if (!id) return;
+      const t = normalize(u.type);
+      if (t === 'MOTO' || t === 'SERENO') return;
+      const dataTipo = tipoByUnitId.get(id);
+      if (dataTipo !== undefined) {
+        if (!esAutomovilPorTipo(dataTipo)) return; // está en DATA pero no es automóvil
+      } else if (t !== 'CHOFER') {
+        return; // no está en DATA y no es CHOFER → no se confirma
+      }
+      seen.set(id, id);
+    });
+  });
+
+  // Índice de patrullaje por turno: `date|shift` → id → patrulló?
+  const patrolByRef = new Map<string, Map<string, boolean>>();
+  (monthData?.refs || []).forEach(ref => {
+    const map = new Map<string, boolean>();
+    (ref.units || []).forEach(u => {
+      const id = normalize(u.id);
+      if (!id) return;
+      if (u.type && normalize(u.type) === 'SERENO') return;
+      map.set(id, isPatrolled(u.status));
+    });
+    patrolByRef.set(`${ref.date}|${ref.shift}`, map);
+  });
+
+  // Sector por unidad: prioridad a DATA (hoja), si no el sector más frecuente en
+  // los registros del mes. Se usa para agrupar las filas por sector.
+  const sectorCount = new Map<string, Map<string, number>>();
+  (monthData?.refs || []).forEach(ref =>
+    (ref.units || []).forEach(u => {
+      const id = normalize(u.id);
+      const s = normalize(u.sector || '');
+      if (!id || !s) return;
+      if (!sectorCount.has(id)) sectorCount.set(id, new Map<string, number>());
+      const m = sectorCount.get(id)!;
+      m.set(s, (m.get(s) || 0) + 1);
+    })
+  );
+  const sectorById = new Map<string, string>();
+  (monthData?.fleet || []).forEach(f => {
+    const id = normalize(f.id);
+    const s = normalize(f.sector);
+    if (id && s) sectorById.set(id, s);
+  });
+  const sectorFor = (id: string): string => {
+    const fromData = sectorById.get(id);
+    if (fromData) return fromData;
+    const counts = sectorCount.get(id);
+    if (!counts) return '';
+    let best = '';
+    let bestN = 0;
+    counts.forEach((n, s) => {
+      if (n > bestN) {
+        bestN = n;
+        best = s;
+      }
+    });
+    return best;
+  };
+
+  const monthNames = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+  const ymParts = (monthData?.yearMonth || '').split('-');
+  const monthLabel = ymParts[1] ? `${monthNames[Number(ymParts[1]) - 1]} ${ymParts[0]}` : (monthData?.yearMonth || '');
+
+  const sectorW = 12;
+  const unitW = 18;
+  const dayW = (pageW - 2 * M - sectorW - unitW) / days;
+  const subW = dayW / 3;
+  const rowH = 4.8;
+  const G = [34, 197, 94];   // verde: patrulló
+  const R = [239, 68, 68];   // rojo: no patrulló
+  const FUTURE = [203, 213, 225]; // gris: turno/día futuro (aún no inicia — no cuenta como "no patrulló")
+
+  // Dentro de cada día, los 3 turnos en fila: M | T | N lado a lado
+  const SHIFTS = ['M', 'T', 'N'];
+  const SHIFT_NAMES = ['MAÑANA', 'TARDE', 'NOCHE'];
+
+  // Línea base para centrar verticalmente un texto (Helvetica; cap-height ≈ 0.717em)
+  const centerBaseline = (cellY: number, cellH: number, pt: number) =>
+    cellY + cellH / 2 + (pt * 0.3528 * 0.717) / 2;
+
+  // Borde izquierdo del área de días (para las líneas verticales de separación)
+  const dayX0 = M + sectorW + unitW;
+
+  // Día/turno FUTURO = aún no inicia → se pinta gris (no rojo).
+  // Determinación con la hora local al momento de generar el PDF.
+  const now = new Date();
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const reportYM = monthData?.yearMonth || '';
+  const monthFuturo = reportYM > currentYM; // mes completo futuro
+  const mesActual = reportYM === currentYM;
+  const todayDay = now.getDate();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  // Hora de inicio de cada turno (MAÑANA 06:30, TARDE 14:30, NOCHE 22:00), misma
+  // referencia de fecha de inicio que el backup (NOCHE usa la fecha de las 22:00).
+  const SHIFT_START_MIN: Record<string, number> = { MAÑANA: 390, TARDE: 870, NOCHE: 1320 };
+  const esFuturo = (d: number, shift: string): boolean => {
+    if (monthFuturo) return true;
+    if (!mesActual) return false; // mes ya pasado
+    if (d > todayDay) return true;
+    if (d < todayDay) return false;
+    return nowMin < (SHIFT_START_MIN[shift] ?? 0); // hoy: turno aún sin iniciar
+  };
+
+  const drawTitle = () => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(0, 45, 90);
+    doc.text('CALENDARIO DE PATRULLAJE MENSUAL', pageW / 2, 11, { align: 'center' });
+    doc.setFontSize(10.5);
+    doc.setTextColor(0, 75, 147);
+    doc.text(`MES: ${monthLabel}`, pageW / 2, 18, { align: 'center' });
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('SUBGERENCIA DE SEGURIDAD CIUDADANA · CENTRO DE CONTROL DE OPERACIONES (CCO)', pageW / 2, 23.5, { align: 'center' });
+
+    // Leyenda
+    const lx = M + 3;
+    const ly = 29;
+    doc.setFillColor(G[0], G[1], G[2]);
+    doc.rect(lx, ly - 3.4, 4, 3.4, 'F');
+    doc.setFillColor(R[0], R[1], R[2]);
+    doc.rect(lx + 25, ly - 3.4, 4, 3.4, 'F');
+    doc.setFillColor(FUTURE[0], FUTURE[1], FUTURE[2]);
+    doc.rect(lx + 50, ly - 3.4, 4, 3.4, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(71, 85, 105);
+    doc.text('PATRULLÓ', lx + 5, ly);
+    doc.text('NO PATRULLÓ', lx + 30, ly);
+    doc.text('FUTURO', lx + 55, ly);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.text(`(1..${days} = día · M/T/N = turnos en fila dentro del día)`, lx + 72, ly);
+    doc.text('SÓLO VEHÍCULOS TIPO AUTOMÓVIL', pageW - M - 3, ly, { align: 'right' });
+  };
+
+  const drawDayHeader = (y: number) => {
+    const headerH = 6.5;
+    const bly = centerBaseline(y, headerH, 6.5);
+    doc.setFillColor(241, 245, 249);
+    doc.rect(M, y, pageW - 2 * M, headerH, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text('SECTOR', M + sectorW / 2, bly, { align: 'center' });
+    doc.text('UNIDAD', M + sectorW + unitW / 2, bly, { align: 'center' });
+    for (let d = 1; d <= days; d++) {
+      doc.text(String(d), dayX0 + (d - 1) * dayW + dayW / 2, bly, { align: 'center' });
+    }
+    // Líneas verticales de separación entre días en la cabecera
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.08);
+    for (let d = 0; d <= days; d++) {
+      doc.line(dayX0 + d * dayW, y, dayX0 + d * dayW, y + headerH);
+    }
+    return y + headerH;
+  };
+
+  const stampFooter = () => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`OPERADOR: ${operatorName || '—'}`, M, pageH - 4.5);
+    doc.text(`GENERADO: ${new Date().toLocaleString()}`, M, pageH - 1.5);
+    doc.text(`VERDE=PATRULLÓ · ROJO=NO PATRULLÓ · GRIS=FUTURO`, pageW - M - 3, pageH - 4.5, { align: 'right' });
+  };
+
+  // Ordenar agrupado por sector (vacíos al final) y por id dentro del sector
+  const sortedUnits = Array.from(seen.values())
+    .map(id => ({ id, sector: sectorFor(id) }))
+    .sort((a, b) => {
+      const sa = a.sector || 'ZZZZ';
+      const sb = b.sector || 'ZZZZ';
+      if (sa !== sb) return sa.localeCompare(sb);
+      return a.id.localeCompare(b.id);
+    });
+
+  let y = 0;
+  let firstPage = true;
+
+  const ensureHeader = () => {
+    if (y === 0 || y + rowH > pageH - 7) {
+      if (!firstPage) doc.addPage();
+      firstPage = false;
+      drawTitle();
+      y = drawDayHeader(40);
+    }
+  };
+
+  let prevSector: string | null = null;
+  const SECTOR_GAP = 3; // margen de separación entre sectores (mm)
+  sortedUnits.forEach(({ id: u, sector: sec }) => {
+    const sectorChanged = prevSector !== null && sec !== prevSector;
+    // Espacio en blanco entre grupos de sector (si cabe en la página actual;
+    // si no, el grupo pasa a la siguiente página sin margen sobrante)
+    if (sectorChanged && y + rowH + SECTOR_GAP <= pageH - 7) {
+      y += SECTOR_GAP;
+    }
+    ensureHeader();
+
+    // Línea de separación: gruesa al cambiar de grupo de sector, fina entre filas
+    doc.setDrawColor(sectorChanged ? 30 : 203, sectorChanged ? 41 : 213, sectorChanged ? 59 : 225);
+    doc.setLineWidth(sectorChanged ? 0.5 : 0.1);
+    doc.line(M, y, pageW - M, y);
+    prevSector = sec;
+
+    // Celda SECTOR
+    doc.setFillColor(226, 232, 240);
+    doc.rect(M, y, sectorW, rowH, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(5);
+    doc.setTextColor(71, 85, 105);
+    let secText = sec || '—';
+    if (doc.getTextWidth(secText) > sectorW - 1.5) {
+      while (secText.length > 1 && doc.getTextWidth(secText + '…') > sectorW - 1.5) {
+        secText = secText.slice(0, -1);
+      }
+      secText += '…';
+    }
+    doc.text(secText, M + sectorW / 2, centerBaseline(y, rowH, 5), { align: 'center' });
+
+    // Celda de unidad
+    doc.setFillColor(241, 245, 249);
+    doc.rect(M + sectorW, y, unitW, rowH, 'F');
+    doc.setFontSize(6.5);
+    doc.setTextColor(30, 41, 59);
+    let idText = u;
+    if (doc.getTextWidth(idText) > unitW - 3) {
+      while (idText.length > 1 && doc.getTextWidth(idText + '…') > unitW - 3) {
+        idText = idText.slice(0, -1);
+      }
+      idText += '…';
+    }
+    doc.text(idText, M + sectorW + unitW / 2, centerBaseline(y, rowH, 6.5), { align: 'center' });
+
+    // Por día: los 3 turnos en fila (M | T | N) lado a lado dentro de la columna del día
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(4.3);
+    doc.setTextColor(255, 255, 255);
+    for (let d = 1; d <= days; d++) {
+      const ds = `${ymParts[0]}-${String(Number(ymParts[1])).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dayX = dayX0 + (d - 1) * dayW;
+      for (let s = 0; s < 3; s++) {
+        const futuro = esFuturo(d, SHIFT_NAMES[s]);
+        const map = patrolByRef.get(`${ds}|${SHIFT_NAMES[s]}`);
+        const green = !!(map ? map.get(u) : undefined);
+        const fill = futuro ? FUTURE : (green ? G : R);
+        doc.setFillColor(fill[0], fill[1], fill[2]);
+        doc.rect(dayX + s * subW, y, subW, rowH, 'F');
+        doc.setTextColor(futuro ? 71 : 255, futuro ? 85 : 255, futuro ? 105 : 255);
+        doc.text(SHIFTS[s], dayX + s * subW + subW / 2, centerBaseline(y, rowH, 4.3), { align: 'center' });
+      }
+    }
+    // Líneas verticales de separación entre días
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.08);
+    for (let d = 0; d <= days; d++) {
+      doc.line(dayX0 + d * dayW, y, dayX0 + d * dayW, y + rowH);
+    }
+
+    y += rowH;
+  });
+  // Línea final debajo de la última fila
+  if (sortedUnits.length > 0) {
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.1);
+    doc.line(M, y, pageW - M, y);
+  }
+
+  stampFooter();
+
+  const fileName = `CALENDARIO_PATRULLAJE_${monthData?.yearMonth || 'MES'}.pdf`;
+  doc.save(fileName);
+};

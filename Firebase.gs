@@ -445,6 +445,43 @@ function rtdbGet(path) {
 }
 
 /**
+ * GET several RTDB paths in parallel (UrlFetchApp.fetchAll, chunks of 60).
+ * Returns an array with the same length/order as `paths`; null for 404/empty.
+ * @param {string[]} paths — e.g. ["units/2026-09-01_MAÑANA", "units/2026-09-01_TARDE", ...]
+ * @returns {Array<object|null>}
+ */
+function rtdbGetAll(paths) {
+  if (!paths || paths.length === 0) return [];
+  const token = _getRTDBToken();
+  const results = new Array(paths.length);
+  const CHUNK = 60;
+  for (let start = 0; start < paths.length; start += CHUNK) {
+    const chunk = paths.slice(start, start + CHUNK);
+    const requests = chunk.map(path => ({
+      url: RTDB_BASE + '/' + path + '.json',
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    }));
+    const responses = UrlFetchApp.fetchAll(requests);
+    for (let i = 0; i < responses.length; i++) {
+      _fbReads++;
+      const code = responses[i].getResponseCode();
+      const text = responses[i].getContentText();
+      if (code === 404 || !text || text === 'null') {
+        results[start + i] = null;
+        continue;
+      }
+      if (code !== 200) {
+        throw new Error('rtdbGetAll error (' + chunk[i] + '): ' + text);
+      }
+      results[start + i] = JSON.parse(text);
+    }
+  }
+  return results;
+}
+
+/**
  * Upsert data at RTDB path (PATCH = merge).
  * @param {string} path — e.g. "units/2026-06-02_TARDE/1A_ABC123"
  * @param {object} data — plain JS object

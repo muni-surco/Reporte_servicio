@@ -1,10 +1,22 @@
 # Instrucciones de Despliegue en Google Apps Script (GAS)
 
 ## 1. Archivos del backend
-Copia el contenido del siguiente archivo local al editor de GAS:
+Copia el contenido de los siguientes archivos locales al editor de GAS
+(uno por archivo, con el mismo nombre):
 
-- **Local:** `Reporte_servicio/Code.gs`
-- **GAS:** Archivo `Code.gs` (o el nombre que tenga tu script principal).
+| Local | GAS |
+|---|---|
+| `Reporte_servicio/Code.gs` | archivo `Code.gs` (script principal) |
+| `Reporte_servicio/Firebase.gs` | archivo `Firebase.gs` (conexión RTDB/Firestore) |
+| `Reporte_servicio/QuadrantsData.gs` | archivo `QuadrantsData.gs` (cuadrantes) |
+
+> **IMPORTANTE:** si modificas `Code.gs`, revisa también `Firebase.gs`.
+> Las funciones de RTDB (`rtdbGet`, `rtdbGetAll`, `rtdbSetAll`) viven en
+> `Firebase.gs`. Si en el editor el `Firebase.gs` queda viejo, fallan con
+> `ReferenceError: rtdbGetAll is not defined`. El calendario mensual ya tiene
+> un respaldo local (`_rtdbGetAllFallback` en `Code.gs`), pero igual debes
+> actualizar `Firebase.gs` para el resto de funciones RTDB. Si el despliegue
+> es versionado, crea una NUEVA VERSIÓN después de pegar los archivos.
 
 ## 2. Archivos del frontend
 El proyecto se compila en un solo archivo HTML para compatibilidad con GAS.
@@ -13,6 +25,15 @@ Copia todo el contenido del siguiente archivo generado:
 
 - **Local:** `Reporte_servicio/dist/index.html`
 - **GAS:** Crea un archivo llamado `index.html` y pega el código.
+
+Para generar `dist/` con el backend y el frontend listos para copiar:
+
+```
+npm run build:gas
+```
+
+Esto deja en `dist/`: `Code.gs`, `Firebase.gs`, `QuadrantsData.gs`, `index.html`,
+`JavaScript.html`, `ReportJavaScript.html`, `styles.html` e `index.css`.
 
 ## 3. Configuración inicial
 Si es la primera vez que ejecutas el script:

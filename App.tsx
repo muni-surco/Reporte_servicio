@@ -1376,6 +1376,20 @@ hours: '--:-- - --:--',
         reportGenerators.generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else if (type === 'taser') {
         reportGenerators.generateTaserReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+      } else if (type === 'calendario_patrullaje') {
+        // Calendario mensual de patrullaje: usa el MES de la fecha seleccionada
+        const yearMonth = (date || '').substring(0, 7);
+        const monthData: any = await new Promise((resolve, reject) => {
+          if (typeof google !== 'undefined' && google?.script?.run) {
+            google.script.run
+              .withSuccessHandler(resolve)
+              .withFailureHandler(reject)
+              .getMonthlyShiftData(yearMonth);
+          } else {
+            resolve({ yearMonth, daysInMonth: 31, fleet: [], refs: [] });
+          }
+        });
+        reportGenerators.generateMonthlyPatrolReport(monthData, operatorName);
       } else {
         alert(`El reporte de "${type}" se encuentra en desarrollo.`);
       }

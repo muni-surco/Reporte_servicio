@@ -144,6 +144,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       themeClass: 'border-slate-200',
       iconClass: 'bg-slate-100 text-slate-700',
       btnClass: 'bg-slate-700 hover:bg-slate-800'
+    },
+    {
+      id: 'calendario_patrullaje',
+      title: 'Calendario de Patrullaje',
+      subtitle: 'CALENDARIO MENSUAL',
+      description: 'Calendario mensual SOLO de vehículos tipo AUTOMÓVIL: una columna por día con los 3 turnos (M/T/N) en verde si patrulló o rojo si no. Usa el mes de la fecha seleccionada.',
+      icon: <Calendar className="w-8 h-8" />,
+      color: 'green',
+      themeClass: 'border-green-100',
+      iconClass: 'bg-green-50 text-green-600',
+      btnClass: 'bg-green-600 hover:bg-green-700'
     }
   ];
 

@@ -323,6 +323,122 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
 }
 
 /**
+ * Monthly patrol-calendar data: reads all units for every date_SHIFT of a whole
+ * month from RTDB in parallel (rtdbGetAll) and returns a compact structure.
+ * It also includes the fleet reference (DATA) so every mobile unit can be listed
+ * even if it had no records in the month.
+ * @param {string} yearMonth — 'YYYY-MM' (mes a reportar)
+ * @returns {object} { yearMonth, daysInMonth, fleet, refs }
+ */
+function getMonthlyShiftData(yearMonth) {
+  if (!/^\d{4}-\d{2}$/.test(yearMonth || '')) {
+    throw new Error('Formato de mes inválido. Use YYYY-MM');
+  }
+  console.log('[getMonthlyShiftData] START — month=' + yearMonth);
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const tz = ss.getSpreadsheetTimeZone();
+  const parts = yearMonth.split('-');
+  const y = Number(parts[0]);
+  const m = Number(parts[1]); // 1-based
+
+  const daysInMonth = new Date(y, m, 0).getDate();
+
+  // NOCHE se guarda con la fecha de INICIO del turno (22:00), igual que el backup
+  const keys = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    // Mediodía: evita desfases de fecha si la TZ del servidor difiere de la hoja
+    const ds = Utilities.formatDate(new Date(y, m - 1, d, 12), tz, 'yyyy-MM-dd');
+    ['MAÑANA', 'TARDE', 'NOCHE'].forEach(s => keys.push(ds + '_' + s));
+  }
+
+  // usa rtdbGetAll si Firebase.gs la expone; si no, la copia local
+  // (_rtdbGetAllFallback) evita "ReferenceError: rtdbGetAll is not defined"
+  const raw = ((typeof rtdbGetAll === 'function') ? rtdbGetAll : _rtdbGetAllFallback)(keys.map(k => 'units/' + k));
+  const refs = [];
+  for (let i = 0; i < keys.length; i++) {
+    const data = raw[i];
+    if (!data) continue; // 404 / sin datos ese turno
+    const units = [];
+    Object.values(data).forEach(val => {
+      if (val && typeof val === 'object') {
+        if (val.id !== undefined) {
+          units.push(val);
+        } else {
+          Object.values(val).forEach(u => {
+            if (u && typeof u === 'object') units.push(u);
+          });
+        }
+      }
+    });
+    const shiftKey = keys[i];
+    refs.push({
+      date: shiftKey.substring(0, 10),
+      shift: shiftKey.substring(11),
+      units: units.map(u => ({
+        id: String(u.id || ''),
+        type: String(u.type || ''),
+        status: String(u.status || ''),
+        sector: String(toDisplaySector(u.sector || ''))
+      }))
+    });
+  }
+
+  // Flota de referencia (hoja DATA) para listar TODAS las unidades móviles
+  let fleet = [];
+  try {
+    fleet = (getMobileData().mobiles || []).map(m => ({
+      id: String(m.id || ''),
+      type: String(m.type || ''),
+      tipo: String(m.tipo || ''),
+      sector: String(m.sector || '')
+    }));
+  } catch (e) {
+    console.error('[getMonthlyShiftData] getMobileData falló: ' + e.message);
+  }
+
+  console.log('[getMonthlyShiftData] OK — refs=' + refs.length + ' fleet=' + fleet.length + ' days=' + daysInMonth);
+  _fbLogUsage();
+  return { yearMonth: yearMonth, daysInMonth: daysInMonth, fleet: fleet, refs: refs };
+}
+
+/**
+ * RESGUARDO rtdbGetAll: si el proyecto desplegado conserva un Firebase.gs
+ * antiguo (sin rtdbGetAll), el calendario mensual fallaba con
+ * "ReferenceError: rtdbGetAll is not defined". Esta copia local se usa solo
+ * cuando Firebase.gs no expone la función (la resolución se hace dentro de
+ * getMonthlyShiftData). Debe mantenerse en espejo con Firebase.gs (rtdbGetAll).
+ */
+function _rtdbGetAllFallback(paths) {
+  if (!paths || paths.length === 0) return [];
+  const token = _getRTDBToken();
+  const results = new Array(paths.length);
+  const CHUNK = 60;
+  for (let start = 0; start < paths.length; start += CHUNK) {
+    const chunk = paths.slice(start, start + CHUNK);
+    const requests = chunk.map(path => ({
+      url: RTDB_BASE + '/' + path + '.json',
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    }));
+    const responses = UrlFetchApp.fetchAll(requests);
+    for (let i = 0; i < responses.length; i++) {
+      const code = responses[i].getResponseCode();
+      const text = responses[i].getContentText();
+      if (code === 404 || !text || text === 'null') {
+        results[start + i] = null;
+        continue;
+      }
+      if (code !== 200) {
+        throw new Error('rtdbGetAll error (' + chunk[i] + '): ' + text);
+      }
+      results[start + i] = JSON.parse(text);
+    }
+  }
+  return results;
+}
+
+/**
  * Like getShiftData but only returns units for the requested sector (faster).
  */
 function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
@@ -2731,6 +2847,66 @@ function _backupKey(dateVal, shiftVal, sectorVal, idVal, timeZone) {
 }
 
 /**
+ * Builds the duplicate-detection key set WITHOUT loading the whole sheet into
+ * memory. Only rows whose date matches one of `targetDates` are read, because
+ * the backup only processes those dates and the key always includes the date —
+ * older rows can never collide with them.
+ *
+ * Antes se usaba getDataRange().getValues() sobre toda la hoja. Como el backup
+ * solo agrega filas, UNIT_DATA crece sin límite y leer la matriz completa cada
+ * noche agotaba la memoria del motor (error INTERNAL tras ~9 min). Ahora solo
+ * se lee la columna de fechas (1 columna) y, de esas, únicamente las filas que
+ * corresponden a las fechas objetivo, en span contiguos pequeños.
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet
+ * @param {number} idColumn 1-based column with the unit id used in the key; 0 = no id
+ * @param {string[]} targetDates yyyy-MM-dd dates being processed
+ * @param {string} timeZone spreadsheet timezone
+ * @returns {{keys: Set, lastRow: number}}
+ */
+function _buildBackupKeySet(sheet, idColumn, targetDates, timeZone) {
+  const keys = new Set();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { keys, lastRow: 1 };
+
+  const targetSet = new Set(targetDates.map(d => String(d || '').substring(0, 10)));
+  const dateCol = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const wanted = [];
+  for (let i = 0; i < dateCol.length; i++) {
+    const v = dateCol[i][0];
+    let ds;
+    if (Object.prototype.toString.call(v) === '[object Date]') {
+      ds = Utilities.formatDate(v, timeZone, 'yyyy-MM-dd');
+    } else {
+      ds = String(v || '').substring(0, 10);
+    }
+    if (targetSet.has(ds)) wanted.push(i + 2); // fila absoluta en la hoja (1-based)
+  }
+
+  if (wanted.length > 0) {
+    const lastCol = Math.min(idColumn > 0 ? idColumn : 4, sheet.getLastColumn());
+    let spanStart = 0;
+    for (let k = 1; k <= wanted.length; k++) {
+      if (k < wanted.length && wanted[k] === wanted[k - 1] + 1) continue;
+      // span contiguo wanted[spanStart..k-1]
+      const r1 = wanted[spanStart];
+      const r2 = wanted[k - 1];
+      const vals = sheet.getRange(r1, 1, r2 - r1 + 1, lastCol).getValues();
+      for (let j = spanStart; j < k; j++) {
+        const off = wanted[j] - r1;
+        const idVal = idColumn > 0 ? vals[off][idColumn - 1] : '';
+        if (idColumn > 0 && !idVal) continue;
+        keys.add(_backupKey(vals[off][0], vals[off][1], vals[off][2], idVal, timeZone));
+      }
+      spanStart = k;
+    }
+  }
+
+  console.log('[backup] ' + sheet.getName() + ': ' + wanted.length + ' filas en fechas objetivo (de ' + lastRow + ' totales)');
+  return { keys, lastRow };
+}
+
+/**
  * Incremental backup: appends only new records from RTDB to UNIT_DATA and SHIFT_SETTINGS.
  * It only processes the latest 3 turnos to keep network and quota usage low.
  */
@@ -2757,12 +2933,10 @@ function backupFirestoreToSheets() {
   // --- Incremental SHIFT_SETTINGS ---
   const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
   if (settingsSheet) {
-    const existingKeys = new Set();
-    const existingData = settingsSheet.getDataRange().getValues();
-    for (let i = 1; i < existingData.length; i++) {
-      const row = existingData[i];
-      if (row[0]) existingKeys.add(_backupKey(row[0], row[1], row[2], '', timeZone));
-    }
+    const refDates = shiftRefs.map(ref => ref.date);
+    const keySet = _buildBackupKeySet(settingsSheet, 0, refDates, timeZone);
+    const existingKeys = keySet.keys;
+    const existingDataLength = keySet.lastRow;
 
     const newRows = [];
     shiftRefs.forEach(ref => {
@@ -2801,7 +2975,7 @@ function backupFirestoreToSheets() {
     });
 
     if (newRows.length > 0) {
-      const startRow = existingData.length + 1;
+      const startRow = existingDataLength + 1;
       settingsSheet.getRange(startRow, 1, newRows.length, 22).setValues(newRows);
     }
     console.log('[backup] SHIFT_SETTINGS: ' + newRows.length + ' new rows');
@@ -2810,12 +2984,17 @@ function backupFirestoreToSheets() {
   // --- Incremental UNIT_DATA ---
   const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
   if (dataSheet) {
-    const existingKeys = new Set();
-    const existingData = dataSheet.getDataRange().getValues();
-    for (let i = 1; i < existingData.length; i++) {
-      const row = existingData[i];
-      if (!row[23]) continue;
-      existingKeys.add(_backupKey(row[0], row[1], row[2], row[23], timeZone));
+    const refDates = shiftRefs.map(ref => ref.date);
+    // Col 24 (row[23]) guarda el unit_id, usado en la clave de deduplicación.
+    const keySet = _buildBackupKeySet(dataSheet, 24, refDates, timeZone);
+    const existingKeys = keySet.keys;
+    const existingDataLength = keySet.lastRow;
+    // Las filas archivadas mantienen las mismas claves: también se escanean para
+    // que un reproceso manual de fechas antiguas no duplique registros.
+    const archiveSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData + '_ARCHIVO');
+    if (archiveSheet) {
+      const archiveKeys = _buildBackupKeySet(archiveSheet, 24, refDates, timeZone).keys;
+      archiveKeys.forEach(k => existingKeys.add(k));
     }
 
     const newRows = [];
@@ -2871,7 +3050,7 @@ function backupFirestoreToSheets() {
     });
 
     if (newRows.length > 0) {
-      const startRow = existingData.length + 1;
+      const startRow = existingDataLength + 1;
       const chunkSize = 500;
       for (let chunkStart = 0; chunkStart < newRows.length; chunkStart += chunkSize) {
         const chunk = newRows.slice(chunkStart, chunkStart + chunkSize);
@@ -2883,6 +3062,119 @@ function backupFirestoreToSheets() {
 
   console.log('[backup] Backup completed at ' + now);
   return { success: true };
+}
+
+/**
+ * Archiva filas viejas de UNIT_DATA a la hoja UNIT_DATA_ARCHIVO (misma
+ * estructura de 34 columnas). El proceso es siempre: copiar → verificar →
+ * borrar; nunca se borra directo. Solo se archivan turnos con fecha anterior
+ * a `olderThanDays` días (30 por defecto). Los registros NO se eliminan: quedan
+ * completos en la hoja de archivo.
+ * Ejecutar manualmente una vez: archiveUnitData() — o programarlo con
+ * setupArchiveTrigger() (cada 30 días).
+ */
+function archiveUnitData(olderThanDays = 30) {
+  const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  const dataSheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+  if (!dataSheet) {
+    console.log('[archive] UNIT_DATA no encontrada');
+    return { success: false, message: 'UNIT_DATA no encontrada' };
+  }
+
+  const COLS = 34;
+  const ARCHIVE_NAME = APP_CONFIG.SHEETS.unitData + '_ARCHIVO';
+  let archSheet = ss.getSheetByName(ARCHIVE_NAME);
+  if (!archSheet) {
+    archSheet = ss.insertSheet(ARCHIVE_NAME);
+    const header = dataSheet.getRange(1, 1, 1, COLS).getValues();
+    archSheet.getRange(1, 1, 1, COLS).setValues(header);
+    archSheet.setFrozenRows(1);
+    archSheet.getRange(1, 1, 1, COLS).setFontWeight('bold').setBackground('#f1f5f9');
+    SpreadsheetApp.flush();
+    console.log('[archive] Hoja ' + ARCHIVE_NAME + ' creada con encabezado');
+  }
+
+  const lastRow = dataSheet.getLastRow();
+  if (lastRow < 2) {
+    console.log('[archive] UNIT_DATA sin datos que archivar');
+    return { success: true, archivedRows: 0 };
+  }
+
+  // Fecha límite: turnos con fecha anterior a (hoy - olderThanDays)
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - olderThanDays);
+  const cutoffMs = cutoff.getTime();
+
+  // Solo se lee la columna de fechas para ubicar filas viejas (memoria acotada)
+  const dateCol = dataSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const toArchive = [];
+  for (let i = 0; i < dateCol.length; i++) {
+    const v = dateCol[i][0];
+    let t = -1;
+    if (Object.prototype.toString.call(v) === '[object Date]') {
+      t = v.getTime();
+    } else {
+      const s = String(v || '').trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        t = new Date(s.substring(0, 10) + 'T00:00:00').getTime();
+      }
+    }
+    if (t >= 0 && t < cutoffMs) toArchive.push(i + 2); // fila absoluta en la hoja
+  }
+
+  if (toArchive.length === 0) {
+    console.log('[archive] Nada que archivar (' + lastRow + ' filas en UNIT_DATA)');
+    return { success: true, archivedRows: 0 };
+  }
+
+  // Spans contiguos de filas a archivar
+  const spans = [];
+  let spanStart = 0;
+  for (let k = 1; k <= toArchive.length; k++) {
+    if (k < toArchive.length && toArchive[k] === toArchive[k - 1] + 1) continue;
+    spans.push([toArchive[spanStart], toArchive[k - 1]]);
+    spanStart = k;
+  }
+
+  let archived = 0;
+  try {
+    // 1) COPIAR en chunks de 500 y VERIFICAR cada chunk antes de seguir
+    for (const span of spans) {
+      const r1 = span[0];
+      const r2 = span[1];
+      const n = r2 - r1 + 1;
+      for (let c = 0; c < n; c += 500) {
+        const size = Math.min(500, n - c);
+        const chunk = dataSheet.getRange(r1 + c, 1, size, COLS).getValues();
+        const targetRow = archSheet.getLastRow() + 1;
+        archSheet.getRange(targetRow, 1, size, COLS).setValues(chunk);
+        // Verificación ligera: la 1ª columna escrita debe coincidir con la copiada
+        const check = archSheet.getRange(targetRow, 1, size, 1).getValues();
+        for (let i = 0; i < size; i++) {
+          if (String(check[i][0]) !== String(chunk[i][0])) {
+            throw new Error('Verificación de archivado falló en fila ' + (targetRow + i));
+          }
+        }
+        SpreadsheetApp.flush();
+        archived += size;
+      }
+    }
+
+    // 2) BORRAR del origen de abajo hacia arriba (los índices no se corren)
+    for (let i = spans.length - 1; i >= 0; i--) {
+      dataSheet.deleteRows(spans[i][0], spans[i][1] - spans[i][0] + 1);
+    }
+    SpreadsheetApp.flush();
+
+    console.log('[archive] Archiviadas ' + archived + ' filas > ' + olderThanDays +
+      ' días (UNIT_DATA → ' + ARCHIVE_NAME + '). Quedan ' + dataSheet.getLastRow() + ' filas.');
+    return { success: true, archivedRows: archived };
+  } catch (e) {
+    // Si algo falló en la copia/verificación, NO se borró nada del origen
+    console.error('[archive] ERROR: ' + e.message + ' — no se borraron filas de UNIT_DATA.');
+    return { success: false, message: String(e.message) };
+  }
 }
 
 /**
@@ -2926,8 +3218,33 @@ function setupBackupTrigger() {
       .inTimezone(Session.getScriptTimeZone())
       .create();
   }
+  // También se agenda el archivado mensual de UNIT_DATA (idempotente)
+  setupArchiveTrigger();
   console.log('[setupBackupTrigger] Triggers created at hours: ' + safeHours.join(', '));
   return { success: true, safeHours: safeHours };
+}
+
+/**
+ * Crea el trigger mensual (cada 30 días) para archivar UNIT_DATA a las 03:00.
+ * La primera corrida es 30 días después de la creación.
+ * Ejecutar una vez desde el editor de GAS: setupArchiveTrigger()
+ * (setupBackupTrigger() ya lo incluye).
+ */
+function setupArchiveTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t => {
+    if (t.getHandlerFunction() === 'archiveUnitData') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('archiveUnitData')
+    .timeBased()
+    .atHour(3)
+    .everyDays(30)
+    .inTimezone(Session.getScriptTimeZone())
+    .create();
+  console.log('[setupArchiveTrigger] Trigger mensual creado para archiveUnitData (03:00, cada 30 días).');
+  return { success: true };
 }
 
 function include(filename) {
