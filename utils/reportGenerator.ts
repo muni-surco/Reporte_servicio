@@ -2353,8 +2353,11 @@ export const generateOperatividadReport = (
       ? secUnits.filter(u => normalize(u.status) === 'SIN CONDUCTOR').length
       : secUnits.filter(u => !isPatrullando(u) && !isMantenimiento(u) && !isInoperative(u)).length;
     // PATRULLANDO = EFECTIVO - (SIN PATRULLAR + INOPERATIVOS)
-    const patrullando = Math.max(0, efectivos - (sinPatrullar + inoperativos));
+    let patrullando = Math.max(0, efectivos - (sinPatrullar + inoperativos));
     const retens = secUnits.filter(u => retenByUnit.has(normalize(u.id))).length;
+    // En la fila PATRULLEROS, las unidades con retén activo (reemplazo AR en la calle)
+    // suman a PATRULLANDO: cubren el patrullaje de la unidad que está en taller.
+    if (g === 'PATRULLEROS') patrullando += retens;
 
     totalFlotaAcum += efectivos;
     totalSinPatrullarAcum += sinPatrullar;
