@@ -2531,10 +2531,13 @@ export interface MonthlyPatrolData {
  * Calendario mensual de patrullaje por unidad móvil: una columna por día
  * (1..N) y cada día dividido en los 3 turnos (M/T/N). Verde = patrulló,
  * rojo = no patrulló (incluye turnos sin registro).
+ * El pie de página usa el sello estándar (SUPERVISOR CCO / OPERADOR CCO /
+ * Generado el) en todas las páginas, como el resto de reportes.
  */
 export const generateMonthlyPatrolReport = (
   monthData: MonthlyPatrolData,
-  operatorName?: string
+  operatorName?: string,
+  settingsMap: Record<string, AppSettings> = {}
 ) => {
   const doc = new jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();   // 297
@@ -2552,27 +2555,44 @@ export const generateMonthlyPatrolReport = (
     return s === 'PATRULLANDO' || s === 'MANTENIMIENTO' || s.includes('APOYO') || isTacticoPPFFStatus(status);
   };
 
-  // Universo de unidades: SOLO VEHÍCULOS TIPO AUTOMÓVIL (regla estricta).
-  // La columna TIPO de la hoja DATA debe contener 'AUTOMOVIL' explícitamente
-  // (un tipo vacío NO cuenta — fue la fuga que dejaba pasar serenos/camionetas),
-  // y el type de la unidad no puede ser MOTO ni SERENO. Las unidades de los
-  // turnos que no están en DATA solo se muestran si su type es CHOFER.
+  // Universo de unidades: vehículos tipo AUTOMÓVIL de los sectores de patrullaje
+  // (regla estricta, evita la fuga de camionetas/serenos) MÁS todos los móviles
+  // de los sectores GIR, RESCATE y FISCALIZACIÓN (FISCA en la hoja DATA): en esos
+  // tres sectores el TIPO de DATA puede venir como CAMIONETA, SUV, PICKUP,
+  // vacío o mal rotulado, así que solo se descarta MOTO y SERENO. Las unidades
+  // de los turnos que no están en DATA se incluyen si su type es CHOFER.
+  // La comparación de sector/TIPO ignora tildes, puntos y espacios
+  // ('G.I.R.' → 'GIR', 'FISCALIZACIÓN' → 'FISCALIZACION').
+  const canon = (v: unknown) => normalize(v)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9]/g, '');
   const tipoByUnitId = new Map<string, string>();
-  (monthData?.fleet || []).forEach(f => {
+  const sectorByUnitId = new Map<string, string>();
+  const dataRows = monthData?.fleet || [];
+  dataRows.forEach(f => {
     const id = normalize(f.id);
-    if (id) tipoByUnitId.set(id, normalize(f.tipo || ''));
+    if (!id) return;
+    tipoByUnitId.set(id, normalize(f.tipo || ''));
+    sectorByUnitId.set(id, normalize(f.sector || ''));
   });
-  const esAutomovilPorTipo = (rawTipo: string): boolean => {
-    const t = normalize(rawTipo);
-    return !!t && t.includes('AUTOMOVIL');
+  const esAutomovilPorTipo = (rawTipo: string): boolean =>
+    canon(rawTipo).includes('AUTOMOVIL');
+  // GIR, RESCATE y FISCALIZACIÓN (FISCA / FISCALIZACION / FISCALIZACIÓN)
+  const esSectorCamioneta = (rawSector: string): boolean => {
+    const s = canon(rawSector);
+    return s === 'GIR' || s === 'RESCATE' || s.startsWith('FISCA');
   };
+  // Tipo admitido según el sector de la unidad en DATA: los sectores de
+  // camioneta admiten cualquier tipo (el type ya descarta motos y serenos).
+  const tipoAdmitido = (rawTipo: string, rawSector: string): boolean =>
+    esSectorCamioneta(rawSector) ? true : esAutomovilPorTipo(rawTipo);
   const seen = new Map<string, string>(); // id normalizado → id visible
-  (monthData?.fleet || []).forEach(f => {
+  dataRows.forEach(f => {
     const id = normalize(f.id);
     if (!id) return;
     const t = normalize(f.type);
     if (t === 'MOTO' || t === 'SERENO') return; // nunca motos ni serenos
-    if (!esAutomovilPorTipo(f.tipo)) return;    // solo AUTOMOVIL explícito en DATA
+    if (!tipoAdmitido(f.tipo, f.sector)) return;
     seen.set(id, id);
   });
   (monthData?.refs || []).forEach(ref => {
@@ -2583,7 +2603,8 @@ export const generateMonthlyPatrolReport = (
       if (t === 'MOTO' || t === 'SERENO') return;
       const dataTipo = tipoByUnitId.get(id);
       if (dataTipo !== undefined) {
-        if (!esAutomovilPorTipo(dataTipo)) return; // está en DATA pero no es automóvil
+        // está en DATA → manda el tipo de DATA con el sector de DATA
+        if (!tipoAdmitido(dataTipo, sectorByUnitId.get(id) || u.sector || '')) return;
       } else if (t !== 'CHOFER') {
         return; // no está en DATA y no es CHOFER → no se confirma
       }
@@ -2687,7 +2708,7 @@ export const generateMonthlyPatrolReport = (
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(0, 45, 90);
-    doc.text('CALENDARIO DE PATRULLAJE MENSUAL', pageW / 2, 11, { align: 'center' });
+    doc.text('PARTE DIARIO DE LAS UNIDADES MOVILES', pageW / 2, 11, { align: 'center' });
     doc.setFontSize(10.5);
     doc.setTextColor(0, 75, 147);
     doc.text(`MES: ${monthLabel}`, pageW / 2, 18, { align: 'center' });
@@ -2713,7 +2734,13 @@ export const generateMonthlyPatrolReport = (
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.text(`(1..${days} = día · M/T/N = turnos en fila dentro del día)`, lx + 72, ly);
-    doc.text('SÓLO VEHÍCULOS TIPO AUTOMÓVIL', pageW - M - 3, ly, { align: 'right' });
+    doc.text('AUTOMÓVILES + CAMIONETAS DE GIR / RESCATE / FISCALIZACIÓN', pageW - M - 3, ly, { align: 'right' });
+    // Resumen de la leyenda de colores (el pie del documento lo ocupa el sello
+    // estándar con SUPERVISOR CCO / OPERADOR CCO / Generado el)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text('VERDE = PATRULLÓ · ROJO = NO PATRULLÓ · GRIS = TURNO FUTURO', pageW - M - 3, 35, { align: 'right' });
   };
 
   const drawDayHeader = (y: number) => {
@@ -2738,14 +2765,8 @@ export const generateMonthlyPatrolReport = (
     return y + headerH;
   };
 
-  const stampFooter = () => {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`OPERADOR: ${operatorName || '—'}`, M, pageH - 4.5);
-    doc.text(`GENERADO: ${new Date().toLocaleString()}`, M, pageH - 1.5);
-    doc.text(`VERDE=PATRULLÓ · ROJO=NO PATRULLÓ · GRIS=FUTURO`, pageW - M - 3, pageH - 4.5, { align: 'right' });
-  };
+  // La leyenda de colores se dibuja en el encabezado (drawTitle); el pie del
+  // documento lo ocupa el sello estándar con SUPERVISOR CCO / OPERADOR CCO.
 
   // Ordenar agrupado por sector (vacíos al final) y por id dentro del sector
   const sortedUnits = Array.from(seen.values())
@@ -2761,7 +2782,8 @@ export const generateMonthlyPatrolReport = (
   let firstPage = true;
 
   const ensureHeader = () => {
-    if (y === 0 || y + rowH > pageH - 7) {
+    // pageH - 12: deja libre la franja del pie (Generado el / SUPERVISOR CCO)
+    if (y === 0 || y + rowH > pageH - 12) {
       if (!firstPage) doc.addPage();
       firstPage = false;
       drawTitle();
@@ -2775,7 +2797,7 @@ export const generateMonthlyPatrolReport = (
     const sectorChanged = prevSector !== null && sec !== prevSector;
     // Espacio en blanco entre grupos de sector (si cabe en la página actual;
     // si no, el grupo pasa a la siguiente página sin margen sobrante)
-    if (sectorChanged && y + rowH + SECTOR_GAP <= pageH - 7) {
+    if (sectorChanged && y + rowH + SECTOR_GAP <= pageH - 12) {
       y += SECTOR_GAP;
     }
     ensureHeader();
@@ -2849,8 +2871,14 @@ export const generateMonthlyPatrolReport = (
     doc.line(M, y, pageW - M, y);
   }
 
-  stampFooter();
+  // Pie de página estándar (SUPERVISOR CCO · OPERADOR CCO · Generado el) en
+  // todas las páginas, igual que el resto de reportes. El supervisor sale del
+  // sector C4 de los ajustes del turno seleccionado.
+  const c4Supervisor = resolveC4Supervisor(settingsMap)
+    || (((Object.values(settingsMap)[0] || {}) as any).supervisor || '');
+  const resolvedOperator = resolveOperator(settingsMap, operatorName);
+  stampReportFooter(doc, pageW, pageH, M, c4Supervisor, resolvedOperator, new Date().toLocaleString());
 
-  const fileName = `CALENDARIO_PATRULLAJE_${monthData?.yearMonth || 'MES'}.pdf`;
+  const fileName = `PARTE_DIARIO_DE_LAS_UNIDADES_MOVILES_${monthData?.yearMonth || 'MES'}.pdf`;
   doc.save(fileName);
 };

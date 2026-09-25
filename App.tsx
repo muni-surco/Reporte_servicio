@@ -1389,7 +1389,7 @@ hours: '--:-- - --:--',
             resolve({ yearMonth, daysInMonth: 31, fleet: [], refs: [] });
           }
         });
-        reportGenerators.generateMonthlyPatrolReport(monthData, operatorName);
+        reportGenerators.generateMonthlyPatrolReport(monthData, operatorName, dataToUse.allSectorSettings || {});
       } else {
         alert(`El reporte de "${type}" se encuentra en desarrollo.`);
       }
