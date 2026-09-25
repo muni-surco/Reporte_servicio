@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound, ShieldCheck, Activity } from 'lucide-react';
+import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound, ShieldCheck, Activity, Search } from 'lucide-react';
 import AutocompleteInput from './AutocompleteInput';
 
 interface ReportGeneratorViewProps {
@@ -22,6 +22,11 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   const [localShift, setLocalShift] = useState(selectedShift);
   const [localOperator, setLocalOperator] = useState<string>('');
   const [operatorError, setOperatorError] = useState<string | null>(null);
+  // Vista de listado: la generación se hace desde cada fila, sin card aparte.
+  // Los filtros por categoría + buscador acortan la lista para que la pantalla
+  // no haga scroll a medida que se agreguen reportes
+  const [groupFilter, setGroupFilter] = useState('Todas');
+  const [query, setQuery] = useState('');
 
   const reportTypes = [
     {
@@ -158,6 +163,37 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
     }
   ];
 
+  // Agrupación de la lista lateral (reportes nuevos se suman sin generar scroll)
+  const REPORT_GROUPS: Record<string, string> = {
+    operatividad: 'Operatividad',
+    general: 'Operatividad',
+    motos: 'Flotas',
+    motos_honda: 'Flotas',
+    motos_consolidado: 'Flotas',
+    moviles: 'Flotas',
+    consolidado: 'Flotas',
+    sipcop: 'Flotas',
+    asistencia_regimen: 'Personal',
+    asistencia_estado: 'Personal',
+    taser: 'Personal',
+    calendario_patrullaje: 'Patrullaje'
+  };
+  const GROUP_ORDER = ['Operatividad', 'Flotas', 'Personal', 'Patrullaje'];
+  const groupTabs = ['Todas', ...GROUP_ORDER];
+  // Búsqueda sin tildes ni mayúsculas
+  const flat = (v: string) => v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const filteredReports = reportTypes.filter(r => {
+    const q = flat(query.trim());
+    if (!q) return true;
+    return flat(`${r.title} ${r.subtitle} ${r.description}`).includes(q);
+  });
+  // Categoría activa + búsqueda: la lista se acota para que entre sin scroll
+  const listedReports = filteredReports.filter(r =>
+    groupFilter === 'Todas' || REPORT_GROUPS[r.id] === groupFilter
+  );
+  const countByGroup = (group: string) =>
+    group === 'Todas' ? filteredReports.length : filteredReports.filter(r => REPORT_GROUPS[r.id] === group).length;
+
   const handleGenerate = (id: string) => {
     if (!localOperator || localOperator.trim() === '') {
       setOperatorError('El campo operador es obligatorio para generar el reporte');
@@ -174,9 +210,9 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
   };
 
   return (
-    <div className="mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="h-full flex flex-col gap-4 animate-in fade-in duration-500">
       {/* Filters Bar */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
+      <div className="shrink-0 bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <div className="w-10 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
             <Calendar className="w-5 h-5 text-blue-600" />
@@ -238,62 +274,103 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
         </div>
       </div>
 
-      {/* Report Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {reportTypes.map((report) => (
-          <div
-            key={report.id}
-            className={`group bg-white rounded-2xl border ${report.themeClass} shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col`}
-          >
-            <div className="p-6 flex-1 flex flex-col">
-              <div className="flex items-start gap-4 mb-5">
-                <div className={`w-14 h-14 rounded-2xl ${report.iconClass} flex items-center justify-center flex-shrink-0 shadow-sm transition-transform group-hover:scale-105`}>
-                  {report.icon}
-                </div>
-                <div className="flex flex-col">
-                  <h3 className="text-base font-bold text-slate-800 leading-tight group-hover:text-blue-700 transition-colors">
-                    {report.title}
-                  </h3>
-                  <span className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
-                    {report.subtitle}
-                  </span>
-                </div>
-              </div>
+      {/* Listado de reportes: cada fila trae su propio botón GENERAR, así que no
+          hace falta seleccionar nada. Los filtros de categoría + buscador acotan
+          la lista para que entre completa sin scroll de pantalla. */}
+      <div className="flex-1 min-h-0 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+        {/* Buscador + filtros de categoría */}
+        <div className="shrink-0 px-4 py-3 border-b border-slate-100 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="BUSCAR REPORTE..."
+              className="w-full h-9 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
 
-              <div className="flex-1 mb-6">
-                <p className="text-slate-500 text-[12px] leading-relaxed">
-                  {report.description}
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100/50">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {groupTabs.map(tab => {
+              const isActive = groupFilter === tab;
+              const count = countByGroup(tab);
+              return (
                 <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setGroupFilter(tab)}
+                  className={`h-8 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                  }`}
+                >
+                  {tab}
+                  <span className={`ml-1.5 ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="ml-auto text-[9px] font-bold uppercase tracking-widest text-slate-400">
+            {listedReports.length} de {reportTypes.length} reportes
+          </p>
+        </div>
+
+        {/* Filas con botón GENERAR (dos columnas en pantallas anchas) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 grid grid-cols-1 xl:grid-cols-2 gap-3 content-start">
+          {listedReports.map(report => {
+            const processing = isGenerating && activeReport === report.id;
+            return (
+              <div
+                key={report.id}
+                className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/60 transition-colors"
+              >
+                <span className={`w-9 h-9 rounded-lg ${report.iconClass} flex items-center justify-center flex-shrink-0 [&>svg]:w-4 [&>svg]:h-4`}>
+                  {report.icon}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-slate-800 leading-tight truncate">{report.title}</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate">
+                    {REPORT_GROUPS[report.id]} · {report.subtitle}
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-snug truncate">{report.description}</p>
+                </div>
+
+                <button
+                  type="button"
                   onClick={() => handleGenerate(report.id)}
                   disabled={isGenerating}
-                  className={`
-                    w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[11px] tracking-widest transition-all uppercase
-                    ${isGenerating && activeReport === report.id
+                  title={`Generar ${report.title} — ${localDate || 'sin fecha'} · ${localShift || ''}${localOperator ? ` · ${localOperator}` : ''}`}
+                  className={`shrink-0 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                    processing
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                      : `${report.btnClass} text-white shadow-lg active:scale-95 hover:-translate-y-0.5`
-                    }
-                  `}
+                      : 'bg-primary hover:bg-primary-dark text-white shadow-sm active:scale-95 hover:-translate-y-0.5'
+                  }`}
                 >
-                  {isGenerating && activeReport === report.id ? (
+                  {processing ? (
                     <>
-                      <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                      PROCESANDO...
+                      <span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                      PROCESANDO
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
-                      GENERAR REPORTE
+                      <Download className="w-3.5 h-3.5" />
+                      GENERAR
                     </>
                   )}
                 </button>
               </div>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+
+          {listedReports.length === 0 && (
+            <p className="px-3 py-10 text-center text-[12px] text-slate-400">
+              Sin coincidencias para «{query.trim()}»
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
