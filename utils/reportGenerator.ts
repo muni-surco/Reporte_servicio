@@ -1168,6 +1168,25 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
     if (origin) originSectorByName.set(name, origin);
   });
 
+  // Personas de SUPERVISION (supervisores y jefes de área): NUNCA cuentan en
+  // CHOFERES / MOTORIZADOS / SERENOS, solo en la sección SUPERVISIÓN.
+  //   - Configurados como supervisor o permanencia en settings (por sector)
+  //   - O con rol de supervisión en la hoja Personal (SUPERVISOR / JEFE / ...)
+  const supervisionNames = new Set<string>();
+  personnel.forEach(p => {
+    const rol = String(p.rol_operativo || '').toUpperCase();
+    if (!/SUPERVISOR|JEFE|DESPACHADOR/.test(rol)) return;
+    const name = normMatch(p.apellidos_nombres);
+    if (name) supervisionNames.add(name);
+  });
+  Object.keys(allSectorSettings).forEach(sectorDisplay => {
+    const s = allSectorSettings[sectorDisplay];
+    [s.supervisor, s.permanencia].forEach(nv => {
+      const name = normMatch(nv);
+      if (name) supervisionNames.add(name);
+    });
+  });
+
   // Dedupe por persona: cada nombre cuenta UNA sola vez. Evita que una misma
   // persona sume dos veces por fichas duplicadas (registrada en más de un
   // sector) o por aparecer a la vez como unidad y como supervisor/permanencia.
@@ -1205,12 +1224,14 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
   //   - Condición 1: personal_1 debe existir en la hoja Personal.
   //   - Condición 2: DISPONIBLES = solo PATRULLANDO y SIN VEHICULO.
   //   - Condición 3: FALTOS = solo FALTO.
+  // Los supervisores y jefes de área (supervisionNames) se contabilizan en la
+  // sección SUPERVISION, incluso si traen ficha de unidad en el turno; nunca
+  // suman a SERENOS / MOTORIZADOS / CHOFERES.
   units.forEach(u => {
     const name = normMatch(u.personnel1);
     if (!name || counted.has(name)) return;
     const origin = originSectorByName.get(name);
     const rowKey = origin ? (origin === 'CCO Y COVV' ? 'CCO y COVV' : origin) : sectorLabelFor(u.sector);
-    const bucket = bucketFor(u);
     const status = (u.status || '').toString().trim().toUpperCase();
 
     let accion: 'faltos' | 'disponibles' | null = null;
@@ -1221,6 +1242,8 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
 
     if (accion && rowKey) {
       counted.add(name);
+      // Supervisores / jefes de área siempre a SUPERVISION, nunca a SERENOS.
+      const bucket = supervisionNames.has(name) ? 'SUPERVISION' : bucketFor(u);
       ensureAttendanceRow(rowKey)[bucket][accion]++;
     }
   });
@@ -2402,13 +2425,16 @@ export const generateOperatividadReport = (
 
     const efectivos = dataFleet.length > 0 ? dataFleet.length : secUnits.length;
     const inoperativos = secUnits.filter(u => isInoperative(u)).length;
+    // SIN VEHICULO (chofer/motorizado sin móvil) NO cuenta en la tabla resumen:
+    // ni en SIN PATRULLAR ni en PATRULLANDO, igual que en la flota de vehículos.
+    const sinVehiculo = secUnits.filter(u => normalize(u.status) === 'SIN VEHICULO').length;
     // PATRULLEROS: solo SIN CONDUCTOR (tipo AUTOMOVIL y sector ≠ RETEN ya los filtra unitGroupOf);
-    // resto de filas: residuo de no patrullar ni ser inoperativo.
+    // resto de filas: residuo de no patrullar ni ser inoperativo (sin SIN VEHICULO).
     const sinPatrullar = g === 'PATRULLEROS'
       ? secUnits.filter(u => normalize(u.status) === 'SIN CONDUCTOR').length
-      : secUnits.filter(u => !isPatrullando(u) && !isMantenimiento(u) && !isInoperative(u)).length;
-    // PATRULLANDO = EFECTIVO - (SIN PATRULLAR + INOPERATIVOS)
-    let patrullando = Math.max(0, efectivos - (sinPatrullar + inoperativos));
+      : secUnits.filter(u => !isPatrullando(u) && !isMantenimiento(u) && !isInoperative(u) && normalize(u.status) !== 'SIN VEHICULO').length;
+    // PATRULLANDO = EFECTIVO - (SIN PATRULLAR + INOPERATIVOS + SIN VEHICULO)
+    let patrullando = Math.max(0, efectivos - (sinPatrullar + inoperativos + sinVehiculo));
     const retens = secUnits.filter(u => retenByUnit.has(normalize(u.id))).length;
     // En la fila PATRULLEROS, las unidades con retén activo (reemplazo AR en la calle)
     // suman a PATRULLANDO: cubren el patrullaje de la unidad que está en taller.
