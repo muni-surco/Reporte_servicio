@@ -802,6 +802,10 @@ const generateFleetReport = (
       normalize(u.status) === 'MANTENIMIENTO' ||
       isTacticoPPFFStatus(u.status)
     ).length;
+    // Las unidades retén (AR-) vigentes son unidades de respuesta: su reemplazo
+    // cubre el patrullaje de la unidad que está en taller, por lo que suman a
+    // PATRULLANDO. Solo cuando la tabla contempla retén (no en FLOTA CAMIONETAS).
+    const countPatrullandoFinal = countPatrullando + (retenNA ? 0 : countReten);
     const countSinPatrullar = regularUnits.filter(u =>
       normalize(u.status) !== 'PATRULLANDO' &&
       normalize(u.status) !== 'MANTENIMIENTO' &&
@@ -812,13 +816,13 @@ const generateFleetReport = (
 
     const efectivo = baseFleet; // Usar flota base
     // Validación: EFECTIVO debe ser la suma de INOPERATIVOS + PATRULLANDO + SIN PATRULLAR
-    const sumaEfectivo = countInoperativos + countPatrullando + countSinPatrullar;
+    const sumaEfectivo = countInoperativos + countPatrullandoFinal + countSinPatrullar;
 
     return [
       s,
       efectivoOrPending(efectivo, sumaEfectivo),
       blankZero(countInoperativos),
-      blankZero(countPatrullando),
+      blankZero(countPatrullandoFinal),
       blankZero(countSinPatrullar),
       // En FLOTA CAMIONETAS el retén no aplica
       retenNA ? 'NO APLICA' : blankZero(countReten)
@@ -1098,7 +1102,7 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
     return n;
   };
 
-  const attendanceBuckets = ['CHOFERES', 'MOTORIZADOS', 'SERENOS'] as const;
+  const attendanceBuckets = ['CHOFERES', 'MOTORIZADOS', 'SERENOS', 'SUPERVISION'] as const;
   type AttendanceCell = { efectivo: number; faltos: number; disponibles: number };
   const attendance = new Map<string, Record<string, AttendanceCell>>();
   const ensureAttendanceRow = (label: string) => {
@@ -1106,7 +1110,8 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
       attendance.set(label, {
         CHOFERES: { efectivo: 0, faltos: 0, disponibles: 0 },
         MOTORIZADOS: { efectivo: 0, faltos: 0, disponibles: 0 },
-        SERENOS: { efectivo: 0, faltos: 0, disponibles: 0 }
+        SERENOS: { efectivo: 0, faltos: 0, disponibles: 0 },
+        SUPERVISION: { efectivo: 0, faltos: 0, disponibles: 0 }
       });
     }
     return attendance.get(label)!;
@@ -1163,28 +1168,15 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
     if (origin) originSectorByName.set(name, origin);
   });
 
-  // El registro cuenta en la fila de SU SECTOR DE ORIGEN (sector_id de la hoja
-  // Personal), no en el sector donde quedó guardada la ficha.
-  //   - Condición 1: personal_1 debe existir en la hoja Personal.
-  //   - Condición 2: DISPONIBLES = solo PATRULLANDO y SIN VEHICULO.
-  //   - Condición 3: FALTOS = solo FALTO.
-  units.forEach(u => {
-    const name = normMatch(u.personnel1);
-    const origin = originSectorByName.get(name);
-    const rowKey = origin ? (origin === 'CCO Y COVV' ? 'CCO y COVV' : origin) : sectorLabelFor(u.sector);
-    const bucket = bucketFor(u);
-    const status = (u.status || '').toString().trim().toUpperCase();
+  // Dedupe por persona: cada nombre cuenta UNA sola vez. Evita que una misma
+  // persona sume dos veces por fichas duplicadas (registrada en más de un
+  // sector) o por aparecer a la vez como unidad y como supervisor/permanencia.
+  // Los supervisores y jefes de área se cuentan primero en su sección
+  // SUPERVISION (según su estado en settings); si además tienen ficha como
+  // unidad en el turno, esa ficha no vuelve a sumar para no duplicarlos.
+  const counted = new Set<string>();
 
-    let accion: 'faltos' | 'disponibles' | null = null;
-    if (!name || !origin) {
-      // Sin personal_1 o fuera de la hoja Personal -> no cuenta
-    } else if (status === 'FALTO') accion = 'faltos';
-    else if (status === 'PATRULLANDO' || status === 'SIN VEHICULO') accion = 'disponibles';
-
-    if (accion && rowKey) ensureAttendanceRow(rowKey)[bucket][accion]++;
-  });
-
-  // Supervisores y jefes de área (permanencia) por sector, en columna SERENOS.
+  // Sección SUPERVISION: supervisores y jefes de área (permanencia) por sector.
   // Mismas reglas de estado: FALTO -> FALTOS; PATRULLANDO / SIN VEHICULO -> DISPONIBLES.
   Object.keys(allSectorSettings).forEach(sectorDisplay => {
     const s = allSectorSettings[sectorDisplay];
@@ -1192,12 +1184,45 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
     if (!rowKey) return;
     const addSup = (nameVal: unknown, estado: unknown) => {
       if (!String(nameVal || '').trim()) return;
+      const name = normMatch(nameVal);
+      if (counted.has(name)) return;
       const st = String(estado || '').trim().toUpperCase();
-      if (st === 'FALTO') ensureAttendanceRow(rowKey).SERENOS.faltos++;
-      else if (st === 'PATRULLANDO' || st === 'SIN VEHICULO') ensureAttendanceRow(rowKey).SERENOS.disponibles++;
+      if (st === 'FALTO') {
+        counted.add(name);
+        ensureAttendanceRow(rowKey).SUPERVISION.faltos++;
+      } else if (st === 'PATRULLANDO' || st === 'SIN VEHICULO') {
+        counted.add(name);
+        ensureAttendanceRow(rowKey).SUPERVISION.disponibles++;
+      }
     };
     addSup(s.supervisor, s.supervisorEstado);
     addSup(s.permanencia, s.permanenciaEstado);
+  });
+
+  // Personal operativo (unidades del turno). El registro cuenta en la fila de
+  // SU SECTOR DE ORIGEN (sector_id de la hoja Personal), no en el sector donde
+  // quedó guardada la ficha.
+  //   - Condición 1: personal_1 debe existir en la hoja Personal.
+  //   - Condición 2: DISPONIBLES = solo PATRULLANDO y SIN VEHICULO.
+  //   - Condición 3: FALTOS = solo FALTO.
+  units.forEach(u => {
+    const name = normMatch(u.personnel1);
+    if (!name || counted.has(name)) return;
+    const origin = originSectorByName.get(name);
+    const rowKey = origin ? (origin === 'CCO Y COVV' ? 'CCO y COVV' : origin) : sectorLabelFor(u.sector);
+    const bucket = bucketFor(u);
+    const status = (u.status || '').toString().trim().toUpperCase();
+
+    let accion: 'faltos' | 'disponibles' | null = null;
+    if (!origin) {
+      // Sin personal_1 o fuera de la hoja Personal -> no cuenta
+    } else if (status === 'FALTO') accion = 'faltos';
+    else if (status === 'PATRULLANDO' || status === 'SIN VEHICULO') accion = 'disponibles';
+
+    if (accion && rowKey) {
+      counted.add(name);
+      ensureAttendanceRow(rowKey)[bucket][accion]++;
+    }
   });
 
   // EFECTIVO = FALTOS + DISPONIBLES
@@ -1241,31 +1266,37 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
   (doc as any).autoTable({
     startY: currentY,
     head: [[
-      { content: 'ASISTENCIA DEL PERSONAL', colSpan: 10, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 11 } }
+      { content: 'ASISTENCIA DEL PERSONAL', colSpan: 13, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 10 } }
     ], [
       { content: '', styles: { fillColor: [38, 70, 83] } },
-      { content: 'CHOFERES', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } },
-      { content: 'MOTORIZADOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } },
-      { content: 'SERENOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 9 } }
+      { content: 'CHOFERES', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 7.5 } },
+      { content: 'MOTORIZADOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 7.5 } },
+      { content: 'SERENOS', colSpan: 3, styles: { halign: 'center', fillColor: [62, 96, 111], textColor: [255, 255, 255], fontSize: 7.5 } },
+      { content: 'SUPERVISIÓN', colSpan: 3, styles: { halign: 'center', fillColor: [13, 148, 136], textColor: [255, 255, 255], fontSize: 7.5 } }
     ], [
-      { content: 'SECTORES', styles: { fillColor: [31, 78, 121], textColor: [255, 255, 255], fontSize: 7 } },
-      ...['EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES'].map((t, i) => ({
+      { content: 'SECTORES', styles: { fillColor: [31, 78, 121], textColor: [255, 255, 255], fontSize: 6 } },
+      ...['EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES', 'EFECTIVO', 'FALTOS', 'DISPONIBLES'].map((t, i) => ({
         content: t,
         styles: {
           fillColor: i % 3 === 0 ? [67, 160, 71] : i % 3 === 1 ? [211, 47, 47] : [255, 235, 59],
           textColor: i % 3 === 2 ? [0, 0, 0] : [255, 255, 255],
-          fontSize: 6.5
+          fontSize: 5.5
         }
       }))
     ]],
     body: attendanceBody,
     theme: 'grid',
-    styles: { fontSize: 7.5, halign: 'center', cellPadding: 1.2, lineColor: [255, 255, 255], lineWidth: 0.3, textColor: [30, 41, 59] },
+    // Líneas visibles de filas y columnas (gris medio) para facilitar la lectura;
+    // antes se usaba blanco y la cuadrícula no se apreciaba sobre el papel.
+    // Columna 0 (26→24mm) y columnas de datos (18→13.5mm) para que las 13
+    // columnas entren en el ancho útil de la página (190mm): 24 + 12×13.5 = 186mm.
+    styles: { fontSize: 6.8, halign: 'center', cellPadding: 1, lineColor: [100, 116, 139], lineWidth: 0.25, textColor: [30, 41, 59] },
     columnStyles: {
-      0: { cellWidth: 26, fontStyle: 'bold', fillColor: [31, 78, 121], textColor: [255, 255, 255] },
-      1: { cellWidth: 18 }, 2: { cellWidth: 18 }, 3: { cellWidth: 18 },
-      4: { cellWidth: 18 }, 5: { cellWidth: 18 }, 6: { cellWidth: 18 },
-      7: { cellWidth: 18 }, 8: { cellWidth: 18 }, 9: { cellWidth: 18 }
+      0: { cellWidth: 24, fontStyle: 'bold', fillColor: [31, 78, 121], textColor: [255, 255, 255] },
+      1: { cellWidth: 13.5 }, 2: { cellWidth: 13.5 }, 3: { cellWidth: 13.5 },
+      4: { cellWidth: 13.5 }, 5: { cellWidth: 13.5 }, 6: { cellWidth: 13.5 },
+      7: { cellWidth: 13.5 }, 8: { cellWidth: 13.5 }, 9: { cellWidth: 13.5 },
+      10: { cellWidth: 13.5 }, 11: { cellWidth: 13.5 }, 12: { cellWidth: 13.5 }
     },
     didParseCell: function (data: any) {
       if (data.row.section === 'body') {
@@ -1274,7 +1305,9 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
           data.cell.styles.fillColor = [38, 70, 83];
           data.cell.styles.textColor = [255, 255, 255];
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fontSize = 8;
+          data.cell.styles.fontSize = 7.5;
+          // Marco más grueso alrededor de la fila TOTALES para cerrar la tabla
+          data.cell.styles.lineWidth = 0.6;
         }
       }
     },
@@ -1312,6 +1345,49 @@ const renderAttendanceConsolidated = (doc: any, units: UnitData[], personnel: Pe
   });
 
   return (doc as any).lastAutoTable.finalY;
+};
+
+// Sección consolidada final de los reportes de asistencia/inasistencia.
+// Para que el cuadro sea IDÉNTICO en ambos reportes: página nueva (solo si ya
+// hay contenido previo, para no dejar páginas en blanco), el mismo encabezado
+// (SURCO / CONSOLIDADO DE ASISTENCIA DEL PERSONAL) y la misma tabla
+// ASISTENCIA DEL PERSONAL con los mismos valores (mismos datos de entrada).
+const renderConsolidatedSection = (
+  doc: any,
+  units: UnitData[],
+  personnel: PersonnelData[],
+  allSectorSettings: Record<string, AppSettings>,
+  shift: string,
+  date: string,
+  pageWidth: number,
+  margin: number,
+  currentY: number
+): void => {
+  const contentWidth = pageWidth - (margin * 2);
+  let y = currentY;
+  // Página nueva solo si ya se dibujó contenido (evita páginas en blanco)
+  if (y > 10) {
+    doc.addPage();
+    y = 10;
+  }
+
+  // Encabezado principal
+  doc.setFillColor(38, 70, 83);
+  doc.rect(margin, y, contentWidth, 18, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text('SURCO', margin + 5, y + 11);
+  doc.setFontSize(11);
+  doc.text('CONSOLIDADO DE ASISTENCIA DEL PERSONAL', margin + 35, y + 11);
+  doc.setFontSize(8);
+  doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, y + 7, { align: 'right' });
+  doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, y + 13, { align: 'right' });
+  doc.setTextColor(0, 0, 0);
+
+  y += 24;
+
+  renderAttendanceConsolidated(doc, units, personnel, allSectorSettings, y, margin, contentWidth);
 };
 
 export const generatePersonnelAbsenceReport = (
@@ -1546,30 +1622,8 @@ export const generatePersonnelAbsenceReport = (
   });
 
   // --- TABLA CONSOLIDADA DE ASISTENCIA (EFECTIVO / FALTOS / DISPONIBLES por rol y sector) ---
-  // En una página nueva (o la actual si ningún motivo generó contenido)
-  if (!firstPage) {
-    doc.addPage();
-    currentY = 10;
-  }
-  firstPage = false;
-
-  // Encabezado principal
-  doc.setFillColor(38, 70, 83);
-  doc.rect(margin, currentY, contentWidth, 18, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.setTextColor(255, 255, 255);
-  doc.text('SURCO', margin + 5, currentY + 11);
-  doc.setFontSize(11);
-  doc.text('CONSOLIDADO DE ASISTENCIA DEL PERSONAL', margin + 35, currentY + 11);
-  doc.setFontSize(8);
-  doc.text(formatLongDate(date).toUpperCase(), pageWidth - margin - 5, currentY + 7, { align: 'right' });
-  doc.text(`TURNO: ${shift.toUpperCase()}`, pageWidth - margin - 5, currentY + 13, { align: 'right' });
-  doc.setTextColor(0, 0, 0);
-
-  currentY += 24;
-
-  currentY = renderAttendanceConsolidated(doc, units, personnel, allSectorSettings, currentY, margin, contentWidth);
+  // Mismo cuadro, encabezado y valores que en el reporte de asistencia.
+  renderConsolidatedSection(doc, units, personnel, allSectorSettings, shift, date, pageWidth, margin, currentY);
 
   // --- FOOTER (pie de página en todas las páginas) ---
   stampReportFooter(doc, pageWidth, pageHeight, margin, resolveC4Supervisor(allSectorSettings), resolvedOperator, new Date().toLocaleString());
@@ -1753,8 +1807,9 @@ export const generatePersonnelStatusReport = (
       currentY = (doc as any).lastAutoTable.finalY + 8;
   });
 
-  // Replica de la tabla consolidada (ASISTENCIA DEL PERSONAL) + totales al final
-  currentY = renderAttendanceConsolidated(doc, units, personnel, allSectorSettings, currentY, margin, contentWidth);
+  // Replica de la tabla consolidada (ASISTENCIA DEL PERSONAL) + totales al final.
+  // Mismo cuadro, encabezado y valores que en el reporte de inasistencia.
+  renderConsolidatedSection(doc, units, personnel, allSectorSettings, shift, date, pageWidth, margin, currentY);
 
   const footerY = pageHeight - 15;
 

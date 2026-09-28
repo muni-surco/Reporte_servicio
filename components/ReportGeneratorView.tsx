@@ -331,11 +331,11 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
                 </span>
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-slate-800 leading-tight truncate">{report.title}</p>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400 truncate">
+                  <p className="text-[15px] font-semibold text-slate-800 leading-tight truncate">{report.title}</p>
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 truncate">
                     {REPORT_GROUPS[report.id]} · {report.subtitle}
                   </p>
-                  <p className="text-[11px] text-slate-500 leading-snug truncate">{report.description}</p>
+                  <p className="text-[12px] text-slate-500 leading-snug truncate">{report.description}</p>
                 </div>
 
                 <button

@@ -34,6 +34,10 @@ if (fs.existsSync(reportsFile)) {
     fs.writeFileSync(path.join(distPath, 'ReportJavaScript.html'), createScriptHtml(reportsContent));
     fs.rmSync(reportsAssetsPath, { recursive: true, force: true });
     console.log('Created dist/ReportJavaScript.html');
+} else {
+    console.warn('WARNING: dist/reports-assets/reports.js was not found. dist/ReportJavaScript.html will NOT be created.');
+    console.warn('  Did you run "npm run build:gas"? The reports bundle is produced by: vite build --config vite.config.reports.ts');
+    console.warn(`  Looked for: ${reportsFile}`);
 }
 
 files.forEach(file => {
