@@ -2412,6 +2412,9 @@ export const generateOperatividadReport = (
   const unitGroupOf = (u: UnitData) => classGroupOf(normalize(u.type), getSector(u), tipoByUnitId.get(normalize(u.id)) || '');
 
   const groups = ['PATRULLEROS', 'GIR', 'RESCATE', 'FISCALIZACION', 'MOTOS'];
+  // IDs presentes en la hoja DATA: solo unidades de la flota de referencia
+  // participan del conteo de estados (mismo criterio que el reporte de vehículos).
+  const dataIds = new Set(mobileData.map(m => normalize(m.id)));
 
   // Matcheo de modelos de motos (mismo criterio que el reporte de motos):
   // la flota Yamaha es XTZ150 y la Honda SAHARA XRE 300.
@@ -2457,21 +2460,37 @@ export const generateOperatividadReport = (
       sinPatrullar = motoUnits.filter(u => !isMotoPatrullando(u) && !isInoperative(u)).length;
     } else {
       efectivos = dataFleet.length > 0 ? dataFleet.length : secUnits.length;
-      inoperativos = secUnits.filter(u => isInoperative(u)).length;
-      // SIN VEHICULO (chofer/motorizado sin móvil) NO cuenta en la tabla resumen:
-      // ni en SIN PATRULLAR ni en PATRULLANDO, igual que en la flota de vehículos.
-      const sinVehiculo = secUnits.filter(u => normalize(u.status) === 'SIN VEHICULO').length;
-      // PATRULLEROS: solo SIN CONDUCTOR (tipo AUTOMOVIL y sector ≠ RETEN ya los filtra unitGroupOf);
-      // resto de filas: residuo de no patrullar ni ser inoperativo (sin SIN VEHICULO).
-      sinPatrullar = g === 'PATRULLEROS'
-        ? secUnits.filter(u => normalize(u.status) === 'SIN CONDUCTOR').length
-        : secUnits.filter(u => !isPatrullando(u) && !isInoperative(u) && normalize(u.status) !== 'SIN VEHICULO').length;
-      // PATRULLANDO = EFECTIVO - (SIN PATRULLAR + INOPERATIVOS + SIN VEHICULO)
-      patrullando = Math.max(0, efectivos - (sinPatrullar + inoperativos + sinVehiculo));
+      // Mismos criterios que el reporte de vehículos (Renting/flota):
+      // 1) Solo cuentan las unidades cuyo ID existe en la hoja DATA (igual que el
+      //    filtro fleetMobileIds del reporte de vehículos); registros del turno no
+      //    presentes en DATA inflarían SIN PATRULLAR sin restar al EFECTIVO.
+      // 2) Las unidades retén (AR-) no cuentan en los estados regulares; van solo
+      //    a la columna RETÉN y suman una vez a PATRULLANDO al final.
+      const regularUnits = secUnits.filter(u => {
+        const id = normalize(u.id);
+        return dataIds.has(id) && !id.startsWith('AR-');
+      });
+      inoperativos = regularUnits.filter(u => isInoperative(u)).length;
+      // PATRULLANDO por conteo directo con el MISMO predicado del reporte de
+      // vehículos: PATRULLANDO, MANTENIMIENTO y TÁCTICO PP.FF. cuentan como
+      // patrullando (APOYO cae en SIN PATRULLAR, igual que allá).
+      const isVehiculoPatrullando = (u: UnitData) => {
+        const s = normalize(u.status);
+        return s === 'PATRULLANDO' || s === 'MANTENIMIENTO' || isTacticoPPFFStatus(u.status);
+      };
+      patrullando = regularUnits.filter(u => isVehiculoPatrullando(u)).length;
+      // SIN PATRULLAR: residuo idéntico al reporte de vehículos (excluye
+      // SIN VEHICULO, que no cuenta en ninguna columna).
+      sinPatrullar = regularUnits.filter(u =>
+        !isVehiculoPatrullando(u) && !isInoperative(u) && normalize(u.status) !== 'SIN VEHICULO'
+      ).length;
     }
     const retens = secUnits.filter(u => retenByUnit.has(normalize(u.id))).length;
-    // En la fila PATRULLEROS, las unidades con retén activo (reemplazo AR en la calle)
-    // suman a PATRULLANDO: cubren el patrullaje de la unidad que está en taller.
+    // Las unidades retén (AR-) vigentes son unidades de respuesta: cubren el
+    // patrullaje de la unidad que está en taller, por lo que suman a PATRULLANDO
+    // (igual que en el reporte de vehículos). Solo en PATRULLEROS; en FLOTA
+    // CAMIONETAS (GIR/RESCATE/OTRAS AREAS) el retén no aplica.
+
     if (g === 'PATRULLEROS') patrullando += retens;
 
     totalFlotaAcum += efectivos;
