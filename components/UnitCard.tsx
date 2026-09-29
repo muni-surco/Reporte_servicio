@@ -1,10 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Pencil, Plus, X, Fuel } from 'lucide-react';
+import { Save, Pencil, Plus, X, Fuel, AlertCircle } from 'lucide-react';
 import { UnitData, UnitStatus, MobileReference, PERSONNEL_NAMES, RADIOS, FUEL_TYPES, SECTORS, isTacticoPPFFStatus, isOtrasAreasSector } from '../types';
 import AutocompleteInput from './AutocompleteInput';
 import MultiSelectAutocomplete from './MultiSelectAutocomplete';
 
 declare const google: any;
+
+// Mensaje de validación inline reutilizable según el Design System C4-MSS
+// (patrón .invalid-feedback): ícono alert-circle de Lucide a 12px, color de
+// peligro #E03E3E (var(--cd)), texto xs, sin caja contenedora.
+const InlineError: React.FC<{ message: string }> = ({ message }) => (
+  <div className="flex items-center gap-1.5 mt-1" style={{ color: '#E03E3E' }}>
+    <AlertCircle size={12} strokeWidth={2} className="shrink-0" />
+    <span className="text-[11px] leading-tight">{message}</span>
+  </div>
+);
 
 interface UnitCardProps {
   unit: UnitData;
@@ -41,9 +51,12 @@ const UnitCard: React.FC<UnitCardProps> = ({
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  // Mensaje inline de radio duplicada: sustituye al alert nativo para que la
-  // validación se muestre junto al campo, sin bloquear la pantalla.
+  // Mensajes inline de validación (duplicados): sustituyen a los alerts nativos
+  // para que la validación se muestre junto a cada campo, con el mismo estilo.
   const [radioDuplicateMsg, setRadioDuplicateMsg] = useState('');
+  const [idDuplicateMsg, setIdDuplicateMsg] = useState('');
+  const [personnel1DuplicateMsg, setPersonnel1DuplicateMsg] = useState('');
+  const [personnel2DuplicateMsg, setPersonnel2DuplicateMsg] = useState('');
 
   const [kmStart, setKmStart] = useState('');
   const [kmEnd, setKmEnd] = useState('');
@@ -110,6 +123,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
 
       setErrors({});
       setRadioDuplicateMsg('');
+      setIdDuplicateMsg('');
+      setPersonnel1DuplicateMsg('');
+      setPersonnel2DuplicateMsg('');
     }
   }, [isEditing, unit.id, unit.kmStart, unit.kmEnd, unit.kmRecarga, unit.fuel, unit.fuel2]);
 
@@ -369,17 +385,21 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
     }
 
     if (Object.values(newErrors).some(v => v)) {
+      // Mensajes inline coherentes: texto corto junto al campo correspondiente
+      // (mismo componente InlineError), sin alerts nativos.
       if (isIdDuplicate && (formData.id || !isSpecialStatus)) {
-        alert(`El ID "${formData.id}" ya existe en la vista actual. No se permiten IDs duplicados.`);
+        setIdDuplicateMsg('El ID ya está registrado en el turno.');
       } else if (newErrors.id && (isChofer || isMoto) && formData.id && !isValidMobileId) {
-        alert(`El ID "${formData.id}" no es válido. Para Choferes/Motos debe seleccionar una unidad de la lista.`);
-      } else if (isPersonnel1Duplicate) {
-        alert(`El nombre "${formData.personnel1}" ya está registrado en el sector ${String(formData.sector || unit.sector || '').toUpperCase().replace(/^SECTOR\s+/, '')} - sección ${String(formData.type || unit.type || '').toUpperCase()}. No se permite duplicar personal en el mismo sector y sección.`);
-      } else if (isPersonnel2Duplicate) {
-        alert(`El nombre "${formData.personnel2}" ya está registrado en el sector ${String(formData.sector || unit.sector || '').toUpperCase().replace(/^SECTOR\s+/, '')} - sección CHOFER. No se permite duplicar personal en el mismo sector y sección.`);
-      } else if (isRadioDuplicate) {
+        setIdDuplicateMsg('ID no válido. Seleccione una unidad de la lista.');
+      }
+      if (isPersonnel1Duplicate) {
+        setPersonnel1DuplicateMsg('El personal ya está registrado en el sector.');
+      }
+      if (isPersonnel2Duplicate) {
+        setPersonnel2DuplicateMsg('El personal ya está registrado en el sector.');
+      }
+      if (isRadioDuplicate) {
         setRadioDuplicateMsg('La radio ya está asignada.');
-        setErrors(prev => ({ ...prev, radio: true }));
       }
       return;
     }
@@ -532,13 +552,17 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
                     return newData;
                   });
                   setErrors(prev => ({ ...prev, id: false }));
+                  setIdDuplicateMsg('');
                 }}
                 suggestions={isSereno ? [] : (mobileData || []).map(v => v.id).filter(vId => !allUnits.some(u => u.id === vId && u.id !== unit.id))}
                 placeholder="M-01"
                 error={errors.id}
                 strict={(isChofer || isMoto) && !isFreeIdCase}
               />
-              {errors.id && <span className={errorMsgStyle}>Requerido</span>}
+              {errors.id && !idDuplicateMsg && <span className={errorMsgStyle}>Requerido</span>}
+              {idDuplicateMsg && (
+                <InlineError message={idDuplicateMsg} />
+              )}
             </div>
                   {!isSereno && (
                 <div className="col-span-1">
@@ -737,7 +761,7 @@ const v = e.target.value;
               <label className={labelStyleEdit}>{isSereno ? personalLabel : isMoto ? 'Motorizado' : 'Chofer'}</label>
               <AutocompleteInput
                 value={formData.personnel1}
-                onChange={(val) => { setFormData(prev => ({ ...prev, personnel1: val })); setErrors(prev => ({ ...prev, personnel1: false })); }}
+                onChange={(val) => { setFormData(prev => ({ ...prev, personnel1: val })); setErrors(prev => ({ ...prev, personnel1: false })); setPersonnel1DuplicateMsg(''); }}
                 suggestions={activePersonnelOptions.filter(n => {
                   const norm = normalizePersonnelName(n);
                   const targetSectorNorm = String(formData.sector || unit.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
@@ -754,20 +778,10 @@ const v = e.target.value;
                 placeholder="Nombre..."
                 error={errors.personnel1}
               />
-              {errors.personnel1 && <span className={errorMsgStyle}>{(() => {
-                const norm = normalizePersonnelName(formData.personnel1);
-                const targetSectorNorm = String(formData.sector || unit.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '');
-                const targetTypeNorm = String(formData.type || unit.type || '').trim().toUpperCase();
-                const selfKey = unit.unit_id || unit.tempId || unit.id || '';
-                const isDup = norm && allUnits.some(u => {
-                  const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
-                  if (selfKey && otherKey && selfKey === otherKey) return false;
-                  if (String(u.sector || '').trim().toUpperCase().replace(/^SECTOR\s+/, '') !== targetSectorNorm) return false;
-                  if (String(u.type || '').trim().toUpperCase() !== targetTypeNorm) return false;
-                  return normalizePersonnelName((u as any).personnel1) === norm || (targetTypeNorm === 'CHOFER' && normalizePersonnelName((u as any).personnel2) === norm);
-                });
-                return isDup ? 'Duplicado en sector/sección' : 'Requerido';
-              })()}</span>}
+              {errors.personnel1 && !personnel1DuplicateMsg && <span className={errorMsgStyle}>Requerido</span>}
+              {personnel1DuplicateMsg && (
+                <InlineError message={personnel1DuplicateMsg} />
+              )}
             </div>
 
             <div className="col-span-1">
@@ -794,18 +808,7 @@ const v = e.target.value;
               />
               {errors.radio && !radioDuplicateMsg && <span className={errorMsgStyle}>Requerido</span>}
               {radioDuplicateMsg && (
-                <div className="mt-1 flex items-start gap-1.5 rounded-md bg-red-50 border border-red-200 px-2 py-1.5">
-                  <span className="material-symbols-outlined text-[14px] text-red-600 leading-none mt-0.5">error</span>
-                  <span className="text-[10px] text-red-700 leading-tight">{radioDuplicateMsg}</span>
-                  <button
-                    type="button"
-                    onClick={() => { setRadioDuplicateMsg(''); }}
-                    className="ml-auto text-red-500 hover:text-red-700 leading-none"
-                    aria-label="Cerrar"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
-                  </button>
-                </div>
+                <InlineError message={radioDuplicateMsg} />
               )}
             </div>
 
@@ -819,11 +822,15 @@ const v = e.target.value;
                     const cleaned = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s.]/g, '');
                     setFormData(prev => ({ ...prev, personnel2: cleaned }));
                     if (errors.personnel2) setErrors(prev => ({ ...prev, personnel2: false }));
+                    setPersonnel2DuplicateMsg('');
                   }}
                   className={inputStyle('personnel2')}
                   placeholder="Nombre..."
                 />
-                {errors.personnel2 && <span className={errorMsgStyle}>Duplicado en sector/sección</span>}
+                {errors.personnel2 && !personnel2DuplicateMsg && <span className={errorMsgStyle}>Duplicado en sector/sección</span>}
+                {personnel2DuplicateMsg && (
+                  <InlineError message={personnel2DuplicateMsg} />
+                )}
               </div>
             )}
 
