@@ -53,7 +53,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   // Mensajes inline de validación (duplicados): sustituyen a los alerts nativos
   // para que la validación se muestre junto a cada campo, con el mismo estilo.
-  const [radioDuplicateMsg, setRadioDuplicateMsg] = useState('');
   const [idDuplicateMsg, setIdDuplicateMsg] = useState('');
   const [personnel1DuplicateMsg, setPersonnel1DuplicateMsg] = useState('');
   const [personnel2DuplicateMsg, setPersonnel2DuplicateMsg] = useState('');
@@ -122,7 +121,6 @@ const UnitCard: React.FC<UnitCardProps> = ({
       }));
 
       setErrors({});
-      setRadioDuplicateMsg('');
       setIdDuplicateMsg('');
       setPersonnel1DuplicateMsg('');
       setPersonnel2DuplicateMsg('');
@@ -315,25 +313,14 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
       }
     }
 
-    // --- Validación anti-duplicado de RADIO: la radio asignada es única por turno ---
-    // Se compara contra TODAS las unidades del turno (todos los sectores), sin
-    // importar la sección. Una radio vacía nunca se considera duplicada.
-    const newRadioNorm = String(formData.radio ?? '').trim();
-    const selfKeyRadio = unit.unit_id || unit.tempId || unit.id || '';
-    const isRadioDuplicate = !!newRadioNorm && allUnits.some(u => {
-      const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
-      if (selfKeyRadio && otherKey && selfKeyRadio === otherKey) return false;
-      if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
-      return String((u as any).radio ?? '').trim() === newRadioNorm;
-    });
-
     const newErrors: Record<string, boolean> = {
       status: !formData.status || String(formData.status).trim() === '',
       id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: (!isNoPersonnelStatus && !isOtrasAreasCard && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
       personnel2: isPersonnel2Duplicate,
-      radio: (!isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--')) || isRadioDuplicate,
+      // Radio: solo requerido (sin validación de duplicado).
+      radio: !isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'),
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
@@ -397,9 +384,6 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
       }
       if (isPersonnel2Duplicate) {
         setPersonnel2DuplicateMsg('El personal ya está registrado en el sector.');
-      }
-      if (isRadioDuplicate) {
-        setRadioDuplicateMsg('La radio ya está asignada.');
       }
       return;
     }
@@ -796,7 +780,6 @@ const v = e.target.value;
                   const cleaned = String(val ?? '').replace(/[^\d]/g, '');
                   setFormData(prev => ({ ...prev, radio: cleaned }));
                   setErrors(prev => ({ ...prev, radio: false }));
-                  setRadioDuplicateMsg('');
                 }}
                 suggestions={Array.from(new Set([
                   ...RADIOS,
@@ -806,10 +789,7 @@ const v = e.target.value;
                 placeholder="20xxx"
                 error={errors.radio}
               />
-              {errors.radio && !radioDuplicateMsg && <span className={errorMsgStyle}>Requerido</span>}
-              {radioDuplicateMsg && (
-                <InlineError message={radioDuplicateMsg} />
-              )}
+              {errors.radio && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
             {isChofer && (

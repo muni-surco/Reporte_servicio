@@ -1728,34 +1728,6 @@ function updateUnit(dateStr, shift, settings, unit) {
     }
   } catch (e) { /* no bloquear guardado por error de validación, loggear */ console.error('[updateUnit duplicate check] ERROR', e); }
 
-  // --- Validación anti-duplicado de RADIO: la radio asignada es única por turno ---
-  // Se compara contra TODAS las unidades del turno (todos los sectores), sin
-  // importar la sección. Una radio vacía nunca se considera duplicada.
-  try {
-    var newRadioNorm = String(unit.radio || '').trim();
-    if (newRadioNorm && newRadioNorm !== '--') {
-      var shiftUnits = rtdbGet('units/' + dateStr + '_' + shift);
-      if (shiftUnits) {
-        var newUnitIdRadio = _sanitizeRtdbKey(unit.unit_id || '');
-        for (var secKey in shiftUnits) {
-          if (!shiftUnits.hasOwnProperty(secKey)) continue;
-          var secUnits = shiftUnits[secKey];
-          if (!secUnits || typeof secUnits !== 'object') continue;
-          for (var uKey in secUnits) {
-            if (!secUnits.hasOwnProperty(uKey)) continue;
-            var exU = secUnits[uKey];
-            if (!exU) continue;
-            if (newUnitIdRadio && String(exU.unit_id || '').trim() === newUnitIdRadio) continue;
-            var exRadio = String(exU.radio || '').trim();
-            if (exRadio && exRadio !== '--' && exRadio === newRadioNorm) {
-              return { success: false, error: 'DUPLICATE_RADIO: La radio "' + newRadioNorm + '" ya está asignada a la unidad ' + (exU.id || uKey) + ' (' + secKey + ') en este turno. La radio asignada es única por turno.' };
-            }
-          }
-        }
-      }
-    }
-  } catch (e) { /* no bloquear guardado por error de validación, loggear */ console.error('[updateUnit radio check] ERROR', e); }
-
   const email = Session.getActiveUser().getEmail();
   const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
   let auditLog = timestamp;
