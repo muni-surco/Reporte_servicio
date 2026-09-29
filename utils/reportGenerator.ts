@@ -2341,10 +2341,11 @@ export const generateOperatividadReport = (
 
   // Clasificación de estados operativos
   const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
-  const isMantenimiento = (u: UnitData) => normalize(u.status) === 'MANTENIMIENTO';
+  // Regla global de reportes: MANTENIMIENTO cuenta como PATRULLANDO,
+  // igual que en los reportes de motos, vehículos y calendario mensual.
   const isPatrullando = (u: UnitData) => {
     const s = normalize(u.status);
-    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO') || isTacticoPPFFStatus(u.status);
+    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO') || s === 'MANTENIMIENTO' || isTacticoPPFFStatus(u.status);
   };
   const isInoperative = (u: UnitData) => {
     const s = normalize(u.status);
@@ -2411,6 +2412,13 @@ export const generateOperatividadReport = (
   const unitGroupOf = (u: UnitData) => classGroupOf(normalize(u.type), getSector(u), tipoByUnitId.get(normalize(u.id)) || '');
 
   const groups = ['PATRULLEROS', 'GIR', 'RESCATE', 'FISCALIZACION', 'MOTOS'];
+
+  // Matcheo de modelos de motos (mismo criterio que el reporte de motos):
+  // la flota Yamaha es XTZ150 y la Honda SAHARA XRE 300.
+  const normModel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/[\s.\-_]+/g, '');
+  const isYamaha = (m: unknown) => normModel(m).includes('XTZ') || normModel(m).includes('YAMAHA');
+  const isHonda = (m: unknown) => normModel(m).includes('SAHARA') || normModel(m).includes('HONDA') || normModel(m).includes('XRE');
+  const isFleetMoto = (m: unknown) => isYamaha(m) || isHonda(m);
   const groupRows: any[][] = [];
   let totalFlotaAcum = 0;
   let totalSinPatrullarAcum = 0;
@@ -2418,23 +2426,49 @@ export const generateOperatividadReport = (
   let totalInoperativasAcum = 0;
   let totalRetenAcum = 0;
 
+  // La fila MOTOS del consolidado debe cuadrar exactamente con el reporte de
+  // motos (Yamaha + Honda): mismo matcheo de modelos y misma clasificación de
+  // estados con conteo directo (PATRULLANDO, APOYO* y MANTENIMIENTO cuentan
+  // como patrullando; el resto no inoperativo cae en SIN PATRULLAR).
+  const isMotoPatrullando = (u: UnitData) => {
+    const s = normalize(u.status);
+    return s === 'PATRULLANDO' || s.includes('APOYO') || s === 'MANTENIMIENTO';
+  };
+
   groups.forEach(g => {
     // Flota de referencia DATA o unidades registradas en el turno
     const dataFleet = mobileData.filter(m => dataGroupOf(m) === g);
     const secUnits = cleanUnits.filter(u => unitGroupOf(u) === g);
 
-    const efectivos = dataFleet.length > 0 ? dataFleet.length : secUnits.length;
-    const inoperativos = secUnits.filter(u => isInoperative(u)).length;
-    // SIN VEHICULO (chofer/motorizado sin móvil) NO cuenta en la tabla resumen:
-    // ni en SIN PATRULLAR ni en PATRULLANDO, igual que en la flota de vehículos.
-    const sinVehiculo = secUnits.filter(u => normalize(u.status) === 'SIN VEHICULO').length;
-    // PATRULLEROS: solo SIN CONDUCTOR (tipo AUTOMOVIL y sector ≠ RETEN ya los filtra unitGroupOf);
-    // resto de filas: residuo de no patrullar ni ser inoperativo (sin SIN VEHICULO).
-    const sinPatrullar = g === 'PATRULLEROS'
-      ? secUnits.filter(u => normalize(u.status) === 'SIN CONDUCTOR').length
-      : secUnits.filter(u => !isPatrullando(u) && !isMantenimiento(u) && !isInoperative(u) && normalize(u.status) !== 'SIN VEHICULO').length;
-    // PATRULLANDO = EFECTIVO - (SIN PATRULLAR + INOPERATIVOS + SIN VEHICULO)
-    let patrullando = Math.max(0, efectivos - (sinPatrullar + inoperativos + sinVehiculo));
+    let efectivos: number;
+    let inoperativos: number;
+    let sinPatrullar: number;
+    let patrullando: number;
+
+    if (g === 'MOTOS') {
+      // Solo motos Yamaha/Honda (descarta modelos ajenos a la flota de motos).
+      // EFECTIVO se cuenta desde DATA solo por modelo, sin exigir type=MOTO,
+      // igual que el reporte de motos (tolera filas DATA con tipo vacío/mal rotulado).
+      const dataMotos = mobileData.filter(m => isFleetMoto(m.model));
+      const motoUnits = secUnits.filter(u => isFleetMoto(u.model));
+      efectivos = dataMotos.length > 0 ? dataMotos.length : motoUnits.length;
+      inoperativos = motoUnits.filter(u => isInoperative(u)).length;
+      patrullando = motoUnits.filter(u => isMotoPatrullando(u)).length;
+      sinPatrullar = motoUnits.filter(u => !isMotoPatrullando(u) && !isInoperative(u)).length;
+    } else {
+      efectivos = dataFleet.length > 0 ? dataFleet.length : secUnits.length;
+      inoperativos = secUnits.filter(u => isInoperative(u)).length;
+      // SIN VEHICULO (chofer/motorizado sin móvil) NO cuenta en la tabla resumen:
+      // ni en SIN PATRULLAR ni en PATRULLANDO, igual que en la flota de vehículos.
+      const sinVehiculo = secUnits.filter(u => normalize(u.status) === 'SIN VEHICULO').length;
+      // PATRULLEROS: solo SIN CONDUCTOR (tipo AUTOMOVIL y sector ≠ RETEN ya los filtra unitGroupOf);
+      // resto de filas: residuo de no patrullar ni ser inoperativo (sin SIN VEHICULO).
+      sinPatrullar = g === 'PATRULLEROS'
+        ? secUnits.filter(u => normalize(u.status) === 'SIN CONDUCTOR').length
+        : secUnits.filter(u => !isPatrullando(u) && !isInoperative(u) && normalize(u.status) !== 'SIN VEHICULO').length;
+      // PATRULLANDO = EFECTIVO - (SIN PATRULLAR + INOPERATIVOS + SIN VEHICULO)
+      patrullando = Math.max(0, efectivos - (sinPatrullar + inoperativos + sinVehiculo));
+    }
     const retens = secUnits.filter(u => retenByUnit.has(normalize(u.id))).length;
     // En la fila PATRULLEROS, las unidades con retén activo (reemplazo AR en la calle)
     // suman a PATRULLANDO: cubren el patrullaje de la unidad que está en taller.
@@ -2511,9 +2545,6 @@ export const generateOperatividadReport = (
   const propertyByUnitId = new Map<string, string>();
   mobileData.forEach(m => propertyByUnitId.set(normalize(m.id), normalize(m.propiedad)));
   const isRenting = (u: UnitData) => normalize(u.type) === 'CHOFER' && (propertyByUnitId.get(normalize(u.id)) || '').includes('RENTING');
-  const normModel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/[\s.\-_]+/g, '');
-  const isYamaha = (m: unknown) => normModel(m).includes('XTZ') || normModel(m).includes('YAMAHA');
-  const isHonda = (m: unknown) => normModel(m).includes('SAHARA') || normModel(m).includes('HONDA') || normModel(m).includes('XRE');
   const motivoInop = (u: UnitData) => (u.motivoEstado || u.mechanics || u.reason || 'NO APLICA').toString().toUpperCase();
 
   const inopUnits = cleanUnits.filter(u => isInoperative(u));
