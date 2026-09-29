@@ -41,6 +41,9 @@ const UnitCard: React.FC<UnitCardProps> = ({
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  // Mensaje inline de radio duplicada: sustituye al alert nativo para que la
+  // validación se muestre junto al campo, sin bloquear la pantalla.
+  const [radioDuplicateMsg, setRadioDuplicateMsg] = useState('');
 
   const [kmStart, setKmStart] = useState('');
   const [kmEnd, setKmEnd] = useState('');
@@ -106,6 +109,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
       }));
 
       setErrors({});
+      setRadioDuplicateMsg('');
     }
   }, [isEditing, unit.id, unit.kmStart, unit.kmEnd, unit.kmRecarga, unit.fuel, unit.fuel2]);
 
@@ -295,13 +299,25 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
       }
     }
 
+    // --- Validación anti-duplicado de RADIO: la radio asignada es única por turno ---
+    // Se compara contra TODAS las unidades del turno (todos los sectores), sin
+    // importar la sección. Una radio vacía nunca se considera duplicada.
+    const newRadioNorm = String(formData.radio ?? '').trim();
+    const selfKeyRadio = unit.unit_id || unit.tempId || unit.id || '';
+    const isRadioDuplicate = !!newRadioNorm && allUnits.some(u => {
+      const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+      if (selfKeyRadio && otherKey && selfKeyRadio === otherKey) return false;
+      if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
+      return String((u as any).radio ?? '').trim() === newRadioNorm;
+    });
+
     const newErrors: Record<string, boolean> = {
       status: !formData.status || String(formData.status).trim() === '',
       id: (!isSpecialStatus && (!formData.id || String(formData.id).trim() === '' || isIdDuplicate)) ||
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: (!isNoPersonnelStatus && !isOtrasAreasCard && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
       personnel2: isPersonnel2Duplicate,
-      radio: !isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'),
+      radio: (!isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--')) || isRadioDuplicate,
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
@@ -361,6 +377,9 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
         alert(`El nombre "${formData.personnel1}" ya está registrado en el sector ${String(formData.sector || unit.sector || '').toUpperCase().replace(/^SECTOR\s+/, '')} - sección ${String(formData.type || unit.type || '').toUpperCase()}. No se permite duplicar personal en el mismo sector y sección.`);
       } else if (isPersonnel2Duplicate) {
         alert(`El nombre "${formData.personnel2}" ya está registrado en el sector ${String(formData.sector || unit.sector || '').toUpperCase().replace(/^SECTOR\s+/, '')} - sección CHOFER. No se permite duplicar personal en el mismo sector y sección.`);
+      } else if (isRadioDuplicate) {
+        setRadioDuplicateMsg('La radio ya está asignada.');
+        setErrors(prev => ({ ...prev, radio: true }));
       }
       return;
     }
@@ -763,6 +782,7 @@ const v = e.target.value;
                   const cleaned = String(val ?? '').replace(/[^\d]/g, '');
                   setFormData(prev => ({ ...prev, radio: cleaned }));
                   setErrors(prev => ({ ...prev, radio: false }));
+                  setRadioDuplicateMsg('');
                 }}
                 suggestions={Array.from(new Set([
                   ...RADIOS,
@@ -772,7 +792,21 @@ const v = e.target.value;
                 placeholder="20xxx"
                 error={errors.radio}
               />
-              {errors.radio && <span className={errorMsgStyle}>Requerido</span>}
+              {errors.radio && !radioDuplicateMsg && <span className={errorMsgStyle}>Requerido</span>}
+              {radioDuplicateMsg && (
+                <div className="mt-1 flex items-start gap-1.5 rounded-md bg-red-50 border border-red-200 px-2 py-1.5">
+                  <span className="material-symbols-outlined text-[14px] text-red-600 leading-none mt-0.5">error</span>
+                  <span className="text-[10px] text-red-700 leading-tight">{radioDuplicateMsg}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setRadioDuplicateMsg(''); }}
+                    className="ml-auto text-red-500 hover:text-red-700 leading-none"
+                    aria-label="Cerrar"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">close</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {isChofer && (
