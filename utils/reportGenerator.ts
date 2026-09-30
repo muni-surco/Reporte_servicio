@@ -81,6 +81,10 @@ const formatShortDate = (dateStr: string): string => {
 // Normaliza texto a mayúsculas (para sectores, IDs, estados)
 const normalizeText = (v: unknown) => String(v ?? '').trim().toUpperCase();
 
+const isMotoSupportWithoutId = (unit: UnitData): boolean => {
+  return normalizeText(unit.status).includes('APOYO') && normalizeText(unit.id) === '';
+};
+
 // Los reportes de motos reciben las unidades de getShiftData, que lee TODOS los
 // buckets de sector. Al cambiar de sector, una unidad puede quedar almacenada en
 // dos buckets a la vez y, como el sector se reasigna por el ID de la hoja DATA
@@ -97,6 +101,10 @@ const dedupeUnitsByDataId = (units: UnitData[], mobileData: MobileReference[]): 
     const id = normalizeText(u.id);
     const type = normalizeText(u.type);
     if (id) return 'ID|' + id + '|' + type;
+    const plate = normalizeText(u.plate);
+    if (plate) return 'PLATE|' + plate + '|' + type;
+    const indicative = normalizeText(u.indicative);
+    if (indicative) return 'IND|' + indicative + '|' + type;
     const uid = String(u.unit_id || '').trim();
     if (uid) return 'UID|' + uid;
     return 'P1|' + normalizeText(u.personnel1) + '|' + type;
@@ -195,6 +203,7 @@ export const generateMotoReport = (
   const filterKeys = [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
   const motoUnits = dedupeUnitsByDataId(units, mobileData).filter(u => {
     if (u.type !== 'MOTO') return false;
+    if (isMotoSupportWithoutId(u)) return false;
     const m = normModel(u.model);
     if (!m) return false;
     return filterKeys.some(k => m.includes(k) || k.includes(m));
@@ -209,15 +218,15 @@ export const generateMotoReport = (
   // Normalizador de texto (declarado antes de su primer uso)
   const normalize = normalizeText;
 
-  // Sector por ID de mobileData (hoja DATA), con fallback a u.sector
+  // El sector persistido en la unidad representa su asignación del turno.
+  // DATA se usa solo como respaldo para registros antiguos sin sector.
   const sectorById = new Map<string, string>();
   mobileData.forEach(m => {
     const id = normalize(m.id);
     if (m.sector) sectorById.set(id, normalize(m.sector));
   });
   const getSector = (u: UnitData) => {
-    const fromData = sectorById.get(normalize(u.id));
-    return fromData || normalize(u.sector);
+    return normalize(u.sector) || sectorById.get(normalize(u.id)) || '';
   };
 
   // --- HEADER ---
@@ -245,9 +254,10 @@ export const generateMotoReport = (
 
   // MANTENIMIENTO se considera PATRULLANDO (no inoperativo) en motos.
   const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
-  const isPatrullandoStatus = (status: unknown) => {
+  const isPatrullandoStatus = (status: unknown, id?: unknown) => {
     const s = String(status || '').trim().toUpperCase();
-    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO') || s === 'MANTENIMIENTO';
+    const isApoyo = s === 'APOYO' || s.includes('APOYO');
+    return s === 'PATRULLANDO' || (isApoyo && normalizeText(id) !== '') || s === 'MANTENIMIENTO';
   };
 
   const summaryRows = sectors.map(s => {
@@ -263,10 +273,10 @@ export const generateMotoReport = (
     // DATA con la columna tipo vacía o mal rotulada.
     const efectivo = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector)).length;
     const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
-    const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status)).length;
+    const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status, u.id)).length;
     // SIN PATRULLAR se calcula por conteo directo, no por resta, para detectar
     // inconsistencias entre la flota (DATA) y los registros del turno.
-    const sinPatrullar = sectorUnits.filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+    const sinPatrullar = sectorUnits.filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
     const suma = inoperativos + patrullando + sinPatrullar;
 
     return [
@@ -358,11 +368,11 @@ export const generateMotoReport = (
 
   // --- DETAILS --- n° / unidad / estado / motivo
   const inopData = motoUnits
-    .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .filter(u => !isPatrullandoStatus(u.status, u.id) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
   const sinPatrullarData = motoUnits
-    .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '', (u.motivoEstado || u.mechanics || '').toString().toUpperCase()]);
 
   // Una sola tabla de 8 columnas (dos bloques lado a lado) para que
@@ -433,15 +443,15 @@ export const generateConsolidatedMotoReport = (
   // Normalizador de texto (declarado antes de su primer uso)
   const normalize = normalizeText;
 
-  // Sector por ID de mobileData (hoja DATA), con fallback a u.sector
+  // El sector persistido en la unidad representa su asignación del turno.
+  // DATA se usa solo como respaldo para registros antiguos sin sector.
   const sectorById = new Map<string, string>();
   mobileData.forEach(m => {
     const id = normalize(m.id);
     if (m.sector) sectorById.set(id, normalize(m.sector));
   });
   const getSector = (u: UnitData) => {
-    const fromData = sectorById.get(normalize(u.id));
-    return fromData || normalize(u.sector);
+    return normalize(u.sector) || sectorById.get(normalize(u.id)) || '';
   };
 
   // Tolerant model matching (same criteria as the individual moto reports)
@@ -453,6 +463,7 @@ export const generateConsolidatedMotoReport = (
     const filterKeys = modelKeysFor(modelFilter, titleSuffix);
     return uniqueUnits.filter(u => {
       if (u.type !== 'MOTO') return false;
+      if (isMotoSupportWithoutId(u)) return false;
       const m = normModel(u.model);
       if (!m) return false;
       return filterKeys.some(k => m.includes(k) || k.includes(m));
@@ -493,9 +504,10 @@ export const generateConsolidatedMotoReport = (
 
   // MANTENIMIENTO se considera PATRULLANDO (no inoperativo) en motos.
   const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
-  const isPatrullandoStatus = (status: unknown) => {
+  const isPatrullandoStatus = (status: unknown, id?: unknown) => {
     const s = String(status || '').trim().toUpperCase();
-    return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO') || s === 'MANTENIMIENTO';
+    const isApoyo = s === 'APOYO' || s.includes('APOYO');
+    return s === 'PATRULLANDO' || (isApoyo && normalizeText(id) !== '') || s === 'MANTENIMIENTO';
   };
 
   const renderMotoSummary = (motoUnits: UnitData[], label: string, startY: number) => {
@@ -510,9 +522,9 @@ export const generateConsolidatedMotoReport = (
       // EFECTIVO: total por sector desde la hoja DATA (mobileData), no cuenta registros
       const efectivo = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector)).length;
       const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
-      const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status)).length;
+      const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status, u.id)).length;
       // SIN PATRULLAR por conteo directo para detectar inconsistencias
-      const sinPatrullar = sectorUnits.filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+      const sinPatrullar = sectorUnits.filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
       const suma = inoperativos + patrullando + sinPatrullar;
 
       return [
@@ -596,7 +608,7 @@ export const generateConsolidatedMotoReport = (
   // (evita duplicados si una unidad matcheara ambos modelos)
   const seenMotoKeys = new Set<string>();
   const allMotoUnits = [...yamahaUnits, ...hondaUnits].filter(u => {
-    const key = u.unit_id || u.id;
+    const key = normalize(u.id) || normalize(u.plate) || normalize(u.indicative) || normalize(u.unit_id);
     if (key && seenMotoKeys.has(key)) return false;
     if (key) seenMotoKeys.add(key);
     return true;
@@ -615,11 +627,11 @@ export const generateConsolidatedMotoReport = (
   // INOPERATIVOS y SIN PATRULLAR siempre queden al mismo nivel,
   // incluso si el contenido fluye a más páginas
   const inopRows = allMotoUnits
-    .filter(u => !isPatrullandoStatus(u.status) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .filter(u => !isPatrullandoStatus(u.status, u.id) && inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
 
   const sinPatRows = allMotoUnits
-    .filter(u => !isPatrullandoStatus(u.status) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
+    .filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '', (u.motivoEstado || u.mechanics || '').toString().toUpperCase()]);
 
   const detailRows: any[][] = [];
