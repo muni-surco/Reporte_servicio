@@ -2800,9 +2800,9 @@ function doPost(e) {
   }
 }
 
-function _getLastThreeShiftRefs(baseDateStr, baseShift) {
+function _getLastThreeShiftRefs(baseDateStr, baseShift, timeZone) {
   const refs = [{ date: baseDateStr, shift: baseShift }];
-  const tz = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone();
+  const tz = timeZone || SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID).getSpreadsheetTimeZone();
   let cursorDate = baseDateStr;
   let cursorShift = baseShift;
 
@@ -2847,6 +2847,41 @@ function _backupKey(dateVal, shiftVal, sectorVal, idVal, timeZone) {
 }
 
 /**
+ * Offset (ms) que `timeZone` aplica en el instante indicado, leído de la misma
+ * fuente que usa Utilities.formatDate (formato 'Z' -> "-0600").
+ */
+function _tzOffsetMsAt(instantMs, timeZone) {
+  const z = Utilities.formatDate(new Date(instantMs), timeZone, 'Z');
+  const sign = String(z).charAt(0) === '-' ? -1 : 1;
+  const hh = parseInt(String(z).substring(1, 3), 10) || 0;
+  const mm = parseInt(String(z).substring(3, 5), 10) || 0;
+  return sign * (hh * 3600000 + mm * 60000);
+}
+
+/**
+ * Ventana UTC [start, end) del día calendario `dateStr` (yyyy-MM-dd) en
+ * `timeZone`. Se resuelve con pocas llamadas a Utilities.formatDate (offset
+ * refinado hasta punto fijo) en vez de una por celda.
+ *
+ * El padding de ±1 h es intencional: esta ventana SOLO filtra filas candidatas
+ * (un cambio de horario de verano a medianoche podría dejarla corta y eso sí
+ * generaría duplicados). La fecha definitiva de cada fila candidata se
+ * confirma después con Utilities.formatDate, así que un margen de más no
+ * cambia el resultado.
+ */
+function _dayWindowUtc(dateStr, timeZone) {
+  const noonUtc = Date.parse(dateStr + 'T12:00:00Z');
+  if (isNaN(noonUtc)) return null;
+  let start = noonUtc - 43200000 - _tzOffsetMsAt(noonUtc, timeZone);
+  for (let i = 0; i < 3; i++) {
+    const next = noonUtc - 43200000 - _tzOffsetMsAt(start, timeZone);
+    if (next === start) break;
+    start = next;
+  }
+  return { date: dateStr, start: start - 3600000, end: start + 86400000 + 3600000 };
+}
+
+/**
  * Builds the duplicate-detection key set WITHOUT loading the whole sheet into
  * memory. Only rows whose date matches one of `targetDates` are read, because
  * the backup only processes those dates and the key always includes the date —
@@ -2857,6 +2892,14 @@ function _backupKey(dateVal, shiftVal, sectorVal, idVal, timeZone) {
  * noche agotaba la memoria del motor (error INTERNAL tras ~9 min). Ahora solo
  * se lee la columna de fechas (1 columna) y, de esas, únicamente las filas que
  * corresponden a las fechas objetivo, en span contiguos pequeños.
+ *
+ * RENDIMIENTO: comparar cada celda contra las fechas objetivo se hace con
+ * ventanas UTC precalculadas (_dayWindowUtc) en vez de con
+ * Utilities.formatDate por celda. Con ~15 000 filas en SHIFT_SETTINGS esa
+ * versión hacía ~15 000 llamadas a formatDate y esa hoja sola consumía 12 min
+ * (17:25 → 17:38 en el log); ahora son ~12 llamadas para el filtro más una
+ * por fila candidata, y la lectura baja a segundos. El error "Exceeded maximum
+ * execution time" venía de ahí, no de la red ni de la escritura.
  *
  * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet
  * @param {number} idColumn 1-based column with the unit id used in the key; 0 = no id
@@ -2869,36 +2912,68 @@ function _buildBackupKeySet(sheet, idColumn, targetDates, timeZone) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return { keys, lastRow: 1 };
 
-  const targetSet = new Set(targetDates.map(d => String(d || '').substring(0, 10)));
+  const targets = (targetDates || [])
+    .map(function (d) { return String(d || '').trim().substring(0, 10); })
+    .filter(function (d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); });
+  const targetSet = new Set(targets);
+  const windows = targets
+    .map(function (d) { return _dayWindowUtc(d, timeZone); })
+    .filter(function (w) { return w !== null; });
+
   const dateCol = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  const wanted = [];
+  const wanted = []; // {row, dateStr} en orden ascendente de fila
   for (let i = 0; i < dateCol.length; i++) {
     const v = dateCol[i][0];
-    let ds;
+    let ds = '';
     if (Object.prototype.toString.call(v) === '[object Date]') {
-      ds = Utilities.formatDate(v, timeZone, 'yyyy-MM-dd');
+      // La ventana solo FILTRA (es más ancha que el día para no perder filas en
+      // cambios de horario); la fecha definitiva se confirma con formatDate,
+      // pero únicamente para las pocas filas candidatas.
+      const ms = v.getTime();
+      for (let w = 0; w < windows.length; w++) {
+        if (ms >= windows[w].start && ms < windows[w].end) {
+          const exact = Utilities.formatDate(v, timeZone, 'yyyy-MM-dd');
+          if (targetSet.has(exact)) ds = exact;
+          break;
+        }
+      }
     } else {
-      ds = String(v || '').substring(0, 10);
+      const s = String(v || '').trim().substring(0, 10);
+      if (targetSet.has(s)) ds = s;
     }
-    if (targetSet.has(ds)) wanted.push(i + 2); // fila absoluta en la hoja (1-based)
+    if (ds) wanted.push({ row: i + 2, date: ds }); // fila absoluta en la hoja (1-based)
   }
 
   if (wanted.length > 0) {
     const lastCol = Math.min(idColumn > 0 ? idColumn : 4, sheet.getLastColumn());
-    let spanStart = 0;
-    for (let k = 1; k <= wanted.length; k++) {
-      if (k < wanted.length && wanted[k] === wanted[k - 1] + 1) continue;
-      // span contiguo wanted[spanStart..k-1]
-      const r1 = wanted[spanStart];
-      const r2 = wanted[k - 1];
-      const vals = sheet.getRange(r1, 1, r2 - r1 + 1, lastCol).getValues();
-      for (let j = spanStart; j < k; j++) {
-        const off = wanted[j] - r1;
-        const idVal = idColumn > 0 ? vals[off][idColumn - 1] : '';
-        if (idColumn > 0 && !idVal) continue;
-        keys.add(_backupKey(vals[off][0], vals[off][1], vals[off][2], idVal, timeZone));
+    const addKey = function (rowValues, dateStr) {
+      const idVal = idColumn > 0 ? rowValues[idColumn - 1] : '';
+      if (idColumn > 0 && !idVal) return;
+      keys.add(_backupKey(dateStr, rowValues[1], rowValues[2], idVal, timeZone));
+    };
+
+    const firstRow = wanted[0].row;
+    const totalSpan = wanted[wanted.length - 1].row - firstRow + 1;
+    if (totalSpan <= 3000) {
+      // Las filas objetivo caben en una sola lectura: una llamada a getValues
+      // en vez de una por span disperso.
+      const vals = sheet.getRange(firstRow, 1, totalSpan, lastCol).getValues();
+      for (let j = 0; j < wanted.length; j++) {
+        addKey(vals[wanted[j].row - firstRow], wanted[j].date);
       }
-      spanStart = k;
+    } else {
+      let spanStart = 0;
+      for (let k = 1; k <= wanted.length; k++) {
+        if (k < wanted.length && wanted[k].row === wanted[k - 1].row + 1) continue;
+        // span contiguo wanted[spanStart..k-1]
+        const r1 = wanted[spanStart].row;
+        const r2 = wanted[k - 1].row;
+        const vals = sheet.getRange(r1, 1, r2 - r1 + 1, lastCol).getValues();
+        for (let j = spanStart; j < k; j++) {
+          addKey(vals[wanted[j].row - r1], wanted[j].date);
+        }
+        spanStart = k;
+      }
     }
   }
 
@@ -2909,8 +2984,36 @@ function _buildBackupKeySet(sheet, idColumn, targetDates, timeZone) {
 /**
  * Incremental backup: appends only new records from RTDB to UNIT_DATA and SHIFT_SETTINGS.
  * It only processes the latest 3 turnos to keep network and quota usage low.
+ *
+ * El trigger se serializa con LockService (antes dos corridas simultáneas
+ * podían escribir las mismas filas) y respeta un presupuesto de tiempo: si se
+ * agota, corta limpio y loguea en vez de morir con "Exceeded maximum execution
+ * time". Lo que ya se escribió es append-only y deduplicado por clave, así que
+ * la siguiente corrida continúa exactamente donde quedó esta.
  */
 function backupFirestoreToSheets() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    console.log('[backup] Omitido: hay otra corrida de backup en curso.');
+    return { success: true, skipped: 'lock' };
+  }
+  try {
+    return _runBackup();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Presupuesto suave por corrida: por debajo del límite de ejecución de Apps
+// Script (6 min en cuentas de consumo / 30 min en Workspace) para que el corte
+// sea controlado y quede registrado en el log.
+const BACKUP_TIME_BUDGET_MS = 4 * 60 * 1000;
+
+function _runBackup() {
+  const startedAt = Date.now();
+  const elapsed = () => ((Date.now() - startedAt) / 1000).toFixed(1) + 's';
+  const outOfTime = () => Date.now() - startedAt > BACKUP_TIME_BUDGET_MS;
+
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   const timeZone = ss.getSpreadsheetTimeZone();
   const nowDate = new Date();
@@ -2926,9 +3029,16 @@ function backupFirestoreToSheets() {
     baseDate = Utilities.formatDate(d, timeZone, 'yyyy-MM-dd');
   }
 
-  const shiftRefs = _getLastThreeShiftRefs(baseDate, currentShift);
+  const shiftRefs = _getLastThreeShiftRefs(baseDate, currentShift, timeZone);
   console.log('[backup] Starting incremental backup at ' + now);
   console.log('[backup] Processing refs: ' + JSON.stringify(shiftRefs));
+
+  // Una sola lectura por hoja de RTDB: los 3 turnos se piden en paralelo con
+  // rtdbGetAll en vez de 3 rtdbGet secuenciales (menos viajes, mismo dato).
+  const shiftPaths = shiftRefs.map(ref => 'shifts/' + ref.date + '_' + ref.shift);
+  const unitPaths = shiftRefs.map(ref => 'units/' + ref.date + '_' + ref.shift);
+  const shiftsByRef = rtdbGetAll(shiftPaths);
+  console.log('[backup] RTDB shifts leídos en ' + elapsed());
 
   // --- Incremental SHIFT_SETTINGS ---
   const settingsSheet = ss.getSheetByName(APP_CONFIG.SHEETS.settings);
@@ -2939,9 +3049,12 @@ function backupFirestoreToSheets() {
     const existingDataLength = keySet.lastRow;
 
     const newRows = [];
-    shiftRefs.forEach(ref => {
-      const shiftPath = 'shifts/' + ref.date + '_' + ref.shift;
-      const shifts = rtdbGet(shiftPath) || {};
+    shiftRefs.forEach((ref, i) => {
+      if (outOfTime()) {
+        console.log('[backup] SHIFT_SETTINGS: corte por presupuesto, ref ' + ref.date + ' ' + ref.shift + ' pendiente');
+        return;
+      }
+      const shifts = shiftsByRef[i] || {};
       Object.keys(shifts).forEach(sectorKey => {
         const s = shifts[sectorKey] || {};
         const key = _backupKey(s.date || ref.date || '', s.shift || ref.shift || '', s.sector || sectorKey || '', '', timeZone);
@@ -2978,7 +3091,7 @@ function backupFirestoreToSheets() {
       const startRow = existingDataLength + 1;
       settingsSheet.getRange(startRow, 1, newRows.length, 22).setValues(newRows);
     }
-    console.log('[backup] SHIFT_SETTINGS: ' + newRows.length + ' new rows');
+    console.log('[backup] SHIFT_SETTINGS: ' + newRows.length + ' new rows (' + elapsed() + ')');
   }
 
   // --- Incremental UNIT_DATA ---
@@ -2998,9 +3111,14 @@ function backupFirestoreToSheets() {
     }
 
     const newRows = [];
-    shiftRefs.forEach(ref => {
-      const unitsPath = 'units/' + ref.date + '_' + ref.shift;
-      const unitsBySector = rtdbGet(unitsPath) || {};
+    const unitsByRef = rtdbGetAll(unitPaths);
+    console.log('[backup] RTDB units leídos en ' + elapsed());
+    shiftRefs.forEach((ref, i) => {
+      if (outOfTime()) {
+        console.log('[backup] UNIT_DATA: corte por presupuesto, ref ' + ref.date + ' ' + ref.shift + ' pendiente');
+        return;
+      }
+      const unitsBySector = unitsByRef[i] || {};
       Object.keys(unitsBySector).forEach(sectorKey => {
         const sectorUnits = unitsBySector[sectorKey] || {};
         Object.keys(sectorUnits).forEach(unitId => {
@@ -3057,11 +3175,11 @@ function backupFirestoreToSheets() {
         dataSheet.getRange(startRow + chunkStart, 1, chunk.length, 34).setValues(chunk);
       }
     }
-    console.log('[backup] UNIT_DATA: ' + newRows.length + ' new rows');
+    console.log('[backup] UNIT_DATA: ' + newRows.length + ' new rows (' + elapsed() + ')');
   }
 
-  console.log('[backup] Backup completed at ' + now);
-  return { success: true };
+  console.log('[backup] Backup completed at ' + now + ' — total ' + elapsed());
+  return { success: true, elapsedMs: Date.now() - startedAt };
 }
 
 /**
