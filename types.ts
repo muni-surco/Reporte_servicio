@@ -216,8 +216,13 @@ export const SECTORS: Sector[] = [
   'OTRAS AREAS'
 ];
 
-// OTRAS AREAS agrupa unidades de la hoja DATA con estos sectores
-export const OTRAS_AREAS_SOURCE_SECTORS = ['FISCA', 'ADM', 'TRANSITO'];
+// OTRAS AREAS agrupa las etiquetas históricas y descriptivas usadas en DATA.
+export const OTRAS_AREAS_SOURCE_SECTORS = [
+  'OTRAS AREAS',
+  'FISCA', 'FISCALIZACION', 'FISCALIZACIÓN',
+  'ADM', 'ADMINISTRACION', 'ADMINISTRACIÓN',
+  'TRANSITO', 'TRÁNSITO', 'TRANSPORTE'
+];
 
 export const isOtrasAreasSector = (value: unknown) =>
   String(value ?? '').trim().toUpperCase() === 'OTRAS AREAS';
