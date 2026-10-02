@@ -1947,6 +1947,9 @@ function searchVehicles(searchTerm, marcaFilter, modeloFilter) {
         cuadrante: colMap['cuadrante'] !== undefined ? cellToStr(row[colMap['cuadrante']], ss.getSpreadsheetTimeZone()) : '',
         urlImg: (urlImgIdx === undefined || urlImgIdx === -1) ? '' : String(row[urlImgIdx] || ''),
         propietario: colMap['propietario'] !== undefined ? String(row[colMap['propietario']] || '') : '',
+        origen: colMap['origen'] !== undefined ? String(row[colMap['origen']] || '') : '',
+        // Número de fila en la hoja (1-based, incluida la cabecera): permite editar el registro
+        _row: i + 1,
       });
     }
   }
@@ -2067,72 +2070,118 @@ function getQuadrantList() {
 }
 
 /**
- * Appends a new vehicle record to the RQ sheet.
- * @param {Object} data - Vehicle data with all fields.
+ * Mapa de campos del vehículo -> nombre de columna en la hoja RQ.
+ * Compartido por saveVehicleRQ (alta) y updateVehicleRQ (edición).
  */
-function saveVehicleRQ(data) {
+var VEHICLE_RQ_FIELDS = {
+  operador: 'operador',
+  sade: 'sade',
+  fecha: 'fecha',
+  tipo: 'tipo',
+  marca: 'marca',
+  modelo: 'modelo',
+  color: 'color',
+  placa: 'placa',
+  estado: 'estado',
+  relato: 'relato',
+  tipoDelito: 'tipo_delito',
+  subtipoDelito: 'subtipo_delito',
+  sector: 'sector',
+  cuadrante: 'cuadrante',
+  urlImg: 'url_img',
+  propietario: 'propietario',
+  origen: 'origen'
+};
+
+/**
+ * Abre la hoja RQ y devuelve sus cabeceras con el mapa de columnas
+ * (nombre en minúsculas -> índice 1-based).
+ * @param {boolean} createMissing - Crea URL_IMG / ORIGEN si no existen.
+ */
+function getVehicleRQSheet(createMissing) {
   const ss = SpreadsheetApp.openById(APP_CONFIG.VEHICLE_RQ_SPREADSHEET_ID);
   const sheet = ss.getSheetByName('RQ');
   if (!sheet) throw new Error('Sheet RQ not found');
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var colMap = {};
   headers.forEach(function(h, i) { colMap[String(h).toLowerCase().trim()] = i + 1; });
 
   // Columnas nuevas se crean solas si no existen (url_img, origen)
-  ['url_img', 'origen'].forEach(function(colName) {
-    if (colMap[colName] !== undefined) return;
-    var foundUrlCol = -1;
-    for (var hi = 0; hi < headers.length; hi++) {
-      var hh = String(headers[hi]).toLowerCase().trim();
-      if (colName === 'url_img' && ((hh.indexOf('url') !== -1 && hh.indexOf('img') !== -1) || hh === 'imagen' || hh === 'foto' || hh === 'fotografia')) {
-        foundUrlCol = hi + 1;
-        break;
+  if (createMissing) {
+    ['url_img', 'origen'].forEach(function(colName) {
+      if (colMap[colName] !== undefined) return;
+      var foundUrlCol = -1;
+      for (var hi = 0; hi < headers.length; hi++) {
+        var hh = String(headers[hi]).toLowerCase().trim();
+        if (colName === 'url_img' && ((hh.indexOf('url') !== -1 && hh.indexOf('img') !== -1) || hh === 'imagen' || hh === 'foto' || hh === 'fotografia')) {
+          foundUrlCol = hi + 1;
+          break;
+        }
       }
-    }
-    if (foundUrlCol !== -1) {
-      colMap[colName] = foundUrlCol;
-    } else {
-      sheet.getRange(1, headers.length + 1).setValue(colName === 'url_img' ? 'URL_IMG' : 'ORIGEN');
-      headers.push(colName === 'url_img' ? 'URL_IMG' : 'ORIGEN');
-      colMap[colName] = headers.length;
-    }
-  });
+      if (foundUrlCol !== -1) {
+        colMap[colName] = foundUrlCol;
+      } else {
+        sheet.getRange(1, headers.length + 1).setValue(colName === 'url_img' ? 'URL_IMG' : 'ORIGEN');
+        headers.push(colName === 'url_img' ? 'URL_IMG' : 'ORIGEN');
+        colMap[colName] = headers.length;
+      }
+    });
+  }
+
+  return { sheet: sheet, headers: headers, colMap: colMap };
+}
+
+/**
+ * Appends a new vehicle record to the RQ sheet.
+ * @param {Object} data - Vehicle data with all fields.
+ */
+function saveVehicleRQ(data) {
+  var ref = getVehicleRQSheet(true);
+  var headers = ref.headers;
+  var colMap = ref.colMap;
 
   var row = [];
   for (var i = 0; i < headers.length; i++) {
     row.push('');
   }
 
-  var fieldMapping = {
-    operador: 'operador',
-    sade: 'sade',
-    fecha: 'fecha',
-    tipo: 'tipo',
-    marca: 'marca',
-    modelo: 'modelo',
-    color: 'color',
-    placa: 'placa',
-    estado: 'estado',
-    relato: 'relato',
-    tipoDelito: 'tipo_delito',
-    subtipoDelito: 'subtipo_delito',
-    sector: 'sector',
-    cuadrante: 'cuadrante',
-    urlImg: 'url_img',
-    propietario: 'propietario',
-    origen: 'origen'
-  };
-
-  Object.keys(fieldMapping).forEach(function(key) {
-    var colName = fieldMapping[key];
-    var colIdx = colMap[colName];
+  Object.keys(VEHICLE_RQ_FIELDS).forEach(function(key) {
+    var colIdx = colMap[VEHICLE_RQ_FIELDS[key]];
     if (colIdx !== undefined) {
       row[colIdx - 1] = String(data[key] || '');
     }
   });
 
-  sheet.appendRow(row);
+  ref.sheet.appendRow(row);
+  return { success: true };
+}
+
+/**
+ * Updates an existing vehicle record of the RQ sheet in place.
+ * The target row comes from data._row (as returned by searchVehicles).
+ * @param {Object} data - Vehicle data with all fields plus _row.
+ */
+function updateVehicleRQ(data) {
+  var rowNum = parseInt(data && data._row, 10);
+  if (!rowNum || rowNum < 2) return { success: false, error: 'Registro no identificado' };
+
+  var ref = getVehicleRQSheet(true);
+  if (rowNum > ref.sheet.getLastRow()) return { success: false, error: 'El registro ya no existe' };
+
+  // Se reescribe la fila completa desde cero: las columnas no mapeadas quedan vacías
+  // (ninguna de ellas tiene datos) y así se hace en una sola llamada.
+  var row = [];
+  for (var i = 0; i < ref.headers.length; i++) row.push('');
+
+  Object.keys(VEHICLE_RQ_FIELDS).forEach(function(key) {
+    var colIdx = ref.colMap[VEHICLE_RQ_FIELDS[key]];
+    if (colIdx !== undefined) {
+      row[colIdx - 1] = String(data[key] || '');
+    }
+  });
+
+  ref.sheet.getRange(rowNum, 1, 1, ref.headers.length).setValues([row]);
   return { success: true };
 }
 

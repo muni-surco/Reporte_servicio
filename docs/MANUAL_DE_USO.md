@@ -367,6 +367,8 @@ Esta vista permite consultar y registrar vehículos en la base de datos de **Veh
 | SUBTIPO | Subtipo de delito |
 | SECTOR | Sector asignado |
 | CUADRANTE | Cuadrante asignado |
+| IMAGEN | Botón para ver la foto del vehículo |
+| ACCIÓN | Botón **EDITAR** para corregir el registro |
 
 ### 8.2 Agregar Nuevo Vehículo
 
@@ -381,6 +383,24 @@ Para añadir un vehículo a la base de datos RQ:
    - **ESTADO:** IMPLICADO, ROBADO, SOSPECHOSO o REQUISITORIADO
 3. Campos opcionales: MARCA, MODELO, COLOR, RELATO, TIPO DELITO, SUBTIPO DELITO, SECTOR, CUADRANTE (con autocompletado)
 4. Haga clic en **GUARDAR** para registrar
+
+### 8.3 Editar Vehículo
+
+Para corregir los datos de un vehículo ya registrado:
+
+1. Busque el vehículo (por placa, marca o modelo) hasta que aparezca en la tabla
+2. En la última columna **ACCIÓN**, haga clic en el botón **EDITAR** de la fila que desea modificar
+3. Se abre el modal **Editar Vehículo** con todos los campos ya cargados del registro
+4. Realice los cambios necesarios en cualquier campo
+5. Si necesita cambiar la foto, seleccione un nuevo archivo JPG (máx. 200KB); si no, se conserva la imagen registrada
+6. Haga clic en **ACTUALIZAR** para guardar los cambios en la misma fila de la base de datos
+
+Notas:
+
+- El botón **QUITAR** junto a la imagen elimina la foto del registro (no solo la vista previa)
+- Al actualizar, la tabla se refresca conservando la búsqueda y los filtros que estaban aplicados
+- El registro corregido se actualiza en la misma fila: no se crea un registro duplicado
+- Los campos marcados con `*` (PLACA, TIPO, ESTADO, FECHA DE HECHO) son obligatorios
 
 ---
 

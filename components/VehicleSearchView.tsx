@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { VehicleRQ } from '../types';
 import AutocompleteInput from './AutocompleteInput';
-import { Search, XCircle, AlertCircle, Plus, X, ChevronDown, Image, ExternalLink, ScanText } from 'lucide-react';
+import { Search, XCircle, AlertCircle, Plus, X, ChevronDown, Image, ExternalLink, ScanText, Pencil } from 'lucide-react';
 
 declare const google: any;
 
@@ -11,6 +11,23 @@ const todayStr = () => {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mm}-${dd}`;
+};
+
+// Formulario en blanco para el modal (alta o edición)
+const emptyVehicleForm = (): VehicleRQ => ({
+  operador: '', sade: '', fecha: '', tipo: '', marca: '', modelo: '', color: '', placa: '',
+  estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '', urlImg: '', propietario: '', origen: ''
+});
+
+// Normaliza la fecha de un registro a yyyy-MM-dd para <input type="date">
+// (la hoja devuelve "yyyy-MM-dd HH:mm" o "dd/MM/yyyy")
+const toDateInput = (v: unknown): string => {
+  const s = String(v ?? '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+  return '';
 };
 
 interface VehicleSearchViewProps {
@@ -30,18 +47,19 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
   const [plates, setPlates] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  // El modal de alta/edición es el mismo: solo cambia el título, la acción final y el destino
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [editingRow, setEditingRow] = useState<number | null>(null);
   const [filterType, setFilterType] = useState('TODOS'); // New state
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [quadrantOptions, setQuadrantOptions] = useState<string[]>([]);
   const [showQuadrantDropdown, setShowQuadrantDropdown] = useState(false);
   const [quadrantActiveIndex, setQuadrantActiveIndex] = useState(-1);
   const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
   const quadrantRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState<VehicleRQ>({
-    operador: '', sade: '', fecha: '', tipo: '', marca: '', modelo: '', color: '', placa: '',
-    estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '', urlImg: '', propietario: '', origen: ''
-  });
+  const [formData, setFormData] = useState<VehicleRQ>(emptyVehicleForm());
   const [imgData, setImgData] = useState<string | null>(null);
   const [imgName, setImgName] = useState('');
   const [imgError, setImgError] = useState('');
@@ -70,28 +88,34 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Recarga placas, marcas y delitos (los valores pueden cambiar al guardar)
+  const refreshMeta = () => {
+    if (typeof google === 'undefined' || !google.script || !google.script.run) return;
+    google.script.run
+      .withSuccessHandler((data: string[]) => setPlates(data || []))
+      .withFailureHandler(() => {})
+      .getVehiclePlates();
+    google.script.run
+      .withSuccessHandler((data: string[]) => setMarcaOptions(data || []))
+      .withFailureHandler(() => {})
+      .getVehicleMarcas();
+    google.script.run
+      .withSuccessHandler((data: { tipos: string[], porTipo: Record<string, string[]> }) => {
+        setDelitoTipos(data?.tipos || []);
+        setDelitoSubPorTipo(data?.porTipo || {});
+      })
+      .withFailureHandler(() => {})
+      .getVehicleDelitos();
+  };
+
   useEffect(() => {
     inputRef.current?.focus();
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: string[]) => setPlates(data || []))
-        .withFailureHandler(() => {})
-        .getVehiclePlates();
-      google.script.run
         .withSuccessHandler((data: string[]) => setQuadrantOptions(data || []))
         .withFailureHandler(() => {})
         .getQuadrantList();
-      google.script.run
-        .withSuccessHandler((data: string[]) => setMarcaOptions(data || []))
-        .withFailureHandler(() => {})
-        .getVehicleMarcas();
-      google.script.run
-        .withSuccessHandler((data: { tipos: string[], porTipo: Record<string, string[]> }) => {
-          setDelitoTipos(data?.tipos || []);
-          setDelitoSubPorTipo(data?.porTipo || {});
-        })
-        .withFailureHandler(() => {})
-        .getVehicleDelitos();
+      refreshMeta();
       loadAll();
     }
   }, []);
@@ -222,6 +246,48 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
     setImgData(null);
     setImgName('');
     setImgError('');
+  };
+
+  // En edición, quitar la imagen también limpia el URL_IMG ya guardado
+  const clearImage = () => {
+    resetImg();
+    if (modalMode === 'edit') setFormData(prev => ({ ...prev, urlImg: '' }));
+  };
+
+  const closeModal = () => {
+    if (saving) return;
+    setShowVehicleModal(false);
+    setEditingRow(null);
+    setFormErrors({});
+    setPlacaError('');
+    setSaveError('');
+    setExtractMsg('');
+    resetImg();
+  };
+
+  const openAddModal = () => {
+    setModalMode('add');
+    setEditingRow(null);
+    setFormData({ ...emptyVehicleForm(), fecha: todayStr() });
+    setFormErrors({});
+    setPlacaError('');
+    setSaveError('');
+    setExtractMsg('');
+    resetImg();
+    setShowVehicleModal(true);
+  };
+
+  // Abre el modal con los datos del registro ya cargados para corregirlos
+  const openEditModal = (v: VehicleRQ) => {
+    setModalMode('edit');
+    setEditingRow(v._row ?? null);
+    setFormData({ ...emptyVehicleForm(), ...v, fecha: toDateInput(v.fecha) });
+    setFormErrors({});
+    setPlacaError('');
+    setSaveError('');
+    setExtractMsg('');
+    resetImg();
+    setShowVehicleModal(true);
   };
 
   const handleImgSelect = (file: File | undefined) => {
@@ -388,46 +454,52 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
     if (Object.keys(errors).length) return;
     if (imgError) return;
     setSaving(true);
+    setSaveError('');
+    const isEdit = modalMode === 'edit';
     const doSave = (urlImg: string) => {
       if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler(() => {
+        const runner = google.script.run
+          .withSuccessHandler((res: any) => {
+            if (res && res.success === false) {
+              console.error('Save failed', res.error);
+              setSaveError(String(res.error || 'No se pudo guardar el registro'));
+              setSaving(false);
+              return;
+            }
             setSaving(false);
-            setShowAddModal(false);
-            setFormData({ operador: '', sade: '', fecha: todayStr(), tipo: '', marca: '', modelo: '', color: '', placa: '', estado: '', relato: '', tipoDelito: '', subtipoDelito: '', sector: '', cuadrante: '', urlImg: '', propietario: '', origen: '' });
+            setShowVehicleModal(false);
+            setEditingRow(null);
+            setFormErrors({});
+            setPlacaError('');
+            setExtractMsg('');
             resetImg();
-            // Refrescar la tabla para visualizar el último registrado
-            setSearchTerm('');
-            setShowDropdown(false);
-            setActiveIndex(-1);
-            loadAll();
-          if (typeof google !== 'undefined' && google.script && google.script.run) {
-            google.script.run
-              .withSuccessHandler((data: string[]) => setPlates(data || []))
-              .withFailureHandler(() => {})
-              .getVehiclePlates();
-            google.script.run
-              .withSuccessHandler((data: string[]) => setMarcaOptions(data || []))
-              .withFailureHandler(() => {})
-              .getVehicleMarcas();
-            google.script.run
-              .withSuccessHandler((data: { tipos: string[], porTipo: Record<string, string[]> }) => {
-                setDelitoTipos(data?.tipos || []);
-                setDelitoSubPorTipo(data?.porTipo || {});
-              })
-              .withFailureHandler(() => {})
-              .getVehicleDelitos();
-          }
-        })
-        .withFailureHandler((err: any) => {
-          console.error('Save failed', err);
-          setSaving(false);
-        })
-        .saveVehicleRQ({ ...formData, urlImg });
-    } else {
-      setSaving(false);
-      setShowAddModal(false);
-    }
+            refreshMeta();
+            if (isEdit) {
+              // Se conserva la búsqueda vigente para no perder el contexto
+              handleSearch();
+            } else {
+              setFormData({ ...emptyVehicleForm(), fecha: todayStr() });
+              // Refrescar la tabla para visualizar el último registrado
+              setSearchTerm('');
+              setShowDropdown(false);
+              setActiveIndex(-1);
+              loadAll();
+            }
+          })
+          .withFailureHandler((err: any) => {
+            console.error('Save failed', err);
+            setSaveError(String((err && err.message) || err || 'No se pudo guardar el registro'));
+            setSaving(false);
+          });
+        if (isEdit) {
+          runner.updateVehicleRQ({ ...formData, urlImg, _row: editingRow });
+        } else {
+          runner.saveVehicleRQ({ ...formData, urlImg });
+        }
+      } else {
+        setSaving(false);
+        closeModal();
+      }
     };
 
     // Si hay imagen nueva, primero se sube a Drive y su URL va a URL_IMG
@@ -537,7 +609,7 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
             <option value="MOTO">MOTO</option>
           </select>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={openAddModal}
             className="px-4 py-3 bg-emerald-600 text-white rounded-lg text-[13px] font-bold uppercase tracking-wider hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm shrink-0"
           >
             <Plus className="w-5 h-5" />
@@ -585,11 +657,12 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                   <th className="text-left px-4 py-3">SADE</th>
                   <th className="text-left px-4 py-3">RELATO</th>
                   <th className="text-center px-4 py-3">IMAGEN</th>
+                  <th className="text-center px-4 py-3">ACCIÓN</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedResults.filter(r => filterType === 'TODOS' || r.tipo === filterType).map((v, i) => (
-                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <tr key={v._row ?? i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                     <td className="px-3 py-2.5 text-center font-bold text-slate-500">{i + 1}</td>
                     <td className="px-4 py-2.5">
                       <span className="font-bold text-slate-800 tracking-wider">{v.placa}</span>
@@ -636,6 +709,17 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                         <span className="text-slate-300">--</span>
                       )}
                     </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(v)}
+                        title="Editar vehículo"
+                        className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-500 hover:text-white transition-all text-[11px] font-bold uppercase tracking-wider whitespace-nowrap"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Editar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -655,13 +739,15 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
         </div>
       )}
 
-      {/* Add Vehicle Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => !saving && setShowAddModal(false)}>
+      {/* Vehicle Modal (alta / edición) */}
+      {showVehicleModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={closeModal}>
           <div className="bg-white rounded-[20px] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden mx-4 flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="bg-[#0b63a7] px-5 py-4 flex items-center justify-between text-white shrink-0">
-              <h3 className="text-[15px] font-bold uppercase tracking-wider text-white">Agregar Vehículo</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-all">
+              <h3 className="text-[15px] font-bold uppercase tracking-wider text-white">
+                {modalMode === 'edit' ? 'Editar Vehículo' : 'Agregar Vehículo'}
+              </h3>
+              <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-all">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -682,7 +768,9 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                 { key: 'sector', label: 'SECTOR', type: 'select', options: ['1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B'] },
                 { key: 'cuadrante', label: 'CUADRANTE', type: 'autocomplete' },
                 { key: 'fecha', label: 'FECHA DE HECHO', type: 'date', required: true },
-                { key: 'sade', label: 'CODIGO SADE', type: 'number', required: false },
+                // El código SADE es alfanumérico con guiones (ej. 2025-00121):
+                // se edita como texto para que no lo rechace <input type="number">
+                { key: 'sade', label: 'CODIGO SADE', type: 'text', required: false },
               ].map(({ key, label, type, options, required }) => (
                 <React.Fragment key={key}>
                   {key === 'marca' && (
@@ -857,14 +945,6 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                         ) : null;
                       })()}
                     </div>
-                  ) : type === 'number' ? (
-                    <input
-                      type="number"
-                      value={(formData as any)[key]}
-                      onChange={(e) => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
-                      className={`${inputModalStyle}${formErrors[key] ? ' ring-1 ring-red-500' : ''}`}
-                      min="0"
-                    />
                   ) : type === 'textarea' ? (
                     <textarea
                       rows={3}
@@ -902,7 +982,20 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                     <span className="text-[11px] font-medium text-slate-600 truncate">{imgName}</span>
                     <button
                       type="button"
-                      onClick={resetImg}
+                      onClick={clearImage}
+                      className="text-[11px] font-bold uppercase tracking-wider text-red-500 hover:text-red-700 shrink-0"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                )}
+                {!imgError && !imgName && !!formData.urlImg && (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <img src={driveThumbUrl(formData.urlImg)} alt="Imagen registrada" className="h-10 w-10 object-cover rounded-md border border-slate-200 shrink-0" />
+                    <span className="text-[11px] font-medium text-slate-600 truncate">Imagen actual</span>
+                    <button
+                      type="button"
+                      onClick={clearImage}
                       className="text-[11px] font-bold uppercase tracking-wider text-red-500 hover:text-red-700 shrink-0"
                     >
                       Quitar
@@ -912,8 +1005,11 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
+              {saveError && (
+                <p className="mr-auto text-[11px] font-medium text-red-500">{saveError}</p>
+              )}
               <button
-                onClick={() => { setShowAddModal(false); resetImg(); }}
+                onClick={closeModal}
                 disabled={saving}
                 className="px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-700 transition-colors"
               >
@@ -927,7 +1023,7 @@ const VehicleSearchView: React.FC<VehicleSearchViewProps> = ({ operatorOptions =
                 {saving ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : null}
-                {saving ? 'Guardando...' : 'Guardar'}
+                {saving ? 'Guardando...' : modalMode === 'edit' ? 'Actualizar' : 'Guardar'}
               </button>
             </div>
           </div>

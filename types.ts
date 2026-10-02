@@ -53,6 +53,8 @@ export interface VehicleRQ {
   urlImg: string;
   propietario: string;
   origen: string;
+  /** Número de fila en la hoja RQ (lo devuelve searchVehicles para editar) */
+  _row?: number;
 }
 
 export interface PersonnelData {
