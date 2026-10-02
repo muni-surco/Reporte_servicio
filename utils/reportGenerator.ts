@@ -128,6 +128,26 @@ const dedupeUnitsByDataId = (units: UnitData[], mobileData: MobileReference[]): 
   return Array.from(best.values());
 };
 
+// Dedupe para el reporte de radios. La identidad de una radio tetra es su
+// código, no el ID de la unidad que la porta: al deduplicar por unidad se perdían
+// radios. Casos reales que el dedupe por unidad colapsaba:
+//   - unidad reasignada de sector con la hoja DATA desactualizada: la radio
+//     sobrevivía solo en su sector viejo y desaparecía del sector del turno.
+//   - unidades sin ID, patente ni indicativo (serenos) y sin persona cargada:
+//     todas caían en la misma clave y quedaban una sola.
+// Como el sector de cada radio sale de la hoja DATA (no del registro del turno),
+// una radio pertenece a un solo sector: la clave es el código y basta.
+const dedupeRadiosByCode = (units: UnitData[]): UnitData[] => {
+  const best = new Map<string, UnitData>();
+  units.forEach(u => {
+    const key = normalizeText(u.radio);
+    if (!key) return;
+    // Misma radio capturada dos veces: se conserva el primer registro.
+    if (!best.has(key)) best.set(key, u);
+  });
+  return Array.from(best.values());
+};
+
 // Normaliza nombres de personal para matching exacto (sin puntos, comas ni espacios dobles)
 const normalizeName = (val: any) => {
   return (val || '').toString()
@@ -3024,4 +3044,316 @@ export const generateMonthlyPatrolReport = (
 
   const fileName = `PARTE_DIARIO_DE_LAS_UNIDADES_MOVILES_${monthData?.yearMonth || 'MES'}.pdf`;
   doc.save(fileName);
+};
+
+// Sectores del reporte de radios tetras, en el orden en que se imprimen.
+// Se anteponen a cualquier sector extra que aparezca en los registros del turno.
+const TETRA_SECTOR_ORDER = [
+  '1A', '1B', '2A', '2B', '3', '4', '5', '6', '7', '8', '9A', '9B',
+  'GIR', 'RESCATE', 'OTRAS AREAS'
+];
+
+// ST_RD de la hoja DATA marca con la letra 'U' las filas que son radios. Se usa
+// solo para desempatar sector cuando un mismo código de radio aparece en dos
+// filas; el EFECTIVO se cuenta por códigos de radio distintos, no por la marca.
+const isRadioMarked = (value: unknown) => normalizeText(value) === 'U';
+
+export const generateTetraRadioReport = (
+  units: UnitData[],
+  settingsMap: Record<string, AppSettings>,
+  date: string,
+  shift: string,
+  operatorName?: string,
+  mobileData: MobileReference[] = [],
+  radioDataRows: Array<{ id: string; radio: string; stRd?: string; sector?: string }> = []
+) => {
+  const doc = new jspdf.jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 10;
+
+  const normalize = normalizeText;
+
+  // El sector de una radio es el que tiene asignado en la hoja DATA, no el que
+  // quedó en el registro del turno: una unidad que cambió de sector a mitad de
+  // turno, o un registro guardado en el bucket de otro sector, no deben mover la
+  // radio de grupo. Se busca primero por código de radio (sirve para las radios
+  // de unidades sin ID en DATA, como los serenos) y luego por ID de unidad.
+  const sectorByRadio = new Map<string, string>();
+  const sectorById = new Map<string, string>();
+  const fuenteSectores = radioDataRows.length > 0 ? radioDataRows : mobileData;
+  fuenteSectores.forEach((m: any) => {
+    const stRdSector = m.stRd ? normalize(m.stRd).replace(/^SECTOR\s+/, '') : '';
+    const sectorFila = m.sector ? normalize(m.sector).replace(/^SECTOR\s+/, '') : '';
+    const sector = stRdSector || sectorFila;
+    if (!sector) return;
+    const id = normalize(m.id);
+    if (id) sectorById.set(id, sector);
+    const radio = normalize(m.radio);
+    if (!radio) return;
+    if (!sectorByRadio.has(radio)) {
+      sectorByRadio.set(radio, sector);
+    }
+  });
+  const sectorOfUnit = (u: UnitData) =>
+    sectorByRadio.get(normalize(u.radio))
+    || sectorById.get(normalize(u.id))
+    || normalize(u.sector).replace(/^SECTOR\s+/, '')
+    || '';
+
+  // Cualquier registro del turno con radio informada entra al detalle. Se deduplica
+  // por código de radio: una radio es un recurso, aunque la unidad que la porta
+  // haya cambiado de sector o de tipo dentro del turno.
+  const radioUnits = dedupeRadiosByCode(units).filter(u => {
+    const r = String(u.radio ?? '').trim().toUpperCase();
+    return !!r && r !== '--';
+  });
+
+  // Sectores que ya cubre la lista fija. OTRAS AREAS absorbe los sectores
+  // históricos de DATA (FISCA, ADM, TRANSITO) más BOM, COM, DC, FC, GM, GSEGC,
+  // SGOSC, SIN, SSF y TR: sus etiquetas no se repiten como sector propio ni en
+  // el detalle ni en el consolidado, solo suman dentro de OTRAS AREAS.
+  // La lista es propia de este reporte: no se toca OTRAS_AREAS_SOURCE_SECTORS
+  // porque la comparten los demás reportes.
+  const OTRAS_AREAS = 'OTRAS AREAS';
+  const SIN_SECTOR = 'SIN SECTOR';
+  const TETRA_OTRAS_AREAS_EXTRA = ['BOM', 'COM', 'DC', 'FC', 'GM', 'GSEGC', 'SGOSC', 'SIN', 'SSF', 'TR'];
+  // Sectores unidos: 3 con 4, y 9A con 9B. Cada par suma en una sola tabla del
+  // detalle y una sola fila del consolidado, bajo la etiqueta combinada.
+  const TETRA_MERGED_SECTORS: Record<string, string[]> = {
+    '3-4': ['3', '4'],
+    // En DATA y en los registros el sector 9 viene como '9': también suma aquí.
+    '9A-9B': ['9A', '9B', '9']
+  };
+  const allowedSectorsFor = (sector: string): string[] => {
+    if (sector === OTRAS_AREAS) {
+      return [...sourceSectorsFor(OTRAS_AREAS), ...TETRA_OTRAS_AREAS_EXTRA].map(x => normalize(x));
+    }
+    const merged = TETRA_MERGED_SECTORS[normalize(sector)];
+    if (merged) return merged.map(x => normalize(x));
+    return [normalize(sector)];
+  };
+
+  // Orden de sectores: la lista fija primero (con 3-4 y 9A-9B ya unidos),
+  // luego los extras de los registros.
+  // Un registro sin sector no se descarta: cae en un bucket final para que la
+  // radio no desaparezca del reporte.
+  const covered = new Set<string>([
+    ...TETRA_SECTOR_ORDER,
+    ...allowedSectorsFor(OTRAS_AREAS)
+  ]);
+  // Los alias de los grupos unidos (ej. '9') tampoco generan tabla propia.
+  Object.keys(TETRA_MERGED_SECTORS).forEach(k => {
+    TETRA_MERGED_SECTORS[k].forEach(v => covered.add(normalize(v)));
+  });
+  const extras = Array.from(new Set(radioUnits.map(u => sectorOfUnit(u))))
+    .map(s => s || SIN_SECTOR)
+    .filter(s => !covered.has(s))
+    .sort();
+  // La lista fija muestra 3-4 en lugar de 3 y 4 por separado, y 9A-9B en lugar
+  // de 9A y 9B: los individuales ya quedan cubiertos por el grupo combinado.
+  const baseOrder = TETRA_SECTOR_ORDER
+    .map(s => (s === '3' ? '3-4' : s === '9A' ? '9A-9B' : s))
+    .filter((s, i, a) => s !== '4' && s !== '9B' && a.indexOf(s) === i);
+  const sectorOrder = [...baseOrder, ...extras];
+
+  const unitsBySector = (sector: string) => {
+    const allowed = allowedSectorsFor(sector);
+    const bucket = sector === SIN_SECTOR ? '' : sector;
+    return radioUnits
+      .filter(u => (bucket ? allowed.includes(sectorOfUnit(u)) : sectorOfUnit(u) === ''))
+      .sort((a, b) => {
+        const byPto = normalize(a.id).localeCompare(normalize(b.id), undefined, { numeric: true });
+        return byPto !== 0 ? byPto : normalize(a.radio).localeCompare(normalize(b.radio), undefined, { numeric: true });
+      });
+  };
+
+  // --- HEADER ---
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('REPORTE DE RADIOS TETRAS', pageWidth / 2, 15, { align: 'center' });
+
+  doc.setLineWidth(0.7);
+  doc.rect(margin + 20, 20, pageWidth - (margin * 2) - 40, 15);
+  doc.setFontSize(22);
+  doc.text(`TURNO ${shift.toUpperCase()}`, pageWidth / 2, 31, { align: 'center' });
+
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatLongDate(date).toUpperCase(), pageWidth / 2, 42, { align: 'center' });
+
+  let y = 50;
+
+  // --- DETALLE: una tabla por sector ---
+  const sectorsWithRows = sectorOrder.filter(s => unitsBySector(s).length > 0);
+
+  if (sectorsWithRows.length === 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('NO SE REGISTRARON RADIOS EN EL TURNO', pageWidth / 2, y + 5, { align: 'center' });
+    y += 12;
+  }
+
+  sectorsWithRows.forEach(sector => {
+    const sectorUnits = unitsBySector(sector);
+    const body = sectorUnits.map((u, i) => [
+      String(i + 1),
+      String(u.radio ?? '').trim().toUpperCase(),
+      sector,
+      normalize(u.id) || '--',
+      normalize(u.personnel1) || '--'
+    ]);
+
+    (doc as any).autoTable({
+      startY: y,
+      head: [[
+        { content: `RADIOS TETRAS - SECTOR ${sector} (${sectorUnits.length})`, colSpan: 5, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 9 } }
+      ], [
+        'N°', 'RADIO', 'SECTOR', 'PTO', 'NOMBRE'
+      ]],
+      body,
+      theme: 'grid',
+      styles: { fontSize: 8, halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1 },
+      headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 12 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 'auto', halign: 'left' }
+      },
+      margin: { left: margin, right: margin }
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 6;
+  });
+
+  // --- CONSOLIDADO: EFECTIVO / ASIGNADO / SIN ASIGNAR por sector ---
+  // EFECTIVO: filas de la hoja DATA cuyo ST_RD coincide con el sector.
+  // ASIGNADO: radios registradas en el turno (las filas del detalle de arriba).
+  // SIN ASIGNAR: el resto del efectivo que no se registró en el turno.
+  // Las radios sin sector no se suman al consolidado: no se pueden cotejar contra
+  // un sector de DATA. Aparecen solo en el detalle y se indican al pie de la tabla.
+  const sinSectorCount = unitsBySector(SIN_SECTOR).length;
+
+  // EFECTIVO: filas de la hoja DATA donde ST_RD es igual al sector.
+  // Cuenta filas, no códigos: una radio repetida en varias filas del mismo
+  // sector suma una por fila, igual como se cuenta en la hoja DATA.
+  const efectivoDe = (sector: string): number => {
+    const allowed = allowedSectorsFor(sector);
+    const fuente = radioDataRows.length > 0 ? radioDataRows : mobileData;
+    let total = 0;
+    fuente.forEach((m: any) => {
+      const stRdSector = m.stRd ? normalize(m.stRd).replace(/^SECTOR\s+/, '') : '';
+      if (!stRdSector) return;
+      if (!allowed.includes(stRdSector)) return;
+      // radioRows ya solo trae filas con radio informada; en mobileData se exige aquí.
+      if (!normalize(m.radio)) return;
+      total++;
+    });
+    return total;
+  };
+
+  const summarySectors = sectorOrder.filter(s => {
+    if (s === SIN_SECTOR) return false;
+    const hasEfectivo = efectivoDe(s) > 0;
+    return hasEfectivo || unitsBySector(s).length > 0;
+  });
+
+  const summaryRows = summarySectors.map(s => {
+    const efectivo = efectivoDe(s);
+    const asignado = unitsBySector(s).length;
+    const sinAsignar = efectivo - asignado;
+    return {
+      sector: s,
+      efectivo,
+      asignado,
+      // Si el turno registró más radios que las que DATA tiene asignadas, el
+      // efectivo no cuadra: se muestra 'Pendiente' en vez de un SIN ASIGNAR negativo.
+      row: [
+        s,
+        String(efectivo),
+        blankZero(asignado),
+        asignado > efectivo ? PENDING : blankZero(sinAsignar)
+      ]
+    };
+  });
+
+  let totalEfectivo = 0, totalAsignado = 0, pendientes = 0;
+  summaryRows.forEach(r => {
+    totalEfectivo += r.efectivo;
+    totalAsignado += r.asignado;
+    if (r.row[3] === PENDING) pendientes++;
+  });
+
+  const summaryBody = summaryRows.map(r => r.row);
+  if (summaryRows.length > 0) {
+    summaryBody.push([
+      'TOTALES',
+      String(totalEfectivo),
+      blankZero(totalAsignado),
+      pendientes > 0 ? PENDING : blankZero(totalEfectivo - totalAsignado)
+    ]);
+  }
+
+  // Tabla centrada: 40 + 30 + 30 + 30 = 130 mm, márgenes iguales a cada lado.
+  const summaryWidth = 130;
+  const summaryMargin = (pageWidth - summaryWidth) / 2;
+  (doc as any).autoTable({
+    startY: y,
+    head: [[
+      { content: 'CONSOLIDADO DE RADIOS POR SECTOR', colSpan: 4, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 10 } }
+    ], [
+      'SECTORES', 'EFECTIVO', 'ASIGNADO', 'SIN ASIGNAR'
+    ]],
+    body: summaryBody,
+    foot: sinSectorCount > 0 ? [[
+      {
+        content: `${sinSectorCount} radio(s) sin sector no se incluyen en el consolidado.`,
+        colSpan: 4,
+        styles: { halign: 'left', fontSize: 6.5, fontStyle: 'normal', textColor: [100, 116, 139] }
+      }
+    ]] : [],
+    theme: 'grid',
+    styles: { fontSize: 8, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1 },
+    headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 8 },
+    footStyles: { fontSize: 6.5, fontStyle: 'normal', textColor: [100, 116, 139] },
+    columnStyles: {
+      0: { cellWidth: 40, fillColor: [240, 240, 240] },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 30 }
+    },
+    didParseCell: (data: any) => {
+      if (data.section !== 'body' || !summaryRows.length) return;
+      const isTotalRow = data.row.index === summaryRows.length;
+      // EFECTIVO en verde, ASIGNADO en azul, SIN ASIGNAR en amarillo (patrón del resto de reportes)
+      if (!isTotalRow && data.column.index === 1) data.cell.styles.fillColor = [144, 238, 144];
+      if (!isTotalRow && data.column.index === 2) data.cell.styles.fillColor = [189, 215, 238];
+      if (!isTotalRow && data.column.index === 3) data.cell.styles.fillColor = [255, 255, 224];
+      if (isTotalRow) {
+        data.cell.styles.fillColor = [38, 70, 83];
+        data.cell.styles.textColor = [255, 255, 255];
+        if (data.column.index === 1) data.cell.styles.fillColor = [40, 167, 69];
+        if (data.column.index === 2) data.cell.styles.fillColor = [21, 101, 192];
+        if (data.column.index === 3) data.cell.styles.fillColor = [255, 193, 7];
+      }
+    },
+    margin: { left: summaryMargin, right: summaryMargin }
+  });
+
+  // Pie de página estándar (SUPERVISOR CCO · OPERADOR CCO · Generado el)
+  const c4Supervisor = resolveC4Supervisor(settingsMap)
+    || (((Object.values(settingsMap)[0] || {}) as any).supervisor || '');
+  stampReportFooter(
+    doc, pageWidth, pageHeight, margin, c4Supervisor,
+    resolveOperator(settingsMap, operatorName), new Date().toLocaleString()
+  );
+
+  doc.save(`REPORTE_RADIOS_TETRAS_${shift}_${date}.pdf`);
 };

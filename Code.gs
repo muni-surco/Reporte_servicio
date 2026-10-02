@@ -635,17 +635,18 @@ function getMobileData() {
   
   if (!sheet) {
     console.error('Sheet DATA not found in external spreadsheet');
-    return { mobiles: [], indicatives: [], statuses: [], personnel: [], quadrants: [] };
+    return { mobiles: [], indicatives: [], statuses: [], personnel: [], quadrants: [], radios: [], radioRows: [] };
   }
   
   const data = sheet.getDataRange().getValues();
-  if (data.length < 2) return { mobiles: [], indicatives: [], statuses: [], personnel: [], quadrants: [] };
+  if (data.length < 2) return { mobiles: [], indicatives: [], statuses: [], personnel: [], quadrants: [], radios: [], radioRows: [] };
   
   // Find column indices (case-insensitive)
   const headers = data[0].map(h => String(h).toLowerCase().trim());
   const movilIdx = headers.indexOf('movil');
   const placaIdx = headers.indexOf('placa');
   const radioIdx = headers.indexOf('radio');
+  const stRdIdx = headers.indexOf('st_rd'); // Columna al costado de RADIO: marca los radios ('U')
   const tetraIdx = headers.indexOf('tetra'); // Nuevo
   const cuadranteIdx = headers.indexOf('cuadrante');
   const sectorIdx = headers.indexOf('sector');
@@ -672,6 +673,8 @@ function getMobileData() {
   const quadrantsSet = new Set();
   const motivoTallerSet = new Set();
   const radiosSet = new Set();
+  // Filas de radios con su sector, incluidas las que no tienen MOVIL.
+  const radioRows = [];
   const lugarSet = new Set();
   const motivoFaltoSet = new Set();
   const motivoDesperfectosSet = new Set();
@@ -693,6 +696,7 @@ function getMobileData() {
         plate: placaIdx !== -1 ? String(row[placaIdx] || '') : '',
         model: modeloIdx !== -1 ? String(row[modeloIdx] || '') : '',
         radio: (tetraIdx !== -1 ? String(row[tetraIdx] || '') : (radioIdx !== -1 ? String(row[radioIdx] || '') : '')),
+        stRd: stRdIdx !== -1 ? String(row[stRdIdx] || '').trim().toUpperCase() : '',
         quadrant: cuadranteIdx !== -1 ? cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()) : '',
         sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
         status: estadoIdx !== -1 ? String(row[estadoIdx] || '').trim() : '',
@@ -700,6 +704,20 @@ function getMobileData() {
         tipo: tipoIdx !== -1 ? String(row[tipoIdx] || '').trim() : '',
         propiedad: propiedadIdx !== -1 ? String(row[propiedadIdx] || '').trim() : '',
         sipcop: sipcopIdx !== -1 ? String(row[sipcopIdx] || '').trim() : ''
+      });
+    }
+
+    // Filas que son radios, para el reporte de radios tetras. Se leen por
+    // separado y SIN exigir MOVIL: hay radios en DATA que no están asignadas a
+    // ningún móvil (serenos, radios de apoyo). Así el EFECTIVO cuenta todas las
+    // radios por sector, incluso las que no aparecen en el listado de móviles.
+    const radioValue = (tetraIdx !== -1 && row[tetraIdx]) ? row[tetraIdx] : ((radioIdx !== -1 && row[radioIdx]) ? row[radioIdx] : '');
+    if (radioValue) {
+      radioRows.push({
+        id: movilIdx !== -1 ? String(row[movilIdx] || '').trim() : '',
+        radio: String(radioValue).trim(),
+        stRd: stRdIdx !== -1 ? String(row[stRdIdx] || '').trim().toUpperCase() : '',
+        sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : ''
       });
     }
 
@@ -827,6 +845,19 @@ function getMobileData() {
     console.error('Error fetching external personnel for suggestions:', e);
   }
 
+  console.log('[getMobileData] mobiles=' + mobileData.length + ' radioRows=' + radioRows.length);
+  try {
+    const norm = function (v) { return String(v || '').trim().toUpperCase(); };
+    const stRdVals = {};
+    radioRows.forEach(function (r) { stRdVals[norm(r.stRd)] = true; });
+    const rows1A = radioRows.filter(function (r) { return norm(r.stRd) === '1A'; });
+    const codes1A = {};
+    rows1A.forEach(function (r) {
+      const c = norm(r.radio);
+      if (c && c !== '--') codes1A[c] = true;
+    });
+    console.log('[getMobileData] 1A: filas=' + rows1A.length + ' codigosDistintos=' + Object.keys(codes1A).length + ' stRdDistintos=' + Object.keys(stRdVals).join(','));
+  } catch (e2) { console.log('[getMobileData] diag error: ' + e2); }
   return {
     mobiles: mobileData,
     indicatives: Array.from(indicativesSet).sort(),
@@ -845,7 +876,8 @@ function getMobileData() {
     motivoSinVehiculoOptions: Array.from(motivoSinVehiculoSet).sort(),
     radios: Array.from(radiosSet).sort(),
     codigoBodycamOptions: Array.from(codigoBodycamSet).sort(),
-    codigoTaserOptions: Array.from(codigoTaserSet).sort()
+    codigoTaserOptions: Array.from(codigoTaserSet).sort(),
+    radioRows: radioRows
   };
 }
 

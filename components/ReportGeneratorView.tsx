@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound, ShieldCheck, Activity, Search } from 'lucide-react';
+import { Calendar, Clock, FileText, Download, PieChart, Users, UserRound, ShieldCheck, Activity, Search, Radio } from 'lucide-react';
 import AutocompleteInput from './AutocompleteInput';
 
 interface ReportGeneratorViewProps {
@@ -151,6 +151,17 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
       btnClass: 'bg-slate-700 hover:bg-slate-800'
     },
     {
+      id: 'radios_tetra',
+      title: 'Radios Tetras',
+      subtitle: 'RADIOS POR SECTOR',
+      description: 'Detalle de las radios tetras registradas en el turno agrupadas por sector (N°, radio, sector, pto y nombre), con consolidado de efectivo, asignado y sin asignar.',
+      icon: <Radio className="w-8 h-8" />,
+      color: 'amber',
+      themeClass: 'border-amber-100',
+      iconClass: 'bg-amber-50 text-amber-600',
+      btnClass: 'bg-amber-600 hover:bg-amber-700'
+    },
+    {
       id: 'calendario_patrullaje',
       title: 'Parte Diario de las Unidades Móviles',
       subtitle: 'CALENDARIO MENSUAL',
@@ -176,9 +187,10 @@ const ReportGeneratorView: React.FC<ReportGeneratorViewProps> = ({
     asistencia_regimen: 'Personal',
     asistencia_estado: 'Personal',
     taser: 'Personal',
+    radios_tetra: 'Radios',
     calendario_patrullaje: 'Patrullaje'
   };
-  const GROUP_ORDER = ['Operatividad', 'Flotas', 'Personal', 'Patrullaje'];
+  const GROUP_ORDER = ['Operatividad', 'Flotas', 'Personal', 'Radios', 'Patrullaje'];
   const groupTabs = ['Todas', ...GROUP_ORDER];
   // Búsqueda sin tildes ni mayúsculas
   const flat = (v: string) => v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');

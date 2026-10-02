@@ -472,8 +472,42 @@ El módulo **Centro de Reportes** permite generar documentos PDF con los datos d
 | **Asistencia por Regimen** | Reporte de inasistencias agrupado por régimen laboral (276, 728, 1057, OS) |
 | **Reporte General** | Reporte consolidado de todos los registros |
 | **Reporte TASER y BODYCAM** | Reporte de asignación de dispositivos TASER y bodycam por unidad |
+| **Radios Tetras** | Reporte de las radios tetras registradas en el turno, agrupadas por sector, con consolidado de efectivo, asignado y sin asignar |
 
-### 11.2 Columnas del Reporte TASER y BODYCAM
+### 11.2 Columnas del Reporte de Radios Tetras
+
+El detalle se imprime en una tabla por sector (solo los sectores con radios registradas en el turno):
+
+| Columna | Descripción |
+|---|---|
+| **N°** | Correlativo dentro del sector |
+| **RADIO** | Código de la radio tetra registrada |
+| **SECTOR** | Sector asignado a la radio en la hoja DATA |
+| **PTO** | ID del puesto/unidad que porta la radio |
+| **NOMBRE** | Personal que tiene asignada la radio |
+
+El sector sale de la hoja DATA, no del registro del turno: si una unidad cambió de sector a mitad de turno, la radio sigue contando en el sector que le tiene asignada DATA. La búsqueda es primero por código de radio y luego por ID de unidad; solo si la radio no existe en DATA se usa el sector con que quedó registrada en el turno.
+
+Cada radio se cuenta una sola vez. Dos registros con el mismo código de radio son la misma radio, aunque la unidad que la porta haya cambiado de sector o de tipo dentro del turno.
+
+Al final se agrega la tabla consolidada por sector:
+
+| Columna | Descripción |
+|---|---|
+| **SECTORES** | Sector |
+| **EFECTIVO** | Filas de la hoja DATA cuyo valor de **ST_RD** coincide con el sector (incluyendo las filas sin ID de móvil; si un código se repite en varias filas, cada fila suma) |
+| **ASIGNADO** | Radios del sector registradas en el turno (las filas del detalle, ya agrupadas por el sector de DATA) |
+| **SIN ASIGNAR** | EFECTIVO − ASIGNADO |
+
+El EFECTIVO cuenta filas, no códigos: si una radio está repetida en varias filas de DATA del mismo sector, cada fila suma.
+
+Los sectores BOM, COM, DC, FC, GM, GSEGC, SGOSC, SIN, SSF y TR (además de FISCA, ADM y TRÁNSITO) se agrupan en **OTRAS AREAS**: no tienen tabla propia en el detalle ni fila propia en el consolidado, solo suman dentro de OTRAS AREAS.
+
+Los sectores 3 y 4 se unen en **3-4**, y los sectores 9, 9A y 9B en **9A-9B**: cada grupo comparte una sola tabla de detalle y una sola fila del consolidado con los valores sumados.
+
+Cuando el turno registra más radios que las que DATA tiene asignadas, la celda muestra **Pendiente** en lugar de un valor negativo. Las radios registradas sin sector no se suman al consolidado y se indican al pie de la tabla.
+
+### 11.3 Columnas del Reporte TASER y BODYCAM
 
 El reporte TASER y BODYCAM incluye las siguientes columnas:
 
@@ -491,14 +525,14 @@ El reporte TASER y BODYCAM incluye las siguientes columnas:
 | **CÓDIGO BODYCAM** | Código de la bodycam asignada |
 | **OBSERVACIÓN** | Observaciones adicionales |
 
-### 11.3 Cómo Generar un Reporte
+### 11.4 Cómo Generar un Reporte
 
 1. Seleccione el tipo de reporte haciendo clic en la tarjeta correspondiente (se resalta con borde azul)
 2. Seleccione la **FECHA** y el **TURNO** en los filtros superiores
 3. Haga clic en **GENERAR REPORTE**
 4. El PDF se generará automáticamente en el navegador y se abrirá en una nueva pestaña o se descargará
 
-### 11.4 Progreso
+### 11.5 Progreso
 
 Durante la generación, la tarjeta activa muestra un spinner giratorio y el texto "PROCESANDO...". Una vez completado, se restablece el estado normal.
 

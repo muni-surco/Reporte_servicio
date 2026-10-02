@@ -145,11 +145,21 @@ export interface AppData {
   settings: AppSettings;
 }
 
+export interface RadioDataRow {
+  id: string;
+  radio: string;
+  stRd?: string;
+  sector?: string;
+}
+
 export interface MobileReference {
   id: string;
   plate: string;
   model?: string;
   radio?: string;
+  // Columna ST_RD de la hoja DATA (al costado de RADIO). Marca con 'U' las
+  // filas que son radios: se usa para el EFECTIVO del reporte de radios tetras.
+  stRd?: string;
   quadrant?: string;
   sector?: string;
   status?: string;

@@ -78,6 +78,7 @@ const App: React.FC = () => {
     version: 'v2.5.0-PRO'
   });
   const [mobileData, setMobileData] = useState<MobileReference[]>([]);
+  const [radioDataRows, setRadioDataRows] = useState<Array<{ id: string; radio: string; stRd: string; sector: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [headerSaveStatus, setHeaderSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -170,7 +171,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[],         codigoBodycamOptions?: string[], codigoTaserOptions?: string[] }) => {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], radioRows?: Array<{ id: string; radio: string; stRd: string; sector: string }>, motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[],         codigoBodycamOptions?: string[], codigoTaserOptions?: string[] }) => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
@@ -189,6 +190,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           if (data.motivoSinVehiculoOptions) setMotivoSinVehiculoOptions(data.motivoSinVehiculoOptions);
           if (data.codigoBodycamOptions) setcodigoBodycamOptions(data.codigoBodycamOptions);
           if (data.codigoTaserOptions) setCodigoTaserOptions(data.codigoTaserOptions);
+          if (data.radioRows) setRadioDataRows(data.radioRows);
           // Cargar lista de personal para regimen laboral
           google.script.run
             .withSuccessHandler((personnel: PersonnelData[]) => {
@@ -1376,6 +1378,8 @@ hours: '--:-- - --:--',
         reportGenerators.generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else if (type === 'taser') {
         reportGenerators.generateTaserReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+      } else if (type === 'radios_tetra') {
+        reportGenerators.generateTetraRadioReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, radioDataRows);
       } else if (type === 'calendario_patrullaje') {
         // Calendario mensual de patrullaje: usa el MES de la fecha seleccionada
         const yearMonth = (date || '').substring(0, 7);
