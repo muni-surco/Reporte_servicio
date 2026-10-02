@@ -319,9 +319,8 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: (!isNoPersonnelStatus && !isOtrasAreasCard && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
       personnel2: isPersonnel2Duplicate,
-      // Radio: requerida y obligatoriamente elegida de la lista (sin códigos al azar).
-      radio: (!isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'))
-        || (String(formData.radio ?? '').trim() !== '' && String(formData.radio).trim() !== '--' && allowedRadioList.length > 0 && !isRadioInList(formData.radio)),
+      // Radio: solo requerido (sin validación de lista).
+      radio: !isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'),
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
@@ -457,15 +456,12 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
   const hasPersonnel2 = isChofer;
   const hasPlate = !isSereno;
   const hasIndicative = isChofer;
-  // Radios válidas: la radio grabada debe elegirse de esta lista, no se aceptan
-  // códigos digitados al azar. Mismas fuentes que las sugerencias del campo.
+  // Radios sugeridas en el campo (lista de DATA, incluidas las sin móvil).
   const allowedRadioList: string[] = Array.from(new Set([
     ...RADIOS,
     ...(radioOptions || []),
     ...(mobileData ? mobileData.map(d => d.radio).filter(r => r && r !== '--') : [])
   ].filter(r => r && r !== '--'))) as string[];
-  const isRadioInList = (val: unknown) =>
-    allowedRadioList.some(r => String(r).trim().toUpperCase() === String(val ?? '').trim().toUpperCase());
 
   const renderToggle = (field: 'taser' | 'bodycam', label: string) => {
     const isOn = formData[field] === 'SI';
@@ -795,7 +791,7 @@ const v = e.target.value;
                 placeholder="20xxx"
                 error={errors.radio}
               />
-              {errors.radio && <span className={errorMsgStyle}>{String(formData.radio ?? '').trim() !== '' ? 'Seleccione una radio de la lista.' : 'Requerido'}</span>}
+              {errors.radio && <span className={errorMsgStyle}>Requerido</span>}
             </div>
 
             {isChofer && (

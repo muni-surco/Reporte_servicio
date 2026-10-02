@@ -176,7 +176,6 @@ Los campos de TASER y BODYCAM aparecen en la segunda fila del modo edición para
 - El campo ID es obligatorio para **PATRULLANDO** y se valida contra duplicados
 - Para CHOFER y MOTO, el ID debe existir en los datos de referencia
 - Los campos CHOFER (personal1), RADIO y CUADRANTE son obligatorios solo para el estado **PATRULLANDO**
-- La RADIO debe elegirse de la lista (no se aceptan códigos digitados al azar); si no está en la lista, el formulario muestra "Seleccione una radio de la lista." y no graba
 - **CON DESPERFECTOS** requiere ID y radio, pero no cuadrante
 - **SIN VEHICULO**, **APOYO OTRA AREA**, **CAMBIO DE TURNO** y **CAMBIO DESCANSO** requieren personal pero no ID, radio ni cuadrante
 - **SIN CONDUCTOR**, **MANTENIMIENTO**, **SINIESTRO**, **SIN DOCUMENTOS** y **FALTO (INASISTENCIA)** no requieren personal ni ID, radio o cuadrante
@@ -511,7 +510,7 @@ El sector sale de la hoja DATA, no del registro del turno: si una unidad cambió
 
 Cada radio se cuenta una sola vez. Dos registros con el mismo código de radio son la misma radio, aunque la unidad que la porta haya cambiado de sector o de tipo dentro del turno.
 
-Al final se agrega la tabla consolidada por sector, siempre en hoja separada y con su propia cabecera (título, turno y fecha):
+Al final se agrega la tabla consolidada por sector, siempre en hoja separada y con su propia cabecera (título, turno y fecha). Aparecen todos los sectores con efectivo en DATA, aunque el turno no haya registrado radios de ellos (ASIGNADO queda en blanco y SIN ASIGNAR es igual al EFECTIVO):
 
 | Columna | Descripción |
 |---|---|

@@ -3159,7 +3159,18 @@ export const generateTetraRadioReport = (
   Object.keys(TETRA_MERGED_SECTORS).forEach(k => {
     TETRA_MERGED_SECTORS[k].forEach(v => covered.add(normalize(v)));
   });
-  const extras = Array.from(new Set(radioUnits.map(u => sectorOfUnit(u))))
+  // Sectores con efectivo en DATA aunque el turno no haya registrado radios de
+  // ellos: igual aparecen en el consolidado con su EFECTIVO (ASIGNADO en blanco).
+  const fuenteSectoresData = radioDataRows.length > 0 ? radioDataRows : mobileData;
+  const dataSectors = new Set<string>();
+  fuenteSectoresData.forEach((m: any) => {
+    const s = m.stRd ? canonTetraSector(m.stRd) : '';
+    if (s) dataSectors.add(s);
+  });
+  const extras = Array.from(new Set([
+    ...radioUnits.map(u => sectorOfUnit(u)),
+    ...Array.from(dataSectors)
+  ]))
     .map(s => s || SIN_SECTOR)
     .filter(s => !covered.has(s))
     .sort();
