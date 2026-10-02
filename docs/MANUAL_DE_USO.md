@@ -176,6 +176,7 @@ Los campos de TASER y BODYCAM aparecen en la segunda fila del modo edición para
 - El campo ID es obligatorio para **PATRULLANDO** y se valida contra duplicados
 - Para CHOFER y MOTO, el ID debe existir en los datos de referencia
 - Los campos CHOFER (personal1), RADIO y CUADRANTE son obligatorios solo para el estado **PATRULLANDO**
+- La RADIO debe elegirse de la lista (no se aceptan códigos digitados al azar); si no está en la lista, el formulario muestra "Seleccione una radio de la lista." y no graba
 - **CON DESPERFECTOS** requiere ID y radio, pero no cuadrante
 - **SIN VEHICULO**, **APOYO OTRA AREA**, **CAMBIO DE TURNO** y **CAMBIO DESCANSO** requieren personal pero no ID, radio ni cuadrante
 - **SIN CONDUCTOR**, **MANTENIMIENTO**, **SINIESTRO**, **SIN DOCUMENTOS** y **FALTO (INASISTENCIA)** no requieren personal ni ID, radio o cuadrante
@@ -510,20 +511,22 @@ El sector sale de la hoja DATA, no del registro del turno: si una unidad cambió
 
 Cada radio se cuenta una sola vez. Dos registros con el mismo código de radio son la misma radio, aunque la unidad que la porta haya cambiado de sector o de tipo dentro del turno.
 
-Al final se agrega la tabla consolidada por sector:
+Al final se agrega la tabla consolidada por sector, siempre en hoja separada y con su propia cabecera (título, turno y fecha):
 
 | Columna | Descripción |
 |---|---|
 | **SECTORES** | Sector |
 | **EFECTIVO** | Filas de la hoja DATA cuyo valor de **ST_RD** coincide con el sector (incluyendo las filas sin ID de móvil; si un código se repite en varias filas, cada fila suma) |
-| **ASIGNADO** | Radios del sector registradas en el turno (las filas del detalle, ya agrupadas por el sector de DATA) |
-| **SIN ASIGNAR** | EFECTIVO − ASIGNADO |
+| **ASIGNADO** | Radios del sector registradas en el turno (las filas del detalle, ya agrupadas por el sector de DATA). En LOGISTICA y OTRAS AREAS muestra `--` |
+| **SIN ASIGNAR** | EFECTIVO − ASIGNADO. En LOGISTICA y OTRAS AREAS muestra `--` |
 
 El EFECTIVO cuenta filas, no códigos: si una radio está repetida en varias filas de DATA del mismo sector, cada fila suma.
 
 Los sectores BOM, COM, DC, FC, GM, GSEGC, SGOSC, SIN, SSF y TR (además de FISCA, ADM y TRÁNSITO) se agrupan en **OTRAS AREAS**: no tienen tabla propia en el detalle ni fila propia en el consolidado, solo suman dentro de OTRAS AREAS.
 
 Los sectores 3 y 4 se unen en **3-4**, y los sectores 9, 9A y 9B en **9A-9B**: cada grupo comparte una sola tabla de detalle y una sola fila del consolidado con los valores sumados.
+
+En el consolidado, la fila **OTRAS AREAS** sale al final, antes de TOTALES. El sector LOG se muestra como **LOGISTICA**.
 
 Cuando el turno registra más radios que las que DATA tiene asignadas, la celda muestra **Pendiente** en lugar de un valor negativo. Las radios registradas sin sector no se suman al consolidado y se indican al pie de la tabla.
 

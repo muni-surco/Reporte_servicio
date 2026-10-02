@@ -3078,6 +3078,14 @@ export const generateTetraRadioReport = (
   const margin = 10;
 
   const normalize = normalizeText;
+  // Etiqueta visible de cada sector en este reporte. El cruce (detalle,
+  // consolidado y efectivo) sigue usando el código normalizado.
+  const canonTetraSector = (s: string) => {
+    const n = normalize(s).replace(/^SECTOR\s+/, '');
+    return n === 'LOGISTICA' ? 'LOG' : n;
+  };
+  const TETRA_SECTOR_LABELS: Record<string, string> = { 'LOG': 'LOGISTICA' };
+  const labelOfSector = (s: string) => TETRA_SECTOR_LABELS[normalize(s)] || s;
 
   // El sector de una radio es el que tiene asignado en la hoja DATA, no el que
   // quedó en el registro del turno: una unidad que cambió de sector a mitad de
@@ -3088,8 +3096,8 @@ export const generateTetraRadioReport = (
   const sectorById = new Map<string, string>();
   const fuenteSectores = radioDataRows.length > 0 ? radioDataRows : mobileData;
   fuenteSectores.forEach((m: any) => {
-    const stRdSector = m.stRd ? normalize(m.stRd).replace(/^SECTOR\s+/, '') : '';
-    const sectorFila = m.sector ? normalize(m.sector).replace(/^SECTOR\s+/, '') : '';
+    const stRdSector = m.stRd ? canonTetraSector(m.stRd) : '';
+    const sectorFila = m.sector ? canonTetraSector(m.sector) : '';
     const sector = stRdSector || sectorFila;
     if (!sector) return;
     const id = normalize(m.id);
@@ -3103,7 +3111,7 @@ export const generateTetraRadioReport = (
   const sectorOfUnit = (u: UnitData) =>
     sectorByRadio.get(normalize(u.radio))
     || sectorById.get(normalize(u.id))
-    || normalize(u.sector).replace(/^SECTOR\s+/, '')
+    || canonTetraSector(u.sector)
     || '';
 
   // Cualquier registro del turno con radio informada entra al detalle. Se deduplica
@@ -3173,19 +3181,22 @@ export const generateTetraRadioReport = (
       });
   };
 
-  // --- HEADER ---
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text('REPORTE DE RADIOS TETRAS', pageWidth / 2, 15, { align: 'center' });
+  // --- HEADER (se reutiliza en la hoja del consolidado) ---
+  const drawHeader = () => {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('REPORTE DE RADIOS TETRAS', pageWidth / 2, 15, { align: 'center' });
 
-  doc.setLineWidth(0.7);
-  doc.rect(margin + 20, 20, pageWidth - (margin * 2) - 40, 15);
-  doc.setFontSize(22);
-  doc.text(`TURNO ${shift.toUpperCase()}`, pageWidth / 2, 31, { align: 'center' });
+    doc.setLineWidth(0.7);
+    doc.rect(margin + 20, 20, pageWidth - (margin * 2) - 40, 15);
+    doc.setFontSize(22);
+    doc.text(`TURNO ${shift.toUpperCase()}`, pageWidth / 2, 31, { align: 'center' });
 
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(formatLongDate(date).toUpperCase(), pageWidth / 2, 42, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(formatLongDate(date).toUpperCase(), pageWidth / 2, 42, { align: 'center' });
+  };
+  drawHeader();
 
   let y = 50;
 
@@ -3201,10 +3212,11 @@ export const generateTetraRadioReport = (
 
   sectorsWithRows.forEach(sector => {
     const sectorUnits = unitsBySector(sector);
+    const etiqueta = labelOfSector(sector);
     const body = sectorUnits.map((u, i) => [
       String(i + 1),
       String(u.radio ?? '').trim().toUpperCase(),
-      sector,
+      etiqueta,
       normalize(u.id) || '--',
       normalize(u.personnel1) || '--'
     ]);
@@ -3212,7 +3224,7 @@ export const generateTetraRadioReport = (
     (doc as any).autoTable({
       startY: y,
       head: [[
-        { content: `RADIOS TETRAS - SECTOR ${sector} (${sectorUnits.length})`, colSpan: 5, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 9 } }
+        { content: `RADIOS TETRAS - SECTOR ${etiqueta} (${sectorUnits.length})`, colSpan: 5, styles: { halign: 'center', fillColor: [38, 70, 83], textColor: [255, 255, 255], fontSize: 9 } }
       ], [
         'N°', 'RADIO', 'SECTOR', 'PTO', 'NOMBRE'
       ]],
@@ -3234,11 +3246,16 @@ export const generateTetraRadioReport = (
   });
 
   // --- CONSOLIDADO: EFECTIVO / ASIGNADO / SIN ASIGNAR por sector ---
+  // Va siempre en hoja separada, con su propia cabecera.
   // EFECTIVO: filas de la hoja DATA cuyo ST_RD coincide con el sector.
   // ASIGNADO: radios registradas en el turno (las filas del detalle de arriba).
   // SIN ASIGNAR: el resto del efectivo que no se registró en el turno.
   // Las radios sin sector no se suman al consolidado: no se pueden cotejar contra
   // un sector de DATA. Aparecen solo en el detalle y se indican al pie de la tabla.
+  (doc as any).addPage();
+  drawHeader();
+  y = 50;
+
   const sinSectorCount = unitsBySector(SIN_SECTOR).length;
 
   // EFECTIVO: filas de la hoja DATA donde ST_RD es igual al sector.
@@ -3249,7 +3266,7 @@ export const generateTetraRadioReport = (
     const fuente = radioDataRows.length > 0 ? radioDataRows : mobileData;
     let total = 0;
     fuente.forEach((m: any) => {
-      const stRdSector = m.stRd ? normalize(m.stRd).replace(/^SECTOR\s+/, '') : '';
+      const stRdSector = m.stRd ? canonTetraSector(m.stRd) : '';
       if (!stRdSector) return;
       if (!allowed.includes(stRdSector)) return;
       // radioRows ya solo trae filas con radio informada; en mobileData se exige aquí.
@@ -3264,11 +3281,16 @@ export const generateTetraRadioReport = (
     const hasEfectivo = efectivoDe(s) > 0;
     return hasEfectivo || unitsBySector(s).length > 0;
   });
+  // OTRAS AREAS cierra la tabla del consolidado, después del resto de sectores.
+  summarySectors.sort((a, b) => (a === OTRAS_AREAS ? 1 : 0) - (b === OTRAS_AREAS ? 1 : 0));
 
   const summaryRows = summarySectors.map(s => {
     const efectivo = efectivoDe(s);
     const asignado = unitsBySector(s).length;
     const sinAsignar = efectivo - asignado;
+    // LOGISTICA y OTRAS AREAS solo muestran el EFECTIVO sumado: en ASIGNADO y
+    // SIN ASIGNAR llevan '--' en lugar del detalle por sector.
+    const sinDetalle = s === OTRAS_AREAS || normalize(s) === 'LOG';
     return {
       sector: s,
       efectivo,
@@ -3276,10 +3298,10 @@ export const generateTetraRadioReport = (
       // Si el turno registró más radios que las que DATA tiene asignadas, el
       // efectivo no cuadra: se muestra 'Pendiente' en vez de un SIN ASIGNAR negativo.
       row: [
-        s,
+        labelOfSector(s),
         String(efectivo),
-        blankZero(asignado),
-        asignado > efectivo ? PENDING : blankZero(sinAsignar)
+        sinDetalle ? '--' : blankZero(asignado),
+        sinDetalle ? '--' : (asignado > efectivo ? PENDING : blankZero(sinAsignar))
       ]
     };
   });

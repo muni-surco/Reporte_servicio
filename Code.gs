@@ -63,6 +63,17 @@ function getUnitType(id, typeFromSheet, sector) {
   return 'CHOFER';
 }
 
+function pickRadioValue(tetraVal, radioVal) {
+  const t = String(tetraVal || '').trim();
+  const r = String(radioVal || '').trim();
+  // '--' es el placeholder de radio no informada: si una columna lo trae, se
+  // usa la otra. Sin esto, una fila con TETRA='--' y RADIO='21380' quedaba
+  // registrada como '--' y el código verdadero nunca entraba al mapa.
+  if (t && t !== '--') return t;
+  if (r && r !== '--') return r;
+  return t || r;
+}
+
 function toDisplaySector(value) {
   const stored = toStorageSector(value);
   // OTRAS_AREAS is stored with underscore; display uses space
@@ -691,11 +702,13 @@ function getMobileData() {
     // Collect Mobile Data
     if (movilIdx !== -1 && row[movilIdx]) {
       const id = String(row[movilIdx]);
+      const tetraVal = tetraIdx !== -1 ? row[tetraIdx] : '';
+      const radioVal = radioIdx !== -1 ? row[radioIdx] : '';
       mobileData.push({
         id: id,
         plate: placaIdx !== -1 ? String(row[placaIdx] || '') : '',
         model: modeloIdx !== -1 ? String(row[modeloIdx] || '') : '',
-        radio: (tetraIdx !== -1 ? String(row[tetraIdx] || '') : (radioIdx !== -1 ? String(row[radioIdx] || '') : '')),
+        radio: pickRadioValue(tetraVal, radioVal),
         stRd: stRdIdx !== -1 ? String(row[stRdIdx] || '').trim().toUpperCase() : '',
         quadrant: cuadranteIdx !== -1 ? cellToStr(row[cuadranteIdx], externalSS.getSpreadsheetTimeZone()) : '',
         sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : '',
@@ -711,7 +724,8 @@ function getMobileData() {
     // separado y SIN exigir MOVIL: hay radios en DATA que no están asignadas a
     // ningún móvil (serenos, radios de apoyo). Así el EFECTIVO cuenta todas las
     // radios por sector, incluso las que no aparecen en el listado de móviles.
-    const radioValue = (tetraIdx !== -1 && row[tetraIdx]) ? row[tetraIdx] : ((radioIdx !== -1 && row[radioIdx]) ? row[radioIdx] : '');
+    // Para el EFECTIVO solo se lee la columna RADIO (no TETRA): ST_RD + RADIO.
+    const radioValue = radioIdx !== -1 ? row[radioIdx] : '';
     if (radioValue) {
       radioRows.push({
         id: movilIdx !== -1 ? String(row[movilIdx] || '').trim() : '',
@@ -776,8 +790,9 @@ function getMobileData() {
     }
 
     // Collect ALL Unique Radios (even if no movil ID is present)
-    if ((tetraIdx !== -1 && row[tetraIdx]) || (radioIdx !== -1 && row[radioIdx])) {
-      radiosSet.add(String(row[tetraIdx] || row[radioIdx]).trim());
+    const radioOpt = pickRadioValue(tetraIdx !== -1 ? row[tetraIdx] : '', radioIdx !== -1 ? row[radioIdx] : '');
+    if (radioOpt) {
+      radiosSet.add(radioOpt);
     }
   }
   
@@ -857,6 +872,12 @@ function getMobileData() {
       if (c && c !== '--') codes1A[c] = true;
     });
     console.log('[getMobileData] 1A: filas=' + rows1A.length + ' codigosDistintos=' + Object.keys(codes1A).length + ' stRdDistintos=' + Object.keys(stRdVals).join(','));
+    // Radios con código pero sin sector (ST_RD y SECTOR vacíos): no se pueden
+    // ubicar y caen al sector del registro del turno. Muestra de hasta 20.
+    const huerfanas = radioRows.filter(function (r) { return !norm(r.stRd) && !norm(r.sector); }).map(function (r) { return norm(r.radio); });
+    console.log('[getMobileData] huerfanas=' + huerfanas.length + ' muestra=' + huerfanas.slice(0, 20).join(','));
+    const r21380 = radioRows.filter(function (r) { return norm(r.radio) === '21380'; }).map(function (r) { return 'stRd=' + norm(r.stRd) + '|sector=' + norm(r.sector) + '|id=' + norm(r.id); });
+    console.log('[getMobileData] radio21380: ' + (r21380.length ? r21380.join(' ; ') : 'NO_EN_DATA'));
   } catch (e2) { console.log('[getMobileData] diag error: ' + e2); }
   return {
     mobiles: mobileData,
