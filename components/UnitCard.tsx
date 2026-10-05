@@ -319,9 +319,9 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: (!isNoPersonnelStatus && !isOtrasAreasCard && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
       personnel2: isPersonnel2Duplicate,
-      // Radio: solo requerido (sin validación de lista), pero no puede estar
-      // ya registrada en otra unidad del turno.
-      radio: (!isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--')) || isRadioDuplicate,
+      // Radio: obligatoria salvo SERENO, estados especiales y OTRAS AREAS;
+      // además nunca duplicada en el turno.
+      radio: (!isSereno && !isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--')) || isRadioDuplicate,
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
