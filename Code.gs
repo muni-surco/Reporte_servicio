@@ -789,8 +789,9 @@ function getMobileData() {
       codigoTaserSet.add(String(row[codigoTaserIdx]).trim());
     }
 
-    // Collect ALL Unique Radios (even if no movil ID is present)
-    const radioOpt = pickRadioValue(tetraIdx !== -1 ? row[tetraIdx] : '', radioIdx !== -1 ? row[radioIdx] : '');
+    // Lista del campo radio: sale de la columna RADIO de DATA (no TETRA),
+    // e incluye filas sin MOVIL.
+    const radioOpt = radioIdx !== -1 ? String(row[radioIdx] || '').trim() : '';
     if (radioOpt) {
       radiosSet.add(radioOpt);
     }

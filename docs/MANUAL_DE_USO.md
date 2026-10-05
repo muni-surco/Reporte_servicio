@@ -176,6 +176,8 @@ Los campos de TASER y BODYCAM aparecen en la segunda fila del modo edición para
 - El campo ID es obligatorio para **PATRULLANDO** y se valida contra duplicados
 - Para CHOFER y MOTO, el ID debe existir en los datos de referencia
 - Los campos CHOFER (personal1), RADIO y CUADRANTE son obligatorios solo para el estado **PATRULLANDO**
+- El campo RADIO lista las radios de la columna **RADIO** de la hoja DATA (incluye filas sin móvil) y arranca en blanco al iniciar el turno
+- Una radio ya registrada en otra unidad del turno no aparece en la lista y no se puede grabar duplicada
 - **CON DESPERFECTOS** requiere ID y radio, pero no cuadrante
 - **SIN VEHICULO**, **APOYO OTRA AREA**, **CAMBIO DE TURNO** y **CAMBIO DESCANSO** requieren personal pero no ID, radio ni cuadrante
 - **SIN CONDUCTOR**, **MANTENIMIENTO**, **SINIESTRO**, **SIN DOCUMENTOS** y **FALTO (INASISTENCIA)** no requieren personal ni ID, radio o cuadrante

@@ -319,8 +319,9 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: (!isNoPersonnelStatus && !isOtrasAreasCard && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
       personnel2: isPersonnel2Duplicate,
-      // Radio: solo requerido (sin validación de lista).
-      radio: !isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--'),
+      // Radio: solo requerido (sin validación de lista), pero no puede estar
+      // ya registrada en otra unidad del turno.
+      radio: (!isSpecialStatus && !isOtrasAreasCard && (!formData.radio || String(formData.radio).trim() === '' || String(formData.radio).trim() === '--')) || isRadioDuplicate,
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
@@ -456,12 +457,31 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
   const hasPersonnel2 = isChofer;
   const hasPlate = !isSereno;
   const hasIndicative = isChofer;
-  // Radios sugeridas en el campo (lista de DATA, incluidas las sin móvil).
+  // Radios del campo: lista de la columna RADIO de DATA (radioOptions del
+  // backend, que incluye filas sin móvil). No se mezcla con mobileData porque
+  // esa referencia puede traer valores de la columna TETRA.
   const allowedRadioList: string[] = Array.from(new Set([
     ...RADIOS,
-    ...(radioOptions || []),
-    ...(mobileData ? mobileData.map(d => d.radio).filter(r => r && r !== '--') : [])
+    ...(radioOptions || [])
   ].filter(r => r && r !== '--'))) as string[];
+  // Radios ya registradas en otras unidades del turno: no se ofrecen en la
+  // lista ni se aceptan al grabar (una radio no puede estar en dos lados).
+  const normRadio = (v: unknown) => String(v ?? '').trim().toUpperCase();
+  const usedRadioSet = new Set(
+    (allUnits || [])
+      .filter(u => {
+        const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+        const selfKey = unit.unit_id || (unit as any).tempId || unit.id || '';
+        if (selfKey && otherKey && selfKey === otherKey) return false;
+        if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
+        return true;
+      })
+      .map(u => normRadio((u as any).radio))
+      .filter(r => r && r !== '--')
+  );
+  const availableRadioList = allowedRadioList.filter(r => !usedRadioSet.has(normRadio(r)));
+  const currentRadioNorm = normRadio(formData.radio);
+  const isRadioDuplicate = currentRadioNorm !== '' && currentRadioNorm !== '--' && usedRadioSet.has(currentRadioNorm);
 
   const renderToggle = (field: 'taser' | 'bodycam', label: string) => {
     const isOn = formData[field] === 'SI';
@@ -787,11 +807,11 @@ const v = e.target.value;
                   setFormData(prev => ({ ...prev, radio: cleaned }));
                   setErrors(prev => ({ ...prev, radio: false }));
                 }}
-                suggestions={allowedRadioList}
+                suggestions={availableRadioList}
                 placeholder="20xxx"
                 error={errors.radio}
               />
-              {errors.radio && <span className={errorMsgStyle}>Requerido</span>}
+              {errors.radio && <span className={errorMsgStyle}>{isRadioDuplicate ? 'Radio ya registrada.' : 'Requerido'}</span>}
             </div>
 
             {isChofer && (
