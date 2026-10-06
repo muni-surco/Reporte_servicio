@@ -176,7 +176,7 @@ Los campos de TASER y BODYCAM aparecen en la segunda fila del modo edición para
 - El campo ID es obligatorio para **PATRULLANDO** y se valida contra duplicados
 - Para CHOFER y MOTO, el ID debe existir en los datos de referencia
 - Los campos CHOFER (personal1) y CUADRANTE son obligatorios solo para el estado **PATRULLANDO**
-- La RADIO es obligatoria para CHOFER y MOTO; para SERENO es opcional
+- La RADIO es opcional para todo tipo de unidad; lo único que se valida es que no esté ya registrada en otra unidad del turno ("Radio ya registrada.")
 - El campo RADIO lista las radios de la columna **RADIO** de la hoja DATA (incluye filas sin móvil) y arranca en blanco al iniciar el turno
 - Una radio ya registrada en otra unidad del turno no aparece en la lista y no se puede grabar duplicada
 - **CON DESPERFECTOS** requiere ID y radio, pero no cuadrante
