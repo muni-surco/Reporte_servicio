@@ -319,8 +319,9 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
         ((isChofer || isMoto) && formData.id && String(formData.id).trim() !== '' && !isValidMobileId),
       personnel1: (!isNoPersonnelStatus && !isOtrasAreasCard && (!formData.personnel1 || String(formData.personnel1).trim() === '' || !activePersonnelOptions.some(n => n.trim().toUpperCase() === String(formData.personnel1).trim().toUpperCase()))) || isPersonnel1Duplicate,
       personnel2: isPersonnel2Duplicate,
-      // Radio: opcional para todo tipo de unidad, pero nunca duplicada en el turno.
-      radio: isRadioDuplicate,
+      // Radio: opcional para todo tipo de unidad, pero nunca duplicada en el
+      // turno ni fuera de la lista permitida (columna RADIO de DATA).
+      radio: isRadioDuplicate || isRadioInvalid,
       quadrant: !isDesperfectos && !isSpecialStatus && !isSereno && !isRescate && (!formData.quadrant || String(formData.quadrant).trim() === ''),
       lugarEstado: hasMotivoOptions && statusKey !== 'FALTO' && (!formData.lugarEstado || String(formData.lugarEstado).trim() === ''),
       motivoEstado: hasMotivoOptions && (!formData.motivoEstado || String(formData.motivoEstado).trim() === ''),
@@ -481,6 +482,10 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
   const availableRadioList = allowedRadioList.filter(r => !usedRadioSet.has(normRadio(r)));
   const currentRadioNorm = normRadio(formData.radio);
   const isRadioDuplicate = currentRadioNorm !== '' && currentRadioNorm !== '--' && usedRadioSet.has(currentRadioNorm);
+  // La radio escrita (sin usar el autocomplete) debe pertenecer a la lista
+  // permitida: misma normalización que el anti-duplicado (trim + uppercase).
+  const isRadioInvalid = currentRadioNorm !== '' && currentRadioNorm !== '--' &&
+    !isRadioDuplicate && !allowedRadioList.some(r => normRadio(r) === currentRadioNorm);
 
   const renderToggle = (field: 'taser' | 'bodycam', label: string) => {
     const isOn = formData[field] === 'SI';
@@ -810,7 +815,7 @@ const v = e.target.value;
                 placeholder="20xxx"
                 error={errors.radio}
               />
-              {errors.radio && <span className={errorMsgStyle}>Radio ya registrada.</span>}
+              {errors.radio && <span className={errorMsgStyle}>{isRadioDuplicate ? 'Radio ya registrada.' : 'Radio no válida. Seleccione de la lista.'}</span>}
             </div>
 
             {isChofer && (

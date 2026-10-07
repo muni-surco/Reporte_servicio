@@ -3297,11 +3297,13 @@ export const generateTetraRadioReport = (
 
   const summaryRows = summarySectors.map(s => {
     const efectivo = efectivoDe(s);
-    const asignado = unitsBySector(s).length;
-    const sinAsignar = efectivo - asignado;
-    // LOGISTICA y OTRAS AREAS solo muestran el EFECTIVO sumado: en ASIGNADO y
+    // LOGISTICA, C4 y OTRAS AREAS solo muestran el EFECTIVO sumado: en ASIGNADO y
     // SIN ASIGNAR llevan '--' en lugar del detalle por sector.
-    const sinDetalle = s === OTRAS_AREAS || normalize(s) === 'LOG';
+    // Internamente su ASIGNADO vale todo su EFECTIVO (no lo registrado en el
+    // turno) para que los TOTALES del consolidado cuadren con la suma real.
+    const sinDetalle = s === OTRAS_AREAS || normalize(s) === 'LOG' || normalize(s) === 'C4';
+    const asignado = sinDetalle ? efectivo : unitsBySector(s).length;
+    const sinAsignar = efectivo - asignado;
     return {
       sector: s,
       efectivo,
