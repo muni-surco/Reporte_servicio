@@ -724,14 +724,19 @@ function getMobileData() {
     // separado y SIN exigir MOVIL: hay radios en DATA que no están asignadas a
     // ningún móvil (serenos, radios de apoyo). Así el EFECTIVO cuenta todas las
     // radios por sector, incluso las que no aparecen en el listado de móviles.
-    // Para el EFECTIVO solo se lee la columna RADIO (no TETRA): ST_RD + RADIO.
-    const radioValue = radioIdx !== -1 ? row[radioIdx] : '';
+    // Código: columna RADIO; si trae '--' se usa TETRA como respaldo.
+    // Sector: SOLO columna ST_RD (nunca SECTOR).
+    const rVal = radioIdx !== -1 ? String(row[radioIdx] || '').trim() : '';
+    const tVal = tetraIdx !== -1 ? String(row[tetraIdx] || '').trim() : '';
+    const radioValue = rVal
+      ? ((rVal !== '--' || !tVal || tVal === '--') ? rVal : tVal)
+      : '';
     if (radioValue) {
       radioRows.push({
         id: movilIdx !== -1 ? String(row[movilIdx] || '').trim() : '',
         radio: String(radioValue).trim(),
         stRd: stRdIdx !== -1 ? String(row[stRdIdx] || '').trim().toUpperCase() : '',
-        sector: sectorIdx !== -1 ? toDisplaySector(row[sectorIdx]) : ''
+        sector: ''
       });
     }
 
@@ -879,6 +884,21 @@ function getMobileData() {
     console.log('[getMobileData] huerfanas=' + huerfanas.length + ' muestra=' + huerfanas.slice(0, 20).join(','));
     const r21380 = radioRows.filter(function (r) { return norm(r.radio) === '21380'; }).map(function (r) { return 'stRd=' + norm(r.stRd) + '|sector=' + norm(r.sector) + '|id=' + norm(r.id); });
     console.log('[getMobileData] radio21380: ' + (r21380.length ? r21380.join(' ; ') : 'NO_EN_DATA'));
+    // Rastro directo en la hoja para la radio 21888: busca en columnas TETRA y
+    // RADIO, con ST_RD, SECTOR y MOVIL de cada fila donde aparece.
+    const r21888 = [];
+    for (var di = 1; di < data.length; di++) {
+      var dr = data[di];
+      var tVal = tetraIdx !== -1 ? norm(dr[tetraIdx]) : '';
+      var rVal = radioIdx !== -1 ? norm(dr[radioIdx]) : '';
+      if (tVal === '21888' || rVal === '21888') {
+        r21888.push('fila=' + (di + 1) + '|tetra=' + tVal + '|radio=' + rVal
+          + '|stRd=' + (stRdIdx !== -1 ? norm(dr[stRdIdx]) : '?')
+          + '|sector=' + (sectorIdx !== -1 ? norm(dr[sectorIdx]) : '?')
+          + '|movil=' + (movilIdx !== -1 ? norm(dr[movilIdx]) : '?'));
+      }
+    }
+    console.log('[getMobileData] radio21888: ' + (r21888.length ? r21888.join(' ; ') : 'NO_EN_DATA'));
   } catch (e2) { console.log('[getMobileData] diag error: ' + e2); }
   return {
     mobiles: mobileData,
