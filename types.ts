@@ -159,6 +159,9 @@ export interface MobileReference {
   plate: string;
   model?: string;
   radio?: string;
+  // Columna TETRA en crudo de la hoja DATA. Se usa para prellenar la radio por
+  // defecto solo en los sectores C4 y COVV al abrir un turno.
+  tetra?: string;
   // Columna ST_RD de la hoja DATA (al costado de RADIO). Marca con 'U' las
   // filas que son radios: se usa para el EFECTIVO del reporte de radios tetras.
   stRd?: string;
