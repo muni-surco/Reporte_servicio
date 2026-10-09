@@ -11,10 +11,20 @@ interface PersonnelViewProps {
 const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('TODOS');
+    const [filterSector, setFilterSector] = useState('TODOS');
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 50;
 
     const operationalRoles = useMemo(() => {
         const roles = new Set(data.map(p => p.rol_operativo).filter(Boolean));
         return ['TODOS', ...Array.from(roles).sort()];
+    }, [data]);
+
+    const sectors = useMemo(() => {
+        const list = new Set(
+            data.map(p => String(p.sector_id || '').trim().toUpperCase()).filter(Boolean)
+        );
+        return ['TODOS', ...Array.from(list).sort()];
     }, [data]);
 
     const filteredData = useMemo(() => {
@@ -25,11 +35,32 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                 (p.codigo_interno || '').toLowerCase().includes(searchTerm.toLowerCase());
 
             const matchesRole = filterRole === 'TODOS' || p.rol_operativo === filterRole;
+            const matchesSector = filterSector === 'TODOS' || String(p.sector_id || '').trim().toUpperCase() === filterSector;
             const matchesState = (p.estado || '').toUpperCase() === 'ACTIVO';
 
-            return matchesSearch && matchesState && matchesRole;
+            return matchesSearch && matchesState && matchesRole && matchesSector;
         });
-    }, [data, searchTerm, filterRole]);
+    }, [data, searchTerm, filterRole, filterSector]);
+
+    // Al cambiar cualquier filtro se vuelve a la primera página
+    React.useEffect(() => { setCurrentPage(1); }, [searchTerm, filterRole, filterSector, data.length]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const pageData = filteredData.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+    const rangeStart = filteredData.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+    const rangeEnd = Math.min(safePage * PAGE_SIZE, filteredData.length);
+
+    // Ventana de números de página alrededor de la actual
+    const pageNumbers = useMemo(() => {
+        const pages: number[] = [];
+        const from = Math.max(1, Math.min(safePage - 2, totalPages - 4));
+        const to = Math.min(totalPages, from + 4);
+        for (let i = from; i <= to; i++) pages.push(i);
+        return pages;
+    }, [safePage, totalPages]);
+
+    const pagerBtn = "min-w-[32px] h-[32px] px-2 flex items-center justify-center rounded-lg border text-[12px] font-medium transition-all cursor-pointer";
 
     const columnHeaderStyle = "px-4 py-3 text-left text-[13px] font-semibold text-white uppercase tracking-widest border-b border-blue-800 bg-[#005ea5] sticky top-0 z-20 shadow-[0_1px_2px_0_rgba(0,0,0,0.1)]";
     const cellStyle = "px-4 py-3 text-[13px] text-slate-700 border-b border-slate-50 bg-white";
@@ -70,11 +101,28 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                         </div>
                     </div>
 
+                    {/* Filtro Sector */}
+                    <div className="flex flex-col min-w-[160px]">
+                        <span className="text-[11px] font-medium text-[#004b93] uppercase tracking-wider mb-1 px-1">Sector</span>
+                        <div className="relative">
+                            <select
+                                value={filterSector}
+                                onChange={(e) => setFilterSector(e.target.value)}
+                                className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-700 focus:outline-none focus:border-blue-500 transition-all uppercase cursor-pointer pr-8"
+                            >
+                                {sectors.map(sector => (
+                                    <option key={sector} value={sector}>{sector}</option>
+                                ))}
+                            </select>
+                            <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[16px] pointer-events-none">expand_more</span>
+                        </div>
+                    </div>
+
                     {/* Limpiar Filtros */}
                     <div className="flex flex-col justify-end">
                         <span className="text-[11px] font-medium text-transparent uppercase tracking-wider mb-1 px-1">‎</span>
                         <button
-                            onClick={() => { setSearchTerm(''); setFilterRole('TODOS'); }}
+                            onClick={() => { setSearchTerm(''); setFilterRole('TODOS'); setFilterSector('TODOS'); }}
                             className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-[11px] font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-all h-[38px] whitespace-nowrap cursor-pointer"
                             title="Limpiar todos los filtros"
                         >
@@ -118,9 +166,9 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                     </td>
                                 </tr>
                             ) : (
-                                filteredData.map((person, idx) => (
+                                pageData.map((person, idx) => (
                                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
-                                        <td className={`${cellStyle} text-center text-slate-300 font-medium w-12`}>{idx + 1}</td>
+                                        <td className={`${cellStyle} text-center text-slate-300 font-medium w-12`}>{(safePage - 1) * PAGE_SIZE + idx + 1}</td>
                                         <td className={`${cellStyle} w-14`}>
                                             {person.foto_url ? (
                                                 <div className="relative group cursor-pointer">
@@ -165,9 +213,38 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                     </table>
                 </div>
 
-                {/* Footer info */}
-                <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-400 uppercase tracking-wider">
-                    <span>Mostrando {filteredData.length} de {data.length} registros</span>
+                {/* Footer info + paginación */}
+                <div className="px-6 py-3 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-400 uppercase tracking-wider gap-4">
+                    <span className="whitespace-nowrap">Mostrando {rangeStart}–{rangeEnd} de {filteredData.length} registros</span>
+                    {totalPages > 1 && (
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={safePage <= 1}
+                                className={`${pagerBtn} ${safePage <= 1 ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'}`}
+                                title="Anterior"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                            </button>
+                            {pageNumbers.map(n => (
+                                <button
+                                    key={n}
+                                    onClick={() => setCurrentPage(n)}
+                                    className={`${pagerBtn} ${n === safePage ? 'bg-[#005ea5] border-[#005ea5] text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'}`}
+                                >
+                                    {n}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={safePage >= totalPages}
+                                className={`${pagerBtn} ${safePage >= totalPages ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'}`}
+                                title="Siguiente"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
