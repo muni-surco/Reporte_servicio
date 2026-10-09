@@ -27,6 +27,7 @@ interface UnitSectionProps {
   currentShift: string;
   isSaving?: boolean;
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
+  saveErrors?: Record<string, string>;
   readOnly?: boolean;
   // Cuando es false, oculta el botón "NUEVO REGISTRO" (pero permite editar)
   showAdd?: boolean;
@@ -61,6 +62,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
   currentShift,
   isSaving,
   saveStatus,
+  saveErrors,
   readOnly,
   showAdd = true,
   personnelRegimenMap,
@@ -124,6 +126,7 @@ const UnitSection: React.FC<UnitSectionProps> = ({
                 key={unitIdentifier}
                 unit={unit}
                 allUnits={allUnits}
+                backendRadioError={saveErrors?.[unit.unit_id || unit.tempId || unit.id || '']}
                 isEditing={editingId !== null && (editingId === unit.unit_id || editingId === unit.id || editingId === unit.tempId)}
                 onEdit={() => onEdit(unitIdentifier)}
                 onSave={onSave}

@@ -1782,6 +1782,40 @@ function updateUnit(dateStr, shift, settings, unit) {
     }
   } catch (e) { /* no bloquear guardado por error de validación, loggear */ console.error('[updateUnit duplicate check] ERROR', e); }
 
+  // --- Validación anti-duplicado de radio: una radio no puede estar registrada
+  // en dos unidades del turno, sin importar el sector (2A, COVV, etc.).
+  // Se revisa todo el árbol del turno en RTDB y se omite el propio registro.
+  try {
+    var newRadioNorm = String(unit.radio || '').trim().toUpperCase();
+    if (newRadioNorm && newRadioNorm !== '--') {
+      var shiftTree = rtdbGet('units/' + dateStr + '_' + shift);
+      if (shiftTree) {
+        var selfUidNorm = _sanitizeRtdbKey(unit.unit_id);
+        var dupSector = '';
+        for (var secKey in shiftTree) {
+          if (!shiftTree.hasOwnProperty(secKey)) continue;
+          var bucket = shiftTree[secKey];
+          if (!bucket || typeof bucket !== 'object') continue;
+          for (var ukey in bucket) {
+            if (!bucket.hasOwnProperty(ukey)) continue;
+            var exu = bucket[ukey];
+            if (!exu || typeof exu !== 'object') continue;
+            if (selfUidNorm && String(exu.unit_id || '').trim() === selfUidNorm) continue;
+            var exRadioNorm = String(exu.radio || '').trim().toUpperCase();
+            if (exRadioNorm && exRadioNorm !== '--' && exRadioNorm === newRadioNorm) {
+              dupSector = String(exu.sector || secKey);
+              break;
+            }
+          }
+          if (dupSector) break;
+        }
+        if (dupSector) {
+          return { success: false, error: 'DUPLICATE_RADIO: Radio ya registrada en el sector ' + dupSector + '.' };
+        }
+      }
+    }
+  } catch (e) { /* no bloquear guardado por error de validación, loggear */ console.error('[updateUnit radio duplicate check] ERROR', e); }
+
   const email = Session.getActiveUser().getEmail();
   const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
   let auditLog = timestamp;

@@ -35,6 +35,8 @@ interface UnitCardProps {
   currentShift: string;
   isSaving?: boolean;
   saveStatus?: Record<string, 'saving' | 'saved' | 'error'>;
+  // Error de duplicado devuelto por el backend al grabar (se muestra en línea).
+  backendRadioError?: string | null;
   readOnly?: boolean;
   personnelRegimenMap?: Record<string, string>;
   codigoBodycamOptions?: string[];
@@ -47,7 +49,7 @@ const UnitCard: React.FC<UnitCardProps> = ({
   unit, allUnits, isEditing, onEdit, onSave, onCancel, mobileData,
   statusOptions, indicativeOptions, personnelOptions, quadrantOptions, radioOptions, lugarOptions, motivoStatusOptions,
   currentDate, currentShift, isSaving, saveStatus, readOnly, personnelRegimenMap,   codigoBodycamOptions,
-  codigoTaserOptions, codigoBodycamSuggestions, codigoTaserSuggestions
+  codigoTaserOptions, codigoBodycamSuggestions, codigoTaserSuggestions, backendRadioError
 }) => {
   const [formData, setFormData] = useState<UnitData>(unit);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
@@ -486,6 +488,12 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
   // permitida: misma normalización que el anti-duplicado (trim + uppercase).
   const isRadioInvalid = currentRadioNorm !== '' && currentRadioNorm !== '--' &&
     !isRadioDuplicate && !allowedRadioList.some(r => normRadio(r) === currentRadioNorm);
+  // Error devuelto por el backend al grabar: se muestra solo mientras el campo
+  // siga con el valor que falló (unit ya trae ese valor tras el guardado).
+  const showBackendRadioError = !!backendRadioError && normRadio(formData.radio) === normRadio(unit.radio);
+  const radioErrorMsg = showBackendRadioError ? backendRadioError as string
+    : isRadioDuplicate ? 'Radio ya registrada.'
+    : 'Radio no válida. Seleccione de la lista.';
 
   const renderToggle = (field: 'taser' | 'bodycam', label: string) => {
     const isOn = formData[field] === 'SI';
@@ -813,9 +821,9 @@ const v = e.target.value;
                 }}
                 suggestions={availableRadioList}
                 placeholder="20xxx"
-                error={errors.radio}
+                error={errors.radio || showBackendRadioError}
               />
-              {errors.radio && <span className={errorMsgStyle}>{isRadioDuplicate ? 'Radio ya registrada.' : 'Radio no válida. Seleccione de la lista.'}</span>}
+              {(errors.radio || showBackendRadioError) && <span className={errorMsgStyle}>{radioErrorMsg}</span>}
             </div>
 
             {isChofer && (

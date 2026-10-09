@@ -689,6 +689,9 @@ id: d.id,
   const saveQueueRef = useRef<Array<{ unit: UnitData }>>([]);
   const isSavingRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
+  // Errores del backend por unidad (clave = unit_id || tempId || id). Se muestran
+  // en línea debajo del campo correspondiente en lugar de un alert.
+  const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
 
   const processQueue = () => {
     if (isSavingRef.current || saveQueueRef.current.length === 0) return;
@@ -696,6 +699,13 @@ id: d.id,
 
     const item = saveQueueRef.current.shift()!;
     const unitKey = item.unit.unit_id || item.unit.tempId || item.unit.id || 'unknown';
+    // Nuevo intento: se limpia el error en línea anterior de esta unidad
+    setSaveErrors(prev => {
+      if (!(unitKey in prev)) return prev;
+      const next = { ...prev };
+      delete next[unitKey];
+      return next;
+    });
     const unitPayload = JSON.parse(JSON.stringify({
       ...item.unit,
       fuel2: String(item.unit.fuel2 || ''),
@@ -721,6 +731,13 @@ id: d.id,
           });
           if (res.success) {
             const newId = res.unit_id;
+            // Grabado OK: se limpia cualquier error en línea previo
+            setSaveErrors(prev => {
+              const next = { ...prev };
+              delete next[unitKey];
+              if (newId) delete next[newId];
+              return next;
+            });
             if (newId && newId !== item.unit.unit_id) {
               setUnits(prev => prev.map(u => {
                 const matchKey = u.unit_id || u.tempId || u.id;
@@ -775,6 +792,12 @@ id: d.id,
             setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
             if (res.error && String(res.error).includes('DUPLICATE_PERSONNEL')) {
               alert(res.error.replace('DUPLICATE_PERSONNEL: ', ''));
+            }
+            if (res.error && String(res.error).includes('DUPLICATE_RADIO')) {
+              // En línea debajo del campo radio: se reabre la edición de la unidad
+              // para que el mensaje quede visible donde corresponde.
+              setSaveErrors(prev => ({ ...prev, [unitKey]: 'Radio ya registrada.' }));
+              setEditingId(unitKey);
             }
           }
           isSavingRef.current = false;
@@ -1257,6 +1280,14 @@ hours: '--:-- - --:--',
       // Eliminar la unidad temporal si se cancela la creación
       setUnits(prev => prev.filter(u => u.tempId !== editingId));
     }
+    if (editingId) {
+      setSaveErrors(prev => {
+        if (!(editingId in prev)) return prev;
+        const next = { ...prev };
+        delete next[editingId];
+        return next;
+      });
+    }
     setEditingId(null);
   };
 
@@ -1513,6 +1544,7 @@ hours: '--:-- - --:--',
                   badge={currentSectorUnits.filter(u => u.type === 'CHOFER').length.toString()}
                   units={currentSectorUnits.filter(u => u.type === 'CHOFER')}
                   allUnits={units}
+                  saveErrors={saveErrors}
                   editingId={editingId}
                   onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
                   showAdd={!isOtrasAreasSector(currentSector)}
@@ -1542,6 +1574,7 @@ hours: '--:-- - --:--',
                   badge={currentSectorUnits.filter(u => u.type === 'MOTO').length.toString()}
                   units={currentSectorUnits.filter(u => u.type === 'MOTO')}
                   allUnits={units}
+                  saveErrors={saveErrors}
                   editingId={editingId}
                   onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
                   showAdd={!isOtrasAreasSector(currentSector)}
@@ -1572,6 +1605,7 @@ hours: '--:-- - --:--',
                   badge={currentSectorUnits.filter(u => u.type === 'SERENO').length.toString()}
                   units={currentSectorUnits.filter(u => u.type === 'SERENO')}
                   allUnits={units}
+                  saveErrors={saveErrors}
                   editingId={editingId}
                   onEdit={handleEdit} onSave={handleSave} onCancel={handleCancel} onAdd={handleAddUnit}
                   mobileData={mobileData}
