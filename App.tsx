@@ -797,7 +797,7 @@ id: d.id,
             if (res.error && String(res.error).includes('DUPLICATE_RADIO')) {
               // En línea debajo del campo radio: se reabre la edición de la unidad
               // para que el mensaje quede visible donde corresponde.
-              setSaveErrors(prev => ({ ...prev, [unitKey]: 'Radio ya registrada.' }));
+              setSaveErrors(prev => ({ ...prev, [unitKey]: String(res.error).replace('DUPLICATE_RADIO: ', '') }));
               setEditingId(unitKey);
             }
           }

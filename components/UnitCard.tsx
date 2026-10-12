@@ -468,22 +468,34 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
   ].filter(r => r && r !== '--'))) as string[];
   // Radios ya registradas en otras unidades del turno: no se ofrecen en la
   // lista ni se aceptan al grabar (una radio no puede estar en dos lados).
+  // Se guarda también el móvil y el sector donde está asignada para mostrarlos
+  // en el error (mismo formato que el backend: "Móvil: X. Sector: Y.").
   const normRadio = (v: unknown) => String(v ?? '').trim().toUpperCase();
-  const usedRadioSet = new Set(
-    (allUnits || [])
-      .filter(u => {
-        const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
-        const selfKey = unit.unit_id || (unit as any).tempId || unit.id || '';
-        if (selfKey && otherKey && selfKey === otherKey) return false;
-        if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
-        return true;
-      })
-      .map(u => normRadio((u as any).radio))
-      .filter(r => r && r !== '--')
-  );
-  const availableRadioList = allowedRadioList.filter(r => !usedRadioSet.has(normRadio(r)));
+  const normSectorLabel = (v: unknown) => String(v ?? '').trim().toUpperCase().replace(/^SECTOR\s+/, '').replace(/_/g, ' ') || '?';
+  const usedRadioSector = new Map<string, { sector: string; movil: string }>();
+  (allUnits || [])
+    .filter(u => {
+      const otherKey = (u as any).unit_id || (u as any).tempId || u.id || '';
+      const selfKey = unit.unit_id || (unit as any).tempId || unit.id || '';
+      if (selfKey && otherKey && selfKey === otherKey) return false;
+      if ((u as any).unit_id && unit.unit_id && (u as any).unit_id === unit.unit_id) return false;
+      return true;
+    })
+    .forEach(u => {
+      const r = normRadio((u as any).radio);
+      if (r && r !== '--' && !usedRadioSector.has(r)) {
+        usedRadioSector.set(r, {
+          sector: normSectorLabel((u as any).sector),
+          movil: String((u as any).id ?? '').trim()
+        });
+      }
+    });
+  const availableRadioList = allowedRadioList.filter(r => !usedRadioSector.has(normRadio(r)));
   const currentRadioNorm = normRadio(formData.radio);
-  const isRadioDuplicate = currentRadioNorm !== '' && currentRadioNorm !== '--' && usedRadioSet.has(currentRadioNorm);
+  const isRadioDuplicate = currentRadioNorm !== '' && currentRadioNorm !== '--' && usedRadioSector.has(currentRadioNorm);
+  const duplicateRadioInfo = isRadioDuplicate ? usedRadioSector.get(currentRadioNorm) : undefined;
+  const duplicateRadioSector = duplicateRadioInfo?.sector || '?';
+  const duplicateRadioMovil = duplicateRadioInfo?.movil || '';
   // La radio escrita (sin usar el autocomplete) debe pertenecer a la lista
   // permitida: misma normalización que el anti-duplicado (trim + uppercase).
   const isRadioInvalid = currentRadioNorm !== '' && currentRadioNorm !== '--' &&
@@ -492,7 +504,7 @@ if (isEditing && isTacticoPPFFStatus(formData.status)) {
   // siga con el valor que falló (unit ya trae ese valor tras el guardado).
   const showBackendRadioError = !!backendRadioError && normRadio(formData.radio) === normRadio(unit.radio);
   const radioErrorMsg = showBackendRadioError ? backendRadioError as string
-    : isRadioDuplicate ? 'Radio ya registrada.'
+    : isRadioDuplicate ? `Radio ya registrada.${duplicateRadioMovil ? ` Móvil: ${duplicateRadioMovil}.` : ''} Sector: ${duplicateRadioSector}.`
     : 'Radio no válida. Seleccione de la lista.';
 
   const renderToggle = (field: 'taser' | 'bodycam', label: string) => {

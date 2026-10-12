@@ -1802,6 +1802,7 @@ function updateUnit(dateStr, shift, settings, unit) {
       if (shiftTree) {
         var selfUidNorm = _sanitizeRtdbKey(unit.unit_id);
         var dupSector = '';
+        var dupMovil = '';
         for (var secKey in shiftTree) {
           if (!shiftTree.hasOwnProperty(secKey)) continue;
           var bucket = shiftTree[secKey];
@@ -1814,13 +1815,18 @@ function updateUnit(dateStr, shift, settings, unit) {
             var exRadioNorm = String(exu.radio || '').trim().toUpperCase();
             if (exRadioNorm && exRadioNorm !== '--' && exRadioNorm === newRadioNorm) {
               dupSector = String(exu.sector || secKey);
+              dupMovil = String(exu.id || '').trim();
               break;
             }
           }
           if (dupSector) break;
         }
         if (dupSector) {
-          return { success: false, error: 'DUPLICATE_RADIO: Radio ya registrada en el sector ' + dupSector + '.' };
+          // El error informa el móvil y el sector de la unidad que ya usa la radio.
+          var dupMsg = 'DUPLICATE_RADIO: Radio ya registrada.';
+          if (dupMovil) dupMsg += ' Móvil: ' + dupMovil + '.';
+          dupMsg += ' Sector: ' + String(dupSector).trim().toUpperCase().replace(/^SECTOR\s+/, '').replace(/_/g, ' ') + '.';
+          return { success: false, error: dupMsg };
         }
       }
     }
