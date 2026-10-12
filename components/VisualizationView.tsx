@@ -1,6 +1,42 @@
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { UnitData, AppSettings, UnitStatus, SECTORS, isTacticoPPFFStatus, isOtrasAreasSector } from '../types';
+
+// Quitar tildes sin cambiar la longitud del string, para que los índices del
+// texto normalizado sigan alineados con el texto original al resaltar.
+const ACCENT_MAP: Record<string, string> = {
+  á: 'a', à: 'a', ä: 'a', â: 'a',
+  é: 'e', è: 'e', ë: 'e', ê: 'e',
+  í: 'i', ì: 'i', ï: 'i', î: 'i',
+  ó: 'o', ò: 'o', ö: 'o', ô: 'o',
+  ú: 'u', ù: 'u', ü: 'u', û: 'u',
+  ñ: 'n', ç: 'c'
+};
+const stripAccents = (v: unknown) =>
+  String(v ?? '').toLowerCase().replace(/[^\u0000-\u007f]/g, c => ACCENT_MAP[c] || c);
+
+// Coincidencia del buscador global: id de móvil, nombres del personal y radio.
+const unitMatchesQuery = (u: UnitData, qNorm: string) => {
+  if (!qNorm) return true;
+  return [u.id, u.personnel1, u.personnel2, u.radio]
+    .some(field => stripAccents(field).includes(qNorm));
+};
+
+// Resalta la primera coincidencia del término buscado dentro del texto.
+const Highlight: React.FC<{ text: unknown; query: string }> = ({ text, query }) => {
+  const value = String(text ?? '');
+  const qNorm = stripAccents(query.trim());
+  if (!qNorm) return <>{value}</>;
+  const idx = stripAccents(value).indexOf(qNorm);
+  if (idx === -1) return <>{value}</>;
+  return (
+    <>
+      {value.slice(0, idx)}
+      <mark className="bg-yellow-200 text-inherit rounded-[2px] px-[1px]">{value.slice(idx, idx + qNorm.length)}</mark>
+      {value.slice(idx + qNorm.length)}
+    </>
+  );
+};
 
 interface VisualizationViewProps {
   allSectorsData: Record<string, { units: UnitData[], settings: AppSettings }>;
@@ -10,6 +46,37 @@ interface VisualizationViewProps {
 }
 
 const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings, mobileData, highlightMissingHeader }) => {
+  // Buscador global del despachador: filtra las tarjetas por id, nombre o radio.
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchNorm = stripAccents(searchQuery.trim());
+
+  // Mismas reglas que el filtro de la vista: solo unidades visibles.
+  const ALLOWED_STATUSES = [
+    UnitStatus.PATRULLANDO,
+    UnitStatus.SIN_VEHICULO,
+  ];
+  const isRenderedUnit = (u: UnitData) =>
+    ALLOWED_STATUSES.includes(u.status) ||
+    (u.status === UnitStatus.SIN_DOCUMENTOS && u.type === 'CHOFER') ||
+    isTacticoPPFFStatus(u.status);
+
+  // Totales para el contador del buscador: sin filtro muestra el total del
+  // turno (X de X); con filtro, las coincidencias sobre ese total.
+  const { totalMatches, totalVisible } = useMemo(() => {
+    let matches = 0;
+    let visible = 0;
+    SECTORS.forEach(sectorName => {
+      const data = allSectorsData[sectorName];
+      if (!data) return;
+      data.units.forEach(u => {
+        if (!isRenderedUnit(u)) return;
+        visible += 1;
+        if (!searchNorm || unitMatchesQuery(u, searchNorm)) matches += 1;
+      });
+    });
+    return { totalMatches: matches, totalVisible: visible };
+  }, [searchNorm, allSectorsData]);
+
   const redStatusPatterns = [
     UnitStatus.MANTENIMIENTO,
     UnitStatus.DESPERFECTOS,
@@ -33,10 +100,6 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     return "bg-slate-300 ring-2 ring-slate-100";
   };
 
-  const ALLOWED_STATUSES = [
-    UnitStatus.PATRULLANDO,
-    UnitStatus.SIN_VEHICULO,
-  ];
 
   const renderCompactUnit = (u: UnitData, type: string) => {
     const idTextColor = {
@@ -56,14 +119,14 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
         {/* ID de Unidad */}
         <span className={`text-[13px] font-medium min-w-[45px] text-center ${idTextColor} uppercase tracking-tighter`}>
-          {u.id}
+          <Highlight text={u.id} query={searchQuery} />
         </span>
 
         {/* Contenedor de información */}
         <div className="flex-1 flex items-center justify-between min-w-0 gap-6">
           <div className="flex-1 min-w-0">
               <p className="text-[12px] font-medium text-slate-800 truncate uppercase tracking-tight flex items-center gap-2">
-                {u.personnel1 || (isTacticoPPFFStatus(u.status) && u.personnel2)}
+                <Highlight text={u.personnel1 || (isTacticoPPFFStatus(u.status) && u.personnel2)} query={searchQuery} />
                 {u.taser === 'SI' && (
                   <span className="inline-flex items-center px-1.5 py-[1px] rounded text-[8px] font-bold uppercase tracking-wider bg-blue-100 text-[#005ea5] border border-blue-200 leading-none shrink-0">
                     TASER
@@ -96,7 +159,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
                 )}
                 {u.personnel2 && (
                   <span className="text-[10px] text-slate-500 truncate uppercase leading-none">
-                    {u.personnel2}
+                    <Highlight text={u.personnel2} query={searchQuery} />
                   </span>
                 )}
               </div>
@@ -106,7 +169,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           <div className="flex items-center gap-6 shrink-0">
             <div className="flex flex-col items-end min-w-[60px]">
               <span className="text-[11px] font-medium text-slate-400 tracking-tighter uppercase leading-none mb-1">RADIO</span>
-              <span className="text-[13px] font-medium text-slate-700 font-mono leading-none">{displayRadio}</span>
+              <span className="text-[13px] font-medium text-slate-700 font-mono leading-none"><Highlight text={displayRadio} query={searchQuery} /></span>
             </div>
             {u.sector !== 'RESCATE' && (
               <div className="flex flex-col items-end min-w-[70px] border-l border-slate-200 pl-6">
@@ -125,9 +188,81 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
 
   return (
     <div className="flex flex-col gap-6 mx-auto">
+      {/* Buscador global (id, nombres y radios). top negativo: el sticky se
+          ancla al borde del padding box del scroller (que tiene pt-4), así la
+          barra queda pegada al header en lugar de 16px más abajo. */}
+      <div className="sticky top-[-16px] z-20 -mx-4 -mt-4 px-4 pt-3 pb-3 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-[0_2px_14px_rgba(2,45,90,0.07)]">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Campo de búsqueda */}
+          <div className="relative flex-1 min-w-[220px] max-w-2xl group">
+            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-lg bg-[#E6EEF5] text-[#005ea5] transition-colors group-focus-within:bg-[#005ea5] group-focus-within:text-white">
+              <span className="material-symbols-outlined text-[19px] leading-none">search</span>
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Buscar por móvil, nombre o radio..."
+              aria-label="Buscar por móvil, nombre o radio"
+              className="w-full h-11 pl-12 pr-11 text-[13px] uppercase tracking-tight text-slate-800 bg-slate-50 border border-slate-200 rounded-xl transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#005ea5]/25 focus:border-[#005ea5] placeholder:text-slate-400 placeholder:normal-case placeholder:tracking-normal"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Borrar texto buscado"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-slate-200/80 text-slate-500 hover:bg-red-100 hover:text-red-600 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[15px] leading-none">close</span>
+              </button>
+            )}
+          </div>
+
+          {/* Contador de resultados (siempre visible) */}
+          <span className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full bg-[#005ea5] text-white text-[12px] font-semibold uppercase tracking-wider shadow-sm shadow-blue-200/60 shrink-0">
+            <span className="material-symbols-outlined text-[16px] leading-none">manage_search</span>
+            {totalMatches} de {totalVisible} unidades
+          </span>
+
+          {/* Limpiar filtro (siempre visible; deshabilitado sin filtro activo) */}
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            disabled={!searchNorm}
+            aria-disabled={!searchNorm}
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full border border-slate-300 bg-white text-[12px] font-semibold uppercase tracking-wider text-slate-600 transition-colors shrink-0 hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-slate-300 disabled:hover:bg-white disabled:hover:text-slate-600"
+          >
+            <span className="material-symbols-outlined text-[16px] leading-none">filter_alt_off</span>
+            Limpiar filtro
+          </button>
+        </div>
+      </div>
+
+      {searchNorm && totalMatches === 0 && (
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 px-6 py-14 text-center">
+          <span className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-300 mb-3">
+            <span className="material-symbols-outlined text-[36px] leading-none">search_off</span>
+          </span>
+          <p className="text-[13px] text-slate-500 uppercase tracking-widest font-medium">Sin coincidencias para «{searchQuery.trim()}»</p>
+          <button
+            type="button"
+            onClick={() => setSearchQuery('')}
+            className="inline-flex items-center gap-1.5 mt-5 h-10 px-4 rounded-full bg-[#005ea5] text-white text-[12px] font-semibold uppercase tracking-wider shadow-sm shadow-blue-200/60 hover:bg-[#003D6B] transition-colors"
+          >
+            <span className="material-symbols-outlined text-[16px] leading-none">restart_alt</span>
+            Limpiar filtro
+          </button>
+        </div>
+      )}
+
       {SECTORS.map((sectorName) => {
         const data = allSectorsData[sectorName];
         if (!data) return null;
+        // Con búsqueda activa: solo se muestran sectores con coincidencias.
+        const sectorUnits = searchNorm
+          ? data.units.filter(u => unitMatchesQuery(u, searchNorm))
+          : data.units;
+        if (searchNorm && sectorUnits.length === 0) return null;
         const safeSettings = data.settings || {
           nombrePuesto: sectorName,
           operador: '',
@@ -145,11 +280,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           version: ''
         };
 
-        const activeUnits = data.units.filter(u =>
-          ALLOWED_STATUSES.includes(u.status) ||
-          (u.status === UnitStatus.SIN_DOCUMENTOS && u.type === 'CHOFER') ||
-          isTacticoPPFFStatus(u.status)
-        );
+        const activeUnits = sectorUnits.filter(u => isRenderedUnit(u));
         const choferes = activeUnits.filter(u => u.type === 'CHOFER');
         const motos = activeUnits.filter(u => u.type === 'MOTO');
         const serenos = activeUnits.filter(u => u.type === 'SERENO');
