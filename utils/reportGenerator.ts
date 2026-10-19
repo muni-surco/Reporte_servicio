@@ -81,6 +81,14 @@ const formatShortDate = (dateStr: string): string => {
 // Normaliza texto a mayúsculas (para sectores, IDs, estados)
 const normalizeText = (v: unknown) => String(v ?? '').trim().toUpperCase();
 
+// Regla global de reportes: FIN APOYO no cuenta en NINGÚN estado
+// (ni PATRULLANDO, ni SIN PATRULLAR, ni INOPERATIVOS). Coincide también
+// con variantes como 'FIN DE APOYO'.
+const isFinApoyoStatus = (status: unknown): boolean => {
+  const s = normalizeText(status);
+  return s.includes('FIN') && s.includes('APOYO');
+};
+
 const isMotoSupportWithoutId = (unit: UnitData): boolean => {
   return normalizeText(unit.status).includes('APOYO') && normalizeText(unit.id) === '';
 };
@@ -223,6 +231,7 @@ export const generateMotoReport = (
   const filterKeys = [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
   const motoUnits = dedupeUnitsByDataId(units, mobileData).filter(u => {
     if (u.type !== 'MOTO') return false;
+    if (isFinApoyoStatus(u.status)) return false;
     if (isMotoSupportWithoutId(u)) return false;
     const m = normModel(u.model);
     if (!m) return false;
@@ -276,7 +285,8 @@ export const generateMotoReport = (
   const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
   const isPatrullandoStatus = (status: unknown, id?: unknown) => {
     const s = String(status || '').trim().toUpperCase();
-    const isApoyo = s === 'APOYO' || s.includes('APOYO');
+    // FIN APOYO no es apoyo vigente: no cuenta como patrullando.
+    const isApoyo = !isFinApoyoStatus(s) && (s === 'APOYO' || s.includes('APOYO'));
     return s === 'PATRULLANDO' || (isApoyo && normalizeText(id) !== '') || s === 'MANTENIMIENTO';
   };
 
@@ -483,6 +493,7 @@ export const generateConsolidatedMotoReport = (
     const filterKeys = modelKeysFor(modelFilter, titleSuffix);
     return uniqueUnits.filter(u => {
       if (u.type !== 'MOTO') return false;
+      if (isFinApoyoStatus(u.status)) return false;
       if (isMotoSupportWithoutId(u)) return false;
       const m = normModel(u.model);
       if (!m) return false;
@@ -526,7 +537,8 @@ export const generateConsolidatedMotoReport = (
   const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
   const isPatrullandoStatus = (status: unknown, id?: unknown) => {
     const s = String(status || '').trim().toUpperCase();
-    const isApoyo = s === 'APOYO' || s.includes('APOYO');
+    // FIN APOYO no es apoyo vigente: no cuenta como patrullando.
+    const isApoyo = !isFinApoyoStatus(s) && (s === 'APOYO' || s.includes('APOYO'));
     return s === 'PATRULLANDO' || (isApoyo && normalizeText(id) !== '') || s === 'MANTENIMIENTO';
   };
 
@@ -843,6 +855,7 @@ const generateFleetReport = (
       normalize(u.status) !== 'MANTENIMIENTO' &&
       !inoperativeStatuses.includes(normalize(u.status)) &&
       normalize(u.status) !== 'SIN VEHICULO' &&
+      !isFinApoyoStatus(u.status) &&
       !isTacticoPPFFStatus(u.status)
     ).length;
 
@@ -2377,6 +2390,7 @@ export const generateOperatividadReport = (
   // igual que en los reportes de motos, vehículos y calendario mensual.
   const isPatrullando = (u: UnitData) => {
     const s = normalize(u.status);
+    if (isFinApoyoStatus(s)) return false;
     return s === 'PATRULLANDO' || s === 'APOYO' || s.includes('APOYO') || s === 'MANTENIMIENTO' || isTacticoPPFFStatus(u.status);
   };
   const isInoperative = (u: UnitData) => {
@@ -2465,8 +2479,10 @@ export const generateOperatividadReport = (
   // motos (Yamaha + Honda): mismo matcheo de modelos y misma clasificación de
   // estados con conteo directo (PATRULLANDO, APOYO* y MANTENIMIENTO cuentan
   // como patrullando; el resto no inoperativo cae en SIN PATRULLAR).
+  // FIN APOYO no cuenta en ningún estado.
   const isMotoPatrullando = (u: UnitData) => {
     const s = normalize(u.status);
+    if (isFinApoyoStatus(s)) return false;
     return s === 'PATRULLANDO' || s.includes('APOYO') || s === 'MANTENIMIENTO';
   };
 
@@ -2485,7 +2501,7 @@ export const generateOperatividadReport = (
       // EFECTIVO se cuenta desde DATA solo por modelo, sin exigir type=MOTO,
       // igual que el reporte de motos (tolera filas DATA con tipo vacío/mal rotulado).
       const dataMotos = mobileData.filter(m => isFleetMoto(m.model));
-      const motoUnits = secUnits.filter(u => isFleetMoto(u.model));
+      const motoUnits = secUnits.filter(u => isFleetMoto(u.model) && !isFinApoyoStatus(u.status));
       efectivos = dataMotos.length > 0 ? dataMotos.length : motoUnits.length;
       inoperativos = motoUnits.filter(u => isInoperative(u)).length;
       patrullando = motoUnits.filter(u => isMotoPatrullando(u)).length;
@@ -2500,7 +2516,7 @@ export const generateOperatividadReport = (
       //    a la columna RETÉN y suman una vez a PATRULLANDO al final.
       const regularUnits = secUnits.filter(u => {
         const id = normalize(u.id);
-        return dataIds.has(id) && !id.startsWith('AR-');
+        return dataIds.has(id) && !id.startsWith('AR-') && !isFinApoyoStatus(u.status);
       });
       inoperativos = regularUnits.filter(u => isInoperative(u)).length;
       // PATRULLANDO por conteo directo con el MISMO predicado del reporte de
@@ -2713,8 +2729,10 @@ export const generateMonthlyPatrolReport = (
 
   // Mismo criterio que el reporte de operatividad: PATRULLANDO, APOYO*,
   // TÁCTICO PP.FF. y MANTENIMIENTO cuentan como patrullando.
+  // FIN APOYO no cuenta como patrullado.
   const isPatrolled = (status: string) => {
     const s = normalize(status);
+    if (isFinApoyoStatus(s)) return false;
     return s === 'PATRULLANDO' || s === 'MANTENIMIENTO' || s.includes('APOYO') || isTacticoPPFFStatus(status);
   };
 
