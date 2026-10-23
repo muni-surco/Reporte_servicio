@@ -2224,7 +2224,8 @@ export const generateTaserReport = (
   allSectorSettings: Record<string, AppSettings>,
   date: string,
   shift: string,
-  operatorName?: string
+  operatorName?: string,
+  taserCodesBySector?: Record<string, string[]>
 ) => {
   const doc = new jspdf.jsPDF({
     orientation: 'landscape',
@@ -2338,6 +2339,73 @@ export const generateTaserReport = (
       10: { cellWidth: 'auto', halign: 'left' }
     },
     margin: { left: margin, right: margin }
+  });
+
+  // --- CONSOLIDADO DE TASERS POR SECTOR ---
+  // Total tasers por sector = códigos taser en hoja DATA (ST_BT sector)
+  // ASIGNADOS = unidades del turno con TASER=SI y CODIGO_TASER tiene valor
+  // NO ASIGNADOS = Total tasers (DATA) - ASIGNADOS (turno)
+  const taserSectors = [
+    '1A', '1B', '2A', '2B', '3',
+    '4', '5', '6', '7', '8',
+    '9A', '9B', 'GIR', 'OTRAS AREAS'
+  ];
+
+  const consolidateRows = taserSectors.map(s => {
+    const sectorRows = rows.filter(r => r[2] === s);
+    // Total tasers en el sector = códigos taser en DATA (ST_BT)
+    const totalTasers = (taserCodesBySector?.[s]?.length) || 0;
+    // ASIGNADOS = TASER=SI y CODIGO_TASER tiene valor (del turno)
+    const asignados = sectorRows.filter(r => r[6] === 'SI' && r[7] !== '--').length;
+    // NO ASIGNADOS = Total tasers (DATA) - ASIGNADOS (turno)
+    const noAsignados = Math.max(0, totalTasers - asignados);
+    return [s, String(asignados), String(noAsignados), String(totalTasers)];
+  });
+
+  // Add totals row
+  const totalAsignados = consolidateRows.reduce((sum, r) => sum + Number(r[1]), 0);
+  const totalNoAsignados = consolidateRows.reduce((sum, r) => sum + Number(r[2]), 0);
+  const totalTasers = consolidateRows.reduce((sum, r) => sum + Number(r[3]), 0);
+  consolidateRows.push(['TOTALES', String(totalAsignados), String(totalNoAsignados), String(totalTasers)]);
+
+  // La tabla consolidada siempre va en una página aparte al final del PDF.
+  doc.addPage();
+  const consolidateStartY = 15;
+  // Ancho total de la tabla: 50 + 40 + 40 + 40 = 170 mm.
+  // Se calcula un margen simétrico para que quede centrada horizontalmente.
+  const consolidateTableWidth = 170;
+  const consolidateMargin = Math.max(margin, (pageWidth - consolidateTableWidth) / 2);
+
+  (doc as any).autoTable({
+    startY: consolidateStartY,
+    head: [[
+      { content: `CONSOLIDADO DE TASERS POR SECTOR - TURNO ${shift.toUpperCase()}`, colSpan: 4, styles: { halign: 'center', fillColor: [0, 94, 165], textColor: [255, 255, 255], fontSize: 11 } }
+    ], [
+      'SECTOR', 'ASIGNADOS', 'NO ASIGNADOS', 'TOTAL TASERS'
+    ]],
+    body: consolidateRows,
+    theme: 'grid',
+    styles: { fontSize: 9, fontStyle: 'bold', halign: 'center', textColor: [0, 0, 0], lineWidth: 0.1 },
+    headStyles: { fillColor: [42, 157, 143], textColor: [255, 255, 255], fontSize: 9 },
+    columnStyles: {
+      0: { cellWidth: 50, fillColor: [240, 240, 240] },
+      1: { cellWidth: 40, fillColor: [144, 238, 144] }, // Light green for asignados
+      2: { cellWidth: 40, fillColor: [255, 182, 193] }, // Light coral for no asignados
+      3: { cellWidth: 40, fillColor: [200, 200, 255] }  // Light blue for total
+    },
+    didParseCell: function (data: any) {
+      if (data.row.section === 'body') {
+        const isTotalRow = data.row.index === consolidateRows.length - 1;
+        if (isTotalRow) {
+          data.cell.styles.fillColor = [38, 70, 83];
+          data.cell.styles.textColor = [255, 255, 255];
+          if (data.column.index === 1) data.cell.styles.fillColor = [40, 167, 69];
+          if (data.column.index === 2) data.cell.styles.fillColor = [220, 53, 69];
+          if (data.column.index === 3) data.cell.styles.fillColor = [0, 94, 165];
+        }
+      }
+    },
+    margin: { left: consolidateMargin, right: consolidateMargin }
   });
 
   // FOOTER

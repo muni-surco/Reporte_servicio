@@ -273,7 +273,10 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
     console.log('[getShiftData] START — dateStr=' + dateStr + ' shift=' + shift);
     
     // 0. Conditional Check
-    const meta = rtdbGet('_meta/units/' + dateStr + '_' + shift);
+    let meta = null;
+    try {
+      meta = rtdbGet('_meta/units/' + dateStr + '_' + shift);
+    } catch (e) { meta = null; }
     if (lastShiftTimestamp && meta && meta.updatedAt === lastShiftTimestamp) {
       return { noChanges: true };
     }
@@ -320,11 +323,25 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
         allUnits = fbUnits.map(u => _toUnitData(u));
         fromFirebase = true;
       }
-    } catch (e) { /* fallback */ }
+    } catch (e) {
+      console.error('[getShiftData] RTDB read failed, falling back to UNIT_DATA:', e.message);
+      allUnits = _readUnitsFromSheets(dateStr, shift);
+      fromFirebase = false;
+    }
+
+    if (!allUnits || allUnits.length === 0) {
+      try {
+        const sheetUnits = _readUnitsFromSheets(dateStr, shift);
+        if (sheetUnits && sheetUnits.length > 0) {
+          allUnits = sheetUnits;
+          fromFirebase = false;
+        }
+      } catch (e2) { /* ignore */ }
+    }
 
     allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, null, timeZone);
     _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 60);
-    console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'empty'));
+    console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheets'));
     _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
   } catch (err) {
@@ -675,6 +692,7 @@ function getMobileData() {
   const motivoSinVehiculoIdx = headers.indexOf('motivo_sin_vehiculo');
   const codigoBodycamIdx = headers.indexOf('codigo_bodycam');
   const codigoTaserIdx = headers.indexOf('codigo_taser');
+  const stBtIdx = headers.indexOf('st_bt'); // Sector asociado al código taser
   const propiedadIdx = headers.indexOf('propiedad');
   const sipcopIdx = headers.indexOf('sipcop');
   
@@ -695,6 +713,8 @@ function getMobileData() {
   const motivoSinVehiculoSet = new Set();
   const codigoBodycamSet = new Set();
   const codigoTaserSet = new Set();
+  // Mapa de códigos taser por sector (ST_BT)
+  const taserCodesBySector = {};
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -794,7 +814,16 @@ function getMobileData() {
     }
     // Collect Unique Codigo Taser
     if (codigoTaserIdx !== -1 && row[codigoTaserIdx]) {
-      codigoTaserSet.add(String(row[codigoTaserIdx]).trim());
+      const codigo = String(row[codigoTaserIdx]).trim();
+      codigoTaserSet.add(codigo);
+      // Asociar al sector ST_BT
+      if (stBtIdx !== -1 && row[stBtIdx]) {
+        const sector = String(row[stBtIdx]).trim().toUpperCase().replace(/^SECTOR\s+/, '');
+        if (sector) {
+          if (!taserCodesBySector[sector]) taserCodesBySector[sector] = new Set();
+          taserCodesBySector[sector].add(codigo);
+        }
+      }
     }
 
     // Lista del campo radio: sale de la columna RADIO de DATA (no TETRA),
@@ -909,6 +938,10 @@ function getMobileData() {
     radios: Array.from(radiosSet).sort(),
     codigoBodycamOptions: Array.from(codigoBodycamSet).sort(),
     codigoTaserOptions: Array.from(codigoTaserSet).sort(),
+    // Códigos taser por sector (ST_BT)
+    taserCodesBySector: Object.fromEntries(
+      Object.entries(taserCodesBySector).map(([sector, set]) => [sector, Array.from(set).sort()])
+    ),
     radioRows: radioRows
   };
 }
@@ -1434,6 +1467,181 @@ function _parseAmount(value) {
   return isNaN(parsed) ? '' : parsed;
 }
 
+function _radioIndexPath(dateStr, shift, radio) {
+  const r = String(radio || '').trim().toUpperCase();
+  if (!r || r === '--') return null;
+  const key = _sanitizeRtdbKey(r);
+  if (!key) return null;
+  return 'radio_index/' + dateStr + '_' + shift + '/' + key;
+}
+
+function _getRadioIndex(dateStr, shift, radio) {
+  const path = _radioIndexPath(dateStr, shift, radio);
+  if (!path) return null;
+  try { return rtdbGet(path); } catch (e) { console.error('[radio_index] get error', e); return null; }
+}
+
+function _setRadioIndex(dateStr, shift, radio, data) {
+  const path = _radioIndexPath(dateStr, shift, radio);
+  if (!path) return;
+  try {
+    rtdbSet(path, data == null ? null : data);
+  } catch (e) { console.error('[radio_index] set error', e); }
+}
+
+function _readUnitsFromSheets(dateStr, shift) {
+  try {
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+    if (!sheet) return [];
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return [];
+    const units = [];
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row || row.length === 0) continue;
+      if (String(row[0] || '').trim() !== String(dateStr || '').trim()) continue;
+      if (String(row[1] || '').trim() !== String(shift || '').trim()) continue;
+      const obj = {
+        date: row[0],
+        shift: row[1],
+        sector: toStorageSector(row[2]),
+        id: row[3],
+        type: row[4],
+        model: row[5],
+        personnel1: row[6],
+        personnel2: row[7],
+        plate: row[8],
+        indicative: row[9],
+        radio: row[10],
+        status: row[11],
+        reason: row[12],
+        kmStart: row[13],
+        kmEnd: row[14],
+        totalKm: row[15],
+        kmRecarga: row[16],
+        hours: row[17],
+        fuel: row[18],
+        expense: row[19],
+        partes: row[20],
+        quadrant: row[21],
+        mechanics: row[22],
+        unit_id: row[23],
+        lugarEstado: row[24],
+        motivoEstado: row[25],
+        auditLog: row[26],
+        taser: row[27],
+        bodycam: row[28],
+        codigoBodycam: row[29],
+        obsBodycam: row[30],
+        codigoTaser: row[31],
+        fuel2: row[32],
+        expense2: row[33]
+      };
+      try { units.push(_toUnitData(obj)); } catch (e) { units.push(obj); }
+    }
+    return units;
+  } catch (e) {
+    console.error('[_readUnitsFromSheets] ERROR', e);
+    return [];
+  }
+}
+
+function _saveUnitToSheetsFallback(dateStr, shift, sector, unitData, unitId, timestamp, auditLog) {
+  try {
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
+    if (!sheet) throw new Error('UNIT_DATA no encontrada');
+    const data = sheet.getDataRange().getValues();
+    const uid = String(unitId || '').trim();
+    const targetSectorDisp = toDisplaySector(sector);
+    // Buscar por unit_id (col 23)
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][23] || '').trim() === uid && uid) {
+        // Actualizar fila
+        const row = data[i].slice();
+        row[0] = dateStr;
+        row[1] = shift;
+        row[2] = targetSectorDisp;
+        row[3] = String(unitData.id || '').trim();
+        row[4] = unitData.type || '';
+        row[5] = unitData.model || '';
+        row[6] = unitData.personnel1 || '';
+        row[7] = unitData.personnel2 || '';
+        row[8] = unitData.plate || '';
+        row[9] = unitData.indicative || '';
+        row[10] = unitData.radio || '';
+        row[11] = unitData.status || '';
+        row[12] = unitData.reason || '';
+        row[13] = unitData.kmStart || '0';
+        row[14] = unitData.kmEnd || '0';
+        row[15] = unitData.totalKm || '0';
+        row[16] = unitData.kmRecarga || '0';
+        row[17] = unitData.hours || '';
+        row[18] = unitData.fuel || '';
+        row[19] = unitData.expense || '';
+        row[20] = unitData.partes || '0';
+        row[21] = unitData.quadrant || '';
+        row[22] = unitData.mechanics || '';
+        row[23] = uid;
+        row[24] = unitData.lugarEstado || '';
+        row[25] = unitData.motivoEstado || '';
+        row[26] = auditLog || timestamp || '';
+        row[27] = unitData.taser || '';
+        row[28] = unitData.bodycam || '';
+        row[29] = unitData.codigoBodycam || '';
+        row[30] = unitData.obsBodycam || '';
+        row[31] = unitData.codigoTaser || '';
+        row[32] = unitData.fuel2 || '';
+        row[33] = unitData.expense2 || '';
+        sheet.getRange(i + 1, 1, 1, 34).setValues([row]);
+        return { updated: true };
+      }
+    }
+    // Crear nueva fila
+    sheet.appendRow([
+      dateStr,
+      shift,
+      targetSectorDisp,
+      String(unitData.id || '').trim(),
+      unitData.type || '',
+      unitData.model || '',
+      unitData.personnel1 || '',
+      unitData.personnel2 || '',
+      unitData.plate || '',
+      unitData.indicative || '',
+      unitData.radio || '',
+      unitData.status || '',
+      unitData.reason || '',
+      unitData.kmStart || '0',
+      unitData.kmEnd || '0',
+      unitData.totalKm || '0',
+      unitData.kmRecarga || '0',
+      unitData.hours || '',
+      unitData.fuel || '',
+      unitData.expense || '',
+      unitData.partes || '0',
+      unitData.quadrant || '',
+      unitData.mechanics || '',
+      uid,
+      unitData.lugarEstado || '',
+      unitData.motivoEstado || '',
+      auditLog || timestamp || '',
+      unitData.taser || '',
+      unitData.bodycam || '',
+      unitData.codigoBodycam || '',
+      unitData.obsBodycam || '',
+      unitData.codigoTaser || '',
+      unitData.fuel2 || '',
+      unitData.expense2 || ''
+    ]);
+    return { created: true };
+  } catch (e) {
+    console.error('[_saveUnitToSheetsFallback] ERROR', e);
+    throw e;
+  }
+}
+
 function _normalizeFuelHeader(value) {
   return String(value || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
@@ -1794,40 +2002,60 @@ function updateUnit(dateStr, shift, settings, unit) {
 
   // --- Validación anti-duplicado de radio: una radio no puede estar registrada
   // en dos unidades del turno, sin importar el sector (2A, COVV, etc.).
-  // Se revisa todo el árbol del turno en RTDB y se omite el propio registro.
+  // Usa índice radio_index/{turno}/{radio} para evitar leer todo el árbol del turno.
+  var oldRadioNorm = previousUnit ? String(previousUnit.radio || '').trim().toUpperCase() : '';
+  var newRadioNorm = String(unit.radio || '').trim().toUpperCase();
   try {
-    var newRadioNorm = String(unit.radio || '').trim().toUpperCase();
     if (newRadioNorm && newRadioNorm !== '--') {
-      var shiftTree = rtdbGet('units/' + dateStr + '_' + shift);
-      if (shiftTree) {
-        var selfUidNorm = _sanitizeRtdbKey(unit.unit_id);
-        var dupSector = '';
-        var dupMovil = '';
-        for (var secKey in shiftTree) {
-          if (!shiftTree.hasOwnProperty(secKey)) continue;
-          var bucket = shiftTree[secKey];
-          if (!bucket || typeof bucket !== 'object') continue;
-          for (var ukey in bucket) {
-            if (!bucket.hasOwnProperty(ukey)) continue;
-            var exu = bucket[ukey];
-            if (!exu || typeof exu !== 'object') continue;
-            if (selfUidNorm && String(exu.unit_id || '').trim() === selfUidNorm) continue;
-            var exRadioNorm = String(exu.radio || '').trim().toUpperCase();
-            if (exRadioNorm && exRadioNorm !== '--' && exRadioNorm === newRadioNorm) {
-              dupSector = String(exu.sector || secKey);
-              dupMovil = String(exu.id || '').trim();
-              break;
-            }
-          }
-          if (dupSector) break;
-        }
-        if (dupSector) {
-          // El error informa el móvil y el sector de la unidad que ya usa la radio.
+      var selfUidNorm = _sanitizeRtdbKey(unit.unit_id);
+      var radioIdxEntry = _getRadioIndex(dateStr, shift, newRadioNorm);
+      if (radioIdxEntry) {
+        var idxUid = String(radioIdxEntry.unit_id || '').trim();
+        var idxUidSan = _sanitizeRtdbKey(idxUid);
+        var selfUidSan = selfUidNorm;
+        if (idxUidSan && selfUidSan && idxUidSan !== selfUidSan) {
+          var dupSector = String(radioIdxEntry.sector || '').trim();
+          var dupMovil = String(radioIdxEntry.id || radioIdxEntry.movil || '').trim();
           var dupMsg = 'DUPLICATE_RADIO: Radio ya registrada.';
           if (dupMovil) dupMsg += ' Móvil: ' + dupMovil + '.';
-          dupMsg += ' Sector: ' + String(dupSector).trim().toUpperCase().replace(/^SECTOR\s+/, '').replace(/_/g, ' ') + '.';
+          if (dupSector) dupMsg += ' Sector: ' + dupSector.toUpperCase().replace(/^SECTOR\s+/, '').replace(/_/g, ' ') + '.';
           return { success: false, error: dupMsg };
         }
+      } else {
+        // Índice vacío: construirlo una sola vez leyendo todo el turno y registrar entradas
+        try {
+          var shiftTreeIdx = rtdbGet('units/' + dateStr + '_' + shift);
+          if (shiftTreeIdx) {
+            for (var secKeyI in shiftTreeIdx) {
+              if (!shiftTreeIdx.hasOwnProperty(secKeyI)) continue;
+              var bucketI = shiftTreeIdx[secKeyI];
+              if (!bucketI || typeof bucketI !== 'object') continue;
+              for (var ukeyI in bucketI) {
+                if (!bucketI.hasOwnProperty(ukeyI)) continue;
+                var exuI = bucketI[ukeyI];
+                if (!exuI || typeof exuI !== 'object') continue;
+                var exuUid = String(exuI.unit_id || ukeyI || '').trim();
+                if (selfUidNorm && _sanitizeRtdbKey(exuUid) === selfUidNorm) continue;
+                var exr = String(exuI.radio || '').trim().toUpperCase();
+                if (exr && exr !== '--') {
+                  _setRadioIndex(dateStr, shift, exr, {
+                    unit_id: exuUid,
+                    sector: exuI.sector || secKeyI,
+                    id: exuI.id || ''
+                  });
+                  if (exr === newRadioNorm) {
+                    var dupSector2 = String(exuI.sector || secKeyI).trim();
+                    var dupMovil2 = String(exuI.id || '').trim();
+                    var dupMsg2 = 'DUPLICATE_RADIO: Radio ya registrada.';
+                    if (dupMovil2) dupMsg2 += ' Móvil: ' + dupMovil2 + '.';
+                    if (dupSector2) dupMsg2 += ' Sector: ' + dupSector2.toUpperCase().replace(/^SECTOR\s+/, '').replace(/_/g, ' ') + '.';
+                    return { success: false, error: dupMsg2 };
+                  }
+                }
+              }
+            }
+          }
+        } catch (e2) { console.error('[updateUnit radio index build] ERROR', e2); }
       }
     }
   } catch (e) { /* no bloquear guardado por error de validación, loggear */ console.error('[updateUnit radio duplicate check] ERROR', e); }
@@ -1895,23 +2123,52 @@ function updateUnit(dateStr, shift, settings, unit) {
 
   const unitPath = 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id;
   console.log('[updateUnit] Persisting unit ' + unitPath + ' fuel2=' + fuel2Value + ' expense2=' + expense2Value);
-  rtdbSet(unitPath, data);
-  const persistedUnit = rtdbGet(unitPath);
-  console.log('[updateUnit] leído desde Firebase: ' + JSON.stringify({
-    path: unitPath,
-    fuel2: persistedUnit && persistedUnit.fuel2,
-    expense2: persistedUnit && persistedUnit.expense2,
-    fuel2Alias: persistedUnit && persistedUnit.combustible2,
-    expense2Alias: persistedUnit && persistedUnit.gasto2
-  }));
-  if (!persistedUnit ||
-      String(persistedUnit.fuel2 || '') !== fuel2Value ||
-      String(persistedUnit.expense2 || '') !== expense2Value) {
-    throw new Error(
-      'Firebase no confirmó COMBUSTIBLE_2/GASTO_2 para la unidad ' + unit_id +
-      '. fuel2 enviado="' + fuel2Value + '", fuel2 leído="' + String(persistedUnit && persistedUnit.fuel2 || '') +
-      '", expense2 enviado="' + expense2Value + '", expense2 leído="' + String(persistedUnit && persistedUnit.expense2 || '') + '".'
-    );
+  let persistedUnit = null;
+  try {
+    persistedUnit = rtdbSet(unitPath, data);
+
+    // Actualizar índice de radios (evita lecturas cruzadas futuras)
+    try {
+      if (oldRadioNorm && oldRadioNorm !== '--' && oldRadioNorm !== newRadioNorm) {
+        var oldIdx = _getRadioIndex(dateStr, shift, oldRadioNorm);
+        if (oldIdx) {
+          var oldIdxUid = String(oldIdx.unit_id || '').trim();
+          if (_sanitizeRtdbKey(oldIdxUid) === _sanitizeRtdbKey(unit_id)) {
+            _setRadioIndex(dateStr, shift, oldRadioNorm, null);
+          }
+        }
+      }
+      if (newRadioNorm && newRadioNorm !== '--') {
+        _setRadioIndex(dateStr, shift, newRadioNorm, {
+          unit_id: unit_id,
+          sector: targetSector,
+          id: String(unit.id || '').trim()
+        });
+      }
+    } catch (eIdx) { console.error('[updateUnit radio index update] ERROR', eIdx); }
+  } catch (eRtdb) {
+    console.error('[updateUnit] RTDB falló, usando fallback a Sheets:', eRtdb.message);
+    try {
+      _saveUnitToSheetsFallback(dateStr, shift, targetSector, data, unit_id, timestamp, auditLog);
+    } catch (eSh) {
+      console.error('[updateUnit] Sheets fallback también falló:', eSh.message);
+      throw eRtdb;
+    }
+    // Limpiar cache para que se lea desde Sheets
+    try {
+      const cache2 = CacheService.getScriptCache();
+      cache2.remove('UNITS_' + dateStr + '_' + shift);
+      cache2.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
+    } catch (c) {}
+    _fbLogUsage();
+    return {
+      success: true,
+      unit_id: unit_id,
+      created: true,
+      fuel2: fuel2Value,
+      expense2: expense2Value,
+      source: 'sheets_fallback'
+    };
   }
 
   _appendFuelRecords(settings || {}, unit, dateStr, targetSector, previousUnit, shift, unit_id);
@@ -1951,8 +2208,8 @@ function updateUnit(dateStr, shift, settings, unit) {
     success: true,
     unit_id: unit_id,
     created: true,
-    fuel2: persistedUnit.fuel2,
-    expense2: persistedUnit.expense2
+    fuel2: fuel2Value,
+    expense2: expense2Value
   };
 }
 

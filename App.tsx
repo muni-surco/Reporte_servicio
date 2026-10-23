@@ -100,6 +100,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   const [motivoTallerOptions, setMotivoTallerOptions] = useState<string[]>([]);
   const [codigoBodycamOptions, setcodigoBodycamOptions] = useState<string[]>([]);
   const [codigoTaserOptions, setCodigoTaserOptions] = useState<string[]>([]);
+  const [taserCodesBySector, setTaserCodesBySector] = useState<Record<string, string[]>>({});
   const [radioOptions, setRadioOptions] = useState<string[]>([]);
   const [lugarOptions, setLugarOptions] = useState<string[]>([]);
   const [motivoFaltoOptions, setMotivoFaltoOptions] = useState<string[]>([]);
@@ -171,7 +172,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], radioRows?: Array<{ id: string; radio: string; stRd: string; sector: string }>, motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[],         codigoBodycamOptions?: string[], codigoTaserOptions?: string[] }) => {
+        .withSuccessHandler((data: { mobiles: MobileReference[], indicatives: string[], statuses: string[], personnel?: string[], operators?: string[], quadrants?: string[], radios?: string[], radioRows?: Array<{ id: string; radio: string; stRd: string; sector: string }>, motivoTallerOptions?: string[], lugarOptions?: string[], motivoFaltoOptions?: string[], motivoDesperfectosOptions?: string[], motivoMantenimientoOptions?: string[], motivoSiniestroOptions?: string[], motivoSinDocumentosOptions?: string[], motivoSinVehiculoOptions?: string[],         codigoBodycamOptions?: string[], codigoTaserOptions?: string[], taserCodesBySector?: Record<string, string[]> }) => {
           setMobileData(data.mobiles);
           setIndicativeOptions(data.indicatives);
           setStatusOptions(data.statuses);
@@ -190,6 +191,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           if (data.motivoSinVehiculoOptions) setMotivoSinVehiculoOptions(data.motivoSinVehiculoOptions);
           if (data.codigoBodycamOptions) setcodigoBodycamOptions(data.codigoBodycamOptions);
           if (data.codigoTaserOptions) setCodigoTaserOptions(data.codigoTaserOptions);
+          if (data.taserCodesBySector) setTaserCodesBySector(data.taserCodesBySector);
           if (data.radioRows) setRadioDataRows(data.radioRows);
           // Cargar lista de personal para regimen laboral
           google.script.run
@@ -1409,7 +1411,7 @@ hours: '--:-- - --:--',
       } else if (type === 'general') {
         reportGenerators.generateAllRecordsReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
       } else if (type === 'taser') {
-        reportGenerators.generateTaserReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName);
+        reportGenerators.generateTaserReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, taserCodesBySector);
       } else if (type === 'radios_tetra') {
         reportGenerators.generateTetraRadioReport(dataToUse.units, dataToUse.allSectorSettings || {}, date, shift, operatorName, mobileData, radioDataRows);
       } else if (type === 'calendario_patrullaje') {
