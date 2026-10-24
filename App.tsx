@@ -219,121 +219,51 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     if (!silent) setLoading(true);
     if (force) lastFetchedAtMap.current = {};
     if (typeof google !== 'undefined' && google.script && google.script.run) {
-      if (view === 'VISUALIZATION') {
-        let completed = 0;
-        const sectorResults: any[] = [];
+      if (view === 'VISUALIZATION' || view === 'STATISTICS' || view === 'MAP') {
         const currentLoadId = loadId;
+        google.script.run
+          .withSuccessHandler((data) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            if (!data || !data.units) {
+              setLoading(false);
+              return;
+            }
 
-        SECTORS.forEach((s, index) => {
-          google.script.run
-            .withSuccessHandler((data) => {
-              if (currentLoadId !== loadingIdRef.current) return;
-              
-              if (data && data.noChanges) {
-                // Keep existing data for this sector
-                sectorResults[index] = { 
-                  units: visualizationSectorsData[s]?.units || [], 
-                  settings: sectorSettingsMap[s] || buildSafeSettings(undefined, s, shift)
-                };
-              } else {
-                sectorResults[index] = data;
-                if (data && data.updatedAt) lastFetchedAtMap.current[s] = data.updatedAt;
+            const allUnits = data.units || [];
+            const allSectorSettings = data.allSectorSettings || {};
+
+            if (view === 'VISUALIZATION') {
+              const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
+              SECTORS.forEach(sName => {
+                const sectorUnits = allUnits.filter(u => (u.sector || '').toUpperCase() === sName.toUpperCase());
+                const safeSettings = buildSafeSettings(allSectorSettings[sName], sName, shift);
+                visData[sName] = { units: sectorUnits, settings: safeSettings };
+              });
+              setVisualizationSectorsData(visData);
+              setSectorSettingsMap(allSectorSettings);
+              if (SECTORS.length > 0 && allSectorSettings[SECTORS[0]]) {
+                setSettings({ ...settings, ...allSectorSettings[SECTORS[0]], turno: shift });
               }
-
-              completed++;
-              if (completed === SECTORS.length) {
-                try {
-                  // Aggregate and update state
-                  const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
-                  let finalSettings = settings;
-                  const allSectorSettings: Record<string, AppSettings> = {};
-
-                  sectorResults.forEach((res, sIndex) => {
-                    const sName = SECTORS[sIndex];
-                    if (res && res.units) {
-                      const safeSettings = buildSafeSettings(res.settings, sName, shift);
-                      visData[sName] = { units: res.units, settings: safeSettings };
-                      allSectorSettings[sName] = safeSettings;
-                      if (sIndex === 0) finalSettings = { ...settings, ...safeSettings, turno: shift };
-                    }
-                  });
-
-                  setVisualizationSectorsData(visData);
-                  setSectorSettingsMap(allSectorSettings);
-                  setSettings(finalSettings);
-                } catch (e) {
-                  console.error('Error aggregating sector data:', e);
-                } finally {
-                  setLoading(false);
-                }
-              }
-            })
-            .withFailureHandler((err) => {
-              if (currentLoadId !== loadingIdRef.current) return;
-              console.error('Failed to get sector data for', s, err);
-              completed++; // Treat as completed to allow others to show
-              if (completed === SECTORS.length) setLoading(false);
-            })
-            .getSectorData(dateStr, shift, s, lastFetchedAtMap.current[s]);
-        });
-        
-        // Safety timeout: force stop loading after 15 seconds to prevent hanging
-        setTimeout(() => {
-          if (loadingIdRef.current === currentLoadId) {
-            console.warn('Loading sector data timed out.');
+            } else {
+              const aggregatedSettings: Record<string, AppSettings> = {};
+              SECTORS.forEach(sName => {
+                aggregatedSettings[sName] = buildSafeSettings(allSectorSettings[sName], sName, shift);
+              });
+              setUnits(allUnits);
+              setSectorSettingsMap(aggregatedSettings);
+            }
             setLoading(false);
-          }
-        }, 15000);
-        
-        return;
-      }
+          })
+          .withFailureHandler((err) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            console.error('Failed to get shift data for view', view, err);
+            setLoading(false);
+          })
+          .getShiftData(dateStr, shift, currentSector);
 
-      if (view === 'STATISTICS' || view === 'MAP') {
-        let completed = 0;
-        const sectorResults: any[] = [];
-        const currentLoadId = loadId;
-
-        SECTORS.forEach((s, index) => {
-          google.script.run
-            .withSuccessHandler((data) => {
-              if (currentLoadId !== loadingIdRef.current) return;
-              sectorResults[index] = data;
-              completed++;
-              if (completed === SECTORS.length) {
-                try {
-                  const aggregatedUnits: UnitData[] = [];
-                  const aggregatedSettings: Record<string, AppSettings> = {};
-
-                  sectorResults.forEach((res, sIndex) => {
-                    const sName = SECTORS[sIndex];
-                    if (res && res.units) {
-                      aggregatedUnits.push(...res.units);
-                      aggregatedSettings[sName] = buildSafeSettings(res.settings, sName, shift);
-                    }
-                  });
-
-                  setUnits(aggregatedUnits);
-                  setSectorSettingsMap(aggregatedSettings);
-                } catch (e) {
-                  console.error('Error aggregating statistics data:', e);
-                } finally {
-                  setLoading(false);
-                }
-              }
-            })
-            .withFailureHandler((err) => {
-              if (currentLoadId !== loadingIdRef.current) return;
-              console.error('Failed to get sector data for statistics', err);
-              completed++;
-              if (completed === SECTORS.length) setLoading(false);
-            })
-            .getSectorData(dateStr, shift, s);
-        });
-
-        // Safety timeout: force stop loading after 15 seconds to prevent hanging
         setTimeout(() => {
           if (loadingIdRef.current === currentLoadId) {
-            console.warn('Loading statistics/map data timed out.');
+            console.warn('Loading shift data timed out.');
             setLoading(false);
           }
         }, 15000);

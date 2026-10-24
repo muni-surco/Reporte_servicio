@@ -395,7 +395,7 @@ function _getRTDBToken() {
   const header = { alg: 'RS256', typ: 'JWT' };
   const claim = {
     iss: config.client_email,
-    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/firebase.database',
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/cloud-platform',
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600,
     iat: now
