@@ -35,6 +35,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ fechaSalidaTaller: '', horaSalidaTaller: '' });
   const lastQueriedUnitRef = useRef<string>('');
+  const loadRequestIdRef = useRef(0);
 
   // Form State
   const [form, setForm] = useState({
@@ -52,8 +53,38 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
 
   const shifts = ['MAÑANA', 'TARDE', 'NOCHE'];
   const retenUnits = Array.from({ length: 12 }, (_, i) => `AR-${i + 1}`);
+  const normalizeShift = (value: string) => String(value || '').trim().toUpperCase();
 
   const mobileIds = useMemo(() => mobileData.map(m => m.id), [mobileData]);
+
+  // Table only shows the active shift, while validation uses the whole day
+  const shiftReplacements = useMemo(
+    () => replacements.filter(r => normalizeShift(r.turno) === normalizeShift(settings.turno)),
+    [replacements, settings.turno]
+  );
+
+  // A reten unit can only be used once per date and shift
+  const usedRetenUnits = useMemo(() => {
+    const units = new Set<string>();
+    replacements.forEach(r => {
+      if (r.fecha === selectedDate &&
+          normalizeShift(r.turno) === normalizeShift(form.turno) &&
+          String(r.retenUnit).trim()) {
+        units.add(String(r.retenUnit).trim().toUpperCase());
+      }
+    });
+    return units;
+  }, [replacements, selectedDate, form.turno]);
+
+  const duplicateRetenUnit = useMemo(() => {
+    const unit = form.retenUnit.trim().toUpperCase();
+    if (!unit) return null;
+    return replacements.find(r =>
+      r.fecha === selectedDate &&
+      normalizeShift(r.turno) === normalizeShift(form.turno) &&
+      String(r.retenUnit).trim().toUpperCase() === unit
+    ) || null;
+  }, [form.retenUnit, form.turno, replacements, selectedDate]);
 
   const errors = {
     replacedUnit: !form.replacedUnit.trim() ? 'Campo requerido' : '',
@@ -61,7 +92,9 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
     motivo: !form.motivo.trim() ? 'El motivo es obligatorio' : '',
     fechaIngresoTaller: !form.fechaIngresoTaller ? 'Fecha requerida' : '',
     horaIngresoTaller: !form.horaIngresoTaller ? 'Hora requerida' : '',
-    retenUnit: (form.replacedUnit.trim().toUpperCase().startsWith('M') && !form.retenUnit.trim()) ? 'Unidad Retén es obligatoria para unidades tipo M' : '',
+    retenUnit: !form.retenUnit.trim()
+      ? ((form.replacedUnit.trim().toUpperCase().startsWith('M')) ? 'Unidad Retén es obligatoria para unidades tipo M' : '')
+      : (duplicateRetenUnit ? `La unidad ${form.retenUnit} ya fue registrada en el turno ${form.turno}` : ''),
   };
 
   const isFormValid = !errors.replacedUnit && !errors.placa && !errors.motivo && !errors.fechaIngresoTaller && !errors.horaIngresoTaller && !errors.retenUnit;
@@ -72,21 +105,36 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   }, [selectedDate, settings.turno]);
 
   const loadRetenData = () => {
+    const requestId = ++loadRequestIdRef.current;
     setLoading(true);
+
     if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler((data: RetenReplacement[]) => {
-          setReplacements(data || []);
-          setLoading(false);
+      const fetchRetenData = (shift: string) => new Promise<RetenReplacement[]>((resolve) => {
+        google.script.run
+          .withSuccessHandler((data: RetenReplacement[]) => resolve(data || []))
+          .withFailureHandler((err: any) => {
+            console.error('Error loading reten data for shift', shift || 'ALL', err);
+            resolve([]);
+          })
+          .getRetenData(selectedDate, shift);
+      });
+
+      // First try to load the whole day (new backend). If it returns nothing,
+      // fall back to querying each shift individually (older backend).
+      fetchRetenData('')
+        .then(allDay => {
+          if (allDay.length > 0) return allDay;
+          return Promise.all(shifts.map(fetchRetenData)).then(groups => groups.flat());
         })
-        .withFailureHandler((err: any) => {
-          console.error('Error loading reten data:', err);
+        .then(data => {
+          if (loadRequestIdRef.current !== requestId) return;
+          setReplacements(data);
           setLoading(false);
-        })
-        .getRetenData(selectedDate, settings.turno);
+        });
     } else {
       // Mock data for development
       setTimeout(() => {
+        if (loadRequestIdRef.current !== requestId) return;
         setReplacements([]);
         setLoading(false);
       }, 500);
@@ -95,7 +143,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    setTouched({ replacedUnit: true, motivo: true, fechaIngresoTaller: true, horaIngresoTaller: true });
+    setTouched({ replacedUnit: true, motivo: true, fechaIngresoTaller: true, horaIngresoTaller: true, retenUnit: true });
 
     if (!isFormValid) {
       return;
@@ -119,10 +167,17 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
     setSaving(true);
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler(() => {
+        .withSuccessHandler((res: { success?: boolean, error?: string } | void) => {
+          if (res && res.success === false) {
+            alert('Error al guardar: ' + (res.error || 'La Unidad Retén ya fue registrada en este turno y fecha'));
+            setTouched(prev => ({ ...prev, retenUnit: true }));
+            setSaving(false);
+            loadRetenData();
+            return;
+          }
           setReplacements(prev => [newReplacement, ...prev]);
-          setForm({ ...form, replacedUnit: '', placa: '', motivo: '', fechaIngresoTaller: '', horaIngresoTaller: '', fechaSalidaTaller: '', horaSalidaTaller: '' });
-          setTouched({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false });
+          setForm({ ...form, retenUnit: '', placaReten: '', replacedUnit: '', placa: '', motivo: '', fechaIngresoTaller: '', horaIngresoTaller: '', fechaSalidaTaller: '', horaSalidaTaller: '' });
+          setTouched({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false, retenUnit: false });
           setSaving(false);
         })
         .withFailureHandler((err: any) => {
@@ -132,8 +187,8 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
         .saveRetenData(newReplacement);
     } else {
       setReplacements(prev => [newReplacement, ...prev]);
-      setForm({ ...form, replacedUnit: '', placa: '', motivo: '', fechaIngresoTaller: '', horaIngresoTaller: '', fechaSalidaTaller: '', horaSalidaTaller: '' });
-      setTouched({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false });
+      setForm({ ...form, retenUnit: '', placaReten: '', replacedUnit: '', placa: '', motivo: '', fechaIngresoTaller: '', horaIngresoTaller: '', fechaSalidaTaller: '', horaSalidaTaller: '' });
+      setTouched({ replacedUnit: false, motivo: false, fechaIngresoTaller: false, horaIngresoTaller: false, retenUnit: false });
       setSaving(false);
     }
   };
@@ -304,10 +359,17 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                   className={`${inputBaseStyle} appearance-none cursor-pointer pr-8 ${touched.retenUnit && errors.retenUnit ? 'border-red-300 bg-red-50/30' : ''}`}
                 >
                   <option value="">--</option>
-                  {retenUnits.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                  {retenUnits.map(unit => (
+                    <option key={unit} value={unit} disabled={usedRetenUnits.has(unit)}>
+                      {unit}{usedRetenUnits.has(unit) ? ' (ya registrada)' : ''}
+                    </option>
+                  ))}
                 </select>
                 <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[16px] pointer-events-none">expand_more</span>
               </div>
+              {touched.retenUnit && errors.retenUnit && (
+                <p className="mt-1 px-1 text-[10px] font-medium text-red-500">{errors.retenUnit}</p>
+              )}
             </div>
 
             <div className="flex flex-col">
@@ -403,7 +465,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                       alert('El módulo de reportes no se ha cargado. Recarga la aplicación e inténtalo nuevamente.');
                       return;
                     }
-                    void reportGenerators.generateRetenExcel(replacements, selectedDate, settings.turno);
+                    void reportGenerators.generateRetenExcel(shiftReplacements, selectedDate, settings.turno);
                   }}
                   className="flex items-center justify-center gap-2 h-[38px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all shadow-sm shadow-emerald-100"
                   title="Descargar Excel"
@@ -445,7 +507,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {replacements.length === 0 && !loading ? (
+              {shiftReplacements.length === 0 && !loading ? (
                 <tr>
                   <td colSpan={11} className="py-20 text-center">
                     <span className="material-symbols-outlined text-slate-200 text-5xl mb-4">history_toggle_off</span>
@@ -453,7 +515,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
                   </td>
                 </tr>
               ) : (
-                replacements.map((r, idx) => {
+                shiftReplacements.map((r, idx) => {
                   const key = r.fecha + r.hora + r.retenUnit + r.replacedUnit;
                   const isEditing = editingKey === key;
 
@@ -555,7 +617,7 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
 
         {/* Footer info */}
         <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-400 uppercase tracking-wider">
-          <span>{replacements.length} Relevos registrados para el turno {settings.turno}</span>
+          <span>{shiftReplacements.length} Relevos registrados para el turno {settings.turno}</span>
         </div>
       </div>
     </div>

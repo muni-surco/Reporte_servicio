@@ -545,7 +545,24 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
 }
 
 /**
+ * Normalizes a RETEN_LOG date cell to yyyy-MM-dd.
+ */
+function _normalizeRetenDate(value, timeZone) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, timeZone, 'yyyy-MM-dd');
+  }
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    return text.substring(0, 10);
+  }
+  const parsed = new Date(text);
+  return isNaN(parsed.getTime()) ? text : Utilities.formatDate(parsed, timeZone, 'yyyy-MM-dd');
+}
+
+/**
  * Fetches reten replacement logs for a specific date and shift.
+ * When shift is omitted, returns every shift for that date.
  */
 function getRetenData(dateStr, shift) {
   try {
@@ -553,6 +570,7 @@ function getRetenData(dateStr, shift) {
     const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
     if (!sheet) return [];
 
+    const timeZone = ss.getSpreadsheetTimeZone();
     const rows = sheet.getDataRange().getValues();
     const results = [];
     
@@ -561,8 +579,9 @@ function getRetenData(dateStr, shift) {
       if (!row[0]) continue;
       
       try {
-        const rowDate = Utilities.formatDate(new Date(row[0]), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-        if (rowDate === dateStr && String(row[1]) === shift) {
+        const rowDate = _normalizeRetenDate(row[0], timeZone);
+        const matchesShift = !shift || String(row[1]) === String(shift);
+        if (rowDate === dateStr && matchesShift) {
           results.push({
             fecha: rowDate,
             turno: String(row[1] || ''),
@@ -572,12 +591,12 @@ function getRetenData(dateStr, shift) {
             placa: String(row[5] || ''),
             motivo: String(row[6] || ''),
             hora: (row[7] instanceof Date) 
-                  ? Utilities.formatDate(row[7], ss.getSpreadsheetTimeZone(), 'HH:mm')
+                  ? Utilities.formatDate(row[7], timeZone, 'HH:mm')
                   : String(row[7] || ''),
-            fechaIngresoTaller: (row[8] instanceof Date) ? Utilities.formatDate(row[8], ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : String(row[8] || ''),
-            horaIngresoTaller: (row[9] instanceof Date) ? Utilities.formatDate(row[9], ss.getSpreadsheetTimeZone(), 'HH:mm') : String(row[9] || ''),
-            fechaSalidaTaller: (row[10] instanceof Date) ? Utilities.formatDate(row[10], ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd') : String(row[10] || ''),
-            horaSalidaTaller: (row[11] instanceof Date) ? Utilities.formatDate(row[11], ss.getSpreadsheetTimeZone(), 'HH:mm') : String(row[11] || '')
+            fechaIngresoTaller: (row[8] instanceof Date) ? Utilities.formatDate(row[8], timeZone, 'yyyy-MM-dd') : String(row[8] || ''),
+            horaIngresoTaller: (row[9] instanceof Date) ? Utilities.formatDate(row[9], timeZone, 'HH:mm') : String(row[9] || ''),
+            fechaSalidaTaller: (row[10] instanceof Date) ? Utilities.formatDate(row[10], timeZone, 'yyyy-MM-dd') : String(row[10] || ''),
+            horaSalidaTaller: (row[11] instanceof Date) ? Utilities.formatDate(row[11], timeZone, 'HH:mm') : String(row[11] || '')
           });
         }
       } catch (e) {
@@ -600,6 +619,29 @@ function saveRetenData(data) {
   if (!sheet) {
     setupRetenLogSheet(ss);
     sheet = ss.getSheetByName(APP_CONFIG.SHEETS.retenLog);
+  }
+
+  // Prevent using the same reten unit twice on the same date and shift
+  if (data.retenUnit) {
+    const timeZone = ss.getSpreadsheetTimeZone();
+    const rows = sheet.getDataRange().getValues();
+    const retenUnit = String(data.retenUnit).trim().toUpperCase();
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row[0]) continue;
+
+      const rowDate = _normalizeRetenDate(row[0], timeZone);
+      const rowRetenUnit = String(row[2] || '').trim().toUpperCase();
+      if (rowDate === data.fecha &&
+          String(row[1]) === String(data.turno) &&
+          rowRetenUnit === retenUnit) {
+        return {
+          success: false,
+          error: 'La Unidad Retén ' + data.retenUnit + ' ya fue registrada para el turno ' + data.turno + ' del ' + data.fecha
+        };
+      }
+    }
   }
   
   sheet.appendRow([
@@ -632,7 +674,7 @@ function updateRetenSalida(data) {
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
-    const rowDate = row[0] ? Utilities.formatDate(new Date(row[0]), timeZone, 'yyyy-MM-dd') : '';
+    const rowDate = _normalizeRetenDate(row[0], timeZone);
     const horaActual = (row[7] instanceof Date) ? Utilities.formatDate(row[7], timeZone, 'HH:mm') : String(row[7] || '');
     // Use composite key to find the record
     if (rowDate === data.fecha && 
