@@ -1536,6 +1536,31 @@ function _setRadioIndex(dateStr, shift, radio, data) {
   } catch (e) { console.error('[radio_index] set error', e); }
 }
 
+// Elimina las entradas del índice de radios que pertenecen a una unidad
+// determinada y que ya no corresponden a la radio nueva (p. ej. cuando se
+// borra la radio para reusarla en otra unidad). Evita que queden entradas
+// "huérfanas" que bloquean la reutilización.
+function _cleanupRadioIndexForUnit(dateStr, shift, unit_id, newRadioNorm) {
+  try {
+    const node = rtdbGet('radio_index/' + dateStr + '_' + shift);
+    if (!node || typeof node !== 'object') return;
+    const selfSan = _sanitizeRtdbKey(String(unit_id || '').trim());
+    if (!selfSan) return;
+    const newNorm = String(newRadioNorm || '').trim().toUpperCase();
+    for (var radioKey in node) {
+      if (!node.hasOwnProperty(radioKey)) continue;
+      const entry = node[radioKey];
+      if (!entry || typeof entry !== 'object') continue;
+      const entryUid = _sanitizeRtdbKey(String(entry.unit_id || '').trim());
+      if (!entryUid || entryUid !== selfSan) continue;
+      const entryRadio = String(radioKey).trim().toUpperCase();
+      if (entryRadio !== newNorm) {
+        _setRadioIndex(dateStr, shift, entryRadio, null);
+      }
+    }
+  } catch (e) { console.error('[radio_index cleanup] ERROR', e); }
+}
+
 function _readUnitsFromSheets(dateStr, shift) {
   try {
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
@@ -2061,12 +2086,32 @@ function updateUnit(dateStr, shift, settings, unit) {
         var idxUidSan = _sanitizeRtdbKey(idxUid);
         var selfUidSan = selfUidNorm;
         if (idxUidSan && selfUidSan && idxUidSan !== selfUidSan) {
-          var dupSector = String(radioIdxEntry.sector || '').trim();
-          var dupMovil = String(radioIdxEntry.id || radioIdxEntry.movil || '').trim();
-          var dupMsg = 'DUPLICATE_RADIO: Radio ya registrada.';
-          if (dupMovil) dupMsg += ' Móvil: ' + dupMovil + '.';
-          if (dupSector) dupMsg += ' Sector: ' + dupSector.toUpperCase().replace(/^SECTOR\s+/, '').replace(/_/g, ' ') + '.';
-          return { success: false, error: dupMsg };
+          // Verificar si la entrada es "huérfana": la unidad referenciada
+          // ya no tiene esa radio (p. ej. se borró para reusarla). En ese
+          // caso se limpia el índice y se permite la reutilización.
+          var isStale = false;
+          try {
+            var staleSector = String(radioIdxEntry.sector || '').trim();
+            var stalePath = 'units/' + dateStr + '_' + shift + '/' + (staleSector ? toStorageSector(staleSector) : '') + '/' + _sanitizeRtdbKey(idxUid);
+            var staleUnit = rtdbGet(stalePath);
+            if (staleUnit && typeof staleUnit === 'object') {
+              var staleRadio = String(staleUnit.radio || '').trim().toUpperCase();
+              if (staleRadio !== newRadioNorm) isStale = true;
+            } else {
+              // La unidad ya no existe: entrada huérfana.
+              isStale = true;
+            }
+          } catch (eStale) { isStale = true; }
+          if (isStale) {
+            _setRadioIndex(dateStr, shift, newRadioNorm, null);
+          } else {
+            var dupSector = String(radioIdxEntry.sector || '').trim();
+            var dupMovil = String(radioIdxEntry.id || radioIdxEntry.movil || '').trim();
+            var dupMsg = 'DUPLICATE_RADIO: Radio ya registrada.';
+            if (dupMovil) dupMsg += ' Móvil: ' + dupMovil + '.';
+            if (dupSector) dupMsg += ' Sector: ' + dupSector.toUpperCase().replace(/^SECTOR\s+/, '').replace(/_/g, ' ') + '.';
+            return { success: false, error: dupMsg };
+          }
         }
       } else {
         // Índice vacío: construirlo una sola vez leyendo todo el turno y registrar entradas
@@ -2176,15 +2221,10 @@ function updateUnit(dateStr, shift, settings, unit) {
 
     // Actualizar índice de radios (evita lecturas cruzadas futuras)
     try {
-      if (oldRadioNorm && oldRadioNorm !== '--' && oldRadioNorm !== newRadioNorm) {
-        var oldIdx = _getRadioIndex(dateStr, shift, oldRadioNorm);
-        if (oldIdx) {
-          var oldIdxUid = String(oldIdx.unit_id || '').trim();
-          if (_sanitizeRtdbKey(oldIdxUid) === _sanitizeRtdbKey(unit_id)) {
-            _setRadioIndex(dateStr, shift, oldRadioNorm, null);
-          }
-        }
-      }
+      // Limpiar entradas huérfanas del índice para esta unidad (cubre el caso
+      // en que se borra la radio para reusarla en otra unidad, aunque
+      // previousUnit no esté disponible).
+      _cleanupRadioIndexForUnit(dateStr, shift, unit_id, newRadioNorm);
       if (newRadioNorm && newRadioNorm !== '--') {
         _setRadioIndex(dateStr, shift, newRadioNorm, {
           unit_id: unit_id,
