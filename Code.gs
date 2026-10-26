@@ -868,11 +868,16 @@ function getMobileData() {
       }
     }
 
-    // Lista del campo radio: sale de la columna RADIO de DATA (no TETRA),
-    // e incluye filas sin MOVIL.
-    const radioOpt = radioIdx !== -1 ? String(row[radioIdx] || '').trim() : '';
-    if (radioOpt) {
-      radiosSet.add(radioOpt);
+    // Lista del campo radio: sale EXCLUSIVAMENTE de la columna RADIO de DATA
+    // (nunca de TETRA). Incluye filas sin MOVIL. Se normaliza el valor
+    // (string + trim + espacios no separables) para que radios como 20974
+    // que están en la columna RADIO no se pierdan por formato de celda.
+    if (radioIdx !== -1) {
+      const rawRadio = row[radioIdx];
+      const radioOpt = String(rawRadio == null ? '' : rawRadio).trim().replace(/\u00A0/g, ' ').trim();
+      if (radioOpt && radioOpt !== '--') {
+        radiosSet.add(radioOpt);
+      }
     }
   }
   
