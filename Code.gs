@@ -340,6 +340,28 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
     }
 
     allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, null, timeZone);
+
+    // Pre-construir el índice de radios del turno para que los guardados
+    // (updateUnit) no tengan que leer todo el árbol del turno la primera vez
+    // que aparece cada radio (esto era la causa de la lentitud en C4/COVV,
+    // que tienen muchos serenos/radios distintos).
+    try {
+      const existingIdx = rtdbGet('radio_index/' + dateStr + '_' + shift) || {};
+      allUnits.forEach(function (u) {
+        const r = String((u && u.radio) || '').trim().toUpperCase();
+        if (!r || r === '--') return;
+        const key = _sanitizeRtdbKey(r);
+        if (!key) return;
+        if (existingIdx[key]) return;
+        rtdbSet('radio_index/' + dateStr + '_' + shift + '/' + key, {
+          unit_id: String((u && u.unit_id) || '').trim(),
+          sector: toStorageSector((u && u.sector) || ''),
+          id: String((u && u.id) || '').trim()
+        });
+        existingIdx[key] = true;
+      });
+    } catch (eIdxBuild) { console.error('[getShiftData radio index build] ERROR', eIdxBuild); }
+
     _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 60);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheets'));
     _fbLogUsage();
@@ -2258,11 +2280,20 @@ function updateUnit(dateStr, shift, settings, unit) {
     };
   }
 
-  _appendFuelRecords(settings || {}, unit, dateStr, targetSector, previousUnit, shift, unit_id);
+  // Optimización: no abrir la hoja de combustible si ni la unidad actual ni la
+  // anterior tienen combustible (caso típico de serenos en C4/COVV). Evita
+  // la apertura costosa de un spreadsheet en cada guardado.
+  var _hasFuelNow = !!_parseFuelValue(unit.fuel).type || !!_parseFuelValue(unit.fuel2).type;
+  var _prevU = previousUnit || {};
+  var _hasFuelPrev = !!_parseFuelValue(_prevU.fuel).type || !!_parseFuelValue(_prevU.fuel2).type;
+  if (_hasFuelNow || _hasFuelPrev) {
+    _appendFuelRecords(settings || {}, unit, dateStr, targetSector, previousUnit, shift, unit_id);
+  }
 
   // KM bridge: update prev unit's kmEnd from current unit's kmStart
-  const prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
+  let prevShiftInfo = null;
   if (unit.id && unit.kmStart && unit.kmStart !== '0') {
+    prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
     try {
       const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
       const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
@@ -2289,7 +2320,9 @@ function updateUnit(dateStr, shift, settings, unit) {
   const cache = CacheService.getScriptCache();
   cache.remove('UNITS_' + dateStr + '_' + shift);
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
-  cache.remove('UNITS_' + prevShiftInfo.date + '_' + prevShiftInfo.shift);
+  if (prevShiftInfo) {
+    try { cache.remove('UNITS_' + prevShiftInfo.date + '_' + prevShiftInfo.shift); } catch (e) {}
+  }
   _fbLogUsage();
   return {
     success: true,
