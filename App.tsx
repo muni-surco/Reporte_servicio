@@ -61,6 +61,16 @@ const selectMobileDefaults = (mobile: MobileReference[], sectorName: string) => 
   return mobile.filter(m => sources.includes((m.sector || '').trim().toUpperCase()));
 };
 
+// Normaliza el sector de una unidad para las vistas agregadas: los sectores
+// historicos (FISCA, ADM, ...) se agrupan en OTRAS AREAS.
+const OTRAS_AREAS_SOURCES = sourceSectorsFor('OTRAS AREAS');
+const normalizeUnitSector = (value: unknown): Sector => {
+  const sec = String(value ?? '').trim().toUpperCase();
+  if ((SECTORS as string[]).includes(sec)) return sec as Sector;
+  if (OTRAS_AREAS_SOURCES.includes(sec)) return 'OTRAS AREAS';
+  return sec as Sector;
+};
+
 
 const App: React.FC = () => {
   const [units, setUnits] = useState<UnitData[]>([]);
@@ -149,6 +159,12 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     return () => clearTimeout(timer);
   }, [selectedDate, settings.turno, currentSector, mobileData.length, currentView]);
 
+  // Al cambiar fecha/turno/sector el timestamp anterior deja de ser valido:
+  // evita que getShiftData responda `noChanges` y se muestren datos viejos.
+  useEffect(() => {
+    lastShiftTimestampRef.current = null;
+  }, [selectedDate, settings.turno, currentSector]);
+
   const loadPersonnel = () => {
     setLoadingPersonnel(true);
     if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -224,63 +240,57 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     if (force) lastFetchedAtMap.current = {};
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       if (view === 'VISUALIZATION') {
-        let completed = 0;
-        const sectorResults: any[] = [];
         const currentLoadId = loadId;
 
-        SECTORS.forEach((s, index) => {
-          google.script.run
-            .withSuccessHandler((data) => {
-              if (currentLoadId !== loadingIdRef.current) return;
-              
-              if (data && data.noChanges) {
-                // Keep existing data for this sector
-                sectorResults[index] = { 
-                  units: visualizationSectorsData[s]?.units || [], 
-                  settings: sectorSettingsMap[s] || buildSafeSettings(undefined, s, shift)
-                };
-              } else {
-                sectorResults[index] = data;
-                if (data && data.updatedAt) lastFetchedAtMap.current[s] = data.updatedAt;
-              }
+        google.script.run
+          .withSuccessHandler((data: any) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            if (!data) { setLoading(false); return; }
 
-              completed++;
-              if (completed === SECTORS.length) {
-                try {
-                  // Aggregate and update state
-                  const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
-                  let finalSettings = settings;
-                  const allSectorSettings: Record<string, AppSettings> = {};
+            if (data.noChanges) {
+              // Whole shift unchanged: keep existing visualization data
+              setLoading(false);
+              return;
+            }
 
-                  sectorResults.forEach((res, sIndex) => {
-                    const sName = SECTORS[sIndex];
-                    if (res && res.units) {
-                      const safeSettings = buildSafeSettings(res.settings, sName, shift);
-                      visData[sName] = { units: res.units, settings: safeSettings };
-                      allSectorSettings[sName] = safeSettings;
-                      if (sIndex === 0) finalSettings = { ...settings, ...safeSettings, turno: shift };
-                    }
-                  });
+            try {
+              const bySector: Record<string, UnitData[]> = {};
+              (data.units || []).forEach((u: UnitData) => {
+                const sec = normalizeUnitSector(u.sector);
+                if (!bySector[sec]) bySector[sec] = [];
+                bySector[sec].push(u);
+              });
 
-                  setVisualizationSectorsData(visData);
-                  setSectorSettingsMap(allSectorSettings);
-                  setSettings(finalSettings);
-                } catch (e) {
-                  console.error('Error aggregating sector data:', e);
-                } finally {
-                  setLoading(false);
-                }
-              }
-            })
-            .withFailureHandler((err) => {
-              if (currentLoadId !== loadingIdRef.current) return;
-              console.error('Failed to get sector data for', s, err);
-              completed++; // Treat as completed to allow others to show
-              if (completed === SECTORS.length) setLoading(false);
-            })
-            .getSectorData(dateStr, shift, s, lastFetchedAtMap.current[s]);
-        });
-        
+              const visData: Record<string, { units: UnitData[], settings: AppSettings }> = {};
+              const allSectorSettings: Record<string, AppSettings> = data.allSectorSettings || {};
+              let finalSettings = settings;
+
+              SECTORS.forEach((s, sIndex) => {
+                const sNorm = String(s).trim().toUpperCase();
+                const safeSettings = buildSafeSettings(allSectorSettings[s] || data.settings, s, shift);
+                visData[s] = { units: bySector[sNorm] || [], settings: safeSettings };
+                allSectorSettings[s] = safeSettings;
+                if (sIndex === 0) finalSettings = { ...settings, ...safeSettings, turno: shift };
+              });
+
+              setVisualizationSectorsData(visData);
+              setSectorSettingsMap(allSectorSettings);
+              setSettings(finalSettings);
+              console.info('[App] getShiftData (visualizacion) auth=' + JSON.stringify(data.auth) + ' units=' + (allUnits?.length || 0));
+              if (data.updatedAt) lastShiftTimestampRef.current = data.updatedAt;
+            } catch (e) {
+              console.error('Error aggregating sector data:', e);
+            } finally {
+              setLoading(false);
+            }
+          })
+          .withFailureHandler((err: any) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            console.error('Failed to get shift data for visualization', err);
+            setLoading(false);
+          })
+          .getShiftData(dateStr, shift, currentSector, lastShiftTimestampRef.current);
+
         // Safety timeout: force stop loading after 15 seconds to prevent hanging
         setTimeout(() => {
           if (loadingIdRef.current === currentLoadId) {
@@ -288,51 +298,42 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             setLoading(false);
           }
         }, 15000);
-        
+
         return;
       }
 
       if (view === 'STATISTICS' || view === 'MAP') {
-        let completed = 0;
-        const sectorResults: any[] = [];
         const currentLoadId = loadId;
 
-        SECTORS.forEach((s, index) => {
-          google.script.run
-            .withSuccessHandler((data) => {
-              if (currentLoadId !== loadingIdRef.current) return;
-              sectorResults[index] = data;
-              completed++;
-              if (completed === SECTORS.length) {
-                try {
-                  const aggregatedUnits: UnitData[] = [];
-                  const aggregatedSettings: Record<string, AppSettings> = {};
-
-                  sectorResults.forEach((res, sIndex) => {
-                    const sName = SECTORS[sIndex];
-                    if (res && res.units) {
-                      aggregatedUnits.push(...res.units);
-                      aggregatedSettings[sName] = buildSafeSettings(res.settings, sName, shift);
-                    }
-                  });
-
-                  setUnits(aggregatedUnits);
-                  setSectorSettingsMap(aggregatedSettings);
-                } catch (e) {
-                  console.error('Error aggregating statistics data:', e);
-                } finally {
-                  setLoading(false);
-                }
-              }
-            })
-            .withFailureHandler((err) => {
-              if (currentLoadId !== loadingIdRef.current) return;
-              console.error('Failed to get sector data for statistics', err);
-              completed++;
-              if (completed === SECTORS.length) setLoading(false);
-            })
-            .getSectorData(dateStr, shift, s);
-        });
+        google.script.run
+          .withSuccessHandler((data: any) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            if (!data) { setLoading(false); return; }
+            if (data.noChanges) { setLoading(false); return; }
+            try {
+              const aggregatedUnits: UnitData[] = (data.units || [])
+                .map((u: UnitData) => ({ ...u, sector: normalizeUnitSector(u.sector) }))
+                .filter((u: UnitData) => !u.sector || (SECTORS as string[]).includes(u.sector));
+              const aggregatedSettings: Record<string, AppSettings> = data.allSectorSettings || {};
+              SECTORS.forEach((s) => {
+                if (!aggregatedSettings[s]) aggregatedSettings[s] = buildSafeSettings(data.settings, s, shift);
+              });
+              setUnits(aggregatedUnits);
+              setSectorSettingsMap(aggregatedSettings);
+              console.info('[App] getShiftData (stats/map) auth=' + JSON.stringify(data.auth) + ' units=' + aggregatedUnits.length);
+              if (data.updatedAt) lastShiftTimestampRef.current = data.updatedAt;
+            } catch (e) {
+              console.error('Error aggregating statistics data:', e);
+            } finally {
+              setLoading(false);
+            }
+          })
+          .withFailureHandler((err: any) => {
+            if (currentLoadId !== loadingIdRef.current) return;
+            console.error('Failed to get shift data for statistics', err);
+            setLoading(false);
+          })
+          .getShiftData(dateStr, shift, currentSector);
 
         // Safety timeout: force stop loading after 15 seconds to prevent hanging
         setTimeout(() => {
@@ -724,12 +725,13 @@ id: d.id,
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
-        .withSuccessHandler((res: { success: boolean, unit_id?: string, fuel2?: string, expense2?: string, error?: string }) => {
+        .withSuccessHandler((res: { success: boolean, unit_id?: string, fuel2?: string, expense2?: string, error?: string, auth?: { modo: string, origen: string, codigo: string } }) => {
           console.info('[App] respuesta de updateUnit', {
             success: res.success,
             unitId: res.unit_id || unitKey,
             fuel2: res.fuel2,
             expense2: res.expense2,
+            auth: res.auth,
             error: res.error
           });
           if (res.success) {
@@ -1325,6 +1327,7 @@ hours: '--:-- - --:--',
 
       if (res && res.units) {
         dataToUse = { units: res.units, allSectorSettings: res.allSectorSettings || {} };
+        console.info('[App] getShiftData (reporte) auth=' + JSON.stringify(res.auth) + ' units=' + res.units.length);
 
         // Update local state and timestamp
         setUnits(res.units);

@@ -49,3 +49,37 @@ Antes de publicar, revisa las constantes al inicio de `Code.gs`:
 - Los campos **Indicativo** y **Estado** sugieren valores basados en la hoja `DATA`.
 - Si esas columnas están vacías, no habrá sugerencias pero se podrá escribir libremente.
 - Los datos de personal dependen de la hoja externa configurada en `Code.gs`.
+
+## 6. Cuota de UrlFetch (premium) y RTDB_SECRET
+El error `premium urlfetch` aparece cuando se agota la cuota diaria de llamadas
+autenticadas (compartida por toda la cuenta de Google, no por script).
+
+1. En **Configuración del proyecto → Propiedades del script** agrega
+   `RTDB_SECRET` con el secreto de Realtime Database
+   (Firebase Console → Realtime Database → Secrets).
+2. Verifica con la función `diagnosticoRtdb` (Ejecutar desde el editor): devuelve
+   `modoEfectivo: "secret (?auth=)"` si el secreto está en uso, o
+   `modoEfectivo: "oauth (Bearer)"` si no se encontró la propiedad (o el secreto
+   fue rechazado con HTTP 401/403). También lista `origenSecret`
+   (`script` / `usuario` / `documento` / `ninguno`) y las claves de las tres
+   tipos de propiedades, para saber dónde debiste haberlo puesto.
+3. Si `origenSecret` sale `ninguno`, el secreto NO está en ninguna propiedad de
+   ese proyecto: ponlo en **Propiedades del script** con la clave exacta
+   `RTDB_SECRET`, o ejecuta `configurarRtdbSecret("<secret>")` / `migrarRtdbSecret()`
+   desde el editor (esta última copia de usuario/documento a script).
+4. Si `secretRechazado: true` (HTTP 401/403), el secret existe pero no sirve para
+   esa base de datos: revisa que sea el secret correcto de la RTDB
+   (Firebase Console → Realtime Database → Secrets) y/o que sea para la misma DB.
+   Luego ejecuta `resetRtdbQuotaFlag()` y `migrarRtdbSecret()`.
+5. Si la cuota ya se agotó, el contador se reinicia cerca de medianoche hora del
+   Pacífico (≈ 02:00–03:00 en Lima). Hasta entonces la app usa el respaldo en
+   hojas y un cortacircuitos de 5 minutos para no reintentar RTDB en cada
+   operación. `resetRtdbQuotaFlag()` borra esa marca manualmente.
+6. Mientras la cuota esté agotada, los guardados se escriben **solo en la hoja**
+   (`source: "sheets_fallback"`). Esos cambios no llegan a Firebase por sí solos:
+   hay que revisarlos/sincronizarlos cuando vuelva la cuota.
+7. Cuando vuelva la cuota, sincronizar los guardados que quedaron en la hoja:
+   `resyncSheetsToRtdb(dateStr, shift)` (desde el editor, o vía doPost con
+   `{ action: "resyncSheetsToRtdb", apiKey, dateStr, shift }`).
+   Esto relee la hoja y reescribe en RTDB (un solo PATCH multi-path).
+

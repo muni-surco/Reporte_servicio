@@ -99,6 +99,65 @@ function _cachePutSafe(cache, key, value, ttlSeconds) {
 }
 
 /**
+ * CacheService limita cada clave a ~100 KB. Estos helpers guardan valores
+ * grandes (p. ej. calendario mensual) partidos en varios trozos.
+ */
+function _cachePutLarge(cache, key, value, ttlSeconds) {
+  try {
+    const raw = String(value);
+    const MAX = 90000;
+    if (raw.length <= MAX) {
+      cache.put(key, raw, ttlSeconds);
+      cache.remove(key + '_META');
+      return true;
+    }
+    const chunks = [];
+    for (let i = 0; i < raw.length; i += MAX) chunks.push(raw.substring(i, i + MAX));
+    if (chunks.length > 20) {
+      console.warn('[_cachePutLarge] valor demasiado grande para cache: ' + key + ' (' + raw.length + ' chars)');
+      return false;
+    }
+    for (let i = 0; i < chunks.length; i++) cache.put(key + '_C' + i, chunks[i], ttlSeconds);
+    cache.put(key + '_META', JSON.stringify({ n: chunks.length }), ttlSeconds);
+    return true;
+  } catch (e) {
+    console.warn('[_cachePutLarge] skip cache for ' + key + ': ' + e);
+    return false;
+  }
+}
+
+function _cacheGetLarge(cache, key) {
+  try {
+    const meta = cache.get(key + '_META');
+    if (meta) {
+      const n = Number(JSON.parse(meta).n) || 0;
+      let out = '';
+      for (let i = 0; i < n; i++) {
+        const part = cache.get(key + '_C' + i);
+        if (part === null) return null;
+        out += part;
+      }
+      return out;
+    }
+    return cache.get(key);
+  } catch (e) {
+    return null;
+  }
+}
+
+function _cacheRemoveLarge(cache, key) {
+  try {
+    const meta = cache.get(key + '_META');
+    if (meta) {
+      const n = Number(JSON.parse(meta).n) || 0;
+      for (let i = 0; i < n; i++) cache.remove(key + '_C' + i);
+      cache.remove(key + '_META');
+    }
+    cache.remove(key);
+  } catch (e) { /* ignore */ }
+}
+
+/**
  * INITIAL SETUP: Creates the database structure for historical persistence.
  * Run this function once from the GAS editor.
  */
@@ -292,8 +351,10 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
     // 2. Units — try cache first
     const cache = CacheService.getScriptCache();
     const cacheKey = 'UNITS_' + dateStr + '_' + shift;
-    const cached = cache.get(cacheKey);
-    if (cached && !lastShiftTimestamp) {
+    const cached = _cacheGetLarge(cache, cacheKey);
+    // Si el meta no se pudo leer (cuota agotada) el timestamp del cliente no
+    // sirve: se usa la cache igual para no repetir la lectura de hojas.
+    if (cached && (!lastShiftTimestamp || !meta)) {
       try {
         const allUnits = JSON.parse(cached);
         console.log('[getShiftData] CACHE HIT — units=' + allUnits.length);
@@ -341,31 +402,14 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
 
     allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, null, timeZone);
 
-    // Pre-construir el índice de radios del turno para que los guardados
-    // (updateUnit) no tengan que leer todo el árbol del turno la primera vez
-    // que aparece cada radio (esto era la causa de la lentitud en C4/COVV,
-    // que tienen muchos serenos/radios distintos).
-    try {
-      const existingIdx = rtdbGet('radio_index/' + dateStr + '_' + shift) || {};
-      allUnits.forEach(function (u) {
-        const r = String((u && u.radio) || '').trim().toUpperCase();
-        if (!r || r === '--') return;
-        const key = _sanitizeRtdbKey(r);
-        if (!key) return;
-        if (existingIdx[key]) return;
-        rtdbSet('radio_index/' + dateStr + '_' + shift + '/' + key, {
-          unit_id: String((u && u.unit_id) || '').trim(),
-          sector: toStorageSector((u && u.sector) || ''),
-          id: String((u && u.id) || '').trim()
-        });
-        existingIdx[key] = true;
-      });
-    } catch (eIdxBuild) { console.error('[getShiftData radio index build] ERROR', eIdxBuild); }
+    // NOTA: el pre-poblado del índice de radios se eliminó del path de lectura
+    // para evitar consumo excesivo de cuota UrlFetch (un rtdbSet por unidad).
+    // El índice se construye de forma diferida al guardar (updateUnit).
 
-    _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 60);
+    _cachePutLarge(cache, cacheKey, JSON.stringify(allUnits), 300);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheets'));
     _fbLogUsage();
-    return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
+    return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null, auth: _authInfo() };
   } catch (err) {
     console.error('[getShiftData] ERROR', err);
     throw err;
@@ -383,6 +427,15 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
 function getMonthlyShiftData(yearMonth) {
   if (!/^\d{4}-\d{2}$/.test(yearMonth || '')) {
     throw new Error('Formato de mes inválido. Use YYYY-MM');
+  }
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'MONTHLY_SHIFT_' + yearMonth;
+  const cached = _cacheGetLarge(cache, cacheKey);
+  if (cached) {
+    try {
+      console.log('[getMonthlyShiftData] CACHE HIT — month=' + yearMonth);
+      return JSON.parse(cached);
+    } catch (e) { /* invalid cache */ }
   }
   console.log('[getMonthlyShiftData] START — month=' + yearMonth);
   const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
@@ -448,7 +501,9 @@ function getMonthlyShiftData(yearMonth) {
 
   console.log('[getMonthlyShiftData] OK — refs=' + refs.length + ' fleet=' + fleet.length + ' days=' + daysInMonth);
   _fbLogUsage();
-  return { yearMonth: yearMonth, daysInMonth: daysInMonth, fleet: fleet, refs: refs };
+  const result = { yearMonth: yearMonth, daysInMonth: daysInMonth, fleet: fleet, refs: refs };
+  _cachePutLarge(cache, cacheKey, JSON.stringify(result), 3600);
+  return result;
 }
 
 /**
@@ -460,17 +515,21 @@ function getMonthlyShiftData(yearMonth) {
  */
 function _rtdbGetAllFallback(paths) {
   if (!paths || paths.length === 0) return [];
-  const token = _getRTDBToken();
+  const secret = (typeof _getRtdbSecret === 'function') ? _getRtdbSecret() : '';
+  const token = secret ? '' : _getRTDBToken();
   const results = new Array(paths.length);
   const CHUNK = 60;
   for (let start = 0; start < paths.length; start += CHUNK) {
     const chunk = paths.slice(start, start + CHUNK);
-    const requests = chunk.map(path => ({
-      url: RTDB_BASE + '/' + path + '.json',
-      method: 'get',
-      headers: { Authorization: 'Bearer ' + token },
-      muteHttpExceptions: true
-    }));
+    const requests = chunk.map(path => {
+      const req = {
+        url: RTDB_BASE + '/' + path + '.json' + (secret ? '?auth=' + encodeURIComponent(secret) : ''),
+        method: 'get',
+        muteHttpExceptions: true
+      };
+      if (!secret) req.headers = { Authorization: 'Bearer ' + token };
+      return req;
+    });
     const responses = UrlFetchApp.fetchAll(requests);
     for (let i = 0; i < responses.length; i++) {
       const code = responses[i].getResponseCode();
@@ -498,13 +557,19 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
     const timeZone = ss.getSpreadsheetTimeZone();
     const targetSectorStorage = toStorageSector(sector);
 
-    // 0. Conditional Check
-    const meta = rtdbGet('_meta/units/' + dateStr + '_' + shift + '/' + targetSectorStorage);
+    // 0. Conditional Check (never let an RTDB failure abort the whole call)
+    let meta = null;
+    try {
+      meta = rtdbGet('_meta/units/' + dateStr + '_' + shift + '/' + targetSectorStorage);
+    } catch (e) {
+      console.warn('[getSectorData] meta read failed, continuing:', e && e.message);
+      meta = null;
+    }
     if (lastUpdatedAt && meta && meta.updatedAt === lastUpdatedAt) {
       return { noChanges: true };
     }
 
-    // 1. Settings
+    // 1. Settings (already falls back to sheet on RTDB failure)
     const settingsResult = _loadSettings(dateStr, shift, sector, timeZone);
     const shiftSettings = settingsResult.settings;
     const allSectorSettings = settingsResult.allSettings;
@@ -513,7 +578,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
     const cache = CacheService.getScriptCache();
     const cacheKey = 'UNITS_' + dateStr + '_' + shift + '_' + targetSectorStorage;
     const cached = cache.get(cacheKey);
-    if (cached && !lastUpdatedAt) {
+    if (cached && (!lastUpdatedAt || !meta)) {
       try {
         const allUnits = JSON.parse(cached);
         console.log('[getSectorData] CACHE HIT — units=' + allUnits.length);
@@ -522,18 +587,22 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
       } catch (e) { /* invalid cache, fall through */ }
     }
 
-    // 3. Units — try RTDB
+    // 3. Units — try RTDB, then fall back to the sheet on any failure (incl. QUOTA_EXCEEDED)
     let allUnits = [];
     let fromFirebase = false;
+    let rtdbFailed = false;
     try {
       const nestedData = rtdbGet('units/' + dateStr + '_' + shift + '/' + targetSectorStorage);
       if (nestedData) {
         allUnits = Object.values(nestedData).map(u => _toUnitData(u));
         fromFirebase = true;
       }
-    } catch (e) { /* fallback */ }
+    } catch (e) {
+      console.warn('[getSectorData] nested RTDB read failed:', e && e.message);
+      rtdbFailed = true;
+    }
 
-    if (!fromFirebase) {
+    if (!fromFirebase && !rtdbFailed) {
       try {
         const flatData = rtdbGet('units/' + dateStr + '_' + shift);
         if (flatData) {
@@ -552,16 +621,48 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
           allUnits = fbUnits.filter(u => u.sector === targetSectorStorage).map(u => _toUnitData(u));
           fromFirebase = true;
         }
-      } catch (e) { /* fallback */ }
+      } catch (e) {
+        console.warn('[getSectorData] flat RTDB read failed:', e && e.message);
+        rtdbFailed = true;
+      }
     }
 
-    allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, targetSectorStorage, timeZone);
-    _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 60);
-    console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'empty'));
+    // Fallback to sheet when RTDB is unavailable (quota exceeded, network, etc.)
+    if (rtdbFailed || (!fromFirebase && (!allUnits || allUnits.length === 0))) {
+      try {
+        const sheetUnits = _readUnitsFromSheets(dateStr, shift)
+          .filter(u => toStorageSector(u.sector) === targetSectorStorage);
+        if (sheetUnits && sheetUnits.length > 0) {
+          allUnits = sheetUnits;
+          fromFirebase = false;
+        }
+      } catch (e2) { console.warn('[getSectorData] sheet fallback failed:', e2 && e2.message); }
+    }
+
+    try {
+      allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, targetSectorStorage, timeZone);
+    } catch (e) { console.warn('[getSectorData] inherit failed:', e && e.message); }
+
+    if (allUnits && allUnits.length > 0) {
+      _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 300);
+    }
+    console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : (rtdbFailed ? 'sheet-fallback' : 'empty')));
     _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
   } catch (err) {
     console.error('[getSectorData] ERROR', err);
+    // Last-resort: try to serve from sheet so the frontend never gets a hard failure
+    try {
+      const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+      const timeZone = ss.getSpreadsheetTimeZone();
+      const targetSectorStorage = toStorageSector(sector);
+      const sheetUnits = _readUnitsFromSheets(dateStr, shift)
+        .filter(u => toStorageSector(u.sector) === targetSectorStorage);
+      const settingsResult = _loadSettings(dateStr, shift, sector, timeZone);
+      return { settings: settingsResult.settings, allSectorSettings: settingsResult.allSettings, units: sheetUnits, updatedAt: null };
+    } catch (e2) {
+      console.error('[getSectorData] last-resort failed:', e2);
+    }
     throw err;
   }
 }
@@ -722,6 +823,13 @@ function updateRetenSalida(data) {
  * Fetches mobile reference data (id, plate, radio, quadrant) PLUS unique list of Indicatives and Statuses from external "DATA" sheet.
  */
 function getMobileData() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'MOBILE_DATA_V1';
+  const cached = _cacheGetLarge(cache, cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) { /* invalid cache */ }
+  }
+
   const externalSS = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
   const sheet = externalSS.getSheetByName('DATA');
   
@@ -988,7 +1096,7 @@ function getMobileData() {
     var c4muestra = mobileData.filter(function (mm) { return String(mm.sector || '').trim().toUpperCase() === 'C4'; }).slice(0, 5).map(function (mm) { return (mm.id || '?') + '=' + (mm.tetra || '-'); });
     console.log('[getMobileData] tetra=' + conTetra.length + ' c4muestra=' + (c4muestra.length ? c4muestra.join(',') : 'SIN_FILAS_C4'));
   } catch (e2) { console.log('[getMobileData] diag error: ' + e2); }
-  return {
+  const result = {
     mobiles: mobileData,
     indicatives: Array.from(indicativesSet).sort(),
     statuses: Array.from(statusesSet).sort(),
@@ -1013,12 +1121,20 @@ function getMobileData() {
     ),
     radioRows: radioRows
   };
+  _cachePutLarge(cache, cacheKey, JSON.stringify(result), 3600);
+  return result;
 }
 
 /**
  * Fetches the full list of personnel from the external spreadsheet.
  */
 function getPersonnelList() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'PERSONNEL_LIST_V1';
+  const cached = _cacheGetLarge(cache, cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) { /* invalid cache */ }
+  }
   try {
     const extSS = getExternalPersonnelSpreadsheet();
     let extSheet = extSS.getSheetByName('Personal');
@@ -1080,6 +1196,7 @@ function getPersonnelList() {
       });
       personnelList.push(person);
     }
+    _cachePutLarge(cache, cacheKey, JSON.stringify(personnelList), 3600);
     return personnelList;
   } catch (e) {
     console.error('Error in getPersonnelList:', e);
@@ -1122,6 +1239,12 @@ function fmtTimeSimple(val) {
  * Fetches wanted persons from the external spreadsheet with photo file IDs from Drive.
  */
 function getWantedPersons() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'WANTED_PERSONS_V1';
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) { /* invalid cache */ }
+  }
   try {
     const ss = SpreadsheetApp.openById(APP_CONFIG.WANTED_SPREADSHEET_ID);
     const sheet = ss.getSheetByName('Hoja1');
@@ -1177,6 +1300,7 @@ function getWantedPersons() {
     if (persons.length > 0) {
       console.log('[getWantedPersons] Primer registro: NOMBRE="' + persons[0].nombre + '" foto=' + (persons[0].photoUrl ? 'SI' : 'NO'));
     }
+    _cachePutSafe(cache, cacheKey, JSON.stringify(persons), 3600);
     return persons;
   } catch (e) {
     console.error('Error in getWantedPersons:', e);
@@ -1266,6 +1390,12 @@ function _normUnitId(id) {
 function _readPrevShiftUnits(prevDateStr, prevShift, sectorStorage, timeZone) {
   var out = [];
   try {
+    var cache = CacheService.getScriptCache();
+    var cacheKey = 'PREVUNITS_' + prevDateStr + '_' + prevShift + '_' + (sectorStorage || 'ALL');
+    var cached = _cacheGetLarge(cache, cacheKey);
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) { /* cache invalido */ }
+    }
     var raw = sectorStorage
       ? rtdbGet('units/' + prevDateStr + '_' + prevShift + '/' + sectorStorage)
       : rtdbGet('units/' + prevDateStr + '_' + prevShift);
@@ -1284,7 +1414,10 @@ function _readPrevShiftUnits(prevDateStr, prevShift, sectorStorage, timeZone) {
         });
       }
     }
-    if (out.length) return out;
+    if (out.length) {
+      _cachePutLarge(cache, cacheKey, JSON.stringify(out), 1800);
+      return out;
+    }
   } catch (e) { /* fallback */ }
 
   return [];
@@ -1393,6 +1526,8 @@ function checkShiftTimestamp(dateStr, shift) {
 
 function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
   if (!unitId) return '0';
+  const kmCache = CacheService.getScriptCache();
+  let kmCacheKey = '';
   try {
     const searchId = String(unitId).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
     let timeZone = 'America/Lima';
@@ -1406,24 +1541,36 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
     // reciente (updatedAt) que tenga un kmStart válido.
     const prevShiftInfo = getPreviousShift(currentDateStr, currentShift, timeZone);
     const targetSector = toStorageSector(sector || '');
+    kmCacheKey = 'PREVKM_' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + searchId;
+    const cachedKm = kmCache.get(kmCacheKey);
+    if (cachedKm !== null && cachedKm !== undefined) return String(cachedKm);
+
     const kmPrev = _pickPrevKm(prevShiftInfo.date, prevShiftInfo.shift, targetSector, searchId);
-    if (kmPrev !== null) return kmPrev;
+    if (kmPrev !== null) {
+      kmCache.put(kmCacheKey, String(kmPrev), 1800);
+      return kmPrev;
+    }
 
     // Fallback: read directly by the canonical unit_id path (1 specific read).
     const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + searchId;
     const found = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId);
     if (found && found.kmStart) {
+      kmCache.put(kmCacheKey, String(found.kmStart), 1800);
       return String(found.kmStart);
     }
 
-    // Fallback: try latest_km (legacy data from before this change)
+    // Fallback: latest_km (kmEnd de la ultima unidad guardada con ese movil).
     const latest = rtdbGet('latest_km/' + searchId);
-    if (latest && latest.kmStart) {
-      return String(latest.kmStart);
+    const legacyKm = latest ? (latest.kmStart || latest.kmEnd) : '';
+    if (legacyKm && String(legacyKm) !== '0') {
+      kmCache.put(kmCacheKey, String(legacyKm), 1800);
+      return String(legacyKm);
     }
   } catch (e) {
     console.error('Error in getPreviousKmEnd:', e);
   }
+  // Cache corta del "sin dato" para no repetir lecturas por unidades nuevas.
+  if (kmCacheKey) { try { kmCache.put(kmCacheKey, '0', 300); } catch (e2) {} }
   return '0';
 }
 
@@ -1435,7 +1582,21 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
  */
 function _pickPrevKm(prevDateStr, prevShift, targetSector, searchId) {
   try {
-    const bucket = rtdbGet('units/' + prevDateStr + '_' + prevShift + '/' + targetSector);
+    // El turno anterior ya esta cerrado: su bucket por sector no cambia y se
+    // reutiliza entre todas las unidades (antes: 1 lectura RTDB por unidad).
+    const cache = CacheService.getScriptCache();
+    const cacheKey = 'PREVSHIFT_' + prevDateStr + '_' + prevShift + '_' + targetSector;
+    let bucket = null;
+    const cached = _cacheGetLarge(cache, cacheKey);
+    if (cached) {
+      try { bucket = JSON.parse(cached); } catch (e) { bucket = null; }
+    }
+    if (!bucket) {
+      bucket = rtdbGet('units/' + prevDateStr + '_' + prevShift + '/' + targetSector);
+      if (bucket && typeof bucket === 'object') {
+        _cachePutLarge(cache, cacheKey, JSON.stringify(bucket), 1800);
+      }
+    }
     if (!bucket || typeof bucket !== 'object') return null;
 
     let best = null; // { km, ts }
@@ -1584,56 +1745,82 @@ function _cleanupRadioIndexForUnit(dateStr, shift, unit_id, newRadioNorm) {
 }
 
 function _readUnitsFromSheets(dateStr, shift) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'SHEET_UNITS_' + dateStr + '_' + shift;
+  const cached = _cacheGetLarge(cache, cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) { /* cache invalido */ }
+  }
   try {
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
     const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
     if (!sheet) return [];
-    const data = sheet.getDataRange().getValues();
-    if (data.length < 2) return [];
-    const units = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (!row || row.length === 0) continue;
-      if (String(row[0] || '').trim() !== String(dateStr || '').trim()) continue;
-      if (String(row[1] || '').trim() !== String(shift || '').trim()) continue;
-      const obj = {
-        date: row[0],
-        shift: row[1],
-        sector: toStorageSector(row[2]),
-        id: row[3],
-        type: row[4],
-        model: row[5],
-        personnel1: row[6],
-        personnel2: row[7],
-        plate: row[8],
-        indicative: row[9],
-        radio: row[10],
-        status: row[11],
-        reason: row[12],
-        kmStart: row[13],
-        kmEnd: row[14],
-        totalKm: row[15],
-        kmRecarga: row[16],
-        hours: row[17],
-        fuel: row[18],
-        expense: row[19],
-        partes: row[20],
-        quadrant: row[21],
-        mechanics: row[22],
-        unit_id: row[23],
-        lugarEstado: row[24],
-        motivoEstado: row[25],
-        auditLog: row[26],
-        taser: row[27],
-        bodycam: row[28],
-        codigoBodycam: row[29],
-        obsBodycam: row[30],
-        codigoTaser: row[31],
-        fuel2: row[32],
-        expense2: row[33]
-      };
-      try { units.push(_toUnitData(obj)); } catch (e) { units.push(obj); }
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return [];
+    const lastCol = Math.max(sheet.getLastColumn(), 34);
+    // La hoja acumula meses de registros; leerla completa bloquea la carga
+    // varios segundos cuando RTDB no responde. Se leen solo las ultimas filas
+    // (los turnos en curso siempre estan al final).
+    const MAX_ROWS = 3000;
+    const startRow = Math.max(2, lastRow - MAX_ROWS + 1);
+    let data = sheet.getRange(startRow, 1, lastRow - startRow + 1, lastCol).getValues();
+    let firstDataRow = startRow;
+
+    const collect = (rows) => {
+      const units = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+        if (String(row[0] || '').trim() !== String(dateStr || '').trim()) continue;
+        if (String(row[1] || '').trim() !== String(shift || '').trim()) continue;
+        const obj = {
+          date: row[0],
+          shift: row[1],
+          sector: toStorageSector(row[2]),
+          id: row[3],
+          type: row[4],
+          model: row[5],
+          personnel1: row[6],
+          personnel2: row[7],
+          plate: row[8],
+          indicative: row[9],
+          radio: row[10],
+          status: row[11],
+          reason: row[12],
+          kmStart: row[13],
+          kmEnd: row[14],
+          totalKm: row[15],
+          kmRecarga: row[16],
+          hours: row[17],
+          fuel: row[18],
+          expense: row[19],
+          partes: row[20],
+          quadrant: row[21],
+          mechanics: row[22],
+          unit_id: row[23],
+          lugarEstado: row[24],
+          motivoEstado: row[25],
+          auditLog: row[26],
+          taser: row[27],
+          bodycam: row[28],
+          codigoBodycam: row[29],
+          obsBodycam: row[30],
+          codigoTaser: row[31],
+          fuel2: row[32],
+          expense2: row[33]
+        };
+        try { units.push(_toUnitData(obj)); } catch (e) { units.push(obj); }
+      }
+      return units;
+    };
+
+    let units = collect(data);
+    // Fecha antigua fuera de la ventana: se lee la hoja completa una vez.
+    if (units.length === 0 && firstDataRow > 2) {
+      data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+      units = collect(data);
     }
+    _cachePutLarge(cache, cacheKey, JSON.stringify(units), 120);
     return units;
   } catch (e) {
     console.error('[_readUnitsFromSheets] ERROR', e);
@@ -1646,11 +1833,17 @@ function _saveUnitToSheetsFallback(dateStr, shift, sector, unitData, unitId, tim
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
     const sheet = ss.getSheetByName(APP_CONFIG.SHEETS.unitData);
     if (!sheet) throw new Error('UNIT_DATA no encontrada');
-    const data = sheet.getDataRange().getValues();
+    const lastRow = sheet.getLastRow();
+    const lastCol = Math.max(sheet.getLastColumn(), 34);
+    const MAX_ROWS = 3000;
+    const startRow = Math.max(2, lastRow - MAX_ROWS + 1);
+    const data = (lastRow >= startRow)
+      ? sheet.getRange(startRow, 1, lastRow - startRow + 1, lastCol).getValues()
+      : [];
     const uid = String(unitId || '').trim();
     const targetSectorDisp = toDisplaySector(sector);
-    // Buscar por unit_id (col 23)
-    for (let i = 1; i < data.length; i++) {
+    // Buscar por unit_id (col 23) solo en la ventana reciente
+    for (let i = 0; i < data.length; i++) {
       if (String(data[i][23] || '').trim() === uid && uid) {
         // Actualizar fila
         const row = data[i].slice();
@@ -1688,7 +1881,8 @@ function _saveUnitToSheetsFallback(dateStr, shift, sector, unitData, unitId, tim
         row[31] = unitData.codigoTaser || '';
         row[32] = unitData.fuel2 || '';
         row[33] = unitData.expense2 || '';
-        sheet.getRange(i + 1, 1, 1, 34).setValues([row]);
+        sheet.getRange(startRow + i, 1, 1, 34).setValues([row]);
+        _cacheRemoveLarge(CacheService.getScriptCache(), 'SHEET_UNITS_' + dateStr + '_' + shift);
         return { updated: true };
       }
     }
@@ -1729,10 +1923,61 @@ function _saveUnitToSheetsFallback(dateStr, shift, sector, unitData, unitId, tim
       unitData.fuel2 || '',
       unitData.expense2 || ''
     ]);
+    _cacheRemoveLarge(CacheService.getScriptCache(), 'SHEET_UNITS_' + dateStr + '_' + shift);
     return { created: true };
   } catch (e) {
     console.error('[_saveUnitToSheetsFallback] ERROR', e);
     throw e;
+  }
+}
+
+/**
+ * Sincroniza registros que quedaron guardados SOLO en la hoja (Sheets) durante
+ * un corte de cuota RTDB hacia Firebase. Se ejecuta cuando vuelve la cuota.
+ * Body doPost: { action: "resyncSheetsToRtdb", apiKey, dateStr, shift }
+ */
+function resyncSheetsToRtdb(dateStr, shift) {
+  try {
+    const units = _readUnitsFromSheets(dateStr, shift) || [];
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    const timeZone = ss.getSpreadsheetTimeZone();
+    const timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
+    const updates = {};
+    let written = 0;
+
+    units.forEach(function (u) {
+      const normId = String(u.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      const cleanSector = String(u.sector || '').trim().toUpperCase().replace(/\s+/g, '_');
+      const unitId = String(u.unit_id || '').trim() || (normId ? dateStr.replace(/-/g, '') + '_' + shift + '_' + cleanSector + '_' + normId : '');
+      if (!unitId) return;
+      const p = 'units/' + dateStr + '_' + shift + '/' + cleanSector + '/' + unitId;
+      updates[p] = {
+        date: u.date || dateStr, shift: u.shift || shift, sector: u.sector || cleanSector,
+        id: String(u.id || '').trim(), type: u.type || '', model: u.model || '',
+        personnel1: u.personnel1 || '', personnel2: u.personnel2 || '', plate: u.plate || '',
+        indicative: u.indicative || '', radio: u.radio || '', status: u.status || '', reason: u.reason || '',
+        kmStart: u.kmStart || '0', kmEnd: u.kmEnd || '0', totalKm: u.totalKm || '0', kmRecarga: u.kmRecarga || '0',
+        hours: u.hours || '', fuel: u.fuel || '', expense: u.expense || '',
+        fuel2: u.fuel2 || '', expense2: u.expense2 || '', partes: u.partes || '0', quadrant: u.quadrant || '',
+        mechanics: u.mechanics || '', unit_id: unitId, lugarEstado: u.lugarEstado || '', motivoEstado: u.motivoEstado || '',
+        taser: u.taser || '', bodycam: u.bodycam || '', codigoBodycam: u.codigoBodycam || '', obsBodycam: u.obsBodycam || '',
+        codigoTaser: u.codigoTaser || '', auditLog: u.auditLog || timestamp, updatedAt: u.updatedAt || timestamp
+      };
+      updates['_meta/units/' + dateStr + '_' + shift + '/updatedAt'] = timestamp;
+      updates['_meta/units/' + dateStr + '_' + shift + '/' + cleanSector + '/updatedAt'] = timestamp;
+      if (String(u.kmEnd || '') && String(u.kmEnd) !== '0') {
+        const sid = String(u.id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        if (sid) updates['latest_km/' + sid] = { kmEnd: u.kmEnd, updatedAt: timestamp };
+      }
+      written++;
+    });
+
+    if (!written) return { ok: false, escrito: 0, motivo: 'Sin unidades leidas para ' + dateStr + '_' + shift };
+
+    const res = rtdbPatchMulti(updates);
+    return { ok: true, escrito: written, res: res };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
   }
 }
 
@@ -2038,7 +2283,12 @@ function updateUnit(dateStr, shift, settings, unit) {
   if (unit.unit_id) {
     const previousUnitId = _sanitizeRtdbKey(unit.unit_id);
     const previousPath = 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + previousUnitId;
-    previousUnit = rtdbGet(previousPath);
+    try {
+      previousUnit = rtdbGet(previousPath);
+    } catch (ePrev) {
+      console.warn('[updateUnit] previousUnit read failed, continuing:', ePrev && ePrev.message);
+      previousUnit = null;
+    }
   }
 
   // --- Validación anti-duplicado: mismo sector + misma sección (CHOFER/MOTO/SERENO) no permite mismo nombre ---
@@ -2099,10 +2349,19 @@ function updateUnit(dateStr, shift, settings, unit) {
   // Usa índice radio_index/{turno}/{radio} para evitar leer todo el árbol del turno.
   var oldRadioNorm = previousUnit ? String(previousUnit.radio || '').trim().toUpperCase() : '';
   var newRadioNorm = String(unit.radio || '').trim().toUpperCase();
+  // Entrada "huerfana" del indice de radios que debe borrarse; se acumula aqui
+  // para incluirla en el PATCH multiple (evita un rtdbSet extra).
+  var staleRadioToClear = '';
+  // Una sola lectura del indice del turno: se usa para validar duplicados y
+  // para limpiar entradas viejas dentro del mismo PATCH.
+  var radioIndexNode = null;
+  try { radioIndexNode = rtdbGet('radio_index/' + dateStr + '_' + shift); } catch (eRi) { radioIndexNode = null; }
   try {
     if (newRadioNorm && newRadioNorm !== '--') {
       var selfUidNorm = _sanitizeRtdbKey(unit.unit_id);
-      var radioIdxEntry = _getRadioIndex(dateStr, shift, newRadioNorm);
+      var radioIdxEntry = (radioIndexNode && typeof radioIndexNode === 'object')
+        ? radioIndexNode[_sanitizeRtdbKey(newRadioNorm)]
+        : null;
       if (radioIdxEntry) {
         var idxUid = String(radioIdxEntry.unit_id || '').trim();
         var idxUidSan = _sanitizeRtdbKey(idxUid);
@@ -2125,7 +2384,7 @@ function updateUnit(dateStr, shift, settings, unit) {
             }
           } catch (eStale) { isStale = true; }
           if (isStale) {
-            _setRadioIndex(dateStr, shift, newRadioNorm, null);
+            staleRadioToClear = newRadioNorm;
           } else {
             var dupSector = String(radioIdxEntry.sector || '').trim();
             var dupMovil = String(radioIdxEntry.id || radioIdxEntry.movil || '').trim();
@@ -2152,11 +2411,7 @@ function updateUnit(dateStr, shift, settings, unit) {
                 if (selfUidNorm && _sanitizeRtdbKey(exuUid) === selfUidNorm) continue;
                 var exr = String(exuI.radio || '').trim().toUpperCase();
                 if (exr && exr !== '--') {
-                  _setRadioIndex(dateStr, shift, exr, {
-                    unit_id: exuUid,
-                    sector: exuI.sector || secKeyI,
-                    id: exuI.id || ''
-                  });
+                  // (no se escribe indice aqui para ahorrar urlfetch)
                   if (exr === newRadioNorm) {
                     var dupSector2 = String(exuI.sector || secKeyI).trim();
                     var dupMovil2 = String(exuI.id || '').trim();
@@ -2237,37 +2492,84 @@ function updateUnit(dateStr, shift, settings, unit) {
 
   const unitPath = 'units/' + dateStr + '_' + shift + '/' + targetSector + '/' + unit_id;
   console.log('[updateUnit] Persisting unit ' + unitPath + ' fuel2=' + fuel2Value + ' expense2=' + expense2Value);
-  let persistedUnit = null;
-  try {
-    persistedUnit = rtdbSet(unitPath, data);
 
-    // Actualizar índice de radios (evita lecturas cruzadas futuras)
-    try {
-      // Limpiar entradas huérfanas del índice para esta unidad (cubre el caso
-      // en que se borra la radio para reusarla en otra unidad, aunque
-      // previousUnit no esté disponible).
-      _cleanupRadioIndexForUnit(dateStr, shift, unit_id, newRadioNorm);
-      if (newRadioNorm && newRadioNorm !== '--') {
-        _setRadioIndex(dateStr, shift, newRadioNorm, {
-          unit_id: unit_id,
-          sector: targetSector,
-          id: String(unit.id || '').trim()
-        });
+  // Multi-path PATCH: una sola llamada UrlFetch para unidad + meta +
+  // latest_km + indice de radios (+ puente KM).
+  const updates = {};
+  updates[unitPath] = data;
+  // Claves no solapadas: se escribe solo el campo updatedAt (PATCH mezcla),
+  // evitando perder los metadatos de los demas sectores.
+  updates['_meta/units/' + dateStr + '_' + shift + '/updatedAt'] = timestamp;
+  updates['_meta/units/' + dateStr + '_' + shift + '/' + targetSector + '/updatedAt'] = timestamp;
+
+  if (unit.id && unit.kmEnd && unit.kmEnd !== '0') {
+    const searchId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    updates['latest_km/' + searchId] = { kmEnd: unit.kmEnd, updatedAt: timestamp };
+  }
+
+  try {
+    if (radioIndexNode && typeof radioIndexNode === 'object') {
+      const selfSan = _sanitizeRtdbKey(String(unit_id || '').trim());
+      const newNorm = String(newRadioNorm || '').trim().toUpperCase();
+      for (var radioKey in radioIndexNode) {
+        if (!radioIndexNode.hasOwnProperty(radioKey)) continue;
+        var entry = radioIndexNode[radioKey];
+        if (!entry || typeof entry !== 'object') continue;
+        var entryUid = _sanitizeRtdbKey(String(entry.unit_id || '').trim());
+        if (!entryUid || entryUid !== selfSan) continue;
+        var entryRadio = String(radioKey).trim().toUpperCase();
+        if (entryRadio !== newNorm) {
+          updates['radio_index/' + dateStr + '_' + shift + '/' + radioKey] = null;
+        }
       }
-    } catch (eIdx) { console.error('[updateUnit radio index update] ERROR', eIdx); }
+    }
+    if (staleRadioToClear) {
+      updates['radio_index/' + dateStr + '_' + shift + '/' + _sanitizeRtdbKey(staleRadioToClear)] = null;
+    }
+    if (newRadioNorm && newRadioNorm !== '--') {
+      updates['radio_index/' + dateStr + '_' + shift + '/' + _sanitizeRtdbKey(newRadioNorm)] = {
+        unit_id: unit_id,
+        sector: targetSector,
+        id: String(unit.id || '').trim()
+      };
+    }
+  } catch (eIdx) { console.warn('[updateUnit radio index update] ERROR', eIdx && eIdx.message); }
+
+  let prevShiftInfo = null;
+  if (unit.id && unit.kmStart && unit.kmStart !== '0') {
+    prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
+    try {
+      const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
+      const prevPath = 'units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId;
+      const found = rtdbGet(prevPath);
+      if (found && found.kmStart) {
+        const newKmEnd = parseFloat(unit.kmStart) || 0;
+        const origKmStart = parseFloat(found.kmStart) || 0;
+        found.kmEnd = unit.kmStart;
+        found.totalKm = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
+        found.updatedAt = timestamp;
+        updates[prevPath] = found;
+        updates['_meta/units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/updatedAt'] = timestamp;
+      }
+    } catch (ePrevKm) { console.warn('[updateUnit] prev km bridge skipped:', ePrevKm && ePrevKm.message); }
+  }
+
+  try {
+    rtdbPatchMulti(updates);
   } catch (eRtdb) {
-    console.error('[updateUnit] RTDB falló, usando fallback a Sheets:', eRtdb.message);
+    console.error('[updateUnit] RTDB fallo, usando fallback a Sheets:', eRtdb.message);
     try {
       _saveUnitToSheetsFallback(dateStr, shift, targetSector, data, unit_id, timestamp, auditLog);
     } catch (eSh) {
-      console.error('[updateUnit] Sheets fallback también falló:', eSh.message);
+      console.error('[updateUnit] Sheets fallback tambien fallo:', eSh.message);
       throw eRtdb;
     }
-    // Limpiar cache para que se lea desde Sheets
     try {
       const cache2 = CacheService.getScriptCache();
-      cache2.remove('UNITS_' + dateStr + '_' + shift);
+      _cacheRemoveLarge(cache2, 'UNITS_' + dateStr + '_' + shift);
       cache2.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
+      _cacheRemoveLarge(cache2, 'SHEET_UNITS_' + dateStr + '_' + shift);
     } catch (c) {}
     _fbLogUsage();
     return {
@@ -2276,13 +2578,13 @@ function updateUnit(dateStr, shift, settings, unit) {
       created: true,
       fuel2: fuel2Value,
       expense2: expense2Value,
-      source: 'sheets_fallback'
+      source: 'sheets_fallback',
+      auth: _authInfo()
     };
   }
 
-  // Optimización: no abrir la hoja de combustible si ni la unidad actual ni la
-  // anterior tienen combustible (caso típico de serenos en C4/COVV). Evita
-  // la apertura costosa de un spreadsheet en cada guardado.
+  // Optimizacion: no abrir la hoja de combustible si ni la unidad actual ni la
+  // anterior tienen combustible (caso tipico de serenos en C4/COVV).
   var _hasFuelNow = !!_parseFuelValue(unit.fuel).type || !!_parseFuelValue(unit.fuel2).type;
   var _prevU = previousUnit || {};
   var _hasFuelPrev = !!_parseFuelValue(_prevU.fuel).type || !!_parseFuelValue(_prevU.fuel2).type;
@@ -2290,38 +2592,12 @@ function updateUnit(dateStr, shift, settings, unit) {
     _appendFuelRecords(settings || {}, unit, dateStr, targetSector, previousUnit, shift, unit_id);
   }
 
-  // KM bridge: update prev unit's kmEnd from current unit's kmStart
-  let prevShiftInfo = null;
-  if (unit.id && unit.kmStart && unit.kmStart !== '0') {
-    prevShiftInfo = getPreviousShift(dateStr, shift, timeZone);
-    try {
-      const cleanId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-      const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + cleanId;
-      const found = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId);
-      if (found && found.kmStart) {
-        const newKmEnd = parseFloat(unit.kmStart) || 0;
-        const origKmStart = parseFloat(found.kmStart) || 0;
-        found.kmEnd = unit.kmStart;
-        found.totalKm = newKmEnd >= origKmStart ? (newKmEnd - origKmStart).toFixed(1) : '0';
-        found.updatedAt = timestamp;
-        rtdbSet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId, found);
-        rtdbSet('_meta/units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift, { updatedAt: timestamp });
-      }
-    } catch (e) { /* prev shift not available */ }
-  }
-
-  // Update latest_km index with current unit's kmEnd (for next shift's reference)
-  if (unit.id && unit.kmEnd && unit.kmEnd !== '0') {
-    const searchId = String(unit.id).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    rtdbSet('latest_km/' + searchId, { kmEnd: unit.kmEnd, updatedAt: timestamp });
-  }
-  rtdbSet('_meta/units/' + dateStr + '_' + shift, { updatedAt: timestamp });
-  rtdbSet('_meta/units/' + dateStr + '_' + shift + '/' + targetSector, { updatedAt: timestamp }); // New per-sector meta
   const cache = CacheService.getScriptCache();
-  cache.remove('UNITS_' + dateStr + '_' + shift);
+  _cacheRemoveLarge(cache, 'UNITS_' + dateStr + '_' + shift);
   cache.remove('UNITS_' + dateStr + '_' + shift + '_' + targetSector);
+  _cacheRemoveLarge(cache, 'SHEET_UNITS_' + dateStr + '_' + shift);
   if (prevShiftInfo) {
-    try { cache.remove('UNITS_' + prevShiftInfo.date + '_' + prevShiftInfo.shift); } catch (e) {}
+    try { _cacheRemoveLarge(cache, 'UNITS_' + prevShiftInfo.date + '_' + prevShiftInfo.shift); } catch (e) {}
   }
   _fbLogUsage();
   return {
@@ -2329,7 +2605,8 @@ function updateUnit(dateStr, shift, settings, unit) {
     unit_id: unit_id,
     created: true,
     fuel2: fuel2Value,
-    expense2: expense2Value
+    expense2: expense2Value,
+    auth: _authInfo()
   };
 }
 
@@ -3294,6 +3571,9 @@ function doPost(e) {
         break;
       case 'setupFirebase':
         result = setupFirebaseFromString(data.jsonKey);
+        break;
+      case 'resyncSheetsToRtdb':
+        result = resyncSheetsToRtdb(data.dateStr, data.shift);
         break;
       case 'migrateToFirebase':
         result = migrateToFirebase();
