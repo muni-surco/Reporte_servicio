@@ -1127,14 +1127,19 @@ function getMobileData() {
 
 /**
  * Fetches the full list of personnel from the external spreadsheet.
+ * `forceRefresh` ignora la cache para que un registro recién agregado a la
+ * hoja aparezca de inmediato (Vista de Personal y botón Actualizar).
  */
-function getPersonnelList() {
+function getPersonnelList(forceRefresh) {
   const cache = CacheService.getScriptCache();
-  const cacheKey = 'PERSONNEL_LIST_V1';
-  const cached = _cacheGetLarge(cache, cacheKey);
-  if (cached) {
-    try { return JSON.parse(cached); } catch (e) { /* invalid cache */ }
+  const cacheKey = 'PERSONNEL_LIST_V2';
+  if (!forceRefresh) {
+    const cached = _cacheGetLarge(cache, cacheKey);
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) { /* invalid cache */ }
+    }
   }
+  try { _cacheRemoveLarge(cache, 'PERSONNEL_LIST_V1'); } catch (e) { /* ignore */ }
   try {
     const extSS = getExternalPersonnelSpreadsheet();
     let extSheet = extSS.getSheetByName('Personal');
@@ -1192,11 +1197,15 @@ function getPersonnelList() {
         if (val instanceof Date) {
           val = Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd");
         }
-        person[key] = String(val || '');
+        // Normalizar espacios/saltos invisibles (p. ej. "ACTIVO ") para que el
+        // filtro por estado de la Vista de Personal no descarte la fila.
+        person[key] = String(val == null ? '' : val).trim();
       });
       personnelList.push(person);
     }
-    _cachePutLarge(cache, cacheKey, JSON.stringify(personnelList), 3600);
+    // TTL corto: los cambios hechos a mano en la hoja se ven rápido aunque el
+    // cliente no pida forceRefresh.
+    _cachePutLarge(cache, cacheKey, JSON.stringify(personnelList), 300);
     return personnelList;
   } catch (e) {
     console.error('Error in getPersonnelList:', e);

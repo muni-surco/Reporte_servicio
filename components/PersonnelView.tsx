@@ -36,7 +36,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
 
             const matchesRole = filterRole === 'TODOS' || p.rol_operativo === filterRole;
             const matchesSector = filterSector === 'TODOS' || String(p.sector_id || '').trim().toUpperCase() === filterSector;
-            const matchesState = (p.estado || '').toUpperCase() === 'ACTIVO';
+            const matchesState = String(p.estado || '').trim().toUpperCase() === 'ACTIVO';
 
             return matchesSearch && matchesState && matchesRole && matchesSector;
         });
@@ -199,7 +199,7 @@ const PersonnelView: React.FC<PersonnelViewProps> = ({ data, onRefresh, isLoadin
                                         <td className={cellStyle}>{person.sector_id}</td>
                                         <td className={cellStyle}>{person.rol_operativo}</td>
                                         <td className={cellStyle}>
-                                            <span className={`px-2 rounded text-[13px] border uppercase ${person.estado.toUpperCase() === 'ACTIVO'
+                                            <span className={`px-2 rounded text-[13px] border uppercase ${String(person.estado || '').trim().toUpperCase() === 'ACTIVO'
                                                 ? 'bg-green-100 text-green-700 border-green-200'
                                                 : 'bg-red-100 text-red-700 border-red-200'
                                                 }`}>

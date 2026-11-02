@@ -178,12 +178,19 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
           setPersonnelList([]);
           setLoadingPersonnel(false);
         })
-        .getPersonnelList();
+        .getPersonnelList(true);
     } else {
       setPersonnelList([]);
       setLoadingPersonnel(false);
     }
   };
+
+  // La lista de personal se lee de la hoja externa: al entrar a la vista se
+  // refresca para no mostrar datos cacheados de una sesión anterior.
+  useEffect(() => {
+    if (currentView === 'PERSONNEL') loadPersonnel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView]);
 
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -215,7 +222,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               setPersonnelList(personnel);
             })
             .withFailureHandler(() => {})
-            .getPersonnelList();
+            .getPersonnelList(true);
         })
         .withFailureHandler((err: any) => {
           console.error('Failed to get mobile data', err);
@@ -1389,7 +1396,7 @@ hours: '--:-- - --:--',
         } else {
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
                 if (typeof google !== 'undefined' && google?.script?.run) {
-                  google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+                  google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList(true);
                 } else {
                   resolve([]);
                 }
@@ -1403,7 +1410,7 @@ hours: '--:-- - --:--',
         } else {
             const loadedPersonnel = await new Promise<PersonnelData[]>((resolve, reject) => {
                 if (typeof google !== 'undefined' && google?.script?.run) {
-                  google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList();
+                  google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getPersonnelList(true);
                 } else {
                   resolve([]);
                 }
@@ -1445,9 +1452,25 @@ hours: '--:-- - --:--',
   const personnelStats = useMemo(() => {
     return {
       total: personnelList.length,
-      activos: personnelList.filter(p => p.estado.toUpperCase() === 'ACTIVO').length,
-      inactivos: personnelList.filter(p => ['CESADO', 'INACTIVO'].includes(p.estado.toUpperCase())).length,
+      activos: personnelList.filter(p => String(p.estado || '').trim().toUpperCase() === 'ACTIVO').length,
+      inactivos: personnelList.filter(p => ['CESADO', 'INACTIVO'].includes(String(p.estado || '').trim().toUpperCase())).length,
     };
+  }, [personnelList]);
+
+  // El autocompletado del dashboard sale de getMobileData (cacheado aparte).
+  // Se completa con la lista de personal recién leída para que un registro
+  // nuevo se pueda seleccionar sin esperar a que expire esa cache.
+  useEffect(() => {
+    const nombres = personnelList
+      .filter(p => String(p.estado || '').trim().toUpperCase() === 'ACTIVO')
+      .map(p => String(p.apellidos_nombres || '').trim())
+      .filter(Boolean);
+    if (nombres.length === 0) return;
+    setPersonnelOptions(prev => {
+      const merged = new Set(prev);
+      nombres.forEach(n => merged.add(n));
+      return Array.from(merged).sort();
+    });
   }, [personnelList]);
 
   const personnelRegimenMap = useMemo(() => {
