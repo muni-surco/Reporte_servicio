@@ -502,7 +502,11 @@ function getMonthlyShiftData(yearMonth) {
   console.log('[getMonthlyShiftData] OK — refs=' + refs.length + ' fleet=' + fleet.length + ' days=' + daysInMonth);
   _fbLogUsage();
   const result = { yearMonth: yearMonth, daysInMonth: daysInMonth, fleet: fleet, refs: refs };
-  _cachePutLarge(cache, cacheKey, JSON.stringify(result), 3600);
+  // Un mes ya cerrado no cambia: cache 6 h. El mes en curso puede recibir
+  // unidades nuevas, asi que se refresca cada 30 min.
+  const currentMonth = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM');
+  const monthlyTtl = yearMonth < currentMonth ? 21600 : 1800;
+  _cachePutLarge(cache, cacheKey, JSON.stringify(result), monthlyTtl);
   return result;
 }
 
@@ -1424,7 +1428,7 @@ function _readPrevShiftUnits(prevDateStr, prevShift, sectorStorage, timeZone) {
       }
     }
     if (out.length) {
-      _cachePutLarge(cache, cacheKey, JSON.stringify(out), 1800);
+      _cachePutLarge(cache, cacheKey, JSON.stringify(out), 3600);
       return out;
     }
   } catch (e) { /* fallback */ }
@@ -1556,7 +1560,7 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
 
     const kmPrev = _pickPrevKm(prevShiftInfo.date, prevShiftInfo.shift, targetSector, searchId);
     if (kmPrev !== null) {
-      kmCache.put(kmCacheKey, String(kmPrev), 1800);
+      kmCache.put(kmCacheKey, String(kmPrev), 3600);
       return kmPrev;
     }
 
@@ -1564,7 +1568,7 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
     const prevUnitId = prevShiftInfo.date.replace(/-/g, '') + '_' + prevShiftInfo.shift + '_' + targetSector + '_' + searchId;
     const found = rtdbGet('units/' + prevShiftInfo.date + '_' + prevShiftInfo.shift + '/' + targetSector + '/' + prevUnitId);
     if (found && found.kmStart) {
-      kmCache.put(kmCacheKey, String(found.kmStart), 1800);
+      kmCache.put(kmCacheKey, String(found.kmStart), 3600);
       return String(found.kmStart);
     }
 
@@ -1572,7 +1576,7 @@ function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
     const latest = rtdbGet('latest_km/' + searchId);
     const legacyKm = latest ? (latest.kmStart || latest.kmEnd) : '';
     if (legacyKm && String(legacyKm) !== '0') {
-      kmCache.put(kmCacheKey, String(legacyKm), 1800);
+      kmCache.put(kmCacheKey, String(legacyKm), 3600);
       return String(legacyKm);
     }
   } catch (e) {
@@ -1603,7 +1607,7 @@ function _pickPrevKm(prevDateStr, prevShift, targetSector, searchId) {
     if (!bucket) {
       bucket = rtdbGet('units/' + prevDateStr + '_' + prevShift + '/' + targetSector);
       if (bucket && typeof bucket === 'object') {
-        _cachePutLarge(cache, cacheKey, JSON.stringify(bucket), 1800);
+        _cachePutLarge(cache, cacheKey, JSON.stringify(bucket), 3600);
       }
     }
     if (!bucket || typeof bucket !== 'object') return null;

@@ -163,6 +163,8 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   // evita que getShiftData responda `noChanges` y se muestren datos viejos.
   useEffect(() => {
     lastShiftTimestampRef.current = null;
+    lastStatsTimestampRef.current = null;
+    lastFetchedAtMap.current = {};
   }, [selectedDate, settings.turno, currentSector]);
 
   const loadPersonnel = () => {
@@ -240,11 +242,20 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
 
   // Poll removed: triggered on demand now
   const loadDataRef = useRef<typeof loadData>(null as any);
+  const lastStatsTimestampRef = useRef<string | null>(null);
   
+  const getFetchKey = (dateStr: string, shiftVal: string, sectorVal: string) => 
+    dateStr + '|' + shiftVal + '|' + (sectorVal || '').trim().toUpperCase(); 
+
   const loadData = (dateStr: string, shift: string, view?: string, silent?: boolean, force?: boolean) => {
     const loadId = ++loadingIdRef.current;
     if (!silent) setLoading(true);
-    if (force) lastFetchedAtMap.current = {};
+    if (force) {
+      // Refresco explicito: descartar timestamps para forzar lectura completa.
+      lastFetchedAtMap.current = {};
+      lastShiftTimestampRef.current = null;
+      lastStatsTimestampRef.current = null;
+    }
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       if (view === 'VISUALIZATION') {
         const currentLoadId = loadId;
@@ -328,7 +339,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
               setUnits(aggregatedUnits);
               setSectorSettingsMap(aggregatedSettings);
               console.info('[App] getShiftData (stats/map) auth=' + JSON.stringify(data.auth) + ' units=' + aggregatedUnits.length);
-              if (data.updatedAt) lastShiftTimestampRef.current = data.updatedAt;
+              if (data.updatedAt) lastStatsTimestampRef.current = data.updatedAt;
             } catch (e) {
               console.error('Error aggregating statistics data:', e);
             } finally {
@@ -340,7 +351,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             console.error('Failed to get shift data for statistics', err);
             setLoading(false);
           })
-          .getShiftData(dateStr, shift, currentSector);
+          .getShiftData(dateStr, shift, currentSector, lastStatsTimestampRef.current);
 
         // Safety timeout: force stop loading after 15 seconds to prevent hanging
         setTimeout(() => {
@@ -358,8 +369,12 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
         google.script.run
           .withSuccessHandler((data) => {
             if (currentLoadId !== loadingIdRef.current) return;
+            if (data && (data as any).noChanges) { setLoading(false); return; }
             if (data && data.settings) {
               setSettings(prev => buildSafeSettings({ ...prev, ...data.settings }, currentSector, shift));
+            }
+            if ((data as any)?.updatedAt) {
+              lastFetchedAtMap.current[getFetchKey(dateStr, shift, currentSector)] = (data as any).updatedAt;
             }
             setLoading(false);
           })
@@ -368,7 +383,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             console.error('Failed to get reten sector data', err);
             setLoading(false);
           })
-          .getSectorData(dateStr, shift, currentSector, lastFetchedAtMap.current[currentSector]);
+          .getSectorData(dateStr, shift, currentSector, lastFetchedAtMap.current[getFetchKey(dateStr, shift, currentSector)]);
         return;
       }
 
@@ -381,6 +396,18 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
             setLoading(false);
             return;
           }
+
+          // Unchanged since the last read: keep what is on screen.
+          if ((data as any).noChanges) {
+            setLoading(false);
+            return;
+          }
+
+          // Remember the shift/sector timestamp to make the next reload cheap.
+          if ((data as any).updatedAt) {
+            lastFetchedAtMap.current[getFetchKey(dateStr, shift, currentSector)] = (data as any).updatedAt;
+          }
+
           // 1. Map and clean incoming units
           const rawIncomingUnits: UnitData[] = (data.units || []).map((u, idx) => ({
             ...u,
@@ -600,7 +627,7 @@ id: d.id,
           setLoading(false);
         });
 
-        runner.getSectorData(dateStr, shift, currentSector);
+        runner.getSectorData(dateStr, shift, currentSector, lastFetchedAtMap.current[getFetchKey(dateStr, shift, currentSector)]);
     } else {
       setTimeout(() => {
         if (loadId !== loadingIdRef.current) return;
