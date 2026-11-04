@@ -244,6 +244,13 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
 
   let shiftSettings = { turno: shift, operador: '', supervisor: '', supervisorRol: 'SUPERVISOR', nombrePuesto: toDisplaySector(sector || '1A'), permanencia: '', supervisorTaser: '', supervisorBodycam: '', supervisorCodigoTaser: '', supervisorCodigoBodycam: '', supervisorEstado: '', supervisorRadio: '', supervisorEncargado: '', permanenciaTaser: '', permanenciaBodycam: '', permanenciaCodigoTaser: '', permanenciaCodigoBodycam: '', permanenciaEstado: '', permanenciaRadio: '', permanenciaEncargado: '', supervisorMotivo: '', permanenciaMotivo: '' };
   const allSectorSettings = {};
+  // TTL largo para fechas pasadas (inmutables), corto para la fecha actual.
+  let _settingsTtl = 300;
+  try {
+    const _tz = timeZone || Session.getScriptTimeZone();
+    const _today = Utilities.formatDate(new Date(), _tz, 'yyyy-MM-dd');
+    if (String(dateStr || '') < _today) _settingsTtl = 21600;
+  } catch (e) { /* keep default */ }
 
   try {
     const rtdbData = rtdbGet('shifts/' + dateStr + '_' + shift);
@@ -258,7 +265,7 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
           shiftSettings = { turno: s.shift || shift, operador: String(s.operador || ''), supervisor: String(s.supervisor || ''), supervisorRol: String(s.supervisorRol || 'SUPERVISOR'), nombrePuesto: sectorName, permanencia: String(s.permanencia || ''), supervisorTaser: String(s.supervisorTaser || ''), supervisorBodycam: String(s.supervisorBodycam || ''), supervisorCodigoTaser: String(s.supervisorCodigoTaser || ''), supervisorCodigoBodycam: String(s.supervisorCodigoBodycam || ''), supervisorEstado: String(s.supervisorEstado || ''), supervisorRadio: String(s.supervisorRadio || ''), supervisorEncargado: String(s.supervisorEncargado || ''), supervisorMotivo: String(s.supervisorMotivo || ''), permanenciaTaser: String(s.permanenciaTaser || ''), permanenciaBodycam: String(s.permanenciaBodycam || ''), permanenciaCodigoTaser: String(s.permanenciaCodigoTaser || ''), permanenciaCodigoBodycam: String(s.permanenciaCodigoBodycam || ''), permanenciaEstado: String(s.permanenciaEstado || ''), permanenciaRadio: String(s.permanenciaRadio || ''), permanenciaEncargado: String(s.permanenciaEncargado || ''), permanenciaMotivo: String(s.permanenciaMotivo || '') };
         }
       });
-      cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), 300);
+      cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), _settingsTtl);
       return { settings: shiftSettings, allSettings: allSectorSettings, from: 'rtdb' };
     }
   } catch (e) { /* fallback */ }
@@ -285,7 +292,7 @@ function _loadSettings(dateStr, shift, sector, timeZone) {
       }
     }
   }
-  cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), 300);
+  cache.put(cacheKey, JSON.stringify({ allSettings: allSectorSettings }), _settingsTtl);
   return { settings: shiftSettings, allSettings: allSectorSettings, from: 'sheet' };
 }
 
@@ -342,6 +349,10 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
 
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
     const timeZone = ss.getSpreadsheetTimeZone();
+    const todayStr = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd');
+    const isPastDate = String(dateStr || '') < todayStr;
+    // Fechas pasadas son inmutables: cache largo. Fecha actual: cache corto.
+    const unitsTtl = isPastDate ? 21600 : 300;
 
     // 1. Settings
     const settingsResult = _loadSettings(dateStr, shift, sector, timeZone);
@@ -400,13 +411,16 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
       } catch (e2) { /* ignore */ }
     }
 
-    allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, null, timeZone);
+    // Fechas pasadas: datos ya consolidados, se omite herencia (ahorra lectura del turno anterior).
+    if (!isPastDate) {
+      allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, null, timeZone);
+    }
 
     // NOTA: el pre-poblado del índice de radios se eliminó del path de lectura
     // para evitar consumo excesivo de cuota UrlFetch (un rtdbSet por unidad).
     // El índice se construye de forma diferida al guardar (updateUnit).
 
-    _cachePutLarge(cache, cacheKey, JSON.stringify(allUnits), 300);
+    _cachePutLarge(cache, cacheKey, JSON.stringify(allUnits), unitsTtl);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheets'));
     _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null, auth: _authInfo() };
@@ -559,6 +573,9 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
     console.log('[getSectorData] START — dateStr=' + dateStr + ' shift=' + shift + ' sector=' + sector);
     const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
     const timeZone = ss.getSpreadsheetTimeZone();
+    const todayStr = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd');
+    const isPastDate = String(dateStr || '') < todayStr;
+    const unitsTtl = isPastDate ? 21600 : 300;
     const targetSectorStorage = toStorageSector(sector);
 
     // 0. Conditional Check (never let an RTDB failure abort the whole call)
@@ -643,12 +660,14 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
       } catch (e2) { console.warn('[getSectorData] sheet fallback failed:', e2 && e2.message); }
     }
 
-    try {
-      allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, targetSectorStorage, timeZone);
-    } catch (e) { console.warn('[getSectorData] inherit failed:', e && e.message); }
+    if (!isPastDate) {
+      try {
+        allUnits = _inheritLockedStatuses(allUnits, dateStr, shift, targetSectorStorage, timeZone);
+      } catch (e) { console.warn('[getSectorData] inherit failed:', e && e.message); }
+    }
 
     if (allUnits && allUnits.length > 0) {
-      _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), 300);
+      _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), unitsTtl);
     }
     console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : (rtdbFailed ? 'sheet-fallback' : 'empty')));
     _fbLogUsage();
@@ -1428,7 +1447,14 @@ function _readPrevShiftUnits(prevDateStr, prevShift, sectorStorage, timeZone) {
       }
     }
     if (out.length) {
-      _cachePutLarge(cache, cacheKey, JSON.stringify(out), 3600);
+      // Turno anterior ya cerrado: cache largo si su fecha es pasada.
+      let _prevTtl = 3600;
+      try {
+        const _tz = Session.getScriptTimeZone();
+        const _today = Utilities.formatDate(new Date(), _tz, 'yyyy-MM-dd');
+        if (String(prevDateStr || '') < _today) _prevTtl = 21600;
+      } catch (e) { /* keep */ }
+      _cachePutLarge(cache, cacheKey, JSON.stringify(out), _prevTtl);
       return out;
     }
   } catch (e) { /* fallback */ }
@@ -1607,7 +1633,13 @@ function _pickPrevKm(prevDateStr, prevShift, targetSector, searchId) {
     if (!bucket) {
       bucket = rtdbGet('units/' + prevDateStr + '_' + prevShift + '/' + targetSector);
       if (bucket && typeof bucket === 'object') {
-        _cachePutLarge(cache, cacheKey, JSON.stringify(bucket), 3600);
+        let _kmBucketTtl = 3600;
+        try {
+          const _tz = Session.getScriptTimeZone();
+          const _today = Utilities.formatDate(new Date(), _tz, 'yyyy-MM-dd');
+          if (String(prevDateStr || '') < _today) _kmBucketTtl = 21600;
+        } catch (e) { /* keep */ }
+        _cachePutLarge(cache, cacheKey, JSON.stringify(bucket), _kmBucketTtl);
       }
     }
     if (!bucket || typeof bucket !== 'object') return null;
@@ -2369,6 +2401,13 @@ function updateUnit(dateStr, shift, settings, unit) {
   // para limpiar entradas viejas dentro del mismo PATCH.
   var radioIndexNode = null;
   try { radioIndexNode = rtdbGet('radio_index/' + dateStr + '_' + shift); } catch (eRi) { radioIndexNode = null; }
+   // Índice vacío => puede requerir escaneo del turno. Para no repetir el
+   // escaneo (lectura del árbol completo) en cada guardado, se hace como
+   // máximo una vez por turno (flag en cache). Si el índice ya tiene entradas,
+   // se confía en él y se omite el escaneo.
+   var _radioIndexEmpty = !radioIndexNode || typeof radioIndexNode !== 'object' || Object.keys(radioIndexNode).length === 0;
+   var _radioScanDone = false;
+   try { _radioScanDone = !!CacheService.getScriptCache().get('RADIO_SCAN_' + dateStr + '_' + shift); } catch (eRs) { _radioScanDone = false; }
   try {
     if (newRadioNorm && newRadioNorm !== '--') {
       var selfUidNorm = _sanitizeRtdbKey(unit.unit_id);
@@ -2407,8 +2446,9 @@ function updateUnit(dateStr, shift, settings, unit) {
             return { success: false, error: dupMsg };
           }
         }
-      } else {
+      } else if (_radioIndexEmpty && !_radioScanDone) {
         // Índice vacío: construirlo una sola vez leyendo todo el turno y registrar entradas
+        // (se ejecuta como máximo una vez por turno gracias al flag en cache).
         try {
           var shiftTreeIdx = rtdbGet('units/' + dateStr + '_' + shift);
           if (shiftTreeIdx) {
@@ -2438,6 +2478,8 @@ function updateUnit(dateStr, shift, settings, unit) {
             }
           }
         } catch (e2) { console.error('[updateUnit radio index build] ERROR', e2); }
+        // Marcar el escaneo como realizado para no repetirlo en este turno.
+        try { CacheService.getScriptCache().put('RADIO_SCAN_' + dateStr + '_' + shift, '1', 21600); } catch (eFlag) { /* ignore */ }
       }
     }
   } catch (e) { /* no bloquear guardado por error de validación, loggear */ console.error('[updateUnit radio duplicate check] ERROR', e); }
