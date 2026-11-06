@@ -3384,9 +3384,8 @@ export const generateTetraRadioReport = (
   const summaryRows = summarySectors.map(s => {
     const efectivo = efectivoDe(s);
     // LOGISTICA, C4 y OTRAS AREAS solo muestran el EFECTIVO sumado: en ASIGNADO y
-    // SIN ASIGNAR llevan '--' en lugar del detalle por sector.
-    // Internamente su ASIGNADO vale todo su EFECTIVO (no lo registrado en el
-    // turno) para que los TOTALES del consolidado cuadren con la suma real.
+    // SIN ASIGNAR llevan '--' en lugar del detalle por sector. El total de
+    // ASIGNADO del consolidado no los considera (solo las filas visibles).
     const sinDetalle = s === OTRAS_AREAS || normalize(s) === 'LOG' || normalize(s) === 'C4';
     const asignado = sinDetalle ? efectivo : unitsBySector(s).length;
     const sinAsignar = efectivo - asignado;
@@ -3394,6 +3393,7 @@ export const generateTetraRadioReport = (
       sector: s,
       efectivo,
       asignado,
+      sinDetalle,
       // Si el turno registró más radios que las que DATA tiene asignadas, el
       // efectivo no cuadra: se muestra 'Pendiente' en vez de un SIN ASIGNAR negativo.
       row: [
@@ -3408,7 +3408,9 @@ export const generateTetraRadioReport = (
   let totalEfectivo = 0, totalAsignado = 0, pendientes = 0;
   summaryRows.forEach(r => {
     totalEfectivo += r.efectivo;
-    totalAsignado += r.asignado;
+    // El total de ASIGNADO solo considera las filas visibles: C4, LOGISTICA y
+    // OTRAS AREAS muestran '--' y no aportan al total.
+    if (!r.sinDetalle) totalAsignado += r.asignado;
     if (r.row[3] === PENDING) pendientes++;
   });
 
