@@ -824,17 +824,17 @@ const generateFleetReport = (
     ).length;
 
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12).
-    // AR units are counted even when their DATA row lacks the fleet mark
-    // (e.g. SIPCOP), since a registered replacement always belongs to the sector.
+    // Un retén solo se contabiliza si el sector tiene flota de esa flota en DATA
+    // (baseFleet > 0); si DATA no lista unidades de la flota en ese sector, no cuenta.
     const sectorChoferUnits = uniqueUnits.filter(u =>
       u.type === 'CHOFER' &&
       (isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s))
     );
     // Solo cuentan los retenes vigentes: si su reemplazo ya terminó (salida de taller pasada), no cuenta
-    const countReten = sectorChoferUnits.filter(u => {
+    const countReten = baseFleet > 0 ? sectorChoferUnits.filter(u => {
       const id = normalize(u.id);
       return id.startsWith('AR-') && retenHasActive.get(id) !== false;
-    }).length;
+    }).length : 0;
 
     // Regular statuses only for non-AR units
     const regularUnits = sectorUnits.filter(u => !normalize(u.id).startsWith('AR-'));
