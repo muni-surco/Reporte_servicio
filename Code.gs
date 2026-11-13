@@ -1526,6 +1526,10 @@ function _inheritLockedStatuses(allUnits, dateStr, shift, sectorStorage, timeZon
       }
     });
 
+    var updates = {};
+    var hasUpdates = false;
+    var timestamp = Utilities.formatDate(new Date(), timeZone, 'yyyy-MM-dd HH:mm:ss');
+
     for (var k in prevByNorm) {
       var prevU = prevByNorm[k];
       if (idxByNorm[k] !== undefined) {
@@ -1536,11 +1540,76 @@ function _inheritLockedStatuses(allUnits, dateStr, shift, sectorStorage, timeZon
           cur.lugarEstado = String(prevU.lugarEstado || '');
           cur.motivoEstado = String(prevU.motivoEstado || '');
           cur.mechanics = String(prevU.mechanics || '');
+          if (cur.unit_id) {
+            var curSectorStorage = toStorageSector(cur.sector || prevU.sector || '');
+            var curPath = 'units/' + dateStr + '_' + shift + '/' + curSectorStorage + '/' + _sanitizeRtdbKey(cur.unit_id);
+            updates[curPath] = {
+              status: cur.status,
+              reason: cur.reason,
+              lugarEstado: cur.lugarEstado,
+              motivoEstado: cur.motivoEstado,
+              mechanics: cur.mechanics,
+              updatedAt: timestamp
+            };
+            updates['_meta/units/' + dateStr + '_' + shift + '/updatedAt'] = timestamp;
+            updates['_meta/units/' + dateStr + '_' + shift + '/' + curSectorStorage + '/updatedAt'] = timestamp;
+            hasUpdates = true;
+          }
         }
       } else {
         var cleanId = k.split('|')[1];
         var uid = 'INH-' + String(prevU.sector || '').trim().toUpperCase().replace(/\s+/g, '') + '-' + cleanId + '-' + dateStr.replace(/-/g, '') + '-' + shift;
         result.push(_buildLockedInheritedUnit(prevU, uid));
+        var inhSectorStorage = toStorageSector(prevU.sector || '');
+        var inhPath = 'units/' + dateStr + '_' + shift + '/' + inhSectorStorage + '/' + _sanitizeRtdbKey(uid);
+        updates[inhPath] = {
+          date: dateStr,
+          shift: shift,
+          sector: inhSectorStorage,
+          id: String(prevU.id || '').trim(),
+          type: String(prevU.type || ''),
+          model: String(prevU.model || ''),
+          personnel1: '',
+          personnel2: '',
+          plate: String(prevU.plate || ''),
+          indicative: String(prevU.indicative || ''),
+          radio: String(prevU.radio || ''),
+          status: String(prevU.status || ''),
+          reason: '',
+          kmStart: '0',
+          kmEnd: '0',
+          totalKm: '0',
+          kmRecarga: '0',
+          hours: '--:-- - --:--',
+          fuel: '-- / --',
+          expense: 'S/ 0.00',
+          fuel2: '',
+          expense2: '',
+          partes: '0',
+          quadrant: String(prevU.quadrant || ''),
+          mechanics: String(prevU.mechanics || ''),
+          unit_id: uid,
+          lugarEstado: String(prevU.lugarEstado || ''),
+          motivoEstado: String(prevU.motivoEstado || ''),
+          taser: '',
+          bodycam: '',
+          codigoBodycam: '',
+          obsBodycam: '',
+          codigoTaser: '',
+          auditLog: 'HERENCIA ESTADO BLOQUEADO @ ' + timestamp,
+          updatedAt: timestamp
+        };
+        updates['_meta/units/' + dateStr + '_' + shift + '/updatedAt'] = timestamp;
+        updates['_meta/units/' + dateStr + '_' + shift + '/' + inhSectorStorage + '/updatedAt'] = timestamp;
+        hasUpdates = true;
+      }
+    }
+
+    if (hasUpdates) {
+      try {
+        rtdbPatchMulti(updates);
+      } catch (ePersist) {
+        console.error('[inheritLockedStatuses] persist failed:', ePersist && ePersist.message);
       }
     }
 
