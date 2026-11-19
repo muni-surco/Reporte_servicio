@@ -786,6 +786,18 @@ const generateFleetReport = (
   const uniqueUnits = dedupeUnitsByDataId(units, mobileData);
   const vehicleUnits = uniqueUnits.filter(u => u.type === 'CHOFER' && fleetMobileIds.has(normalize(u.id)));
 
+  // Solo cuentan como retenes de esta flota los AR- cuyo vehículo reemplazado
+  // pertenece a la flota filtrada (ej. SIPCOP). Así un retén que reemplaza a
+  // una unidad que NO es de la flota (p. ej. M-97) no se suma a PATRULLANDO
+  // ni se atribuye a esta flota.
+  const fleetRetenUnits = new Set<string>();
+  (retenData || []).forEach(r => {
+    if (!isRetenActive(r)) return;
+    if (!fleetMobileIds.has(normalize(r.replacedUnit))) return;
+    const key = normalize(r.retenUnit);
+    if (key) fleetRetenUnits.add(key);
+  });
+
   // --- HEADER ---
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
@@ -833,7 +845,7 @@ const generateFleetReport = (
     // Solo cuentan los retenes vigentes: si su reemplazo ya terminó (salida de taller pasada), no cuenta
     const countReten = baseFleet > 0 ? sectorChoferUnits.filter(u => {
       const id = normalize(u.id);
-      return id.startsWith('AR-') && retenHasActive.get(id) !== false;
+      return id.startsWith('AR-') && fleetRetenUnits.has(id);
     }).length : 0;
 
     // Regular statuses only for non-AR units

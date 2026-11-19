@@ -12,6 +12,8 @@ import RetenManagementView from './components/RetenManagementView';
 import VehicleSearchView from './components/VehicleSearchView';
 import MapView from './components/MapView';
 import WantedView from './components/WantedView';
+import { usePersonnel } from './hooks/usePersonnel';
+import { useUnitSaveQueue } from './hooks/useUnitSaveQueue';
 import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS, RetenReplacement, sourceSectorsFor, isOtrasAreasSector } from './types';
 import { Users, LayoutDashboard, FileText, TriangleAlert } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal';
@@ -119,8 +121,7 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   const [motivoSiniestroOptions, setMotivoSiniestroOptions] = useState<string[]>([]);
   const [motivoSinDocumentosOptions, setMotivoSinDocumentosOptions] = useState<string[]>([]);
   const [motivoSinVehiculoOptions, setMotivoSinVehiculoOptions] = useState<string[]>([]);
-  const [personnelList, setPersonnelList] = useState<PersonnelData[]>([]);
-  const [loadingPersonnel, setLoadingPersonnel] = useState(false);
+  const { personnelList, setPersonnelList, loadingPersonnel, loadPersonnel } = usePersonnel(currentView);
   const [isGeneratingStructuredReport, setIsGeneratingStructuredReport] = useState(false);
 
   // KM reminder toast
@@ -166,33 +167,6 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
     lastStatsTimestampRef.current = null;
     lastFetchedAtMap.current = {};
   }, [selectedDate, settings.turno, currentSector]);
-
-  const loadPersonnel = () => {
-    setLoadingPersonnel(true);
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler((personnel: PersonnelData[]) => {
-          setPersonnelList(personnel || []);
-          setLoadingPersonnel(false);
-        })
-        .withFailureHandler((err: any) => {
-          console.error('Failed to load personnel', err);
-          setPersonnelList([]);
-          setLoadingPersonnel(false);
-        })
-        .getPersonnelList(true);
-    } else {
-      setPersonnelList([]);
-      setLoadingPersonnel(false);
-    }
-  };
-
-  // La lista de personal se lee de la hoja externa: al entrar a la vista se
-  // refresca para no mostrar datos cacheados de una sesión anterior.
-  useEffect(() => {
-    if (currentView === 'PERSONNEL') loadPersonnel();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentView]);
 
   useEffect(() => {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -723,149 +697,12 @@ id: d.id,
     return () => { if (kmToastIntervalRef.current !== null) window.clearInterval(kmToastIntervalRef.current); };
   }, [units, settings.turno]);
 
-  // Save queue (non-blocking, sequential)
-  const saveQueueRef = useRef<Array<{ unit: UnitData }>>([]);
-  const isSavingRef = useRef(false);
-  const [saveStatus, setSaveStatus] = useState<Record<string, 'saving' | 'saved' | 'error'>>({});
-  // Errores del backend por unidad (clave = unit_id || tempId || id). Se muestran
-  // en línea debajo del campo correspondiente en lugar de un alert.
-  const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
-
-  const processQueue = () => {
-    if (isSavingRef.current || saveQueueRef.current.length === 0) return;
-    isSavingRef.current = true;
-
-    const item = saveQueueRef.current.shift()!;
-    const unitKey = item.unit.unit_id || item.unit.tempId || item.unit.id || 'unknown';
-    // Nuevo intento: se limpia el error en línea anterior de esta unidad
-    setSaveErrors(prev => {
-      if (!(unitKey in prev)) return prev;
-      const next = { ...prev };
-      delete next[unitKey];
-      return next;
-    });
-    const unitPayload = JSON.parse(JSON.stringify({
-      ...item.unit,
-      fuel2: String(item.unit.fuel2 || ''),
-      expense2: String(item.unit.expense2 || '')
-    }));
-    console.info('[App] payload enviado a updateUnit', {
-      unitId: unitKey,
-      fuel: unitPayload.fuel,
-      expense: unitPayload.expense,
-      fuel2: unitPayload.fuel2,
-      expense2: unitPayload.expense2
-    });
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler((res: { success: boolean, unit_id?: string, fuel2?: string, expense2?: string, error?: string, auth?: { modo: string, origen: string, codigo: string } }) => {
-          console.info('[App] respuesta de updateUnit', {
-            success: res.success,
-            unitId: res.unit_id || unitKey,
-            fuel2: res.fuel2,
-            expense2: res.expense2,
-            auth: res.auth,
-            error: res.error
-          });
-          if (res.success) {
-            const newId = res.unit_id;
-            // Grabado OK: se limpia cualquier error en línea previo
-            setSaveErrors(prev => {
-              const next = { ...prev };
-              delete next[unitKey];
-              if (newId) delete next[newId];
-              return next;
-            });
-            if (newId && newId !== item.unit.unit_id) {
-              setUnits(prev => prev.map(u => {
-                const matchKey = u.unit_id || u.tempId || u.id;
-                const itemKey = item.unit.unit_id || item.unit.tempId || item.unit.id;
-                if (matchKey === itemKey) return { ...u, unit_id: newId };
-                return u;
-              }));
-              
-              // Also update status for the new ID so it shows the checkmark
-              setSaveStatus(prev => ({ 
-                ...prev, 
-                [unitKey]: 'saved',
-                [newId]: 'saved' 
-              }));
-
-              // Clean up both keys after timeout
-              setTimeout(() => setSaveStatus(prev => {
-                const next = { ...prev };
-                delete next[unitKey];
-                delete next[newId];
-                return next;
-              }), 2500);
-            } else {
-              setSaveStatus(prev => ({ ...prev, [unitKey]: 'saved' }));
-              setTimeout(() => setSaveStatus(prev => {
-                const next = { ...prev };
-                delete next[unitKey];
-                return next;
-              }), 2500);
-            }
-            // Sync kmStart into local state so the toast reflects it immediately
-            const savedKmStart = item.unit.kmStart || '';
-            const savedFuel2 = res.fuel2 !== undefined ? res.fuel2 : item.unit.fuel2;
-            const savedExpense2 = res.expense2 !== undefined ? res.expense2 : item.unit.expense2;
-            setUnits(prev => prev.map(u => {
-              const matchKey = u.unit_id || u.tempId || u.id;
-              const itemKey = item.unit.unit_id || item.unit.tempId || item.unit.id;
-              const savedKey = newId || itemKey;
-              if (matchKey === itemKey || matchKey === savedKey) {
-                return {
-                  ...u,
-                  ...item.unit,
-                  unit_id: newId || u.unit_id,
-                  kmStart: savedKmStart,
-                  fuel2: savedFuel2 || '',
-                  expense2: savedExpense2 || ''
-                };
-              }
-              return u;
-            }));
-          } else {
-            setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
-            if (res.error && String(res.error).includes('DUPLICATE_PERSONNEL')) {
-              alert(res.error.replace('DUPLICATE_PERSONNEL: ', ''));
-            }
-            if (res.error && String(res.error).includes('DUPLICATE_RADIO')) {
-              // En línea debajo del campo radio: se reabre la edición de la unidad
-              // para que el mensaje quede visible donde corresponde.
-              setSaveErrors(prev => ({ ...prev, [unitKey]: String(res.error).replace('DUPLICATE_RADIO: ', '') }));
-              setEditingId(unitKey);
-            }
-          }
-          isSavingRef.current = false;
-          processQueue();
-        })
-        .withFailureHandler((err: any) => {
-          console.error('[updateUnit] Error al guardar unidad', err);
-          setSaveStatus(prev => ({ ...prev, [unitKey]: 'error' }));
-          isSavingRef.current = false;
-          processQueue();
-        })
-        .updateUnit(selectedDate, settings.turno, settings, unitPayload);
-    } else {
-      isSavingRef.current = false;
-      processQueue();
-    }
-  };
-
-  const enqueueSave = (unit: UnitData) => {
-    const unitKey = unit.unit_id || unit.tempId || unit.id || 'unknown';
-    // Remove any pending saves for the same unit
-    saveQueueRef.current = saveQueueRef.current.filter(q => {
-      const qKey = q.unit.unit_id || q.unit.tempId || q.unit.id;
-      return qKey !== unitKey;
-    });
-    saveQueueRef.current.push({ unit });
-    setSaveStatus(prev => ({ ...prev, [unitKey]: 'saving' }));
-    if (!isSavingRef.current) processQueue();
-  };
+  const { clearSaveError, enqueueSave, saveErrors, saveStatus } = useUnitSaveQueue({
+    date: selectedDate,
+    settings,
+    setUnits,
+    setEditingId
+  });
 
   const hasPendingChanges = editingId !== null || Object.keys(saveStatus).length > 0;
 
@@ -1320,12 +1157,7 @@ hours: '--:-- - --:--',
       setUnits(prev => prev.filter(u => u.tempId !== editingId));
     }
     if (editingId) {
-      setSaveErrors(prev => {
-        if (!(editingId in prev)) return prev;
-        const next = { ...prev };
-        delete next[editingId];
-        return next;
-      });
+      clearSaveError(editingId);
     }
     setEditingId(null);
   };

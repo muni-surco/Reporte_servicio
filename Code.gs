@@ -779,9 +779,13 @@ function saveRetenData(data) {
 
       const rowDate = _normalizeRetenDate(row[0], timeZone);
       const rowRetenUnit = String(row[2] || '').trim().toUpperCase();
+      const fechaSalidaPrev = (row[10] instanceof Date)
+        ? Utilities.formatDate(row[10], timeZone, 'yyyy-MM-dd')
+        : String(row[10] || '').trim();
       if (rowDate === data.fecha &&
           String(row[1]) === String(data.turno) &&
-          rowRetenUnit === retenUnit) {
+          rowRetenUnit === retenUnit &&
+          !fechaSalidaPrev) {
         return {
           success: false,
           error: 'La Unidad Retén ' + data.retenUnit + ' ya fue registrada para el turno ' + data.turno + ' del ' + data.fecha

@@ -64,12 +64,18 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
   );
 
   // A reten unit can only be used once per date and shift
+  // Un retén solo se considera "en uso" mientras no tenga salida de taller
+  // registrada. Si ya fue liberado (fechaSalidaTaller), puede reasignarse a
+  // otro móvil en el mismo turno.
+  const isActiveReten = (r: RetenReplacement) => !String(r.fechaSalidaTaller || '').trim();
+
   const usedRetenUnits = useMemo(() => {
     const units = new Set<string>();
     replacements.forEach(r => {
       if (r.fecha === selectedDate &&
           normalizeShift(r.turno) === normalizeShift(form.turno) &&
-          String(r.retenUnit).trim()) {
+          String(r.retenUnit).trim() &&
+          isActiveReten(r)) {
         units.add(String(r.retenUnit).trim().toUpperCase());
       }
     });
@@ -82,7 +88,8 @@ const RetenManagementView: React.FC<RetenManagementViewProps> = ({ settings, sel
     return replacements.find(r =>
       r.fecha === selectedDate &&
       normalizeShift(r.turno) === normalizeShift(form.turno) &&
-      String(r.retenUnit).trim().toUpperCase() === unit
+      String(r.retenUnit).trim().toUpperCase() === unit &&
+      isActiveReten(r)
     ) || null;
   }, [form.retenUnit, form.turno, replacements, selectedDate]);
 
