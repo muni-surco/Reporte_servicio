@@ -84,12 +84,16 @@ const normalizeText = (v: unknown) => String(v ?? '').trim().toUpperCase();
 // Regla global de reportes: FIN APOYO no cuenta en NINGÚN estado
 // (ni PATRULLANDO, ni SIN PATRULLAR, ni INOPERATIVOS). Coincide también
 // con variantes como 'FIN DE APOYO'.
+// Excepción: en Flota Renting y en los reportes de motos FIN APOYO se
+// contabiliza como PATRULLANDO (ver generateFleetReport / reportes de motos).
 const isFinApoyoStatus = (status: unknown): boolean => {
   const s = normalizeText(status);
   return s.includes('FIN') && s.includes('APOYO');
 };
 
 const isMotoSupportWithoutId = (unit: UnitData): boolean => {
+  // FIN APOYO sí cuenta como PATRULLANDO, aunque no traiga ID.
+  if (isFinApoyoStatus(unit.status)) return false;
   return normalizeText(unit.status).includes('APOYO') && normalizeText(unit.id) === '';
 };
 
@@ -231,7 +235,6 @@ export const generateMotoReport = (
   const filterKeys = [normModel(modelFilter), normModel(titleSuffix)].filter(k => k);
   const motoUnits = dedupeUnitsByDataId(units, mobileData).filter(u => {
     if (u.type !== 'MOTO') return false;
-    if (isFinApoyoStatus(u.status)) return false;
     if (isMotoSupportWithoutId(u)) return false;
     const m = normModel(u.model);
     if (!m) return false;
@@ -285,10 +288,14 @@ export const generateMotoReport = (
   const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
   const isPatrullandoStatus = (status: unknown, id?: unknown) => {
     const s = String(status || '').trim().toUpperCase();
-    // FIN APOYO no es apoyo vigente: no cuenta como patrullando.
-    const isApoyo = !isFinApoyoStatus(s) && (s === 'APOYO' || s.includes('APOYO'));
+    // FIN APOYO cuenta como PATRULLANDO (también variantes como 'FIN DE APOYO').
+    if (isFinApoyoStatus(s)) return true;
+    const isApoyo = s === 'APOYO' || s.includes('APOYO');
     return s === 'PATRULLANDO' || (isApoyo && normalizeText(id) !== '') || s === 'MANTENIMIENTO';
   };
+
+  // Motos de DATA que no tienen registro en el turno: cuentan como SIN PATRULLAR
+  const unregisteredRows: { id: string; sector: string; model: string }[] = [];
 
   const summaryRows = sectors.map(s => {
     const sectorCode = normalize(s);
@@ -301,12 +308,19 @@ export const generateMotoReport = (
     // EFECTIVO: total por sector desde la hoja DATA (mobileData), no cuenta registros.
     // Se matchea solo por modelo (sin exigir type=MOTO) para no excluir filas
     // DATA con la columna tipo vacía o mal rotulada.
-    const efectivo = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector)).length;
+    const dataRowsInSector = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector));
+    const efectivo = dataRowsInSector.length;
     const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
     const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status, u.id)).length;
-    // SIN PATRULLAR se calcula por conteo directo, no por resta, para detectar
-    // inconsistencias entre la flota (DATA) y los registros del turno.
-    const sinPatrullar = sectorUnits.filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+    const sinPatrullarRegistrados = sectorUnits.filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+    // Las filas de DATA sin registro en el turno se suman a SIN PATRULLAR
+    const remainingRegistered = new Set(sectorUnits.map(u => normalize(u.id)).filter(Boolean));
+    dataRowsInSector.forEach(m => {
+      const id = normalize(m.id);
+      if (id && remainingRegistered.has(id)) { remainingRegistered.delete(id); return; }
+      unregisteredRows.push({ id: id || '(sin ID)', sector: sectorCode, model: String(m.model || '') });
+    });
+    const sinPatrullar = Math.max(sinPatrullarRegistrados, efectivo - inoperativos - patrullando);
     const suma = inoperativos + patrullando + sinPatrullar;
 
     return [
@@ -404,6 +418,9 @@ export const generateMotoReport = (
   const sinPatrullarData = motoUnits
     .filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '', (u.motivoEstado || u.mechanics || '').toString().toUpperCase()]);
+  unregisteredRows.forEach(r => {
+    sinPatrullarData.push([String(sinPatrullarData.length + 1), r.id, 'SIN REGISTRO', 'NO REGISTRADO EN EL TURNO']);
+  });
 
   // Una sola tabla de 8 columnas (dos bloques lado a lado) para que
   // INOPERATIVOS y SIN PATRULLAR siempre queden alineados,
@@ -493,7 +510,6 @@ export const generateConsolidatedMotoReport = (
     const filterKeys = modelKeysFor(modelFilter, titleSuffix);
     return uniqueUnits.filter(u => {
       if (u.type !== 'MOTO') return false;
-      if (isFinApoyoStatus(u.status)) return false;
       if (isMotoSupportWithoutId(u)) return false;
       const m = normModel(u.model);
       if (!m) return false;
@@ -537,10 +553,14 @@ export const generateConsolidatedMotoReport = (
   const inoperativeStatuses = ['DESPERFECTOS', 'SINIESTRO'];
   const isPatrullandoStatus = (status: unknown, id?: unknown) => {
     const s = String(status || '').trim().toUpperCase();
-    // FIN APOYO no es apoyo vigente: no cuenta como patrullando.
-    const isApoyo = !isFinApoyoStatus(s) && (s === 'APOYO' || s.includes('APOYO'));
+    // FIN APOYO cuenta como PATRULLANDO (también variantes como 'FIN DE APOYO').
+    if (isFinApoyoStatus(s)) return true;
+    const isApoyo = s === 'APOYO' || s.includes('APOYO');
     return s === 'PATRULLANDO' || (isApoyo && normalizeText(id) !== '') || s === 'MANTENIMIENTO';
   };
+
+  // Motos de DATA que no tienen registro en el turno: cuentan como SIN PATRULLAR
+  const unregisteredRows: { id: string; sector: string; model: string }[] = [];
 
   const renderMotoSummary = (motoUnits: UnitData[], label: string, startY: number) => {
     const summaryRows = sectors.map(s => {
@@ -552,11 +572,19 @@ export const generateConsolidatedMotoReport = (
       const inSector = (sectorValue: unknown) => allowedSectors.includes(normalize(sectorValue));
       const sectorUnits = motoUnits.filter(u => inSector(getSector(u)));
       // EFECTIVO: total por sector desde la hoja DATA (mobileData), no cuenta registros
-      const efectivo = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector)).length;
+      const dataRowsInSector = mobileData.filter(m => isFleetModel(m.model) && inSector(m.sector));
+      const efectivo = dataRowsInSector.length;
       const inoperativos = sectorUnits.filter(u => inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
       const patrullando = sectorUnits.filter(u => isPatrullandoStatus(u.status, u.id)).length;
-      // SIN PATRULLAR por conteo directo para detectar inconsistencias
-      const sinPatrullar = sectorUnits.filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+      const sinPatrullarRegistrados = sectorUnits.filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase())).length;
+      // Las filas de DATA sin registro en el turno se suman a SIN PATRULLAR
+      const remainingRegistered = new Set(sectorUnits.map(u => normalize(u.id)).filter(Boolean));
+      dataRowsInSector.forEach(m => {
+        const id = normalize(m.id);
+        if (id && remainingRegistered.has(id)) { remainingRegistered.delete(id); return; }
+        unregisteredRows.push({ id: id || '(sin ID)', sector: sectorCode, model: String(m.model || '') });
+      });
+      const sinPatrullar = Math.max(sinPatrullarRegistrados, efectivo - inoperativos - patrullando);
       const suma = inoperativos + patrullando + sinPatrullar;
 
       return [
@@ -665,6 +693,9 @@ export const generateConsolidatedMotoReport = (
   const sinPatRows = allMotoUnits
     .filter(u => !isPatrullandoStatus(u.status, u.id) && !inoperativeStatuses.includes((u.status || '').toUpperCase()))
     .map((u, idx) => [String(idx + 1), u.indicative || u.id, normalize(u.status) || '', (u.motivoEstado || u.mechanics || '').toString().toUpperCase()]);
+  unregisteredRows.forEach(r => {
+    sinPatRows.push([String(sinPatRows.length + 1), r.id, 'SIN REGISTRO', 'NO REGISTRADO EN EL TURNO']);
+  });
 
   const detailRows: any[][] = [];
   // Solo registros, sin filas en blanco de relleno
@@ -728,6 +759,10 @@ export interface FleetReportOptions {
   // true = la flota usa retén; en la tabla INOPERATIVOS la columna RETEN
   // muestra 'NO APLICA' solo para esta flota (autos renting)
   retenAplica?: boolean;
+  // true = FIN APOYO se contabiliza como PATRULLANDO (flota Renting)
+  finApoyoAsPatrullando?: boolean;
+  // true = unidades de DATA sin registro en el turno cuentan como SIN PATRULLAR
+  missingAsSinPatrullar?: boolean;
 }
 
 const generateFleetReport = (
@@ -785,6 +820,8 @@ const generateFleetReport = (
   // Evita contar dos veces una unidad que quedó guardada en más de un sector
   const uniqueUnits = dedupeUnitsByDataId(units, mobileData);
   const vehicleUnits = uniqueUnits.filter(u => u.type === 'CHOFER' && fleetMobileIds.has(normalize(u.id)));
+  // Unidades de DATA sin registro en el turno: cuentan como SIN PATRULLAR
+  const missingFleetRows: { id: string; sector: string }[] = [];
 
   // Solo cuentan como retenes de esta flota los AR- cuyo vehículo reemplazado
   // pertenece a la flota filtrada (ej. SIPCOP). Así un retén que reemplaza a
@@ -830,10 +867,20 @@ const generateFleetReport = (
     const sectorUnits = vehicleUnits.filter(u =>
       isOtrasAreas ? normalize(u.sector) === 'OTRAS AREAS' : normalize(u.sector).includes(s)
     );
-    const baseFleet = mobileData.filter(u =>
+    const fleetDataRows = mobileData.filter(u =>
       opts.fleetPredicate(u) &&
       (isOtrasAreas ? sourceSectorsFor(s).includes(normalize(u.sector)) : normalize(u.sector).includes(s))
-    ).length;
+    );
+    const baseFleet = fleetDataRows.length;
+    // Las filas de DATA sin registro en el turno se suman a SIN PATRULLAR
+    if (opts.missingAsSinPatrullar) {
+      const remainingRegistered = new Set(sectorUnits.map(u => normalize(u.id)).filter(Boolean));
+      fleetDataRows.forEach(m => {
+        const id = normalize(m.id);
+        if (id && remainingRegistered.has(id)) { remainingRegistered.delete(id); return; }
+        missingFleetRows.push({ id: id || '(sin ID)', sector: s });
+      });
+    }
 
     // Count Reten based on ID starting with AR- (replacement vehicles AR-1 to AR-12).
     // Un retén solo se contabiliza si el sector tiene flota de esa flota en DATA
@@ -852,17 +899,18 @@ const generateFleetReport = (
     const regularUnits = sectorUnits.filter(u => !normalize(u.id).startsWith('AR-'));
 
     const countInoperativos = regularUnits.filter(u => inoperativeStatuses.includes(normalize(u.status))).length;
-    // TACTICO PP.FF. y MANTENIMIENTO se consideran como PATRULLANDO
+    // TACTICO PP.FF., MANTENIMIENTO y (en Renting) FIN APOYO se consideran PATRULLANDO
     const countPatrullando = regularUnits.filter(u =>
       normalize(u.status) === 'PATRULLANDO' ||
       normalize(u.status) === 'MANTENIMIENTO' ||
+      (opts.finApoyoAsPatrullando && isFinApoyoStatus(u.status)) ||
       isTacticoPPFFStatus(u.status)
     ).length;
     // Las unidades retén (AR-) vigentes son unidades de respuesta: su reemplazo
     // cubre el patrullaje de la unidad que está en taller, por lo que suman a
     // PATRULLANDO. Solo cuando la tabla contempla retén (no en FLOTA CAMIONETAS).
     const countPatrullandoFinal = countPatrullando + (retenNA ? 0 : countReten);
-    const countSinPatrullar = regularUnits.filter(u =>
+    const countSinPatrullarRegistrados = regularUnits.filter(u =>
       normalize(u.status) !== 'PATRULLANDO' &&
       normalize(u.status) !== 'MANTENIMIENTO' &&
       !inoperativeStatuses.includes(normalize(u.status)) &&
@@ -870,6 +918,10 @@ const generateFleetReport = (
       !isFinApoyoStatus(u.status) &&
       !isTacticoPPFFStatus(u.status)
     ).length;
+    // Las unidades de DATA que no se registraron en el turno cuentan como SIN PATRULLAR
+    const countSinPatrullar = opts.missingAsSinPatrullar
+      ? Math.max(countSinPatrullarRegistrados, baseFleet - countInoperativos - countPatrullandoFinal)
+      : countSinPatrullarRegistrados;
 
     const efectivo = baseFleet; // Usar flota base
     // Validación: EFECTIVO debe ser la suma de INOPERATIVOS + PATRULLANDO + SIN PATRULLAR
@@ -1024,11 +1076,14 @@ const generateFleetReport = (
         status !== 'MANTENIMIENTO' &&
         !inoperativeStatuses.includes(status) &&
         status !== 'SIN VEHICULO' &&
-        status !== 'FIN APOYO' &&
+        !isFinApoyoStatus(u.status) &&
         !isTacticoPPFFStatus(u.status)
       );
     })
     .map((u, idx) => [String(idx + 1), u.id, normalize(u.status) || 'NO APLICA', (u.motivoEstado || u.mechanics || 'NO APLICA').toString().toUpperCase()]);
+  missingFleetRows.forEach(r => {
+    sinPatrullarData.push([String(sinPatrullarData.length + 1), r.id, 'SIN REGISTRO', 'NO REGISTRADO EN EL TURNO']);
+  });
 
   // Una sola tabla de 9 columnas (dos bloques lado a lado) para que
   // INOPERATIVOS y SIN PATRULLAR siempre queden alineados,
@@ -1092,7 +1147,9 @@ export const generateVehicleReport = (
   tableHeader: 'FLOTA AUTOS',
   camionetaHeader: 'FLOTA CAMIONETAS',
   filePrefix: 'REPORTE_VEHICULOS_RENTING',
-  retenAplica: true
+  retenAplica: true,
+  finApoyoAsPatrullando: true,
+  missingAsSinPatrullar: true
 });
 
 export const generateSipcopReport = (

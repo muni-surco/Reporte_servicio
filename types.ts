@@ -89,6 +89,9 @@ export interface UnitData {
   indicative: string;
   radio: string;
   status: UnitStatus;
+  // Marca independiente del estado operativo, usada por el toggle del despachador.
+  // La ausencia del campo equivale a disponible.
+  disponible?: boolean;
   reason: string;
   km: string;
   kmStart: string;

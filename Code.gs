@@ -312,6 +312,8 @@ function _toUnitData(obj) {
     indicative: String(obj.indicative || ''),
     radio: String(obj.radio || ''),
     status: String(obj.status || ''),
+    // Ausencia del campo = disponible, para no alterar registros existentes.
+    disponible: String(obj.disponible).toLowerCase() !== 'false',
     reason: String(obj.reason || ''),
     kmStart: String(obj.kmStart || '0'),
     kmEnd: String(obj.kmEnd || '0'),
@@ -2739,6 +2741,53 @@ function updateUnit(dateStr, shift, settings, unit) {
 }
 
 /**
+ * Toggle rápido de disponibilidad desde la vista del despachador.
+ * Es una marca independiente del estado operativo: no modifica `status`
+ * y, por lo tanto, no afecta la operatividad ni los reportes.
+ */
+function setUnitAvailability(dateStr, shift, sector, unitId, disponible) {
+  const date = String(dateStr || '').trim();
+  const turno = String(shift || '').trim().toUpperCase();
+  const storageSector = toStorageSector(sector);
+  const key = _sanitizeRtdbKey(unitId);
+
+  if (!date || !turno || !storageSector || !key) {
+    return { success: false, error: 'Parámetros incompletos para cambiar la disponibilidad.' };
+  }
+
+  const value = disponible !== false;
+  const unitPath = 'units/' + date + '_' + turno + '/' + storageSector + '/' + key;
+  // Milisegundos para que dos clics de usuarios distintos en el mismo segundo
+  // también disparen el sondeo de los demas.
+  const timestamp = new Date().toISOString();
+
+  try {
+    const current = rtdbGet(unitPath);
+    if (!current || typeof current !== 'object') {
+      return { success: false, error: 'No se encontró la unidad ' + key + ' en el turno indicado.' };
+    }
+
+    const metaBase = '_meta/units/' + date + '_' + turno;
+    const updates = {};
+    updates[unitPath + '/disponible'] = value;
+    // Sin estos metas el polling (global y por sector) respondería `noChanges`.
+    updates[metaBase + '/updatedAt'] = timestamp;
+    updates[metaBase + '/' + storageSector + '/updatedAt'] = timestamp;
+    rtdbPatchMulti(updates);
+
+    const cache = CacheService.getScriptCache();
+    _cacheRemoveLarge(cache, 'UNITS_' + date + '_' + turno);
+    cache.remove('UNITS_' + date + '_' + turno + '_' + storageSector);
+    _cacheRemoveLarge(cache, 'SHEET_UNITS_' + date + '_' + turno);
+    _fbLogUsage();
+    return { success: true, disponible: value, auth: _authInfo() };
+  } catch (e) {
+    console.error('[setUnitAvailability] ERROR', e && e.message ? e.message : e);
+    return { success: false, error: 'No se pudo guardar la disponibilidad: ' + (e && e.message ? e.message : String(e)) };
+  }
+}
+
+/**
  * Searches VEHICULOS_RQ sheet by plate (partial match).
  */
 function searchVehicles(searchTerm, marcaFilter, modeloFilter) {
@@ -3684,6 +3733,9 @@ function doPost(e) {
         break;
       case 'updateUnit':
         result = updateUnit(data.dateStr, data.shift, data.settings || {}, data.unit);
+        break;
+      case 'setUnitAvailability':
+        result = setUnitAvailability(data.dateStr, data.shift, data.sector, data.unitId, data.disponible);
         break;
       case 'saveShiftSettings':
         result = saveShiftSettings(data.dateStr, data.shift, data.settings || {});

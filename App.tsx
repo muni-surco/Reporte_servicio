@@ -97,8 +97,11 @@ const App: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingViewChange, setPendingViewChange] = useState<ViewMode | null>(null);
   const [visualizationSectorsData, setVisualizationSectorsData] = useState<Record<string, { units: UnitData[], settings: AppSettings }>>({});
+  const [togglingUnitId, setTogglingUnitId] = useState<string | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const lastSavedRef = useRef<string>('');
   const loadingIdRef = useRef(0);
+  const togglingUnitIdRef = useRef<string | null>(null);
 
   const [sectorSettingsMap, setSectorSettingsMap] = useState<Record<string, AppSettings>>({});
   const lastFetchedAtMap = useRef<Record<string, string>>({});
@@ -612,6 +615,30 @@ id: d.id,
   };
   loadDataRef.current = loadData;
 
+  useEffect(() => { togglingUnitIdRef.current = togglingUnitId; }, [togglingUnitId]);
+
+  // Sincronización entre despachadores: Apps Script no puede hacer push, así
+  // que se sondea el meta del turno. getShiftData solo baja datos si cambió,
+  // por lo que el sondeo es barato y el retardo es de ~10 s.
+  useEffect(() => {
+    if (currentView !== 'VISUALIZATION' || isReadOnly) return;
+    const check = () => {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) return;
+      // No sobrescribir el valor optimista mientras se guarda el clic local.
+      if (togglingUnitIdRef.current) return;
+      loadDataRef.current(selectedDate, settings.turno, 'VISUALIZATION', true);
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    const timer = window.setInterval(check, 10000);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [currentView, selectedDate, settings.turno, isReadOnly]);
+
   const handleSectorChange = (sector: Sector) => {
     setCurrentSector(sector);
     const specificSettings = sectorSettingsMap[sector];
@@ -1019,6 +1046,61 @@ hours: '--:-- - --:--',
       return;
     }
     persistSettingsOnly(settingsToSave);
+  };
+
+  // Toggle de disponibilidad de la vista del despachador. Es una marca
+  // independiente del estado operativo: no toca `status` ni los reportes.
+  const handleToggleAvailability = (u: UnitData, disponible: boolean) => {
+    if (isReadOnly || togglingUnitId) return;
+    const unitId = String(u.unit_id || u.id || '').trim();
+    if (!unitId) return;
+
+    const dateStr = selectedDate;
+    const shift = settings.turno;
+    const sector = normalizeUnitSector(u.sector || settings.nombrePuesto);
+
+    const apply = (value: boolean) => {
+      const matches = (x: UnitData) => String(x.unit_id || x.id || '').trim() === unitId;
+      setVisualizationSectorsData(prev => {
+        const next: typeof prev = {};
+        Object.keys(prev).forEach(s => {
+          next[s] = {
+            ...prev[s],
+            units: prev[s].units.map(x => matches(x) ? { ...x, disponible: value } : x)
+          };
+        });
+        return next;
+      });
+      setUnits(prev => prev.map(x => matches(x) ? { ...x, disponible: value } : x));
+    };
+
+    setAvailabilityError(null);
+    apply(disponible);
+    setTogglingUnitId(unitId);
+
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      apply(!disponible);
+      setTogglingUnitId(null);
+      setAvailabilityError('La disponibilidad solo se puede cambiar dentro de Google Apps Script.');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler((res: { success?: boolean; disponible?: boolean; error?: string }) => {
+        setTogglingUnitId(null);
+        if (!res || !res.success) {
+          apply(!disponible);
+          setAvailabilityError(res?.error || 'No se pudo guardar la disponibilidad.');
+          return;
+        }
+        apply(typeof res.disponible === 'boolean' ? res.disponible : disponible);
+      })
+      .withFailureHandler((err: any) => {
+        setTogglingUnitId(null);
+        apply(!disponible);
+        setAvailabilityError('No se pudo guardar la disponibilidad. ' + (err?.message || ''));
+      })
+      .setUnitAvailability(dateStr, shift, sector, unitId, disponible);
   };
 
   const persistSettingsOnly = (newSettings: AppSettings) => {
@@ -1523,6 +1605,10 @@ hours: '--:-- - --:--',
               settings={settings}
               mobileData={mobileData}
               highlightMissingHeader={!headerFieldsComplete(settings)}
+               onToggleAvailability={handleToggleAvailability}
+               readOnly={isReadOnly}
+               togglingUnitId={togglingUnitId}
+               availabilityError={availabilityError}
             />
            ) : currentView === 'REPORTS' ? (
              <ReportGeneratorView

@@ -305,7 +305,7 @@ Haga clic en **EXPORTAR EXCEL** para descargar todos los registros de retenes vi
 
 ## 7. Vista Despachador (Visualization)
 
-La **Vista Despachador** muestra una lectura consolidada de **todos los sectores** en una sola pantalla. Es de solo lectura — no permite editar datos.
+La **Vista Despachador** muestra una lectura consolidada de **todos los sectores** en una sola pantalla. No permite editar los datos del turno, con una excepción: el **toggle de disponibilidad** de cada recurso (ver 7.4).
 
 ### 7.1 Navegación Rápida
 
@@ -322,9 +322,18 @@ Cada sector muestra:
 - **Encabezado:** Nombre del sector, OPERADOR, SUPERVISOR, JEFE DE ÁREA / PERMANENCIA
 - **Estadísticas:** Total de unidades y porcentaje de operatividad
 - **Tarjetas de unidades** compactas con:
-  - Indicador de estado (círculo de color)
+  - Interruptor de disponibilidad: verde con knob a la derecha (✓) = disponible, rojo con knob a la izquierda (raya) = ocupado (un clic lo alterna; ver 7.4)
   - ID y CHOFER (con badge "PNP" si el copiloto contiene "PNP")
   - RADIO y CUADRANTE
+
+### 7.4 Disponibilidad de un recurso
+
+El interruptor a la izquierda del ID se acciona con un solo clic:
+
+- **Verde, knob a la derecha con ✓**: recurso disponible.
+- **Rojo, knob a la izquierda con raya**: recurso ocupado (no disponible).
+
+El cambio se guarda en el turno en curso y lo ven todos los despachadores: la vista se sincroniza sola cada ~10 segundos (y al volver a la pestaña), así que varios operadores pueden alternar estados y ver los cambios de los demás sin recargar. **No modifica el estado operativo** (`PATRULLANDO`, etc.) ni los reportes. En fechas o turnos pasados el botón aparece deshabilitado.
 
 ---
 
@@ -637,7 +646,7 @@ En el Panel de Edición, dentro de la sección correspondiente (CHOFER/MOTORIZAD
 
 ### ¿Por qué no puedo editar ciertos campos?
 
-- La **Vista Despachador**, **Estadísticas** y **Vista de Personal** son de solo lectura
+- La **Vista Despachador** no edita los datos del turno (salvo el toggle de disponibilidad); **Estadísticas** y **Vista de Personal** son de solo lectura
 - Los turnos pasados también son de solo lectura — solo puede editar el turno actual
 - Solo el **Panel de Edición** y **Gestión de Retenes** permiten modificar datos (en el turno actual)
 - El **Buscador de Vehículos** permite agregar nuevos registros pero no editar existentes

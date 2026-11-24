@@ -43,9 +43,22 @@ interface VisualizationViewProps {
   settings: AppSettings;
   mobileData: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[];
   highlightMissingHeader?: boolean;
+  onToggleAvailability?: (unit: UnitData, disponible: boolean) => void;
+  readOnly?: boolean;
+  togglingUnitId?: string | null;
+  availabilityError?: string | null;
 }
 
-const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, settings, mobileData, highlightMissingHeader }) => {
+const VisualizationView: React.FC<VisualizationViewProps> = ({
+  allSectorsData,
+  settings,
+  mobileData,
+  highlightMissingHeader,
+  onToggleAvailability,
+  readOnly = false,
+  togglingUnitId = null,
+  availabilityError = null
+}) => {
   // Buscador global del despachador: filtra las tarjetas por id, nombre o radio.
   const [searchQuery, setSearchQuery] = useState('');
   const searchNorm = stripAccents(searchQuery.trim());
@@ -77,30 +90,6 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     return { totalMatches: matches, totalVisible: visible };
   }, [searchNorm, allSectorsData]);
 
-  const redStatusPatterns = [
-    UnitStatus.MANTENIMIENTO,
-    UnitStatus.DESPERFECTOS,
-    UnitStatus.SINIESTRO,
-    UnitStatus.FALTO,
-  ];
-
-  const amberStatusPatterns = [
-    UnitStatus.SIN_DOCUMENTOS,
-    UnitStatus.SIN_CONDUCTOR,
-    UnitStatus.SIN_VEHICULO,
-    UnitStatus.SIN_OPERADOR,
-  ];
-
-  const getStatusColor = (status: string) => {
-    if (status === UnitStatus.PATRULLANDO) return "bg-green-500 ring-2 ring-green-200";
-    if (status === UnitStatus.APOYO_OTRA_AREA) return "bg-blue-500 ring-2 ring-blue-200";
-    if (isTacticoPPFFStatus(status)) return "bg-blue-500 ring-2 ring-blue-200";
-    if (redStatusPatterns.includes(status)) return "bg-red-500 ring-2 ring-red-200";
-    if (amberStatusPatterns.includes(status)) return "bg-amber-500 ring-2 ring-amber-200";
-    return "bg-slate-300 ring-2 ring-slate-100";
-  };
-
-
   const renderCompactUnit = (u: UnitData, type: string) => {
     const idTextColor = {
       CHOFER: 'text-[#004b93]',
@@ -112,10 +101,40 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
     const displayRadio = u.radio || '--';
     const displayQuadrant = u.quadrant || refInfo?.quadrant || '--';
 
+    const isAvailable = u.disponible !== false;
+    const unitKey = String(u.unit_id || u.id || '');
+    const isToggling = !!togglingUnitId && togglingUnitId === unitKey;
+    const canToggle = !!onToggleAvailability && !readOnly && !isToggling;
+    const statusLabel = String(u.status || 'PATRULLANDO');
+    const toggleTitle = readOnly
+      ? 'La disponibilidad solo se puede cambiar en el turno actual'
+      : `${statusLabel} · ${isAvailable ? 'DISPONIBLE' : 'OCUPADO (NO DISPONIBLE)'} · Clic para ${isAvailable ? 'desactivar' : 'activar'}`;
+
     return (
       <div key={u.id} className="flex items-center gap-4 py-3 px-4 hover:bg-blue-50/50 border-b border-slate-100 last:border-0 transition-colors group odd:bg-white even:bg-slate-50/50">
-        {/* Indicador de Estado */}
-        <div className={`w-4 h-4 rounded-full shrink-0 ${getStatusColor(u.status)} shadow-sm border border-white transition-transform group-hover:scale-125`} title={u.status}></div>
+        {/* Disponibilidad: interruptor de un clic. Reemplaza al indicador de estado. */}
+        <button
+          type="button"
+          role="switch"
+          onClick={() => onToggleAvailability?.(u, !isAvailable)}
+          disabled={!canToggle}
+          aria-checked={isAvailable}
+          aria-label={`${u.id}: ${isAvailable ? 'disponible' : 'ocupado'}. Clic para ${isAvailable ? 'desactivar' : 'activar'}`}
+          title={toggleTitle}
+          className={`relative inline-flex items-center w-[36px] h-[20px] rounded-full shrink-0 p-[2px] shadow-inner transition-colors ${isAvailable ? 'bg-green-500 justify-end' : 'bg-red-600 justify-start'} ${canToggle ? 'cursor-pointer hover:brightness-110' : 'cursor-not-allowed opacity-60'} ${isToggling ? 'animate-pulse' : ''}`}
+        >
+          <span className={`flex items-center justify-center w-4 h-4 rounded-full bg-white shadow-sm ${isAvailable ? 'text-green-600' : 'text-red-600'}`}>
+            {isAvailable ? (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 12h12" />
+              </svg>
+            )}
+          </span>
+        </button>
 
         {/* ID de Unidad */}
         <span className={`text-[13px] font-medium min-w-[45px] text-center ${idTextColor} uppercase tracking-tighter`}>
@@ -237,6 +256,13 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({ allSectorsData, s
           </button>
         </div>
       </div>
+
+      {availabilityError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-medium text-red-700">
+          <span className="material-symbols-outlined text-[18px] leading-none shrink-0">error_outline</span>
+          <span>{availabilityError}</span>
+        </div>
+      )}
 
       {searchNorm && totalMatches === 0 && (
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 px-6 py-14 text-center">
