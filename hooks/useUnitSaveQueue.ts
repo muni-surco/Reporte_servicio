@@ -1,5 +1,6 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { AppSettings, UnitData } from '../types';
+import { logAuditEvent } from '../utils/auditLogger';
 
 declare const google: any;
 
@@ -10,9 +11,10 @@ interface UseUnitSaveQueueOptions {
   settings: AppSettings;
   setUnits: Dispatch<SetStateAction<UnitData[]>>;
   setEditingId: Dispatch<SetStateAction<string | null>>;
+  actor?: { user?: string; nombre?: string };
 }
 
-export const useUnitSaveQueue = ({ date, settings, setUnits, setEditingId }: UseUnitSaveQueueOptions) => {
+export const useUnitSaveQueue = ({ date, settings, setUnits, setEditingId, actor }: UseUnitSaveQueueOptions) => {
   const saveQueueRef = useRef<Array<{ unit: UnitData }>>([]);
   const isSavingRef = useRef(false);
   const [saveStatus, setSaveStatus] = useState<Record<string, SaveStatus>>({});
@@ -47,6 +49,16 @@ export const useUnitSaveQueue = ({ date, settings, setUnits, setEditingId }: Use
         .withSuccessHandler((res: { success: boolean; unit_id?: string; fuel2?: string; expense2?: string; error?: string }) => {
           if (res.success) {
             const newId = res.unit_id;
+            // Auditoría en paralelo: no se espera a la escritura en Sheets.
+            logAuditEvent({
+              actor,
+              action: item.unit.unit_id ? 'EDITAR UNIDAD' : 'CREAR UNIDAD',
+              date,
+              shift: settings.turno,
+              sector: String(item.unit.sector || settings.nombrePuesto || '').trim().toUpperCase(),
+              entity: newId || unitKey,
+              detail: 'ID ' + String(item.unit.id || '').trim() + ' · ' + String(item.unit.status || '').trim()
+            });
             setSaveErrors(prev => {
               const next = { ...prev };
               delete next[unitKey];

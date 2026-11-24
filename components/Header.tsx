@@ -37,6 +37,8 @@ interface HeaderProps {
   codigoBodycamSuggestions?: string[];
   radioOptions?: string[];
   motivoFaltoOptions?: string[];
+  userName?: string;
+  onLogout?: () => void;
 }
 
   const Header: React.FC<HeaderProps> = ({
@@ -65,6 +67,8 @@ interface HeaderProps {
     codigoBodycamSuggestions,
     radioOptions,
     motivoFaltoOptions,
+    userName,
+    onLogout,
   }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState<AppSettings>(settings);
@@ -171,6 +175,17 @@ interface HeaderProps {
 
   // Even smaller buttons for Mobile/Tablet
   const btnIconStyle = "h-9 px-4 rounded-xl font-medium text-[12px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm shrink-0";
+
+  const logoutButton = onLogout ? (
+    <button
+      onClick={onLogout}
+      title={`Cerrar sesión${userName ? ` (${userName})` : ''}`}
+      className="h-9 px-3 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg font-medium text-[12px] uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all shrink-0"
+    >
+      <span className="material-symbols-outlined text-[18px]">logout</span>
+      <span className="hidden xl:inline">SALIR</span>
+    </button>
+  ) : null;
 
   return (
     <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50 backdrop-blur-lg bg-white/95 h-[72px]">
@@ -419,6 +434,7 @@ interface HeaderProps {
                 <span className={`material-symbols-outlined text-[18px] ${isRefreshing ? 'animate-spin' : ''}`}>refresh</span>
                 ACTUALIZAR
               </button>
+              {logoutButton}
             </div>
           ) : (
             <div className="flex items-center gap-2 justify-end shrink-0 lg:ml-auto" data-html2canvas-ignore>
@@ -454,6 +470,7 @@ interface HeaderProps {
                     <span className="hidden xl:inline">ACTUALIZAR DATOS</span>
                   </button>
                 ) : null}
+                {logoutButton}
               </div>
             </div>
           )}

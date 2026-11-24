@@ -4,6 +4,7 @@ const APP_CONFIG = {
     unitData: 'UNIT_DATA',
     referenceData: 'DATA',
     retenLog: 'RETEN_LOG',
+    auditLog: 'AUDIT_LOG',
   },
   EXTERNAL_PERSONNEL_SPREADSHEET_ID: '15Dd7IPUmG-HxK9S0QZefNov0sOVhaHgFSPrBC4WXROQ',
   MOBILE_DATA_SPREADSHEET_ID: '11j6Ipd3J6HjUnG91RCliCbjrgzJWhzUwktCgfnAESKU',
@@ -199,9 +200,77 @@ function initialSetup() {
   // 3. Setup RETEN_LOG
   setupRetenLogSheet(ss);
 
+  // 4. Setup AUDIT_LOG: se crea si no existe, pero NUNCA se limpia.
+  setupAuditLogSheet(ss);
+
   SpreadsheetApp.getUi().alert(
-    `Estructura de base de datos creada exitosamente. Las hojas ${APP_CONFIG.SHEETS.settings}, ${APP_CONFIG.SHEETS.unitData} y ${APP_CONFIG.SHEETS.retenLog} están listas.`
+    `Estructura de base de datos creada exitosamente. Las hojas ${APP_CONFIG.SHEETS.settings}, ${APP_CONFIG.SHEETS.unitData}, ${APP_CONFIG.SHEETS.retenLog} y ${APP_CONFIG.SHEETS.auditLog} están listas.`
   );
+}
+
+/**
+ * Hoja de auditoria: un registro por alta/edicion de unidad y por cambio de
+ * disponibilidad. Es append-only; initialSetup() la crea pero no borra filas.
+ */
+function setupAuditLogSheet(ss) {
+  const spreadsheet = ss || SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+  let sheet = spreadsheet.getSheetByName(APP_CONFIG.SHEETS.auditLog);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(APP_CONFIG.SHEETS.auditLog);
+    const headers = ['FECHA_HORA', 'ACCION', 'USUARIO', 'NOMBRE', 'FECHA', 'TURNO', 'SECTOR', 'ENTIDAD', 'DETALLE'];
+    sheet.getRange(1, 1, 1, headers.length)
+         .setValues([headers])
+         .setFontWeight('bold')
+         .setBackground('#f3cccc');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function _auditActor(actor) {
+  if (actor && typeof actor === 'object') {
+    return {
+      user: String(actor.user || '').trim(),
+      nombre: String(actor.nombre || '').trim()
+    };
+  }
+  return { user: String(actor || '').trim(), nombre: '' };
+}
+
+/**
+ * Agrega un evento a AUDIT_LOG. Un fallo aqui nunca debe impedir el guardado.
+ */
+function _appendAuditLog(entry) {
+  try {
+    const ss = SpreadsheetApp.openById(APP_CONFIG.MOBILE_DATA_SPREADSHEET_ID);
+    let sheet = ss.getSheetByName(APP_CONFIG.SHEETS.auditLog);
+    if (!sheet) sheet = setupAuditLogSheet(ss);
+    const actor = _auditActor(entry && entry.actor);
+    const timestamp = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    sheet.appendRow([
+      timestamp,
+      String((entry && entry.action) || ''),
+      actor.user,
+      actor.nombre,
+      String((entry && entry.date) || ''),
+      String((entry && entry.shift) || ''),
+      String((entry && entry.sector) || ''),
+      String((entry && entry.entity) || ''),
+      String((entry && entry.detail) || '')
+    ]);
+    return true;
+  } catch (e) {
+    console.error('[AUDIT_LOG] No se pudo registrar el evento:', e && e.message ? e.message : e);
+    return false;
+  }
+}
+
+/**
+ * Endpoint publico llamado por el cliente DESPUES de guardar. Se ejecuta en
+ * paralelo: el guardado de la unidad no espera a esta escritura en Sheets.
+ */
+function appendAuditLog(entry) {
+  return _appendAuditLog(entry);
 }
 
 /**
@@ -1239,6 +1308,80 @@ function getPersonnelList(forceRefresh) {
   } catch (e) {
     console.error('Error in getPersonnelList:', e);
     return [];
+  }
+}
+
+/**
+ * Valida usuario / PIN operativo contra la hoja Personal del spreadsheet externo.
+ * Se lee la hoja en cada intento (las credenciales nunca se cachean).
+ * Devuelve { ok: true, user, nombre } o { ok: false, error }.
+ */
+function validateLogin(user, pin) {
+  try {
+    const inputUser = String(user == null ? '' : user).trim().toUpperCase();
+    const inputPin = String(pin == null ? '' : pin).trim();
+    if (!inputUser || !inputPin) {
+      return { ok: false, error: 'Ingrese usuario y PIN.' };
+    }
+
+    const extSS = getExternalPersonnelSpreadsheet();
+    const sheet = extSS.getSheetByName('Personal') || extSS.getSheets()[0];
+    if (!sheet) {
+      return { ok: false, error: 'No se encontró la hoja Personal.' };
+    }
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) {
+      return { ok: false, error: 'La hoja Personal no tiene registros.' };
+    }
+
+    const headers = data[0].map(h => String(h == null ? '' : h).toLowerCase().trim());
+    const idxUser = headers.indexOf('persona_id');
+    const idxPin = headers.indexOf('pin_operativo');
+    const idxEstado = headers.indexOf('estado');
+    const idxNombre = headers.indexOf('apellidos_nombres');
+    if (idxUser === -1 || idxPin === -1 || idxEstado === -1) {
+      console.error('[validateLogin] Faltan columnas persona_id / pin_operativo / estado. Headers:', headers.join(', '));
+      return { ok: false, error: 'Configuración de acceso incompleta. Contacte al administrador.' };
+    }
+
+    let matchedRow = null;
+    let hasInactiveUser = false;
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const rowUser = String(row[idxUser] == null ? '' : row[idxUser]).trim().toUpperCase();
+      if (rowUser !== inputUser) continue;
+
+      const estado = String(row[idxEstado] == null ? '' : row[idxEstado]).trim().toUpperCase();
+      if (estado !== 'ACTIVO') {
+        hasInactiveUser = true;
+        continue;
+      }
+
+      const rowPin = String(row[idxPin] == null ? '' : row[idxPin]).trim();
+      if (rowPin === inputPin) {
+        matchedRow = row;
+        break;
+      }
+    }
+
+    if (!matchedRow) {
+      return {
+        ok: false,
+        error: hasInactiveUser
+          ? 'El usuario no está ACTIVO. Contacte a su supervisor.'
+          : 'Usuario o PIN incorrectos.'
+      };
+    }
+
+    return {
+      ok: true,
+      user: inputUser,
+      nombre: idxNombre !== -1 ? String(matchedRow[idxNombre] == null ? '' : matchedRow[idxNombre]).trim() : ''
+    };
+  } catch (e) {
+    console.error('[validateLogin] Error:', e);
+    return { ok: false, error: 'No se pudo validar el acceso. Intente nuevamente.' };
   }
 }
 

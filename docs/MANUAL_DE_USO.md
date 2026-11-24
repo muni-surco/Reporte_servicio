@@ -32,6 +32,7 @@ Versión: v2.5.0-PRO
 
 **Funcionalidades principales:**
 
+- Acceso con usuario y PIN operativo del personal activo
 - Registro diario de unidades por sector y turno
 - Asignación de personal, radios, combustible y kilometraje
 - Gestión de reemplazos de vehículos (retenes) con control de taller
@@ -50,11 +51,17 @@ Versión: v2.5.0-PRO
 
 El sistema es una **Google Apps Script Web App** alojada en Google Sheets.
 
-1. Abra el enlace proporcionado por su administrador (dominio `script.google.com`)
-2. El sistema se cargará automáticamente — no requiere inicio de sesión adicional si ya está autenticado en su cuenta Google corporativa
-3. Si ve una pantalla en blanco o "Cargando Datos...", espere unos segundos mientras se cargan los datos del día
+1. Abra el enlace proporcionado por su administrador (dominio `script.google.com`).
+2. En la pantalla de acceso ingrese su **usuario** (columna `persona_id`) y su **PIN operativo** (columna `pin_operativo`), tal como figuran en la hoja **Personal** del spreadsheet de personal.
+3. El acceso se permite solo si la columna **estado** de ese registro es `ACTIVO`.
+4. Presione **INGRESAR** o la tecla `Enter`. El icono de ojo permite mostrar u ocultar el PIN.
 
-**Nota:** El sistema requiere conexión a Internet y una cuenta de Google (@surco.gob.pe o similar) con acceso a las hojas de cálculo vinculadas.
+La sesión se conserva en la pestaña (`sessionStorage`): al recargar no se piden credenciales de nuevo, pero al cerrar la pestaña sí. Para cambiar de usuario, use el botón **SALIR** de la barra superior (el tooltip muestra el usuario activo).
+
+- Credenciales incorrectas: *"Usuario o PIN incorrectos."*
+- Usuario dado de baja: *"El usuario no está ACTIVO. Contacte a su supervisor."*
+
+**Nota:** la validación lee la hoja **Personal** en cada intento; las credenciales no se cachean ni se escriben en ninguna hoja. El sistema requiere conexión a Internet y acceso a las hojas vinculadas.
 
 ---
 
@@ -63,6 +70,8 @@ El sistema es una **Google Apps Script Web App** alojada en Google Sheets.
 ### 3.1 Barra Lateral (Sidebar)
 
 La barra lateral izquierda contiene 7 módulos de navegación. Por defecto está colapsada (76px de ancho). Al pasar el mouse sobre ella se expande (260px) mostrando las etiquetas de cada módulo.
+
+En la parte inferior se muestra el **nombre de la persona logueada** (con su `persona_id` debajo y sus iniciales en el avatar), en lugar del texto de la municipalidad. Con la barra colapsada, el nombre completo aparece como tooltip al pasar el mouse.
 
 | Icono | Módulo | Descripción |
 |---|---|---|
@@ -601,6 +610,14 @@ El botón **SINCRONIZAR** sincroniza los datos con el sistema externo de recolec
 - Si el guardado falla repetidamente, actualice la página con el botón ↻ y vuelva a intentar
 - En caso de error de bloqueo (LockService), el sistema reintenta automáticamente hasta 5 veces con intervalos crecientes (1s, 2s, 4s, 8s, 16s)
 
+### 12.5 Registro de auditoría (`AUDIT_LOG`)
+
+Cada alta o edición de unidad y cada cambio de disponibilidad agrega una fila a la hoja **AUDIT_LOG** del spreadsheet de datos, con: fecha/hora, acción (`CREAR UNIDAD`, `EDITAR UNIDAD`, `MARCAR DISPONIBLE`, `MARCAR OCUPADO`), usuario (`persona_id`), nombre, fecha, turno, sector, entidad y detalle.
+
+El historial es **acumulativo**: ejecutar `initialSetup()` crea la hoja si no existe, pero no borra sus filas. Si solo falta la hoja `AUDIT_LOG`, ejecute `setupAuditLogSheet()` desde el editor de Apps Script (**no** `initialSetup()`, que limpia `SHIFT_SETTINGS` y `UNIT_DATA`).
+
+El evento de auditoría se envía **en paralelo** al guardado: la cola no espera a la escritura en Sheets, así que el guardado conserva su velocidad original (la fila puede aparecer unos instantes después). Un fallo al registrar no impide que se guarde la unidad.
+
 ---
 
 ## 15. Turnos Pasados — Solo Lectura
@@ -639,6 +656,14 @@ Para la NOCHE que cruza la medianoche, el sistema considera que el turno activo 
 ---
 
 ## 16. Preguntas Frecuentes
+
+### ¿Cómo ingreso al sistema y por qué puede fallar el acceso?
+
+Use su `persona_id` como usuario y su `pin_operativo` como contraseña. El registro debe tener `estado = ACTIVO` en la hoja **Personal**. Si el PIN está mal o el usuario no existe verá *"Usuario o PIN incorrectos"*; si está dado de baja verá el aviso de usuario inactivo. Para entrar con otra cuenta, presione **SALIR** en la barra superior.
+
+### ¿Dónde veo quién cambió una unidad o su disponibilidad?
+
+En la hoja **AUDIT_LOG** del spreadsheet de datos. Cada guardado de unidad y cada clic del toggle agrega una fila con el usuario logueado (`persona_id`), su nombre, la fecha/hora y la acción. El campo `AUDIT_LOG` de cada unidad sigue mostrando solo al último modificador.
 
 ### ¿Cómo agrego una unidad nueva?
 

@@ -76,6 +76,14 @@ export interface PersonnelData {
   foto_url: string;
 }
 
+export interface LoginSession {
+  user: string;
+  nombre?: string;
+  loginAt: string;
+  /** Solo se usa al probar la UI fuera de Apps Script (sin google.script.run). */
+  dev?: boolean;
+}
+
 export interface UnitData {
   id: string;
   unit_id?: string;

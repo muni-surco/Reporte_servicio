@@ -14,11 +14,26 @@ import MapView from './components/MapView';
 import WantedView from './components/WantedView';
 import { usePersonnel } from './hooks/usePersonnel';
 import { useUnitSaveQueue } from './hooks/useUnitSaveQueue';
-import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, SECTORS, RetenReplacement, sourceSectorsFor, isOtrasAreasSector } from './types';
+import { logAuditEvent } from './utils/auditLogger';
+import { UnitData, AppSettings, UnitStatus, Sector, ViewMode, MobileReference, PersonnelData, LoginSession, SECTORS, RetenReplacement, sourceSectorsFor, isOtrasAreasSector } from './types';
 import { Users, LayoutDashboard, FileText, TriangleAlert } from 'lucide-react';
 import ConfirmModal from './components/ConfirmModal';
+import LoginScreen from './components/LoginScreen';
 
 declare const google: any;
+
+const SESSION_KEY = 'control_operativo_session';
+
+const readStoredSession = (): LoginSession | null => {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LoginSession;
+    return parsed && parsed.user ? parsed : null;
+  } catch {
+    return null;
+  }
+};
 
 type ReportGenerators = typeof import('./utils/reportGenerator');
 declare global {
@@ -99,6 +114,7 @@ const App: React.FC = () => {
   const [visualizationSectorsData, setVisualizationSectorsData] = useState<Record<string, { units: UnitData[], settings: AppSettings }>>({});
   const [togglingUnitId, setTogglingUnitId] = useState<string | null>(null);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [session, setSession] = useState<LoginSession | null>(readStoredSession);
   const lastSavedRef = useRef<string>('');
   const loadingIdRef = useRef(0);
   const togglingUnitIdRef = useRef<string | null>(null);
@@ -137,6 +153,18 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   const kmToastIntervalRef = useRef<number | null>(null);
   useEffect(() => { kmToastVisibleRef.current = kmToastVisible; }, [kmToastVisible]);
   useEffect(() => { kmToastClosingRef.current = kmToastClosing; }, [kmToastClosing]);
+
+  const handleLoginSuccess = (next: LoginSession) => {
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(next)); } catch (e) { /* almacenamiento bloqueado */ }
+    setSession(next);
+  };
+
+  const handleLogout = () => {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
+    setSession(null);
+  };
+
+  const auditActor = { user: session?.user || '', nombre: session?.nombre || '' };
 
   const isReadOnly = (() => {
     const today = new Date().toLocaleDateString('en-CA');
@@ -728,7 +756,8 @@ id: d.id,
     date: selectedDate,
     settings,
     setUnits,
-    setEditingId
+    setEditingId,
+    actor: auditActor
   });
 
   const hasPendingChanges = editingId !== null || Object.keys(saveStatus).length > 0;
@@ -1093,7 +1122,17 @@ hours: '--:-- - --:--',
           setAvailabilityError(res?.error || 'No se pudo guardar la disponibilidad.');
           return;
         }
-        apply(typeof res.disponible === 'boolean' ? res.disponible : disponible);
+        const finalValue = typeof res.disponible === 'boolean' ? res.disponible : disponible;
+        apply(finalValue);
+        logAuditEvent({
+          actor: auditActor,
+          action: finalValue ? 'MARCAR DISPONIBLE' : 'MARCAR OCUPADO',
+          date: dateStr,
+          shift: shift,
+          sector: sector,
+          entity: unitId,
+          detail: 'ID ' + String(u.id || '').trim()
+        });
       })
       .withFailureHandler((err: any) => {
         setTogglingUnitId(null);
@@ -1423,6 +1462,10 @@ hours: '--:-- - --:--',
     return map;
   }, [personnelList]);
 
+  if (!session) {
+    return <LoginScreen onSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="h-screen bg-[#f8fafc] relative">
       {loading && (
@@ -1475,7 +1518,12 @@ hours: '--:-- - --:--',
         </div>
       )}
 
-      <Sidebar currentView={currentView} onViewChange={handleViewChange} />
+      <Sidebar
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        userName={session?.user}
+        userDisplayName={session?.nombre}
+      />
       <main className="ml-[76px] flex flex-col h-screen">
         <Header
           settings={settings}
@@ -1502,6 +1550,8 @@ hours: '--:-- - --:--',
           codigoBodycamSuggestions={availableBodycamOptions}
           motivoFaltoOptions={motivoFaltoOptions}
           hasPendingChanges={hasPendingChanges}
+          userName={session?.user}
+          onLogout={handleLogout}
           forceHeaderError={currentView === 'DASHBOARD' && (hasNewRecordInCurrentSector || hasModifiedDefaultUnitInCurrentSector) && !headerFieldsComplete(settings)}
         />
 

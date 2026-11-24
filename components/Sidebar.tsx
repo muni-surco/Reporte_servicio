@@ -4,10 +4,17 @@ import { ViewMode } from '../types';
 interface SidebarProps {
   currentView: ViewMode;
   onViewChange: (view: ViewMode) => void;
+  userName?: string;
+  userDisplayName?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, userName, userDisplayName }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const displayName = String(userDisplayName || userName || '').trim();
+  const initials = displayName
+    ? displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w.charAt(0)).join('').toUpperCase()
+    : 'C4';
 
   const menuItems = [
     { id: 'DASHBOARD' as ViewMode, icon: 'dashboard', label: 'Panel de Control' },
@@ -106,14 +113,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       </nav>
 
       {/* User / Footer */}
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/10" title={displayName ? `${displayName}${userName && userName !== displayName ? ' · ' + userName : ''}` : undefined}>
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center text-[12px] font-bold border border-white/20 shrink-0">
-            MSS
+            {initials}
           </div>
-          <div className={`transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'}`}>
-            <p className="text-white text-[10px] font-bold leading-none uppercase">Municipalidad</p>
-            <p className="text-white/40 text-[9px] font-medium mt-1 uppercase tracking-tight">de Santiago de Surco</p>
+          <div className={`min-w-0 transition-all duration-300 ${isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'}`}>
+            <p className="text-white text-[10px] font-bold leading-none uppercase truncate max-w-[165px]">{displayName || 'Municipalidad'}</p>
+            <p className="text-white/40 text-[9px] font-medium mt-1 uppercase tracking-tight truncate max-w-[165px]">
+              {displayName && userName && userName !== displayName ? userName : 'USUARIO ACTIVO'}
+            </p>
           </div>
         </div>
       </div>
