@@ -2612,14 +2612,15 @@ export const generateOperatividadReport = (
   let totalInoperativasAcum = 0;
   let totalRetenAcum = 0;
 
-  // La fila MOTOS del consolidado debe cuadrar exactamente con el reporte de
-  // motos (Yamaha + Honda): mismo matcheo de modelos y misma clasificación de
+  // La fila MOTOS del consolidado debe cuadrar con el reporte de motos
+  // (Yamaha + Honda): mismo matcheo de modelos y misma clasificación de
   // estados con conteo directo (PATRULLANDO, APOYO* y MANTENIMIENTO cuentan
   // como patrullando; el resto no inoperativo cae en SIN PATRULLAR).
-  // FIN APOYO no cuenta en ningún estado.
+  // FIN APOYO también cuenta como PATRULLANDO, igual que en el reporte de
+  // motos, para que esta fila no quede por debajo de dicho reporte.
   const isMotoPatrullando = (u: UnitData) => {
     const s = normalize(u.status);
-    if (isFinApoyoStatus(s)) return false;
+    if (isFinApoyoStatus(s)) return true;
     return s === 'PATRULLANDO' || s.includes('APOYO') || s === 'MANTENIMIENTO';
   };
 
@@ -2638,7 +2639,7 @@ export const generateOperatividadReport = (
       // EFECTIVO se cuenta desde DATA solo por modelo, sin exigir type=MOTO,
       // igual que el reporte de motos (tolera filas DATA con tipo vacío/mal rotulado).
       const dataMotos = mobileData.filter(m => isFleetMoto(m.model));
-      const motoUnits = secUnits.filter(u => isFleetMoto(u.model) && !isFinApoyoStatus(u.status));
+      const motoUnits = secUnits.filter(u => isFleetMoto(u.model));
       efectivos = dataMotos.length > 0 ? dataMotos.length : motoUnits.length;
       inoperativos = motoUnits.filter(u => isInoperative(u)).length;
       patrullando = motoUnits.filter(u => isMotoPatrullando(u)).length;
