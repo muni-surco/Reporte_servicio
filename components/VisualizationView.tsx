@@ -44,6 +44,7 @@ interface VisualizationViewProps {
   mobileData: { id: string; plate: string; radio?: string; quadrant?: string; sector?: string; }[];
   highlightMissingHeader?: boolean;
   onToggleAvailability?: (unit: UnitData, disponible: boolean) => void;
+  currentUser?: string;
   readOnly?: boolean;
   togglingUnitId?: string | null;
   availabilityError?: string | null;
@@ -55,6 +56,7 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({
   mobileData,
   highlightMissingHeader,
   onToggleAvailability,
+  currentUser = '',
   readOnly = false,
   togglingUnitId = null,
   availabilityError = null
@@ -104,10 +106,17 @@ const VisualizationView: React.FC<VisualizationViewProps> = ({
     const isAvailable = u.disponible !== false;
     const unitKey = String(u.unit_id || u.id || '');
     const isToggling = !!togglingUnitId && togglingUnitId === unitKey;
-    const canToggle = !!onToggleAvailability && !readOnly && !isToggling;
+    const availabilityOwner = String(u.disponiblePor || '').trim().toUpperCase();
+    const currentUserId = String(currentUser).trim().toUpperCase();
+    const isDifferentOperator = !isAvailable && (!availabilityOwner || availabilityOwner !== currentUserId);
+    const canToggle = !!onToggleAvailability && !readOnly && !isToggling && !isDifferentOperator;
     const statusLabel = String(u.status || 'PATRULLANDO');
     const toggleTitle = readOnly
       ? 'La disponibilidad solo se puede cambiar en el turno actual'
+      : isDifferentOperator
+      ? availabilityOwner
+        ? 'Solo el operador que deshabilitó este recurso puede habilitarlo'
+        : 'No se registró quién deshabilitó este recurso; solicite apoyo a un supervisor'
       : `${statusLabel} · ${isAvailable ? 'DISPONIBLE' : 'OCUPADO (NO DISPONIBLE)'} · Clic para ${isAvailable ? 'desactivar' : 'activar'}`;
 
     return (

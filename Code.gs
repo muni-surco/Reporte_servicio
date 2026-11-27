@@ -383,6 +383,7 @@ function _toUnitData(obj) {
     status: String(obj.status || ''),
     // Ausencia del campo = disponible, para no alterar registros existentes.
     disponible: String(obj.disponible).toLowerCase() !== 'false',
+    disponiblePor: String(obj.disponiblePor || ''),
     reason: String(obj.reason || ''),
     kmStart: String(obj.kmStart || '0'),
     kmEnd: String(obj.kmEnd || '0'),
@@ -430,18 +431,28 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
     const shiftSettings = settingsResult.settings;
     const allSectorSettings = settingsResult.allSettings;
 
-    // 2. Units — try cache first
+    // 2. Units — try cache first.
+    // El snapshot cacheado guarda el updatedAt del turno al que corresponde: si
+    // coincide con el meta actual se responde desde cache aunque el cliente
+    // mande su propio timestamp. Antes la cache solo se usaba en la primera
+    // carga de cada cliente, asi que cada sondeo bajaba el turno completo.
     const cache = CacheService.getScriptCache();
     const cacheKey = 'UNITS_' + dateStr + '_' + shift;
     const cached = _cacheGetLarge(cache, cacheKey);
-    // Si el meta no se pudo leer (cuota agotada) el timestamp del cliente no
-    // sirve: se usa la cache igual para no repetir la lectura de hojas.
-    if (cached && (!lastShiftTimestamp || !meta)) {
+    if (cached) {
       try {
-        const allUnits = JSON.parse(cached);
-        console.log('[getShiftData] CACHE HIT — units=' + allUnits.length);
-        _fbLogUsage();
-        return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
+        const entry = JSON.parse(cached);
+        const cachedUnits = Array.isArray(entry) ? entry : (entry.units || []);
+        const cachedUpdatedAt = Array.isArray(entry) ? null : entry.updatedAt;
+        // Si el meta no se pudo leer (cuota agotada) la cache es el mejor dato disponible.
+        const snapshotFresh = !!cachedUpdatedAt && (!meta || cachedUpdatedAt === meta.updatedAt);
+        // Entrada antigua (array plano) o turno sin meta: solo para la primera carga.
+        const legacyUsable = !cachedUpdatedAt && !lastShiftTimestamp;
+        if (snapshotFresh || legacyUsable) {
+          console.log('[getShiftData] CACHE HIT — units=' + cachedUnits.length + ' fresh=' + snapshotFresh);
+          _fbLogUsage();
+          return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: cachedUnits, updatedAt: cachedUpdatedAt || (meta ? meta.updatedAt : null) };
+        }
       } catch (e) { /* invalid cache, fall through */ }
     }
 
@@ -491,7 +502,7 @@ function getShiftData(dateStr, shift, sector, lastShiftTimestamp) {
     // para evitar consumo excesivo de cuota UrlFetch (un rtdbSet por unidad).
     // El índice se construye de forma diferida al guardar (updateUnit).
 
-    _cachePutLarge(cache, cacheKey, JSON.stringify(allUnits), unitsTtl);
+    _cachePutLarge(cache, cacheKey, JSON.stringify({ units: allUnits, updatedAt: meta ? meta.updatedAt : null }), unitsTtl);
     console.log('[getShiftData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : 'sheets'));
     _fbLogUsage();
     return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null, auth: _authInfo() };
@@ -670,12 +681,20 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
     const cache = CacheService.getScriptCache();
     const cacheKey = 'UNITS_' + dateStr + '_' + shift + '_' + targetSectorStorage;
     const cached = cache.get(cacheKey);
-    if (cached && (!lastUpdatedAt || !meta)) {
+    if (cached) {
       try {
-        const allUnits = JSON.parse(cached);
-        console.log('[getSectorData] CACHE HIT — units=' + allUnits.length);
-        _fbLogUsage();
-        return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: allUnits, updatedAt: meta ? meta.updatedAt : null };
+        const entry = JSON.parse(cached);
+        const cachedUnits = Array.isArray(entry) ? entry : (entry.units || []);
+        const cachedUpdatedAt = Array.isArray(entry) ? null : entry.updatedAt;
+        // La cache se usa solo si su snapshot corresponde al meta del sector:
+        // el sondeo de los clientes deja de bajar el sector completo de RTDB.
+        const snapshotFresh = !!cachedUpdatedAt && (!meta || cachedUpdatedAt === meta.updatedAt);
+        const legacyUsable = !cachedUpdatedAt && !lastUpdatedAt;
+        if (snapshotFresh || legacyUsable) {
+          console.log('[getSectorData] CACHE HIT — units=' + cachedUnits.length + ' fresh=' + snapshotFresh);
+          _fbLogUsage();
+          return { settings: shiftSettings, allSectorSettings: allSectorSettings, units: cachedUnits, updatedAt: cachedUpdatedAt || (meta ? meta.updatedAt : null) };
+        }
       } catch (e) { /* invalid cache, fall through */ }
     }
 
@@ -738,7 +757,7 @@ function getSectorData(dateStr, shift, sector, lastUpdatedAt) {
     }
 
     if (allUnits && allUnits.length > 0) {
-      _cachePutSafe(cache, cacheKey, JSON.stringify(allUnits), unitsTtl);
+      _cachePutSafe(cache, cacheKey, JSON.stringify({ units: allUnits, updatedAt: meta ? meta.updatedAt : null }), unitsTtl);
     }
     console.log('[getSectorData] OK — units=' + allUnits.length + ' src=' + (fromFirebase ? 'firebase' : (rtdbFailed ? 'sheet-fallback' : 'empty')));
     _fbLogUsage();
@@ -1374,15 +1393,24 @@ function validateLogin(user, pin) {
       };
     }
 
+    const sessionToken = Utilities.getUuid();
+    CacheService.getScriptCache().put('LOGIN_SESSION_' + sessionToken, inputUser, 21600);
     return {
       ok: true,
       user: inputUser,
-      nombre: idxNombre !== -1 ? String(matchedRow[idxNombre] == null ? '' : matchedRow[idxNombre]).trim() : ''
+      nombre: idxNombre !== -1 ? String(matchedRow[idxNombre] == null ? '' : matchedRow[idxNombre]).trim() : '',
+      sessionToken: sessionToken
     };
   } catch (e) {
     console.error('[validateLogin] Error:', e);
     return { ok: false, error: 'No se pudo validar el acceso. Intente nuevamente.' };
   }
+}
+
+function revokeLoginSession(sessionToken) {
+  const token = String(sessionToken || '').trim();
+  if (token) CacheService.getScriptCache().remove('LOGIN_SESSION_' + token);
+  return { success: true };
 }
 
 function fmtDateSimple(val) {
@@ -1777,8 +1805,8 @@ function _inheritLockedStatuses(allUnits, dateStr, shift, sectorStorage, timeZon
  * Lightweight check for shift timestamp changes.
  */
 function checkShiftTimestamp(dateStr, shift) {
-  const meta = rtdbGet('_meta/units/' + dateStr + '_' + shift);
-  return { updatedAt: meta ? meta.updatedAt : null };
+  const updatedAt = rtdbGet('_meta/units/' + dateStr + '_' + shift + '/updatedAt');
+  return { updatedAt: updatedAt || null };
 }
 
 function getPreviousKmEnd(currentDateStr, currentShift, unitId, sector) {
@@ -2738,6 +2766,8 @@ function updateUnit(dateStr, shift, settings, unit) {
     indicative: unit.indicative || '',
     radio: unit.radio || '',
     status: unit.status || '',
+    disponible: previousUnit ? previousUnit.disponible !== false : true,
+    disponiblePor: previousUnit && previousUnit.disponible === false ? String(previousUnit.disponiblePor || '') : '',
     reason: unit.reason || '',
     kmStart: unit.kmStart || '0',
     kmEnd: unit.kmEnd || '0',
@@ -2888,7 +2918,15 @@ function updateUnit(dateStr, shift, settings, unit) {
  * Es una marca independiente del estado operativo: no modifica `status`
  * y, por lo tanto, no afecta la operatividad ni los reportes.
  */
-function setUnitAvailability(dateStr, shift, sector, unitId, disponible) {
+function setUnitAvailability(dateStr, shift, sector, unitId, disponible, sessionToken) {
+  const token = String(sessionToken || '').trim();
+  const authenticatedUser = token
+    ? String(CacheService.getScriptCache().get('LOGIN_SESSION_' + token) || '').trim().toUpperCase()
+    : '';
+  if (!authenticatedUser) {
+    return { success: false, error: 'La sesión venció o no es válida. Cierre sesión e ingrese nuevamente.' };
+  }
+
   const date = String(dateStr || '').trim();
   const turno = String(shift || '').trim().toUpperCase();
   const storageSector = toStorageSector(sector);
@@ -2900,6 +2938,10 @@ function setUnitAvailability(dateStr, shift, sector, unitId, disponible) {
 
   const value = disponible !== false;
   const unitPath = 'units/' + date + '_' + turno + '/' + storageSector + '/' + key;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { success: false, error: 'No se pudo cambiar la disponibilidad porque hay otra actualización en curso.' };
+  }
   // Milisegundos para que dos clics de usuarios distintos en el mismo segundo
   // también disparen el sondeo de los demas.
   const timestamp = new Date().toISOString();
@@ -2910,9 +2952,18 @@ function setUnitAvailability(dateStr, shift, sector, unitId, disponible) {
       return { success: false, error: 'No se encontró la unidad ' + key + ' en el turno indicado.' };
     }
 
+    const owner = String(current.disponiblePor || '').trim().toUpperCase();
+    if (current.disponible === false && !owner) {
+      return { success: false, error: 'Este recurso fue deshabilitado sin registrar al operador. Solicite apoyo a un supervisor.' };
+    }
+    if (current.disponible === false && owner !== authenticatedUser) {
+      return { success: false, error: 'Solo el operador que deshabilitó este recurso puede habilitarlo.' };
+    }
+
     const metaBase = '_meta/units/' + date + '_' + turno;
     const updates = {};
     updates[unitPath + '/disponible'] = value;
+    updates[unitPath + '/disponiblePor'] = value ? null : authenticatedUser;
     // Sin estos metas el polling (global y por sector) respondería `noChanges`.
     updates[metaBase + '/updatedAt'] = timestamp;
     updates[metaBase + '/' + storageSector + '/updatedAt'] = timestamp;
@@ -2927,6 +2978,8 @@ function setUnitAvailability(dateStr, shift, sector, unitId, disponible) {
   } catch (e) {
     console.error('[setUnitAvailability] ERROR', e && e.message ? e.message : e);
     return { success: false, error: 'No se pudo guardar la disponibilidad: ' + (e && e.message ? e.message : String(e)) };
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -3878,7 +3931,7 @@ function doPost(e) {
         result = updateUnit(data.dateStr, data.shift, data.settings || {}, data.unit);
         break;
       case 'setUnitAvailability':
-        result = setUnitAvailability(data.dateStr, data.shift, data.sector, data.unitId, data.disponible);
+        result = setUnitAvailability(data.dateStr, data.shift, data.sector, data.unitId, data.disponible, data.sessionToken);
         break;
       case 'saveShiftSettings':
         result = saveShiftSettings(data.dateStr, data.shift, data.settings || {});

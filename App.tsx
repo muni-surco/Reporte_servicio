@@ -29,7 +29,7 @@ const readStoredSession = (): LoginSession | null => {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LoginSession;
-    return parsed && parsed.user ? parsed : null;
+    return parsed && parsed.user && (parsed.dev || parsed.sessionToken) ? parsed : null;
   } catch {
     return null;
   }
@@ -160,6 +160,11 @@ const [reportOperatorOptions, setReportOperatorOptions] = useState<string[]>([])
   };
 
   const handleLogout = () => {
+    if (session?.sessionToken && typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withFailureHandler((err: any) => console.warn('No se pudo cerrar la sesión en el servidor:', err?.message || err))
+        .revokeLoginSession(session.sessionToken);
+    }
     try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* ignore */ }
     setSession(null);
   };
@@ -646,15 +651,29 @@ id: d.id,
   useEffect(() => { togglingUnitIdRef.current = togglingUnitId; }, [togglingUnitId]);
 
   // Sincronización entre despachadores: Apps Script no puede hacer push, así
-  // que se sondea el meta del turno. getShiftData solo baja datos si cambió,
-  // por lo que el sondeo es barato y el retardo es de ~10 s.
+  // que se sondea el meta del turno cada 10 s. La consulta solo trae el timestamp.
   useEffect(() => {
     if (currentView !== 'VISUALIZATION' || isReadOnly) return;
+    let checking = false;
     const check = () => {
       if (typeof google === 'undefined' || !google.script || !google.script.run) return;
+      // Pestaña en segundo plano: no gastar lecturas de RTDB.
+      if (document.visibilityState === 'hidden') return;
       // No sobrescribir el valor optimista mientras se guarda el clic local.
-      if (togglingUnitIdRef.current) return;
-      loadDataRef.current(selectedDate, settings.turno, 'VISUALIZATION', true);
+      if (togglingUnitIdRef.current || checking) return;
+      checking = true;
+      // Sondeo barato: primero solo el meta del turno (lectura minima). El turno
+      // completo se baja unicamente cuando cambio algo.
+      google.script.run
+        .withSuccessHandler((res: { updatedAt?: string } | null) => {
+          checking = false;
+          if (togglingUnitIdRef.current) return;
+          const updatedAt = res && res.updatedAt ? res.updatedAt : '';
+          if (!updatedAt || updatedAt === lastShiftTimestampRef.current) return;
+          loadDataRef.current(selectedDate, settings.turno, 'VISUALIZATION', true);
+        })
+        .withFailureHandler(() => { checking = false; })
+        .checkShiftTimestamp(selectedDate, settings.turno);
     };
     const onVisible = () => { if (document.visibilityState === 'visible') check(); };
     const timer = window.setInterval(check, 10000);
@@ -1089,18 +1108,19 @@ hours: '--:-- - --:--',
     const sector = normalizeUnitSector(u.sector || settings.nombrePuesto);
 
     const apply = (value: boolean) => {
+      const disponiblePor = value ? '' : String(session?.user || '').trim().toUpperCase();
       const matches = (x: UnitData) => String(x.unit_id || x.id || '').trim() === unitId;
       setVisualizationSectorsData(prev => {
         const next: typeof prev = {};
         Object.keys(prev).forEach(s => {
           next[s] = {
             ...prev[s],
-            units: prev[s].units.map(x => matches(x) ? { ...x, disponible: value } : x)
+            units: prev[s].units.map(x => matches(x) ? { ...x, disponible: value, disponiblePor } : x)
           };
         });
         return next;
       });
-      setUnits(prev => prev.map(x => matches(x) ? { ...x, disponible: value } : x));
+      setUnits(prev => prev.map(x => matches(x) ? { ...x, disponible: value, disponiblePor } : x));
     };
 
     setAvailabilityError(null);
@@ -1111,6 +1131,12 @@ hours: '--:-- - --:--',
       apply(!disponible);
       setTogglingUnitId(null);
       setAvailabilityError('La disponibilidad solo se puede cambiar dentro de Google Apps Script.');
+      return;
+    }
+    if (!session?.sessionToken) {
+      apply(!disponible);
+      setTogglingUnitId(null);
+      setAvailabilityError('La sesión venció. Cierre sesión e ingrese nuevamente.');
       return;
     }
 
@@ -1139,7 +1165,7 @@ hours: '--:-- - --:--',
         apply(!disponible);
         setAvailabilityError('No se pudo guardar la disponibilidad. ' + (err?.message || ''));
       })
-      .setUnitAvailability(dateStr, shift, sector, unitId, disponible);
+      .setUnitAvailability(dateStr, shift, sector, unitId, disponible, session.sessionToken);
   };
 
   const persistSettingsOnly = (newSettings: AppSettings) => {
@@ -1656,6 +1682,7 @@ hours: '--:-- - --:--',
               mobileData={mobileData}
               highlightMissingHeader={!headerFieldsComplete(settings)}
                onToggleAvailability={handleToggleAvailability}
+               currentUser={session.user}
                readOnly={isReadOnly}
                togglingUnitId={togglingUnitId}
                availabilityError={availabilityError}

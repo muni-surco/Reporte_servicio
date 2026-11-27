@@ -40,16 +40,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess }) => {
     }
 
     google.script.run
-      .withSuccessHandler((res: { ok?: boolean; user?: string; nombre?: string; error?: string }) => {
+      .withSuccessHandler((res: { ok?: boolean; user?: string; nombre?: string; sessionToken?: string; error?: string }) => {
         setSubmitting(false);
-        if (res && res.ok) {
+        if (res && res.ok && res.sessionToken) {
           signIn({
             user: res.user || cleanUser,
             nombre: res.nombre || '',
+            sessionToken: res.sessionToken,
             loginAt: new Date().toISOString()
           });
         } else {
-          setError((res && res.error) || 'Usuario o PIN incorrectos.');
+          setError((res && res.error) || 'No se pudo iniciar una sesión segura. Intente nuevamente.');
         }
       })
       .withFailureHandler((err: any) => {

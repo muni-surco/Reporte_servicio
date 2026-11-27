@@ -79,6 +79,7 @@ export interface PersonnelData {
 export interface LoginSession {
   user: string;
   nombre?: string;
+  sessionToken?: string;
   loginAt: string;
   /** Solo se usa al probar la UI fuera de Apps Script (sin google.script.run). */
   dev?: boolean;
@@ -100,6 +101,7 @@ export interface UnitData {
   // Marca independiente del estado operativo, usada por el toggle del despachador.
   // La ausencia del campo equivale a disponible.
   disponible?: boolean;
+  disponiblePor?: string;
   reason: string;
   km: string;
   kmStart: string;
